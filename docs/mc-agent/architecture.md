@@ -2,28 +2,11 @@
 
 当前决定：[MC-ADR-0002](adr/mc-0002-fork-pi-desktop.md)，基于 PI-Desktop Fork 二次开发。MC-ADR-0001 保留为历史，其自建内核、目录和协议方案不再执行。
 
-本文件区分“继承的架构”和“拟新增的设计”。源码依据、固定提交及验证限制见[功能分析](pi-desktop-analysis.md)。
+本文件只描述 R9–R15 的增量设计。已有实现见[现状架构](as-built-architecture.md)，路径见[功能代码索引](code-index.md)，源码基线及验证限制见[功能分析](pi-desktop-analysis.md)。
 
-## 1 继承的进程与模块边界
+## 1 继承的技术边界
 
-```text
-React Renderer
-    │ preload 提供的受控 IPC
-Electron Main
-    ├─ 窗口、路由、进程管理、会话启动、OAuth 交互
-    ├─ 既有 Host RPC ── Rust Host Core
-    │                      ├─ 项目与会话持久化
-    │                      ├─ 权限策略与工具执行
-    │                      └─ 凭据、插件等系统服务
-    └─ 既有 Sidecar 桥接 ── Node Agent Runtime
-                           ├─ Pi 模型与 Agent 循环
-                           └─ 工具请求经既有桥接回 Host
-
-packages/host-runtime：复用会话编排、事件与持久化协作模块
-packages/shared：共享类型、协议和契约
-```
-
-具体 IPC、消息与事件以锁定版本为准，不把这张职责图当作新传输协议。现有 pi-coding-agent 依赖和原生会话路径保留，不按旧 ADR 删除。
+沿用[现状架构](as-built-architecture.md)中的进程、存储和权限分工，不另建 Agent 循环或产品协议。保留上游 pi-coding-agent 依赖及原生会话路径；消息以锁定版本的实际契约为准。
 
 ## 2 项目管理扩展放在哪里
 
@@ -38,17 +21,9 @@ packages/shared：共享类型、协议和契约
 
 这是增量设计建议，接口名称和表结构尚未冻结。本轮不创建上述模块。
 
-## 3 沿用上游目录
+## 3 扩展位置
 
-- apps/desktop/src：页面、组件、状态与现有设计系统。
-- apps/desktop/electron/main/ipc：受控 UI 调用的注册与路由。
-- apps/desktop/electron/main/runtime：会话启动和运行时上下文。
-- packages/host-runtime：既有进程和会话编排协作。
-- packages/shared：跨层类型和消息契约。
-- crates/host-core/src：项目业务规则、元数据持久化与权限。
-- packages/agent-runtime：Pi 适配与 Agent 执行。
-
-新增项目域逻辑放在相邻模块，不重新建立 ui/、host/、kernel/ 平行目录，也不借本次功能重排上游工程。
+按[功能代码索引](code-index.md)定位现有项目、会话、IPC 和数据模块，在相邻位置增加项目域逻辑。不建立平行的 ui/、host/、kernel/ 目录，也不借功能开发重排上游工程。
 
 ## 4 项目与任务身份
 

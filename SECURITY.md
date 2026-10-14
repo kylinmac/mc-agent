@@ -1,64 +1,17 @@
-# Security Policy
+# mc-agent 安全说明
 
-PI-Desktop is an early-preview, local-first desktop application. We take
-security reports seriously and appreciate responsible disclosure.
+mc-agent 是 PI-Desktop 的个人维护 Fork，目前处于规划阶段，尚未发布独立的正式版本。上游安全修复记录不能视为本 Fork 已验证的支持承诺。
 
-## Supported Versions
+## 私密报告渠道
 
-Security fixes are provided for the latest release published on the
-[GitHub Releases page](https://github.com/vastsa/PI-Desktop/releases). Older
-releases and development builds may not receive security fixes.
+截至 2026-10-14，本仓库尚未启用 GitHub 私密漏洞报告，也未公布专用安全邮箱。正式分发前应配置私密渠道并更新本页；当前不承诺固定响应时间。
 
-## Reporting a Vulnerability
+请勿在公开 Issue、PR 或讨论中发布漏洞利用细节、密钥、令牌、私有代码或用户数据。渠道未建立时，可仅请求维护者提供私密联系方式，不附敏感材料。
 
-**Please do not report security vulnerabilities through public GitHub issues,
-pull requests, or discussions.**
+不要将 mc-agent 特有的问题发送给上游作者。若问题也存在于未经修改的 PI-Desktop，可按[上游安全政策](https://github.com/vastsa/PI-Desktop/blob/main/SECURITY.md) 向其维护者报告。
 
-Send a private report to **hhxk666@gmail.com** with the subject:
+## 报告内容
 
-```text
-[PI-Desktop Security] <short description>
-```
+通过已确认的私密渠道提交时，请提供版本或提交号、系统、受影响模块、复现步骤、影响及脱敏日志。不要使用他人数据、生产凭据或破坏性操作来验证问题。
 
-If private vulnerability reporting is enabled for this repository, you may
-also use GitHub's private security advisory form:
-
-<https://github.com/vastsa/PI-Desktop/security/advisories/new>
-
-Please include as much of the following information as you can:
-
-- A clear description of the vulnerability and its security impact.
-- The affected PI-Desktop version, operating system, and installation type.
-- Reproduction steps or a minimal proof of concept.
-- The affected component, feature, configuration, or extension boundary.
-- Any relevant logs, screenshots, stack traces, or suggested remediation.
-
-Please remove API keys, access tokens, passwords, private source code, personal
-data, and other sensitive information before sending a report. Do not test
-against other users, access data that does not belong to you, or perform
-destructive actions. PI-Desktop does not currently operate a bug bounty
-program.
-
-## Response and Disclosure
-
-We aim to acknowledge a report within 7 calendar days and provide an initial
-assessment within 14 calendar days. We will keep the reporter informed about
-triage, remediation, and release plans when appropriate.
-
-Please allow us reasonable time to investigate and release a fix before making
-the vulnerability public. We will coordinate a disclosure date with the
-reporter whenever possible and will credit the reporter in release notes only
-with their permission.
-
-## Scope
-
-Reports are generally in scope when they affect the PI-Desktop application,
-official release artifacts, Electron main or preload boundaries, the Rust host
-core, the agent runtime, or the handling of credentials, permissions, local
-files, plugins, MCP servers, or IPC/RPC messages.
-
-Issues that affect only a third-party provider, model service, operating
-system, dependency, or user-installed extension should also be reported to the
-relevant maintainer. They are still in scope for PI-Desktop if the application
-introduces an exploitable integration, permission, sandbox, or credential
-handling weakness.
+安全修复仍需遵守文件访问、凭据保护、权限隔离和数据兼容要求，不能为了恢复功能而绕过这些边界。

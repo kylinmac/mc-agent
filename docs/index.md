@@ -14,3 +14,5 @@ hero:
       text: Documentation
       link: /guide/
 ---
+
+> This is the inherited PI-Desktop documentation site. Downloads and support links refer to upstream. For this fork, see [mc-agent planning](mc-agent/README.md); repository workflow follows AGENTS.md at the repository root.

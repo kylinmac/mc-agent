@@ -12,38 +12,38 @@
 | 启动、生命周期、关窗行为 | `apps/desktop/electron/main/bootstrap/` |
 | preload / IPC 白名单 | `apps/desktop/electron/preload/index.ts` |
 | IPC 注册 | `apps/desktop/electron/main/ipc/register.ts` |
-| 应用 IPC（窗口、菜单、更新） | `apps/desktop/electron/main/ipc/app-ipc.ts`、`window-ipc.ts` |
-| 托盘、未读角标 | `tray-sessions.ts`、`taskbar-unread-badge.ts` |
-| 更新 | `updater.ts`、`update-policy.ts`、`update-cache.ts` |
-| 单实例与数据目录 | `data-paths.ts`、`installation.ts`；Rust 侧 `PI_DESKTOP_DATA_DIR` 在 `crates/host-core/src/main.rs` |
+| 应用 IPC（窗口、菜单、更新） | `apps/desktop/electron/main/ipc/app-ipc.ts`、`apps/desktop/electron/main/ipc/window-ipc.ts` |
+| 托盘、未读角标 | `apps/desktop/electron/main/tray-sessions.ts`、`apps/desktop/electron/main/taskbar-unread-badge.ts` |
+| 更新 | `apps/desktop/electron/main/updater.ts`、`apps/desktop/electron/main/update-policy.ts`、`apps/desktop/electron/main/update-cache.ts` |
+| 单实例与数据目录 | `apps/desktop/electron/main/data-paths.ts`、`apps/desktop/electron/main/installation.ts`；Rust 侧 `PI_DESKTOP_DATA_DIR` 在 `crates/host-core/src/main.rs` |
 
 ## 聊天与会话
 
 | 功能 | 代码 |
 |---|---|
 | 聊天界面 | `apps/desktop/src/features/chat/` |
-| 转录渲染 | `features/chat/transcript/` |
-| 输入框、斜杠命令、粘贴 | `features/chat/composer/`；主进程 `composer-mcp.ts`、`composer-paste.ts`、`composer-picker.ts` |
-| 会话列表与页 | `features/sessions/`、`ipc/session-ipc.ts` |
-| 会话启动 | `electron/main/runtime/session-launch.ts`、`session-coordination.ts` |
-| 回合事件与落盘协作 | `packages/host-runtime/src/turn-events.ts`、`turn-persistence.ts`、`runtime-service.ts` |
+| 转录渲染 | `apps/desktop/src/features/chat/transcript/` |
+| 输入框、斜杠命令、粘贴 | `apps/desktop/src/features/chat/composer/`；主进程 `apps/desktop/electron/main/composer-mcp.ts`、`apps/desktop/electron/main/composer-paste.ts`、`apps/desktop/electron/main/composer-picker.ts` |
+| 会话列表与页 | `apps/desktop/src/features/sessions/`、`apps/desktop/electron/main/ipc/session-ipc.ts` |
+| 会话启动 | `apps/desktop/electron/main/runtime/session-launch.ts`、`apps/desktop/electron/main/runtime/session-coordination.ts` |
+| 回合事件与落盘协作 | `packages/host-runtime/src/turn-events.ts`、`packages/host-runtime/src/turn-persistence.ts`、`packages/host-runtime/src/runtime-service.ts` |
 | 无头回合队列、审批、事件日志 | `packages/agent-host/src/` |
-| Rust 会话与转录 | `crates/host-core/src/sessions/`、`transcripts.rs`、`turn_queue.rs` |
-| 会话搜索 | `session_search.rs`；主进程 `services/session-search.ts` |
-| 会话协作 | `session_collaboration/`；主进程 `services/session-collaboration.ts` |
+| Rust 会话与转录 | `crates/host-core/src/sessions/`、`crates/host-core/src/transcripts.rs`、`crates/host-core/src/turn_queue.rs` |
+| 会话搜索 | `crates/host-core/src/session_search.rs`；主进程 `apps/desktop/electron/main/services/session-search.ts` |
+| 会话协作 | `crates/host-core/src/session_collaboration/`；主进程 `apps/desktop/electron/main/services/session-collaboration.ts` |
 
 ## Agent 循环
 
 | 功能 | 代码 |
 |---|---|
 | sidecar 进程入口 | `packages/agent-runtime/src/sidecar.ts` |
-| 运行时包装 | `runtime.ts` |
-| 压缩 | `compaction-*.ts`、`pi-runtime-compaction-*.ts`、`context-budget.ts` |
-| 系统提示词与项目说明 | `custom-system-prompt.ts`、`project-instructions.ts`、`mode-prompts.ts` |
-| 子代理 | `subagent.ts`、`subagent-definitions.ts`、`delegation-*.ts` |
-| 思考级别 | `thinking-level.ts` |
-| 主进程拉起 sidecar | `electron/main/agent-sidecar.ts`、`runtime/sidecar.ts` |
-| sidecar 监督（不依赖 Electron） | `packages/host-runtime/src/agent-sidecar.ts`、`runtime-supervisor.ts` |
+| 运行时包装 | `packages/agent-runtime/src/runtime.ts` |
+| 压缩 | `packages/agent-runtime/src/compaction-*.ts`、`packages/agent-runtime/src/pi-runtime-compaction-*.ts`、`packages/agent-runtime/src/context-budget.ts` |
+| 系统提示词与项目说明 | `packages/agent-runtime/src/custom-system-prompt.ts`、`packages/agent-runtime/src/project-instructions.ts`、`packages/agent-runtime/src/mode-prompts.ts` |
+| 子代理 | `packages/agent-runtime/src/subagent.ts`、`packages/agent-runtime/src/subagent-definitions.ts`、`packages/agent-runtime/src/delegation-*.ts` |
+| 思考级别 | `packages/agent-runtime/src/thinking-level.ts` |
+| 主进程拉起 sidecar | `apps/desktop/electron/main/agent-sidecar.ts`、`apps/desktop/electron/main/runtime/sidecar.ts` |
+| sidecar 监督（不依赖 Electron） | `packages/host-runtime/src/agent-sidecar.ts`、`packages/host-runtime/src/runtime-supervisor.ts` |
 | Pi 包版本与补丁 | `packages/agent-runtime/package.json`、`patches/` |
 
 循环本体在依赖 `@earendil-works/pi-agent-core`，不在本仓库。
@@ -53,52 +53,52 @@
 | 功能 | 代码 |
 |---|---|
 | Provider 持久化 | `crates/host-core/src/providers/` |
-| 模型目录 | `electron/main/models-dev-catalog.ts`、`pi-model-metadata.ts`、`vendor-live-models.ts` |
-| OAuth | `oauth.ts`；IPC `ipc/provider-ipc.ts` |
+| 模型目录 | `apps/desktop/electron/main/models-dev-catalog.ts`、`apps/desktop/electron/main/pi-model-metadata.ts`、`apps/desktop/electron/main/vendor-live-models.ts` |
+| OAuth | `apps/desktop/electron/main/oauth.ts`；IPC `apps/desktop/electron/main/ipc/provider-ipc.ts` |
 | 密钥 | `crates/host-core/src/secrets.rs` |
-| 传输重试、代理 | `packages/agent-runtime/src/provider-retry.ts`、`provider-transport-recovery.ts`、`socks5.ts`、`system-proxy-relay.ts` |
-| 从 Claude / Codex / OpenCode / Pi 导入 | `electron/main/importers/` |
+| 传输重试、代理 | `packages/agent-runtime/src/provider-retry.ts`、`packages/agent-runtime/src/provider-transport-recovery.ts`、`packages/agent-runtime/src/socks5.ts`、`packages/agent-runtime/src/system-proxy-relay.ts` |
+| 从 Claude / Codex / OpenCode / Pi 导入 | `apps/desktop/electron/main/importers/` |
 
 ## 工具、权限、工作区
 
 | 功能 | 代码 |
 |---|---|
 | 工具执行入口 | `crates/host-core/src/tools/mod.rs` |
-| Shell | `tools/shell.rs` |
-| Grep | `tools/grep_rg.rs` |
-| 按行哈希编辑 | `tools/hashline/` |
-| 权限 | `permissions.rs`；插件权限 `plugins/permissions.rs` |
-| 工具预算 | `tool_budget.rs` |
-| 工作区根 | `workspace.rs`；主进程 `workspace-roots.ts`、`workspace-git.ts` |
-| 文件索引与 diff | `packages/host-runtime/src/workspace-files.ts`、`workspace-diff.ts`、`fs-index.ts` |
+| Shell | `crates/host-core/src/tools/shell.rs` |
+| Grep | `crates/host-core/src/tools/grep_rg.rs` |
+| 按行哈希编辑 | `crates/host-core/src/tools/hashline/` |
+| 权限 | `crates/host-core/src/permissions.rs`；插件权限 `crates/host-core/src/plugins/permissions.rs` |
+| 工具预算 | `crates/host-core/src/tool_budget.rs` |
+| 工作区根 | `crates/host-core/src/workspace.rs`；主进程 `apps/desktop/electron/main/workspace-roots.ts`、`apps/desktop/electron/main/workspace-git.ts` |
+| 文件索引与 diff | `packages/host-runtime/src/workspace-files.ts`、`packages/host-runtime/src/workspace-diff.ts`、`packages/host-runtime/src/fs-index.ts` |
 | 工作面板 UI | `apps/desktop/src/components/workpanel/` |
-| 内嵌浏览器 | `electron/main/browser-host.ts`、`browser-view.ts`、`browser-cdp.ts` |
-| MCP | `mcp-registry-catalog.ts`、`mcp-stdio-launch.ts`、`mcp-oauth.ts`；IPC `ipc/mcp-ipc.ts` |
+| 内嵌浏览器 | `apps/desktop/electron/main/browser-host.ts`、`apps/desktop/electron/main/browser-view.ts`、`apps/desktop/electron/main/browser-cdp.ts` |
+| MCP | `apps/desktop/electron/main/mcp-registry-catalog.ts`、`apps/desktop/electron/main/mcp-stdio-launch.ts`、`apps/desktop/electron/main/mcp-oauth.ts`；IPC `apps/desktop/electron/main/ipc/mcp-ipc.ts` |
 
-host-core 也可作为内部工具子进程启动（`tools::INTERNAL_TOOL_RUNNER_FLAG`，见 `main.rs`）。
+host-core 也可作为内部工具子进程启动（`tools::INTERNAL_TOOL_RUNNER_FLAG`，见 `crates/host-core/src/main.rs`）。
 
 ## 插件
 
 | 功能 | 代码 |
 |---|---|
 | 安装、清单、市场、校验 | `crates/host-core/src/plugins/` |
-| 插件运行时与面板宿主 | `electron/main/plugin-runtime.ts`、`plugin-panel-host.ts`、`plugin-view-host.ts` |
+| 插件运行时与面板宿主 | `apps/desktop/electron/main/plugin-runtime.ts`、`apps/desktop/electron/main/plugin-panel-host.ts`、`apps/desktop/electron/main/plugin-view-host.ts` |
 | 渲染槽位 | `apps/desktop/src/plugins/` |
-| 插件页 | `apps/desktop/src/pages/PluginsPage.tsx`、`features/plugins/` |
+| 插件页 | `apps/desktop/src/pages/PluginsPage.tsx`、`apps/desktop/src/features/plugins/` |
 | 作者 SDK / 打包 | `packages/plugin-sdk`、`packages/plugin-devkit` |
-| 技能 | `crates/host-core/src/user_skills/`；主进程 `builtin-skills.ts`、`skill-market-catalog.ts` |
+| 技能 | `crates/host-core/src/user_skills/`；主进程 `apps/desktop/electron/main/builtin-skills.ts`、`apps/desktop/electron/main/skill-market-catalog.ts` |
 
 ## 项目、worktree、计划、定时
 
 | 功能 | 代码 |
 |---|---|
-| 项目页 | `apps/desktop/src/pages/ProjectsPage.tsx`、`features/projects/` |
+| 项目页 | `apps/desktop/src/pages/ProjectsPage.tsx`、`apps/desktop/src/features/projects/` |
 | 项目组数据 | `crates/host-core/src/db/project_groups.rs` |
-| worktree | `session_worktrees/`；IPC `ipc/worktree-ipc.ts`；UI `features/worktree/` |
-| 计划 | `plans/`；编排 `packages/host-runtime/src/plan-execution.ts`、`plan-dispatch.ts` |
-| 会话待办 | `todos.rs`；UI `features/chat/todos/` |
-| 定时任务 | `scheduled/`；UI `pages/ScheduledPage.tsx`、`features/scheduled/` |
-| 用户子代理定义 | `user_subagents/` |
+| worktree | `crates/host-core/src/session_worktrees/`；IPC `apps/desktop/electron/main/ipc/worktree-ipc.ts`；UI `apps/desktop/src/features/worktree/` |
+| 计划 | `crates/host-core/src/plans/`；编排 `packages/host-runtime/src/plan-execution.ts`、`packages/host-runtime/src/plan-dispatch.ts` |
+| 会话待办 | `crates/host-core/src/todos.rs`；UI `apps/desktop/src/features/chat/todos/` |
+| 定时任务 | `crates/host-core/src/scheduled/`；UI `apps/desktop/src/pages/ScheduledPage.tsx`、`apps/desktop/src/features/scheduled/` |
+| 用户子代理定义 | `crates/host-core/src/user_subagents/` |
 
 `session_todo` 是会话内清单，不是规划文档里的项目任务。
 
@@ -106,12 +106,12 @@ host-core 也可作为内部工具子进程启动（`tools::INTERNAL_TOOL_RUNNER
 
 | 功能 | 代码 |
 |---|---|
-| 无头 Host 进程 | `apps/pi-host/src/app.ts`、`cli.ts` |
+| 无头 Host 进程 | `apps/pi-host/src/app.ts`、`apps/pi-host/src/cli.ts` |
 | RACP | `packages/racp/src/` |
-| SSH 引导与隧道 | `electron/main/remote/ssh-bootstrap.ts`、`ssh-tunnel.ts`、`pi-host-installer.ts` |
-| 远程工作区工具 | `remote/remote-workspace-tools.ts`；Host 侧 `apps/pi-host/src/workspace-tools.ts` |
+| SSH 引导与隧道 | `apps/desktop/electron/main/remote/ssh-bootstrap.ts`、`apps/desktop/electron/main/remote/ssh-tunnel.ts`、`apps/desktop/electron/main/remote/pi-host-installer.ts` |
+| 远程工作区工具 | `apps/desktop/electron/main/remote/remote-workspace-tools.ts`；Host 侧 `apps/pi-host/src/workspace-tools.ts` |
 | 远程文件 | `apps/pi-host/src/workspace-files.ts` |
-| 连接与注册 | `remote/remote-host-connection.ts`、`remote-host-registry.ts`、`remote-host-supervisor.ts` |
+| 连接与注册 | `apps/desktop/electron/main/remote/remote-host-connection.ts`、`apps/desktop/electron/main/remote/remote-host-registry.ts`、`apps/desktop/electron/main/remote/remote-host-supervisor.ts` |
 | 远程 UI | `apps/desktop/src/components/remote/` |
 
 ## 语音
@@ -119,19 +119,19 @@ host-core 也可作为内部工具子进程启动（`tools::INTERNAL_TOOL_RUNNER
 | 功能 | 代码 |
 |---|---|
 | 本地转写运行时 | `packages/voice-runtime/src/` |
-| 实时通话（OpenAI / Gemini / Codex 适配） | `electron/main/live-voice/` |
+| 实时通话（OpenAI / Gemini / Codex 适配） | `apps/desktop/electron/main/live-voice/` |
 | 通话 UI | `apps/desktop/src/features/voice/` |
-| 桌面语音服务 | `services/speech-service.ts`、`voice-service.ts` |
+| 桌面语音服务 | `apps/desktop/electron/main/services/speech-service.ts`、`apps/desktop/electron/main/voice-service.ts` |
 
 ## 设置、同步、国际化
 
 | 功能 | 代码 |
 |---|---|
-| 设置页 | `pages/SettingsPage.tsx`、`features/settings/` |
+| 设置页 | `apps/desktop/src/pages/SettingsPage.tsx`、`apps/desktop/src/features/settings/` |
 | 配置同步（加密、S3） | `crates/host-core/src/config_sync/` |
-| 数据目录搬迁 | `data_relocation.rs` |
+| 数据目录搬迁 | `crates/host-core/src/data_relocation.rs` |
 | 文案 | `packages/i18n/src/locales/`；渲染层 `apps/desktop/src/locales/` |
-| 数据库 schema 与迁移 | `crates/host-core/src/db/schema.rs`、`migrations.rs` |
+| 数据库 schema 与迁移 | `crates/host-core/src/db/schema.rs`、`crates/host-core/src/db/migrations.rs` |
 
 ## IPC 对照
 

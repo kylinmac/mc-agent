@@ -14,3 +14,5 @@ hero:
       text: 使用文档
       link: /zh-CN/guide/
 ---
+
+> 这是继承的 PI-Desktop 文档站，下载与支持链接属于上游。mc-agent 的范围与进度见[规划文档](../mc-agent/README.md)，仓库流程见仓库根目录的 AGENTS.md。

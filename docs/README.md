@@ -1,7 +1,11 @@
-# PI-Desktop Docs
+# Documentation
+
+Start with [mc-agent planning](mc-agent/README.md) for this fork's scope, current architecture and proposed changes.
+
+The site and the remaining technical documents are inherited from PI-Desktop. Their downloads, support links, release status and maintainer workflows describe upstream, not mc-agent. Use AGENTS.md at the repository root for this fork's workflow. Treat inherited version numbers as historical; current code, types and tests establish implemented behavior.
 
 `docs/` is a VitePress project. The published site starts at [`index.md`](index.md);
-the repository's English technical source of truth remains organized under
+the inherited English technical specifications remain organized under
 `spec/` and `adr/`.
 
 ## Local commands
@@ -15,7 +19,8 @@ pnpm docs:check
 
 ## Layout notes
 
-- `spec/` and `adr/` are the English source of truth; `zh-CN/` mirrors
+- `mc-agent/` contains this fork's plans and implementation maps.
+- `spec/` and `adr/` document inherited contracts and decisions; `zh-CN/` mirrors
   `spec/` and `guide/` path for path and is checked by `pnpm docs:check`.
 - `image/` holds pictures embedded by the repository READMEs. `public/` holds
   assets served by the site itself (brand mark, screenshots).

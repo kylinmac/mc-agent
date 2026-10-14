@@ -56,8 +56,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # mc-agent: CLAUDE.md is the fork's own policy and no longer mirrors
-      # upstream AGENTS.md, so the upstream policy-sync gate is not run here.
+      # mc-agent: CLAUDE.md references the single policy in AGENTS.md.
+      # The retired upstream policy-mirror check is not needed.
 
       - name: Check locale pairs and every documentation page
         run: pnpm docs:check

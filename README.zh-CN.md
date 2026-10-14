@@ -1,3 +1,5 @@
+> **上游原始说明**：以下内容介绍 PI-Desktop，下载、社区、Issue 和发布状态均属于上游，不是 mc-agent 的发布信息。mc-agent 的定位与当前进度见 [仓库首页](README.md) 和 [规划文档](docs/mc-agent/README.md)。
+
 <div align="center">
 
 <img src="docs/image/readme/logo.png" alt="PI-Desktop" width="108" />
