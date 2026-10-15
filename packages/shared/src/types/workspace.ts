@@ -61,6 +61,15 @@ export type ResourceTemplateSummary = {
   categories: string[];
 };
 
+/** One workspace's description from `<resource dir>/workspaces.md` (R10). */
+export type WorkspaceNote = {
+  path: string;
+  /** Section heading: the folder name, or the path when folder names repeat. */
+  heading: string;
+  /** Empty when the file or the section is missing. */
+  description: string;
+};
+
 export type ProjectGroupRecord = {
   remote?: RemoteWorkspace;
   id: string;

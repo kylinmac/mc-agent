@@ -1,14 +1,16 @@
 //! Resource-directory RPC surface (mc-agent, MC-ADR-0003).
 //!
 //! `project.resources.templates` lists templates; `project.resources.ensure`
-//! gives a project its resource directory if it has none. Kept beside the
+//! gives a project its resource directory if it has none;
+//! `project.workspaces.notes` / `project.workspaces.setNote` read and edit the
+//! workspace descriptions kept in that directory (R10). Kept beside the
 //! shared dispatcher so `rpc::mod` only registers the methods; the rules live
 //! in `crate::resource_dirs`.
 
 use serde_json::{json, Value};
 
 use super::{rpc_err, AppState, JsonRpcError};
-use crate::resource_dirs;
+use crate::{resource_dirs, workspace_notes};
 
 pub fn templates(_state: &AppState) -> Result<Value, JsonRpcError> {
     let home = resource_dirs::home_dir().map_err(internal)?;
@@ -17,12 +19,7 @@ pub fn templates(_state: &AppState) -> Result<Value, JsonRpcError> {
 }
 
 pub fn ensure(state: &AppState, params: &Value) -> Result<Value, JsonRpcError> {
-    let group_id = params
-        .get("groupId")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| rpc_err(1002, "groupId required", "INVALID_PARAMS"))?;
+    let group_id = required_str(params, "groupId")?;
     let template = match params.get("template") {
         None | Some(Value::Null) => resource_dirs::DEFAULT_TEMPLATE,
         Some(Value::String(name)) => name.as_str(),
@@ -32,6 +29,42 @@ pub fn ensure(state: &AppState, params: &Value) -> Result<Value, JsonRpcError> {
     let group = resource_dirs::ensure_project_resources(&state.db, &home, group_id, template)
         .map_err(|error| rpc_err(1002, error.to_string(), "INVALID_PARAMS"))?;
     Ok(json!({ "group": group }))
+}
+
+pub fn notes(state: &AppState, params: &Value) -> Result<Value, JsonRpcError> {
+    let group = group(state, params)?;
+    let notes = workspace_notes::read(&group).map_err(internal)?;
+    Ok(json!({ "notes": notes }))
+}
+
+pub fn set_note(state: &AppState, params: &Value) -> Result<Value, JsonRpcError> {
+    let group = group(state, params)?;
+    let path = required_str(params, "path")?;
+    let description = params
+        .get("description")
+        .and_then(Value::as_str)
+        .ok_or_else(|| rpc_err(1002, "description required", "INVALID_PARAMS"))?;
+    let note = workspace_notes::write(&group, path, description)
+        .map_err(|error| rpc_err(1002, error.to_string(), "INVALID_PARAMS"))?;
+    Ok(json!({ "note": note }))
+}
+
+fn group(state: &AppState, params: &Value) -> Result<crate::db::ProjectGroupRecord, JsonRpcError> {
+    let group_id = required_str(params, "groupId")?;
+    state
+        .db
+        .project_group(group_id)
+        .map_err(internal)?
+        .ok_or_else(|| rpc_err(1007, "project group not found", "NOT_FOUND"))
+}
+
+fn required_str<'a>(params: &'a Value, key: &str) -> Result<&'a str, JsonRpcError> {
+    params
+        .get(key)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| rpc_err(1002, format!("{key} required"), "INVALID_PARAMS"))
 }
 
 fn internal(error: anyhow::Error) -> JsonRpcError {

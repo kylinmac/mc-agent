@@ -31,14 +31,37 @@ const HOME_DIR_NAME: &str = "mc-agent";
 const MAX_TEMPLATE_ENTRIES: usize = 2_000;
 const MAX_NAME_CHARS: usize = 80;
 
-/// Built-in templates and their first-level folders (the resource categories).
-const BUILTIN_TEMPLATES: &[(&str, &[&str])] = &[
+/// Built-in templates: first-level folders (the resource categories) and
+/// starter files at the template root.
+type BuiltinTemplate = (
+    &'static str,
+    &'static [&'static str],
+    &'static [(&'static str, &'static str)],
+);
+
+const BUILTIN_TEMPLATES: &[BuiltinTemplate] = &[
     (
         "software",
         &["requirements", "architecture", "prototype", "reference"],
+        &[
+            (crate::workspace_notes::FILE_NAME, SOFTWARE_WORKSPACES_MD),
+            ("AGENTS.md", SOFTWARE_AGENTS_MD),
+        ],
     ),
-    ("blank", &[]),
+    ("blank", &[], &[]),
 ];
+
+const SOFTWARE_WORKSPACES_MD: &str = "# Workspaces
+
+<!-- One section per workspace: a \"## <folder name>\" heading, then what that
+workspace is for. mc-agent shows these and tells sessions about them. -->
+";
+
+const SOFTWARE_AGENTS_MD: &str = "# AGENTS.md
+
+Project-level rules for sessions started in this resource folder.
+Workspace-specific rules belong in each workspace's own AGENTS.md.
+";
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -65,7 +88,7 @@ pub fn home_dir() -> Result<PathBuf> {
 /// a user's edits to a built-in template survive.
 pub fn seed_builtin_templates(home: &Path) -> Result<()> {
     let templates = home.join(TEMPLATES_DIR);
-    for (name, categories) in BUILTIN_TEMPLATES {
+    for (name, categories, files) in BUILTIN_TEMPLATES {
         let root = templates.join(name);
         if root.exists() {
             continue;
@@ -73,6 +96,9 @@ pub fn seed_builtin_templates(home: &Path) -> Result<()> {
         fs::create_dir_all(&root).with_context(|| format!("create template {}", root.display()))?;
         for category in *categories {
             fs::create_dir_all(root.join(category))?;
+        }
+        for (file, contents) in *files {
+            fs::write(root.join(file), contents)?;
         }
     }
     Ok(())
@@ -93,7 +119,7 @@ pub fn list_templates(home: &Path) -> Result<Vec<TemplateSummary>> {
         templates.push(TemplateSummary {
             builtin: BUILTIN_TEMPLATES
                 .iter()
-                .any(|(builtin, _)| *builtin == name),
+                .any(|(builtin, _, _)| *builtin == name),
             path: entry.path().to_string_lossy().into_owned(),
             categories: categories(&entry.path())?,
             name,
@@ -329,6 +355,8 @@ mod tests {
         assert!(root.path.ends_with("projects/登录 项目"));
         let resources = Path::new(&root.path);
         assert!(resources.join("architecture").is_dir());
+        assert!(resources.join("workspaces.md").is_file());
+        assert!(resources.join("AGENTS.md").is_file());
         assert_eq!(
             fs::read_to_string(resources.join("requirements/TEMPLATE.md")).unwrap(),
             "# Req"

@@ -75,6 +75,7 @@ import type {
   ProjectRecord,
   ProjectGroupRecord,
   ResourceTemplateSummary,
+  WorkspaceNote,
   ProjectMemory,
   ProjectMemoryEntry,
   ProjectWorkspace,
@@ -891,6 +892,15 @@ export const api = {
     invoke<{ group: ProjectGroupRecord }>(IPC.invoke.projectResourcesEnsure, {
       groupId,
       ...(template ? { template } : {}),
+    }),
+  listWorkspaceNotes: (groupId: string) =>
+    invoke<{ notes: WorkspaceNote[] }>(IPC.invoke.projectWorkspaceNotes, { groupId }),
+  // An empty description removes that workspace's section from workspaces.md.
+  setWorkspaceNote: (groupId: string, path: string, description: string) =>
+    invoke<{ note: WorkspaceNote }>(IPC.invoke.projectWorkspaceNoteSet, {
+      groupId,
+      path,
+      description,
     }),
   renameProjectGroup: (groupId: string, name: string) =>
     invoke<{ group: ProjectGroupRecord }>(IPC.invoke.projectGroupRename, { groupId, name }),

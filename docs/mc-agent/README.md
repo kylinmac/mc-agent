@@ -7,10 +7,10 @@
 | 顺序 | 文档 | 阅读重点 |
 |---|---|---|
 | 1 | [功能与项目管理缺口](pi-desktop-analysis.md) | 上游已有多少、真正缺什么、证据和限制 |
-| 2 | [需求文档](requirements.md) | 已确认定位、继承能力、新增需求 R1–R9（首版 R1–R5） |
+| 2 | [需求文档](requirements.md) | 已确认定位、继承能力、新增需求 R1–R10（首版 R1–R5、R10） |
 | 3 | [架构文档](architecture.md) | 沿用哪些模块，项目管理在哪里扩展 |
 | 4 | [现状架构](as-built-architecture.md) | 仓库里已有代码的进程和边界 |
-| 5 | [功能代码索引](code-index.md) | 功能到目录的对照，不含 R1–R9 |
+| 5 | [功能代码索引](code-index.md) | 功能到目录的对照，不含 R1–R10 |
 
 ## 评审时再看
 
@@ -49,7 +49,7 @@
 - [ ] 每项需求都有验收用例。
 - [ ] 用户明确进入开发阶段。
 
-Fork 已建立：`origin` 为 kylinmac/mc-agent，`upstream` 为 vastsa/PI-Desktop。R1–R9 仍是规划，没有对应实现。
+Fork 已建立：`origin` 为 kylinmac/mc-agent，`upstream` 为 vastsa/PI-Desktop。R1 部分已实现（`feat/r1-project-structure` 分支：资料目录标记与创建）；其余仍是规划。
 
 ## 放在哪
 

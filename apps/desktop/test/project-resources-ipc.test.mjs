@@ -75,3 +75,40 @@ test("host errors reach the caller unchanged", async () => {
     /template not found/,
   );
 });
+
+test("workspace notes are read and written through host-core", async () => {
+  const note = { path: "/code/web", heading: "web", description: "前端" };
+  const { invoke, calls } = setup({
+    "project.workspaces.notes": { notes: [note] },
+    "project.workspaces.setNote": { note },
+  });
+  assert.deepEqual(await invoke(IPC.invoke.projectWorkspaceNotes, { groupId: " g1 " }), {
+    notes: [note],
+  });
+  await invoke(IPC.invoke.projectWorkspaceNoteSet, {
+    groupId: "g1",
+    path: " /code/web ",
+    description: " 前端 ",
+  });
+  assert.deepEqual(calls, [
+    { method: "project.workspaces.notes", params: { groupId: "g1" } },
+    {
+      method: "project.workspaces.setNote",
+      params: { groupId: "g1", path: "/code/web", description: " 前端 " },
+    },
+  ]);
+});
+
+test("workspace note writes reject malformed requests before reaching host-core", async () => {
+  const { invoke, calls } = setup();
+  for (const input of [
+    { path: "/code/web", description: "x" },
+    { groupId: "g1", description: "x" },
+    { groupId: "g1", path: "/code/web" },
+    { groupId: "g1", path: "/code/web", description: 1 },
+    { groupId: "g1", path: "/code/web", description: "x".repeat(8193) },
+  ]) {
+    await assert.rejects(invoke(IPC.invoke.projectWorkspaceNoteSet, input), /required/);
+  }
+  assert.equal(calls.length, 0);
+});

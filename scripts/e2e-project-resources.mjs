@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
  * mc-agent resource directories through the real host-core binary
- * (MC-ADR-0003, validation V22 / V27). No model and no Electron: the RPC
+ * and workspace descriptions (MC-ADR-0003, validation V22 / V27 / V29). No model and no Electron: the RPC
  * surface Main calls is driven directly, with an isolated data directory and
  * an isolated mc-agent home (`MC_AGENT_HOME`).
  */
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PROTOCOL_VERSION } from "../packages/shared/dist/protocol.js";
@@ -42,7 +42,8 @@ try {
       ensured.group.primaryPath === resources.path &&
       resources.path === join(home, "projects", "登录项目") &&
       software?.categories.join(",") === "architecture,prototype,reference,requirements" &&
-      readdirSync(resources.path).sort().join(",") === "architecture,prototype,reference,requirements" &&
+      readdirSync(resources.path).sort().join(",") ===
+        "AGENTS.md,architecture,prototype,reference,requirements,workspaces.md" &&
       roots.slice(1).map((root) => root.path).join(",") === [web, server].join(",") &&
       roots.slice(1).every((root) => root.kind === undefined),
     resources.path,
@@ -62,6 +63,25 @@ try {
   record(
     "E2E-PROJECT-resources-persist-and-resolve-their-project",
     listed?.roots[0].kind === "resources" && context.context?.groupId === group.id,
+  );
+
+  // V29: workspace descriptions live in <resource dir>/workspaces.md.
+  const notesFile = join(resources.path, "workspaces.md");
+  await host.call("project.workspaces.setNote", { groupId: group.id, path: web, description: "前端，React" });
+  await host.call("project.workspaces.setNote", { groupId: group.id, path: server, description: "后端 API" });
+  writeFileSync(notesFile, readFileSync(notesFile, "utf8").replace("后端 API", "后端 Rust API") + "\n## 备注\n手写内容\n");
+  await host.call("project.workspaces.setNote", { groupId: group.id, path: web, description: "前端，React + Vite" });
+  const notes = (await host.call("project.workspaces.notes", { groupId: group.id })).notes;
+  const notesText = readFileSync(notesFile, "utf8");
+  const refusedOutside = await host
+    .call("project.workspaces.setNote", { groupId: group.id, path: resources.path, description: "x" })
+    .then(() => false, () => true);
+  record(
+    "E2E-PROJECT-workspace-notes-round-trip-and-keep-user-text",
+    notes.map((note) => `${note.heading}=${note.description}`).join("|") ===
+      "web=前端，React + Vite|server=后端 Rust API" &&
+      notesText.includes("## 备注\n手写内容") &&
+      refusedOutside,
   );
 
   // Editing workspaces cannot drop or demote the resource directory.

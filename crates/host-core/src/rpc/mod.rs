@@ -1971,6 +1971,14 @@ async fn handle_request(
             let st = state.lock().await;
             resource_dirs_rpc::ensure(&st, &params)
         }
+        "project.workspaces.notes" => {
+            let st = state.lock().await;
+            resource_dirs_rpc::notes(&st, &params)
+        }
+        "project.workspaces.setNote" => {
+            let st = state.lock().await;
+            resource_dirs_rpc::set_note(&st, &params)
+        }
         "project.group.rename" => {
             let id = params
                 .get("groupId")

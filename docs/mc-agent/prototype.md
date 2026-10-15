@@ -62,14 +62,14 @@ reference       设计稿链接         链接          未保存本地快照   
 新建项目
 名称      ［项目A                ］
 模板      (•) software   ( ) blank   ( ) client-delivery     ［管理模板］
-工作区    ~/code/project-a-web       ［移除］
-          ~/code/project-a-server    ［移除］
+工作区    ~/code/project-a-web       说明［前端，React + Vite      ］［移除］
+          ~/code/project-a-server    说明［后端 Rust API           ］［移除］
           ［添加工作区］
 资料目录  ~/Documents/mc-agent/projects/项目A   （创建后随项目改名）
                                                    ［取消］［创建］
 ```
 
-工作区列表没有“主”标记。模板管理（P6）可编辑模板的目录结构和起始文件，改动只影响之后新建的项目。
+工作区列表没有“主”标记。说明写入资料目录的 `workspaces.md`（R10），也可以在访达里直接改该文件。模板管理（P6）可编辑模板的目录结构和起始文件，改动只影响之后新建的项目。
 
 ## 3.2 整理资料（R5）
 

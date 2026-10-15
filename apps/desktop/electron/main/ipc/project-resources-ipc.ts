@@ -16,6 +16,17 @@ export type ProjectResourcesIpcDependencies = {
 
 const MAX_GROUP_ID_LENGTH = 256;
 const MAX_TEMPLATE_NAME_LENGTH = 128;
+const MAX_PATH_LENGTH = 4096;
+// host-core bounds descriptions by characters; this only stops oversized payloads.
+const MAX_DESCRIPTION_LENGTH = 8192;
+
+function groupIdOf(input: { groupId?: unknown } | undefined): string {
+  const groupId = typeof input?.groupId === "string" ? input.groupId.trim() : "";
+  if (!groupId || groupId.length > MAX_GROUP_ID_LENGTH) {
+    throw invalid("project group id required");
+  }
+  return groupId;
+}
 
 function invalid(message: string): Error {
   return Object.assign(new Error(message), { errorCode: ErrorCodes.INVALID_ARGUMENT });
@@ -37,10 +48,7 @@ export function registerProjectResourcesIpc({
     async (input: { groupId?: unknown; template?: unknown } = {}) => {
       const host = getHost();
       if (!host) throw new Error("host unavailable");
-      const groupId = typeof input?.groupId === "string" ? input.groupId.trim() : "";
-      if (!groupId || groupId.length > MAX_GROUP_ID_LENGTH) {
-        throw invalid("project group id required");
-      }
+      const groupId = groupIdOf(input);
       let template: string | undefined;
       if (input?.template !== undefined) {
         if (typeof input.template !== "string") throw invalid("template must be a string");
@@ -55,6 +63,34 @@ export function registerProjectResourcesIpc({
       });
       void refreshProjectGroups(host);
       return result;
+    },
+  );
+
+  registrar.handle(
+    IPC.invoke.projectWorkspaceNotes,
+    async (input: { groupId?: unknown } = {}) => {
+      const host = getHost();
+      if (!host) throw new Error("host unavailable");
+      return host.call("project.workspaces.notes", { groupId: groupIdOf(input) });
+    },
+  );
+
+  registrar.handle(
+    IPC.invoke.projectWorkspaceNoteSet,
+    async (input: { groupId?: unknown; path?: unknown; description?: unknown } = {}) => {
+      const host = getHost();
+      if (!host) throw new Error("host unavailable");
+      const groupId = groupIdOf(input);
+      const path = typeof input?.path === "string" ? input.path.trim() : "";
+      if (!path || path.length > MAX_PATH_LENGTH) throw invalid("workspace path required");
+      if (typeof input?.description !== "string" || input.description.length > MAX_DESCRIPTION_LENGTH) {
+        throw invalid("workspace description required");
+      }
+      return host.call("project.workspaces.setNote", {
+        groupId,
+        path,
+        description: input.description,
+      });
     },
   );
 }

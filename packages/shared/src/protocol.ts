@@ -198,6 +198,8 @@ export const IPC = {
     // mc-agent resource directories (MC-ADR-0003).
     projectResourcesTemplates: "pi-desktop/project-resources/templates",
     projectResourcesEnsure: "pi-desktop/project-resources/ensure",
+    projectWorkspaceNotes: "pi-desktop/project-resources/workspace-notes",
+    projectWorkspaceNoteSet: "pi-desktop/project-resources/workspace-note/set",
     projectGroupMemoryGet: "pi-desktop/project-group/memory/get",
     projectGroupMemorySave: "pi-desktop/project-group/memory/save",
     projectGroupInstructionsGet: "pi-desktop/project-group/instructions/get",
