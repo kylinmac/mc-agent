@@ -49,7 +49,7 @@
 - [ ] 每项需求都有验收用例。
 - [ ] 用户明确进入开发阶段。
 
-Fork 已建立：`origin` 为 kylinmac/mc-agent，`upstream` 为 vastsa/PI-Desktop。R1 部分已实现（`feat/r1-project-structure` 分支：资料目录标记与创建）；其余仍是规划。
+Fork 已建立：`origin` 为 kylinmac/mc-agent，`upstream` 为 vastsa/PI-Desktop。R1–R10 已在 `feat/r1-project-structure` 分支实现，验证状态见[验收与开发计划](validation-plan.md)第 2.1 节。
 
 ## 放在哪
 

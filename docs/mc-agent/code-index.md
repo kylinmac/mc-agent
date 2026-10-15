@@ -2,7 +2,8 @@
 
 对照仓库里的现有代码。路径相对仓库根。测试文件不列入，除非它是该功能唯一的入口说明。
 
-规划中的项目结构、项目资料、项目任务、验收（R1–R9）没有对应代码。不要到下面的路径里找它们。
+mc-agent 新增功能（R1–R10）的代码见文末“mc-agent 项目管理”一节。
+
 
 ## 启动与窗口
 
@@ -136,3 +137,19 @@ host-core 也可作为内部工具子进程启动（`tools::INTERNAL_TOOL_RUNNER
 ## IPC 对照
 
 渲染进程能调用的通道都从 `apps/desktop/electron/main/ipc/` 注册。新增 UI 能力先加这里的 handler，再决定数据落在 host-core 还是只留在 Main。不要从渲染进程直接 spawn host-core 或 sidecar。
+
+## mc-agent 项目管理（R1–R10）
+
+| 功能 | 代码 |
+|---|---|
+| 资料目录标记、挂载、Worker 目标工作区校验 | `crates/host-core/src/db/project_resources.rs`；`project_groups.rs` 中的 `kind` 字段 |
+| 资料目录创建、模板、改名跟随 | `crates/host-core/src/resource_dirs.rs`；路径改写复用 `data_relocation.rs::rewrite_database_paths` |
+| 工作区说明（`workspaces.md`） | `crates/host-core/src/workspace_notes.rs` |
+| 资料清单、确认、项目目标 | `crates/host-core/src/resource_catalog.rs` |
+| 项目任务、执行、验收 | `crates/host-core/src/project_tasks.rs` |
+| RPC | `crates/host-core/src/rpc/resource_dirs_rpc.rs`、`resource_catalog_rpc.rs`、`project_tasks_rpc.rs` |
+| Main IPC | `apps/desktop/electron/main/ipc/project-resources-ipc.ts` |
+| 会话“项目目录”说明 | `packages/shared/src/project-folder-guide.ts`（三条启动路径共用） |
+| 界面 | `apps/desktop/src/features/project-workbench/`（工作台、概览、资料、任务、AI 整理、模板选择） |
+| 文案 | `packages/i18n/scripts/mc-agent-strings.json` 生成各语言 `mcProject` 区块 |
+| 端到端测试 | `scripts/e2e-project-resources.mjs`（`pnpm test:e2e:project-resources`） |
