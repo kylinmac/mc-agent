@@ -43,6 +43,11 @@ import {
 } from "../lib/project-archive";
 import { ProjectArchiveIndex, projectRowId } from "../features/projects/ProjectArchiveIndex";
 import { ProjectDetailPanel } from "../features/projects/ProjectDetailPanel";
+import { ProjectWorkbench } from "../features/project-workbench/ProjectWorkbench";
+import {
+  chooseStartFolder,
+  rememberedStartFolder,
+} from "../features/project-workbench/start-folder";
 
 export function ProjectsPage() {
   const { t, i18n } = useTranslation();
@@ -448,7 +453,35 @@ export function ProjectsPage() {
                   onOpenSession={(sessionId) =>
                     void openProjectSession(project.path, sessionId)
                   }
-                  onNewTask={() => void startTask(project.path)}
+                  onNewTask={() =>
+                    void startTask(
+                      chooseStartFolder(
+                        project.roots,
+                        project.path,
+                        rememberedStartFolder(project.groupId),
+                      ),
+                    )
+                  }
+                  workbench={
+                    project.remote ? undefined : <ProjectWorkbench
+                      project={project}
+                      onProjectChanged={(primaryPath) => {
+                        // A backfill moves the row's path; the list and the
+                        // open card must switch together or the card closes.
+                        void api
+                          .listProjectGroups()
+                          .then(({ groups }) => {
+                            setDurableProjects(groups);
+                            setOpenPath(primaryPath);
+                          })
+                          .catch(() => {
+                            // The next session change refreshes the list.
+                          });
+                      }}
+                      onStartSession={(path) => void startTask(path)}
+                      onError={(message) => showToast(message, { variant: "error" })}
+                    />
+                  }
                   onRenameSession={setRenameFor}
                   onShowMore={() =>
                     setVisibleSessionCounts((prev) => ({

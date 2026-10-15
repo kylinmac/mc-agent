@@ -57,7 +57,7 @@ test("create project dialog can create the project from a git checkout", () => {
   assert.match(dialog, /parentPath: cloneParent/);
   assert.match(dialog, /!projectName \|\| !cloneTarget \|\| !cloneParent \|\| busy/);
   assert.match(dialog, /project\.cloning/);
-  assert.match(store, /createProjectFromGit: async \(\{ name, url, parentPath \}\)/);
+  assert.match(store, /createProjectFromGit: async \(\{ name, url, parentPath, template \}\)/);
   assert.match(store, /api\.cloneProjectInto\(url, parentPath\)/);
   assert.match(store, /folders: \[checkout\.path\], primaryPath: checkout\.path/);
   assert.match(api, /cloneProjectInto: \(url: string, parentPath: string\)/);
@@ -70,7 +70,9 @@ test("project creation creates one logical group with a primary workspace", () =
     store,
     /openProject: async \(options\) => \{\s*set\(\{\s*createProjectDialogOpen: true,\s*createProjectDialogRemoteHostKey: options\?\.remoteHostKey\s*\}\)/,
   );
-  assert.match(store, /createProjectFromFolders: async \(\{ name, folders, primaryPath \}\)/);
+  assert.match(store, /createProjectFromFolders: async \(\{ name, folders, primaryPath, template \}\)/);
+  // mc-agent: a new project gets its resource folder from the chosen template.
+  assert.match(store, /api\s*\.ensureProjectResources\(created\.group\.id, template\)/);
   assert.match(store, /const orderedFolders = \[/);
   assert.match(store, /api\.createProjectGroup\(normalizedName, orderedFolders\)/);
   assert.match(store, /const \{ groups \} = await api\.listProjectGroups\(\)/);
@@ -86,7 +88,7 @@ test("project creation creates one logical group with a primary workspace", () =
   );
   // Folder picks and git checkouts share one project creation semantic.
   assert.match(store, /async function createNamedProjectGroup\(/);
-  assert.match(store, /createProjectFromFolders: async \(\{ name, folders, primaryPath \}\) =>\s*createNamedProjectGroup\(/);
+  assert.match(store, /createProjectFromFolders: async \(\{ name, folders, primaryPath, template \}\) =>\s*createNamedProjectGroup\(/);
 });
 
 test("folder picker is a renderer-only multi-directory selection", () => {

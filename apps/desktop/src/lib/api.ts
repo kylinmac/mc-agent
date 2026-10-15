@@ -893,6 +893,8 @@ export const api = {
       groupId,
       ...(template ? { template } : {}),
     }),
+  revealProjectResources: (groupId: string) =>
+    invoke<{ ok: true }>(IPC.invoke.projectResourcesReveal, { groupId }),
   listWorkspaceNotes: (groupId: string) =>
     invoke<{ notes: WorkspaceNote[] }>(IPC.invoke.projectWorkspaceNotes, { groupId }),
   // An empty description removes that workspace's section from workspaces.md.

@@ -68,7 +68,8 @@ async function createNamedProjectGroup(
     name,
     folders,
     primaryPath,
-  }: { name: string; folders: string[]; primaryPath?: string },
+    template,
+  }: { name: string; folders: string[]; primaryPath?: string; template?: string },
 ): Promise<void> {
   const normalizedName = name.trim();
   if (!normalizedName) {
@@ -119,7 +120,17 @@ async function createNamedProjectGroup(
   }
   const created = await api.createProjectGroup(normalizedName, orderedFolders);
   if (!runtime.navigationIntentIsCurrent(intent)) return;
-  const groupPrimary = created.group.primaryPath || primary;
+  // mc-agent (MC-ADR-0003): every new project gets its resource folder from the
+  // chosen template and opens there. A failure keeps the project; the project
+  // workbench retries the backfill when the project is opened.
+  const withResources = await api
+    .ensureProjectResources(created.group.id, template)
+    .catch((error: unknown) => {
+      get().showToast(error instanceof Error ? error.message : String(error), { variant: "error" });
+      return null;
+    });
+  if (!runtime.navigationIntentIsCurrent(intent)) return;
+  const groupPrimary = withResources?.group.primaryPath || created.group.primaryPath || primary;
   const workspace = await get().activateProject(groupPrimary, {
     navigationIntent: intent,
   });
@@ -391,10 +402,10 @@ export function createProjectSlice({
     closeProjectDialog: () => {
       set({ createProjectDialogOpen: false, createProjectDialogRemoteHostKey: undefined });
     },
-    createProjectFromFolders: async ({ name, folders, primaryPath }) =>
+    createProjectFromFolders: async ({ name, folders, primaryPath, template }) =>
       createNamedProjectGroup(
         { get, set, runtime },
-        { name, folders, primaryPath },
+        { name, folders, primaryPath, template },
       ),
     createProjectFromRemote: async ({ name, hostKey, path }) => {
       const normalizedName = normalizeProjectName(name);
@@ -409,13 +420,13 @@ export function createProjectSlice({
       if (!runtime.navigationIntentIsCurrent(intent)) return;
       set({ createProjectDialogOpen: false, createProjectDialogRemoteHostKey: undefined, onboarding, page: "chat" });
     },
-    createProjectFromGit: async ({ name, url, parentPath }) => {
+    createProjectFromGit: async ({ name, url, parentPath, template }) => {
       // Clone first, then create the project through the same group path, so a
       // checkout and a folder pick produce identical project semantics.
       const checkout = await api.cloneProjectInto(url, parentPath);
       await createNamedProjectGroup(
         { get, set, runtime },
-        { name, folders: [checkout.path], primaryPath: checkout.path },
+        { name, folders: [checkout.path], primaryPath: checkout.path, template },
       );
     },
 

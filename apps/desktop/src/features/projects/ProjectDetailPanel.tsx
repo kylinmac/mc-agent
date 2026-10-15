@@ -25,6 +25,7 @@ export function ProjectDetailPanel({
   initialCount,
   locale,
   actions,
+  workbench,
   onOpenSession,
   onNewTask,
   onRenameSession,
@@ -40,6 +41,8 @@ export function ProjectDetailPanel({
   initialCount: number;
   locale?: string;
   actions?: ReactNode;
+  /** mc-agent project workbench, rendered below the folder facts. */
+  workbench?: ReactNode;
   onOpenSession: (sessionId: string) => void;
   onNewTask: () => void;
   onRenameSession: (session: SessionIndexRecord) => void;
@@ -63,18 +66,19 @@ export function ProjectDetailPanel({
       </div>
 
       <div className="projects-detail-facts">
-        <div
+        {/* mc-agent: the workbench lists the folders itself when present. */}
+        {workbench ? null : <div
           className="projects-detail-roots"
           role="group"
           aria-label={t("project.foldersLabel")}
         >
-          {project.roots.map((root) => (
+          {project.roots.filter((root) => root.kind !== "resources").map((root) => (
             <span className="projects-detail-root" key={root.path} title={project.remote?.path ?? root.path}>
               <IconFolder size={12} aria-hidden />
               <span>{shortenPath(project.remote?.path ?? root.path)}</span>
             </span>
           ))}
-        </div>
+        </div>}
         {project.branch ? (
           <span className="projects-detail-root is-branch" title={project.branch}>
             <IconBranch size={12} aria-hidden />
@@ -82,6 +86,8 @@ export function ProjectDetailPanel({
           </span>
         ) : null}
       </div>
+
+      {workbench}
 
       <div className="projects-detail-header">
         <div className="projects-detail-label">

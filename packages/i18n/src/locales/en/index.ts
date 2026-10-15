@@ -2878,6 +2878,25 @@ importConfirm: "Imported extensions run inside the agent process with the same a
       dismiss: "Dismiss",
     },
   },
+  // mc-agent:begin
+  mcProject: {
+    resourcesTitle: "Resource folder",
+    resourcesPreparing: "Preparing the resource folder…",
+    resourcesRemote: "Remote projects have no resource folder.",
+    resourcesError: "Could not prepare the resource folder: {{message}}",
+    reveal: "Show in Finder",
+    workspacesTitle: "Workspaces",
+    workspaceDescriptionPlaceholder: "What is this workspace for?",
+    workspaceDescriptionLabel: "Description of {{name}}",
+    workspaceDescriptionSaved: "Description saved",
+    workspaceDescriptionError: "Could not save the description: {{message}}",
+    startFolderLabel: "Start in",
+    startFolderResources: "Resource folder",
+    newSessionIn: "New session",
+    templateLabel: "Template",
+    templateHint: "Copied once into the project's resource folder.",
+  },
+  // mc-agent:end
 } as const;
 
 type DeepStringify<T> = {

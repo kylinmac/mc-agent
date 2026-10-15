@@ -278,12 +278,15 @@ export type AppState = {
     name: string;
     folders: string[];
     primaryPath: string;
+    /** mc-agent resource-folder template; host-core defaults to blank. */
+    template?: string;
   }) => Promise<void>;
   /** Clone a public git remote into a chosen folder, then create its project. */
   createProjectFromGit: (input: {
     name: string;
     url: string;
     parentPath: string;
+    template?: string;
   }) => Promise<void>;
   cloneProject: (url: string) => Promise<ProjectWorkspace | null>;
   /** Re-read the active workspace metadata without changing the visible project. */

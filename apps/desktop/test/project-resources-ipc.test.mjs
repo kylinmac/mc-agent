@@ -7,6 +7,7 @@ function setup(responses = {}) {
   const handlers = new Map();
   const calls = [];
   const refreshes = [];
+  const opened = [];
   const host = {
     async call(method, params) {
       calls.push({ method, params });
@@ -19,9 +20,13 @@ function setup(responses = {}) {
     registrar: { handle: (channel, handler) => handlers.set(channel, handler) },
     getHost: () => host,
     refreshProjectGroups: async (target) => refreshes.push(target),
+    openPath: async (path) => {
+      opened.push(path);
+      return "";
+    },
   });
   const invoke = (channel, input) => handlers.get(channel)(input);
-  return { invoke, calls, refreshes, host };
+  return { invoke, calls, refreshes, host, opened };
 }
 
 test("ensure forwards a trimmed group id and template, then refreshes the group snapshot", async () => {
@@ -111,4 +116,17 @@ test("workspace note writes reject malformed requests before reaching host-core"
     await assert.rejects(invoke(IPC.invoke.projectWorkspaceNoteSet, input), /required/);
   }
   assert.equal(calls.length, 0);
+});
+
+test("reveal opens only the resource folder host-core has for the project", async () => {
+  const groups = [
+    { id: "g1", roots: [{ path: "/docs/App", kind: "resources" }, { path: "/code/web" }] },
+    { id: "g2", roots: [{ path: "/code/other" }] },
+  ];
+  const { invoke, opened } = setup({ "project.groups.list": { groups } });
+  assert.deepEqual(await invoke(IPC.invoke.projectResourcesReveal, { groupId: "g1" }), { ok: true });
+  assert.deepEqual(opened, ["/docs/App"]);
+  await assert.rejects(invoke(IPC.invoke.projectResourcesReveal, { groupId: "g2" }), /no resource folder/);
+  await assert.rejects(invoke(IPC.invoke.projectResourcesReveal, { groupId: "missing" }), /no resource folder/);
+  assert.deepEqual(opened, ["/docs/App"]);
 });

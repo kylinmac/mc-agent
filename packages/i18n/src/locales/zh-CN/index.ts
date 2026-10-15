@@ -2812,6 +2812,25 @@ sklm: {
       dismiss: "关闭",
     },
   },
+  // mc-agent:begin
+  mcProject: {
+    resourcesTitle: "资料目录",
+    resourcesPreparing: "正在准备资料目录…",
+    resourcesRemote: "远程项目没有资料目录。",
+    resourcesError: "无法准备资料目录：{{message}}",
+    reveal: "在访达中显示",
+    workspacesTitle: "工作区",
+    workspaceDescriptionPlaceholder: "这个工作区是做什么的？",
+    workspaceDescriptionLabel: "{{name}} 的说明",
+    workspaceDescriptionSaved: "说明已保存",
+    workspaceDescriptionError: "说明保存失败：{{message}}",
+    startFolderLabel: "起始目录",
+    startFolderResources: "资料目录",
+    newSessionIn: "新建会话",
+    templateLabel: "模板",
+    templateHint: "创建时复制一次到项目的资料目录。",
+  },
+  // mc-agent:end
 } satisfies EnglishCatalog;
 
 export default zhCN;

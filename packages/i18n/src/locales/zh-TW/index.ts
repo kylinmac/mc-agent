@@ -2762,6 +2762,25 @@ sklm: {
       dismiss: "關閉",
     },
   },
+  // mc-agent:begin
+  mcProject: {
+    resourcesTitle: "資料目錄",
+    resourcesPreparing: "正在準備資料目錄…",
+    resourcesRemote: "遠端專案沒有資料目錄。",
+    resourcesError: "無法準備資料目錄：{{message}}",
+    reveal: "在 Finder 中顯示",
+    workspacesTitle: "工作區",
+    workspaceDescriptionPlaceholder: "這個工作區是做什麼的？",
+    workspaceDescriptionLabel: "{{name}} 的說明",
+    workspaceDescriptionSaved: "說明已儲存",
+    workspaceDescriptionError: "說明儲存失敗：{{message}}",
+    startFolderLabel: "起始目錄",
+    startFolderResources: "資料目錄",
+    newSessionIn: "新增工作階段",
+    templateLabel: "範本",
+    templateHint: "建立時複製一次到專案的資料目錄。",
+  },
+  // mc-agent:end
 } satisfies EnglishCatalog;
 
 export default zhTW;

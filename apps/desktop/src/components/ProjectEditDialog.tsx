@@ -198,6 +198,10 @@ export function ProjectEditDialog({
     primaryPath,
     ...folders.filter((path) => !samePath(path, primaryPath)),
   ];
+  // mc-agent (MC-ADR-0003): the resource folder is submitted unchanged but not
+  // listed, and with it present the remaining workspaces are equal, so no row
+  // is marked primary or offered as one.
+  const resourcePath = group?.roots.find((root) => root.kind === "resources")?.path;
   const dialog = (
     <OverlayBackdrop
       className="overlay project-create-dialog-overlay"
@@ -291,8 +295,10 @@ export function ProjectEditDialog({
 
               {!loading && folders.length > 0 ? (
                 <div className="project-create-dialog-folder-list" role="list">
-                  {orderedFolders.map((path) => {
-                    const primary = samePath(path, primaryPath);
+                  {orderedFolders
+                    .filter((path) => !resourcePath || !samePath(path, resourcePath))
+                    .map((path) => {
+                    const primary = !resourcePath && samePath(path, primaryPath);
                     const displayPath = group?.remote?.path ?? path;
                     return (
                       <div
@@ -313,7 +319,7 @@ export function ProjectEditDialog({
                             {t("project.createPrimary")}
                           </span>
                         ) : null}
-                        {primary || group?.remote ? null : (
+                        {primary || group?.remote || resourcePath ? null : (
                           <TooltipButton
                             type="button"
                             className="project-create-folder-primary"

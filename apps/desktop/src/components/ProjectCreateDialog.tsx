@@ -21,6 +21,7 @@ import {
   IconFolder,
   IconMonitor,
 } from "./icons";
+import { TemplatePicker } from "../features/project-workbench/TemplatePicker";
 
 /** One project entry point for local folders, git checkouts and remote hosts. */
 type ProjectSource = "local" | "git" | "remote";
@@ -56,6 +57,8 @@ function ProjectCreateDialogContent({ initialRemoteHostKey }: { initialRemoteHos
   const { t } = useTranslation();
   const close = useAppStore((state) => state.closeProjectDialog);
   const createProject = useAppStore((state) => state.createProjectFromFolders);
+  // mc-agent: resource-folder template for the new project (R1.4).
+  const [template, setTemplate] = useState("software");
   const createProjectFromGit = useAppStore(
     (state) => state.createProjectFromGit,
   );
@@ -200,12 +203,14 @@ function ProjectCreateDialogContent({ initialRemoteHostKey }: { initialRemoteHos
           name: projectName,
           url: cloneTarget.url,
           parentPath: cloneParent,
+          template,
         });
       } else {
         await createProject({
           name: projectName,
           folders,
           primaryPath: folders[0],
+          template,
         });
       }
     } catch (error) {
@@ -295,6 +300,10 @@ function ProjectCreateDialogContent({ initialRemoteHostKey }: { initialRemoteHos
                 autoCapitalize="off"
               />
             </section>
+
+            {source !== "remote" ? (
+              <TemplatePicker value={template} onChange={setTemplate} disabled={busy} />
+            ) : null}
 
             <section
               className="project-create-dialog-section project-create-dialog-source-section"

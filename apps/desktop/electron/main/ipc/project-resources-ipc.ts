@@ -12,6 +12,8 @@ export type ProjectResourcesIpcDependencies = {
   getHost: () => HostProcess | null;
   /** Re-reads the group snapshot Main answers plugin workspace queries from. */
   refreshProjectGroups: (host: HostProcess) => Promise<unknown>;
+  /** `shell.openPath`; resolves to an error message, empty on success. */
+  openPath: (path: string) => Promise<string>;
 };
 
 const MAX_GROUP_ID_LENGTH = 256;
@@ -36,6 +38,7 @@ export function registerProjectResourcesIpc({
   registrar,
   getHost,
   refreshProjectGroups,
+  openPath,
 }: ProjectResourcesIpcDependencies): void {
   registrar.handle(IPC.invoke.projectResourcesTemplates, async () => {
     const host = getHost();
@@ -63,6 +66,27 @@ export function registerProjectResourcesIpc({
       });
       void refreshProjectGroups(host);
       return result;
+    },
+  );
+
+  // The renderer names a project, never a path: Main opens only the resource
+  // folder host-core has on record for that project.
+  registrar.handle(
+    IPC.invoke.projectResourcesReveal,
+    async (input: { groupId?: unknown } = {}) => {
+      const host = getHost();
+      if (!host) throw new Error("host unavailable");
+      const groupId = groupIdOf(input);
+      const { groups } = (await host.call("project.groups.list", {})) as {
+        groups?: Array<{ id: string; roots?: Array<{ path: string; kind?: string }> }>;
+      };
+      const folder = groups
+        ?.find((group) => group.id === groupId)
+        ?.roots?.find((root) => root.kind === "resources")?.path;
+      if (!folder) throw invalid("project has no resource folder");
+      const failure = await openPath(folder);
+      if (failure) throw new Error(failure);
+      return { ok: true };
     },
   );
 

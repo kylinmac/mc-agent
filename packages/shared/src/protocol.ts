@@ -199,6 +199,7 @@ export const IPC = {
     projectResourcesTemplates: "pi-desktop/project-resources/templates",
     projectResourcesEnsure: "pi-desktop/project-resources/ensure",
     projectWorkspaceNotes: "pi-desktop/project-resources/workspace-notes",
+    projectResourcesReveal: "pi-desktop/project-resources/reveal",
     projectWorkspaceNoteSet: "pi-desktop/project-resources/workspace-note/set",
     projectGroupMemoryGet: "pi-desktop/project-group/memory/get",
     projectGroupMemorySave: "pi-desktop/project-group/memory/save",

@@ -63,11 +63,14 @@ test("project edit dialog promotes another folder to primary", () => {
     dialogSource,
     /const orderedFolders = \[[\s\S]*?folders\.filter\(\(path\) => !samePath\(path, primaryPath\)\)/,
   );
-  assert.match(dialogSource, /\{orderedFolders\.map\(\(path\) => \{/);
+  assert.match(dialogSource, /\{orderedFolders\s*\.filter\([\s\S]*?\)\s*\.map\(\(path\) => \{/);
   assert.match(dialogSource, /project\.editSetPrimary/);
   assert.match(dialogSource, /className="project-create-folder-primary"/);
-  // A remote project keeps its host-owned binding and never promotes.
-  assert.match(dialogSource, /\{primary \|\| group\?\.remote \? null : \(/);
+  // A remote project keeps its host-owned binding and never promotes; with an
+  // mc-agent resource folder the workspaces are equal and none is promoted.
+  assert.match(dialogSource, /\{primary \|\| group\?\.remote \|\| resourcePath \? null : \(/);
+  assert.match(dialogSource, /root\.kind === "resources"/);
+  assert.match(dialogSource, /!resourcePath \|\| !samePath\(path, resourcePath\)/);
 });
 
 test("project group update is available through the host RPC and preload API", () => {

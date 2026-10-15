@@ -305,7 +305,12 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     onProviderInvalidated: (providerId) => liveCallService?.invalidateProvider(providerId),
   });
   registerJevIpc({ registrar, logger });
-  registerProjectResourcesIpc({ registrar, getHost, refreshProjectGroups });
+  registerProjectResourcesIpc({
+    registrar,
+    getHost,
+    refreshProjectGroups,
+    openPath: (path) => shell.openPath(path),
+  });
   registerWorktreeIpc({
     registrar,
     getHost,
