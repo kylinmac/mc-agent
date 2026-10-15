@@ -1,6 +1,6 @@
 # 现状架构
 
-本文描述仓库里已经在的代码，不是 R9–R15 的增量设计。增量放在哪，见 [架构文档](architecture.md) 和 [MC-ADR-0002](adr/mc-0002-fork-pi-desktop.md)。
+本文描述仓库里已经在的代码，不是 R1–R9 的增量设计。增量放在哪，见 [架构文档](architecture.md) 和 [MC-ADR-0002](adr/mc-0002-fork-pi-desktop.md)。
 
 产品名仍是上游 `pi-desktop` 0.20.1。许可 LGPL-3.0-or-later。数据目录默认 `~/.pi-desktop`（`PI_DESKTOP_DATA_DIR` 可覆盖）。
 
@@ -61,4 +61,4 @@ Agent sidecar：`packages/agent-runtime/src/sidecar.ts` 注明协议是与 Elect
 
 ## 和规划文档的关系
 
-[architecture.md](architecture.md) 写的是项目管理增量（R9–R15）该接在哪。那些模块还没建。本文只索引已经存在的上游代码。
+[architecture.md](architecture.md) 写的是项目管理增量（R1–R9）该接在哪。那些模块还没建。本文只索引已经存在的上游代码。
