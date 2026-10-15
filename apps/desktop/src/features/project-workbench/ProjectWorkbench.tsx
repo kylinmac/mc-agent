@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ResourceItem, ResourceListing, WorkspaceNote } from "@pi-desktop/shared";
+import type { ProjectTask, ResourceItem, ResourceListing, WorkspaceNote } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { Button } from "../../components/ui";
 import { IconFolder, IconPlus } from "../../components/icons";
@@ -9,6 +9,7 @@ import { chooseStartFolder, rememberedStartFolder, rememberStartFolder } from ".
 import { ProjectOverview } from "./ProjectOverview";
 import { ResourceCatalog } from "./ResourceCatalog";
 import { TemplateMigration } from "./TemplateMigration";
+import { TaskBoard } from "./TaskBoard";
 
 /*
   mc-agent project workbench (R1, R10): the project's resource folder, its
@@ -42,6 +43,7 @@ export function ProjectWorkbench({
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [listing, setListing] = useState<ResourceListing | null>(null);
+  const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [startFolder, setStartFolder] = useState(() =>
     chooseStartFolder(project.roots, project.path, rememberedStartFolder(project.groupId)),
   );
@@ -154,6 +156,7 @@ export function ProjectWorkbench({
         <ProjectOverview
           groupId={project.groupId}
           listing={listing}
+          tasks={tasks}
           onOpenResource={openResource}
           onError={onError}
         />
@@ -232,6 +235,15 @@ export function ProjectWorkbench({
             void resourceAction(() => api.registerProjectResourceUrl(project.groupId, url, category))
           }
           onRefresh={() => loadListing()}
+        />
+      ) : null}
+      {resources ? (
+        <TaskBoard
+          groupId={project.groupId}
+          listing={listing}
+          startFolder={startFolder}
+          onTasksChanged={setTasks}
+          onError={onError}
         />
       ) : null}
       {resources ? (

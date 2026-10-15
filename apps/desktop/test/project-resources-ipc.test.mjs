@@ -192,3 +192,23 @@ test("links must be http(s) to be registered or opened", async () => {
   await file.invoke(IPC.invoke.projectResourcesOpen, { groupId: "g1", key: "folder:requirements/a.md" });
   assert.deepEqual([...good.opened, ...file.opened], ["https://example.com", "/docs/App/requirements/a.md"]);
 });
+
+test("task calls pass only allowlisted operations and known fields", async () => {
+  const { invoke, calls } = setup({ "project.tasks.startRun": { task: { id: "t1" } } });
+  await invoke(IPC.invoke.projectTasksCall, {
+    groupId: "g1",
+    operation: "startRun",
+    params: { taskId: "t1", revision: 2, sessionId: "s1", startFolder: "/code/web", extra: "dropped" },
+  });
+  assert.deepEqual(calls, [
+    {
+      method: "project.tasks.startRun",
+      params: { groupId: "g1", taskId: "t1", revision: 2, sessionId: "s1", startFolder: "/code/web" },
+    },
+  ]);
+  for (const operation of ["delete", "__proto__", "", 1]) {
+    await assert.rejects(invoke(IPC.invoke.projectTasksCall, { groupId: "g1", operation }), /unknown task operation/);
+  }
+  await assert.rejects(invoke(IPC.invoke.projectTasksCall, { operation: "list" }), /project group id/);
+  assert.equal(calls.length, 1);
+});

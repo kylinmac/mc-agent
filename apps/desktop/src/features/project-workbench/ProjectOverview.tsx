@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ResourceItem, ResourceListing } from "@pi-desktop/shared";
+import type { ProjectTask, ResourceItem, ResourceListing } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { attentionItems } from "./resource-view";
 
@@ -12,11 +12,13 @@ import { attentionItems } from "./resource-view";
 export function ProjectOverview({
   groupId,
   listing,
+  tasks,
   onOpenResource,
   onError,
 }: {
   groupId: string;
   listing: ResourceListing | null;
+  tasks: readonly ProjectTask[];
   onOpenResource: (item: ResourceItem) => void;
   onError: (message: string) => void;
 }) {
@@ -83,6 +85,16 @@ export function ProjectOverview({
           {summary.missing > 0 ? (
             <span className="is-warning">{t("mcProject.summaryMissing", { count: summary.missing })}</span>
           ) : null}
+        </div>
+      ) : null}
+      {tasks.length > 0 ? (
+        <div className="mc-workbench-row mc-workbench-summary">
+          {t("mcProject.summaryTasks", {
+            todo: tasks.filter((task) => task.status === "todo").length,
+            inProgress: tasks.filter((task) => task.status === "inProgress").length,
+            awaitingReview: tasks.filter((task) => task.status === "awaitingReview").length,
+            blocked: tasks.filter((task) => task.status === "blocked").length,
+          })}
         </div>
       ) : null}
       {attention.length > 0 ? (

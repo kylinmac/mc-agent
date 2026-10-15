@@ -174,3 +174,49 @@
 .mc-workbench-link-input {
   flex: 1 1 12rem;
 }
+
+.mc-workbench-tasks,
+.mc-workbench-task-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mc-workbench-textarea {
+  height: auto;
+  min-height: 52px;
+  padding: 6px 8px;
+  resize: vertical;
+}
+
+.mc-workbench-task-resources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.mc-workbench-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.mc-workbench-task-title {
+  color: var(--ds-text-primary);
+  font-size: var(--text-xs);
+}
+
+.mc-workbench-status.is-task-awaitingReview,
+.mc-workbench-status.is-task-done {
+  color: var(--ds-accent);
+}
+
+.mc-workbench-status.is-task-blocked {
+  color: var(--ds-error);
+}

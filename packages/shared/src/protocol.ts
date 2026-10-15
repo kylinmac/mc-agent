@@ -208,6 +208,7 @@ export const IPC = {
     projectResourcesOpen: "pi-desktop/project-resources/catalog/open",
     projectGoalGet: "pi-desktop/project-resources/catalog/goal",
     projectGoalSet: "pi-desktop/project-resources/catalog/set-goal",
+    projectTasksCall: "pi-desktop/project-tasks/call",
     projectWorkspaceNoteSet: "pi-desktop/project-resources/workspace-note/set",
     projectGroupMemoryGet: "pi-desktop/project-group/memory/get",
     projectGroupMemorySave: "pi-desktop/project-group/memory/save",

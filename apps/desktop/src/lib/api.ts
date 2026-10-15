@@ -76,6 +76,9 @@ import type {
   ProjectGroupRecord,
   ResourceTemplateSummary,
   ResourceListing,
+  ProjectTask,
+  ProjectTaskInput,
+  ProjectTaskPreflight,
   WorkspaceNote,
   ProjectMemory,
   ProjectMemoryEntry,
@@ -922,6 +925,48 @@ export const api = {
     invoke<{ goal: string }>(IPC.invoke.projectGoalGet, { groupId }),
   setProjectGoal: (groupId: string, goal: string) =>
     invoke<{ goal: string }>(IPC.invoke.projectGoalSet, { groupId, goal }),
+  projectTasks: {
+    list: (groupId: string) =>
+      invoke<{ tasks: ProjectTask[] }>(IPC.invoke.projectTasksCall, { groupId, operation: "list", params: {} }),
+    create: (groupId: string, task: ProjectTaskInput) =>
+      invoke<{ task: ProjectTask }>(IPC.invoke.projectTasksCall, { groupId, operation: "create", params: { task } }),
+    update: (groupId: string, taskId: string, revision: number, task: ProjectTaskInput) =>
+      invoke<{ task: ProjectTask }>(IPC.invoke.projectTasksCall, {
+        groupId,
+        operation: "update",
+        params: { taskId, revision, task },
+      }),
+    cancel: (groupId: string, taskId: string, revision: number) =>
+      invoke<{ task: ProjectTask }>(IPC.invoke.projectTasksCall, {
+        groupId,
+        operation: "cancel",
+        params: { taskId, revision },
+      }),
+    reopen: (groupId: string, taskId: string, revision: number) =>
+      invoke<{ task: ProjectTask }>(IPC.invoke.projectTasksCall, {
+        groupId,
+        operation: "reopen",
+        params: { taskId, revision },
+      }),
+    preflight: (groupId: string, taskId: string) =>
+      invoke<ProjectTaskPreflight>(IPC.invoke.projectTasksCall, {
+        groupId,
+        operation: "preflight",
+        params: { taskId },
+      }),
+    startRun: (groupId: string, taskId: string, revision: number, sessionId: string, startFolder: string) =>
+      invoke<{ task: ProjectTask }>(IPC.invoke.projectTasksCall, {
+        groupId,
+        operation: "startRun",
+        params: { taskId, revision, sessionId, startFolder },
+      }),
+    review: (groupId: string, taskId: string, revision: number, verdict: "accepted" | "rejected", note: string) =>
+      invoke<{ task: ProjectTask }>(IPC.invoke.projectTasksCall, {
+        groupId,
+        operation: "review",
+        params: { taskId, revision, verdict, note },
+      }),
+  },
   listWorkspaceNotes: (groupId: string) =>
     invoke<{ notes: WorkspaceNote[] }>(IPC.invoke.projectWorkspaceNotes, { groupId }),
   // An empty description removes that workspace's section from workspaces.md.

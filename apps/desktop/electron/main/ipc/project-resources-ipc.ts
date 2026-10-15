@@ -221,4 +221,34 @@ export function registerProjectResourcesIpc({
       return catalog("setGoal", { groupId: groupIdOf(input), goal: input.goal });
     },
   );
+
+  // R6–R9 project tasks: one channel, an allowlisted operation, and only the
+  // fields host-core reads. host-core owns validation and state.
+  registrar.handle(
+    IPC.invoke.projectTasksCall,
+    async (input: { groupId?: unknown; operation?: unknown; params?: unknown } = {}) => {
+      const operation = typeof input?.operation === "string" ? input.operation : "";
+      if (!TASK_OPERATIONS.has(operation)) throw invalid("unknown task operation");
+      const raw = (input?.params && typeof input.params === "object" ? input.params : {}) as Record<string, unknown>;
+      const params: Record<string, unknown> = { groupId: groupIdOf(input) };
+      for (const key of TASK_PARAM_KEYS) {
+        if (raw[key] !== undefined) params[key] = raw[key];
+      }
+      const host = getHost();
+      if (!host) throw new Error("host unavailable");
+      return host.call(`project.tasks.${operation}`, params);
+    },
+  );
 }
+
+const TASK_OPERATIONS = new Set([
+  "list",
+  "create",
+  "update",
+  "cancel",
+  "reopen",
+  "preflight",
+  "startRun",
+  "review",
+]);
+const TASK_PARAM_KEYS = ["taskId", "revision", "task", "sessionId", "startFolder", "verdict", "note"] as const;

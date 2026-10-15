@@ -102,6 +102,47 @@ export type ResourceListing = {
   truncated: boolean;
 };
 
+/** mc-agent project tasks (R6–R9). */
+export type ProjectTaskStatus = "todo" | "inProgress" | "awaitingReview" | "done" | "blocked" | "cancelled";
+
+export type ProjectTaskRun = {
+  id: string;
+  sessionId: string;
+  startFolder: string;
+  startedAt: number;
+  resources: Array<{ key: string; title: string; status: ResourceStatus }>;
+  outcome: "running" | "finished" | "stopped" | "failed";
+  endedAt?: number;
+  note?: string;
+};
+
+export type ProjectTask = {
+  id: string;
+  title: string;
+  goal: string;
+  acceptance: string;
+  resources: string[];
+  status: ProjectTaskStatus;
+  revision: number;
+  runs: ProjectTaskRun[];
+  reviews: Array<{ runId: string; verdict: "accepted" | "rejected"; note: string; at: number }>;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type ProjectTaskInput = {
+  title: string;
+  goal: string;
+  acceptance: string;
+  resources: string[];
+};
+
+export type ProjectTaskPreflight = {
+  resources: Array<{ key: string; title: string; status: ResourceStatus }>;
+  blocking: string[];
+  drafts: string[];
+};
+
 export type ProjectGroupRecord = {
   remote?: RemoteWorkspace;
   id: string;

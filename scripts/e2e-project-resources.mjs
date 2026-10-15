@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * mc-agent resource directories through the real host-core binary
- * workspace descriptions and the resource catalog (MC-ADR-0003, validation
- * V12 / V13 / V22 / V27 / V29). No model and no Electron: the RPC
+ * workspace descriptions, the resource catalog and project tasks
+ * (MC-ADR-0003, validation V12–V20 / V22 / V27 / V29). No model and no Electron: the RPC
  * surface Main calls is driven directly, with an isolated data directory and
  * an isolated mc-agent home (`MC_AGENT_HOME`).
  */
@@ -148,6 +148,49 @@ try {
       existsSync(join(web, "keep.txt")) &&
       refusedOutsideFile &&
       refusedTraversal,
+  );
+
+  // V14–V20: a task run only reaches review; a stopped run blocks the task.
+  const tasks = (method, params = {}) =>
+    host.call(`project.tasks.${method}`, { groupId: group.id, ...params });
+  await catalog("setStatus", { key: "folder:requirements/login.md", status: "confirmed" });
+  const { task } = await tasks("create", {
+    task: { title: "登录接口", goal: "", acceptance: "测试通过", resources: ["folder:requirements/login.md"] },
+  });
+  const runSession = async () => {
+    const created = await host.call("session.create", { title: "task", mode: "agent", projectPath: server });
+    const sessionId = created.session.id;
+    const { turnId } = await host.call("session.beginTurn", { sessionId });
+    return { sessionId, turnId };
+  };
+  const first = await runSession();
+  const started = (await tasks("startRun", { taskId: task.id, revision: task.revision, sessionId: first.sessionId, startFolder: server })).task;
+  const duplicate = await tasks("startRun", {
+    taskId: task.id, revision: started.revision, sessionId: first.sessionId, startFolder: server,
+  }).then(() => false, () => true);
+  const stillRunning = (await tasks("list")).tasks[0].status;
+  await host.call("session.endTurn", { turnId: first.turnId, status: "completed" });
+  const awaiting = (await tasks("list")).tasks[0];
+  const rejected = (await tasks("review", {
+    taskId: task.id, revision: awaiting.revision, verdict: "rejected", note: "缺少错误处理",
+  })).task;
+  const second = await runSession();
+  const restarted = (await tasks("startRun", {
+    taskId: task.id, revision: rejected.revision, sessionId: second.sessionId, startFolder: server,
+  })).task;
+  await host.call("session.endTurn", { turnId: second.turnId, status: "aborted" });
+  const blocked = (await tasks("list")).tasks[0];
+  record(
+    "E2E-PROJECT-task-runs-reach-review-and-stops-block",
+    started.status === "inProgress" &&
+      duplicate &&
+      stillRunning === "inProgress" &&
+      awaiting.status === "awaitingReview" &&
+      rejected.status === "todo" &&
+      restarted.runs.length === 2 &&
+      blocked.status === "blocked" &&
+      blocked.runs[1].outcome === "stopped" &&
+      blocked.reviews[0].note === "缺少错误处理",
   );
 
   // V27: an existing legacy single-folder project is backfilled with `blank`.
