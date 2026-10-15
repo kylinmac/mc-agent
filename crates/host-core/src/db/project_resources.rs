@@ -1,0 +1,250 @@
+//! mc-agent project resource directories (MC-ADR-0003).
+//!
+//! A project keeps its documents and other fixed material in one resource
+//! directory outside every workspace. The directory is stored as the first root
+//! of the project group with `kind: "resources"`, so the upstream containment,
+//! session-ownership and launch-context paths treat it like any other root.
+
+use super::project_groups::{ProjectGroupRecord, ProjectGroupRootKind};
+use super::repositories::canonical_project_path;
+use super::*;
+
+impl Database {
+    /// Attach an existing directory as the project's resource directory.
+    ///
+    /// The directory becomes `roots[0]` and the primary path; the existing
+    /// workspaces keep their order after it. A legacy single-folder project is
+    /// upgraded to a stored group first, which carries its path-scoped memory
+    /// over. Workspaces are never modified.
+    pub fn attach_project_resource_root(&self, id: &str, path: &str) -> Result<ProjectGroupRecord> {
+        let Some(current) = self.group_by_id(id.trim())? else {
+            return Err(anyhow!("project group not found"));
+        };
+        if current.remote.is_some() {
+            return Err(anyhow!("remote projects cannot have a resource folder"));
+        }
+        if current.resource_root().is_some() {
+            return Err(anyhow!("project already has a resource folder"));
+        }
+        let resources = canonical_project_path(path)
+            .ok_or_else(|| anyhow!("resource folder path must not be blank"))?;
+        if !Path::new(&resources).is_dir() {
+            return Err(anyhow!("resource folder is not a directory: {resources}"));
+        }
+        if current.roots.iter().any(|root| root.path == resources) {
+            return Err(anyhow!(
+                "resource folder is already a workspace of this project: {resources}"
+            ));
+        }
+
+        let mut paths = Vec::with_capacity(current.roots.len() + 1);
+        paths.push(resources.clone());
+        paths.extend(current.roots.iter().map(|root| root.path.clone()));
+
+        let transaction = self.conn.unchecked_transaction()?;
+        let mut group =
+            self.update_project_group(&current.id, &current.name, &paths, Some(&resources))?;
+        if group.roots.first().map(|root| root.path.as_str()) != Some(resources.as_str()) {
+            return Err(anyhow!("resource folder did not become the first root"));
+        }
+        group.roots[0].kind = ProjectGroupRootKind::Resources;
+        self.store_project_group(&group)?;
+        transaction.commit()?;
+        Ok(group)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct Fixture {
+        _dir: tempfile::TempDir,
+        db: Database,
+        web: String,
+        server: String,
+        resources: String,
+    }
+
+    fn fixture() -> Fixture {
+        let dir = tempfile::tempdir().unwrap();
+        let mut paths = Vec::new();
+        for name in ["web", "server", "resources"] {
+            let path = dir.path().join(name);
+            std::fs::create_dir_all(&path).unwrap();
+            paths.push(canonical_project_path(&path.to_string_lossy()).unwrap());
+        }
+        let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+        Fixture {
+            _dir: dir,
+            db,
+            web: paths[0].clone(),
+            server: paths[1].clone(),
+            resources: paths[2].clone(),
+        }
+    }
+
+    #[test]
+    fn attaching_puts_the_resource_root_first_and_keeps_workspace_order() {
+        let f = fixture();
+        let group =
+            f.db.create_project_group("Split", &[f.web.clone(), f.server.clone()])
+                .unwrap();
+
+        let attached =
+            f.db.attach_project_resource_root(&group.id, &f.resources)
+                .unwrap();
+
+        assert_eq!(attached.id, group.id);
+        assert_eq!(attached.primary_path, f.resources);
+        let roots: Vec<_> = attached
+            .roots
+            .iter()
+            .map(|root| (root.path.as_str(), root.kind))
+            .collect();
+        assert_eq!(
+            roots,
+            [
+                (f.resources.as_str(), ProjectGroupRootKind::Resources),
+                (f.web.as_str(), ProjectGroupRootKind::Workspace),
+                (f.server.as_str(), ProjectGroupRootKind::Workspace),
+            ]
+        );
+        let reloaded = f.db.project_group_for_path(&f.resources).unwrap().unwrap();
+        assert_eq!(reloaded.id, group.id);
+        assert_eq!(reloaded.resource_root().unwrap().path, f.resources);
+    }
+
+    #[test]
+    fn workspace_records_without_kind_stay_byte_identical() {
+        let f = fixture();
+        let group =
+            f.db.create_project_group("Plain", std::slice::from_ref(&f.web))
+                .unwrap();
+        let stored = serde_json::to_value(&group).unwrap();
+        assert!(stored["roots"][0].get("kind").is_none());
+
+        let attached =
+            f.db.attach_project_resource_root(&group.id, &f.resources)
+                .unwrap();
+        let stored = serde_json::to_value(&attached).unwrap();
+        assert_eq!(stored["roots"][0]["kind"], "resources");
+        assert!(stored["roots"][1].get("kind").is_none());
+    }
+
+    #[test]
+    fn legacy_projects_are_upgraded_and_keep_their_memory() {
+        let f = fixture();
+        f.db.ensure_project(&f.web, false).unwrap();
+        f.db.set_project_memory(&f.web, "Keep the API stable.")
+            .unwrap();
+        let legacy = f.db.list_project_groups().unwrap().pop().unwrap();
+        assert!(legacy.legacy);
+
+        let attached =
+            f.db.attach_project_resource_root(&legacy.id, &f.resources)
+                .unwrap();
+
+        assert!(!attached.legacy);
+        assert_eq!(attached.resource_root().unwrap().path, f.resources);
+        assert_eq!(attached.roots[1].path, f.web);
+        let memory = f.db.get_project_group_memory(&attached.id).unwrap();
+        assert!(memory.content.contains("Keep the API stable."));
+        assert_eq!(f.db.list_project_groups().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn attaching_is_refused_for_bad_targets() {
+        let f = fixture();
+        let group =
+            f.db.create_project_group("Split", &[f.web.clone(), f.server.clone()])
+                .unwrap();
+
+        assert!(f
+            .db
+            .attach_project_resource_root(&group.id, &f.server)
+            .is_err());
+        let missing = format!("{}/missing", f.resources);
+        assert!(f
+            .db
+            .attach_project_resource_root(&group.id, &missing)
+            .is_err());
+        assert!(f
+            .db
+            .attach_project_resource_root("no-such-group", &f.resources)
+            .is_err());
+
+        f.db.attach_project_resource_root(&group.id, &f.resources)
+            .unwrap();
+        assert!(f
+            .db
+            .attach_project_resource_root(&group.id, &f.resources)
+            .is_err());
+        let unchanged = f.db.project_group_for_path(&f.web).unwrap().unwrap();
+        assert_eq!(unchanged.roots.len(), 3);
+    }
+
+    #[test]
+    fn editing_workspaces_keeps_the_resource_root_first() {
+        let f = fixture();
+        let group =
+            f.db.create_project_group("Split", &[f.web.clone(), f.server.clone()])
+                .unwrap();
+        f.db.attach_project_resource_root(&group.id, &f.resources)
+            .unwrap();
+
+        let edited =
+            f.db.update_project_group(
+                &group.id,
+                "Split",
+                &[f.resources.clone(), f.server.clone()],
+                None,
+            )
+            .unwrap();
+        assert_eq!(edited.roots[0].kind, ProjectGroupRootKind::Resources);
+        assert_eq!(edited.roots[1].path, f.server);
+
+        assert!(f
+            .db
+            .update_project_group(&group.id, "Split", std::slice::from_ref(&f.server), None)
+            .is_err());
+        assert!(f
+            .db
+            .update_project_group(
+                &group.id,
+                "Split",
+                &[f.resources.clone(), f.server.clone()],
+                Some(&f.server),
+            )
+            .is_err());
+    }
+
+    #[test]
+    fn the_resource_root_is_removed_only_with_the_last_workspace() {
+        let f = fixture();
+        let group =
+            f.db.create_project_group("Split", &[f.web.clone(), f.server.clone()])
+                .unwrap();
+        f.db.attach_project_resource_root(&group.id, &f.resources)
+            .unwrap();
+
+        assert!(f
+            .db
+            .remove_project_from_group(&group.id, &f.resources)
+            .is_err());
+        let after_web =
+            f.db.remove_project_from_group(&group.id, &f.web)
+                .unwrap()
+                .unwrap();
+        assert_eq!(after_web.primary_path, f.resources);
+        assert_eq!(after_web.roots[0].kind, ProjectGroupRootKind::Resources);
+        f.db.remove_project_from_group(&group.id, &f.server)
+            .unwrap()
+            .unwrap();
+        assert!(f
+            .db
+            .remove_project_from_group(&group.id, &f.resources)
+            .unwrap()
+            .is_none());
+    }
+}

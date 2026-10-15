@@ -38,10 +38,18 @@ export type ProjectRecord = {
   lastOpenedAt: number;
 };
 
+/**
+ * What a project-group root is for (mc-agent, MC-ADR-0003). Absent on records
+ * written before mc-agent, which read as `"workspace"`.
+ */
+export type ProjectGroupRootKind = "workspace" | "resources";
+
 export type ProjectGroupRoot = {
   path: string;
   name: string;
   position: number;
+  /** `"resources"` marks the project's resource directory, always `roots[0]`. */
+  kind?: ProjectGroupRootKind;
 };
 
 export type ProjectGroupRecord = {

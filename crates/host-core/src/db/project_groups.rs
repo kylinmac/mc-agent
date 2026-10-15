@@ -39,12 +39,51 @@ impl RemoteWorkspace {
     }
 }
 
+/// What a project-group root is for (MC-ADR-0003).
+///
+/// Records written before mc-agent have no `kind`, so a missing value reads as
+/// an ordinary workspace and an ordinary workspace is never written, which
+/// keeps those records byte-identical.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum ProjectGroupRootKind {
+    #[default]
+    Workspace,
+    /// The project's resource directory. At most one, always `roots[0]`.
+    Resources,
+}
+
+impl ProjectGroupRootKind {
+    fn is_workspace(&self) -> bool {
+        *self == Self::Workspace
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectGroupRoot {
     pub path: String,
     pub name: String,
     pub position: i64,
+    #[serde(default, skip_serializing_if = "ProjectGroupRootKind::is_workspace")]
+    pub kind: ProjectGroupRootKind,
+}
+
+impl ProjectGroupRecord {
+    /// The resource directory root, if this project has one.
+    pub fn resource_root(&self) -> Option<&ProjectGroupRoot> {
+        self.roots
+            .iter()
+            .find(|root| root.kind == ProjectGroupRootKind::Resources)
+    }
+
+    fn root_kind(&self, path: &str) -> ProjectGroupRootKind {
+        self.roots
+            .iter()
+            .find(|root| root.path == path)
+            .map(|root| root.kind)
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -89,6 +128,17 @@ fn group_from_value(raw: &str) -> Result<ProjectGroupRecord> {
     if group.roots[0].path != group.primary_path {
         return Err(anyhow!("project group primary root must be first"));
     }
+    if group
+        .roots
+        .iter()
+        .skip(1)
+        .any(|root| root.kind == ProjectGroupRootKind::Resources)
+    {
+        return Err(anyhow!("project group resource root must be first"));
+    }
+    if group.remote.is_some() && group.resource_root().is_some() {
+        return Err(anyhow!("remote projects cannot have a resource root"));
+    }
     if let Some(remote) = &group.remote {
         remote.validate()?;
         if group.primary_path != format!("{REMOTE_PROJECT_PREFIX}{}", group.id)
@@ -111,6 +161,7 @@ fn legacy_group(project: &ProjectRecord) -> ProjectGroupRecord {
             path: project.path.clone(),
             name: project.name.clone(),
             position: 0,
+            kind: ProjectGroupRootKind::Workspace,
         }],
         created_at: project.created_at,
         updated_at: project.last_opened_at,
@@ -167,6 +218,7 @@ impl Database {
                 path: primary_path.clone(),
                 name: name.to_string(),
                 position: 0,
+                kind: ProjectGroupRootKind::Workspace,
             }],
             created_at: now,
             updated_at: now,
@@ -196,7 +248,11 @@ impl Database {
         rows.map(|row| group_from_value(&row?)).collect()
     }
 
-    fn group_by_id(&self, id: &str) -> Result<Option<ProjectGroupRecord>> {
+    pub(super) fn store_project_group(&self, group: &ProjectGroupRecord) -> Result<()> {
+        self.kv_set(GROUP_NAMESPACE, &group.id, &serde_json::to_value(group)?)
+    }
+
+    pub(super) fn group_by_id(&self, id: &str) -> Result<Option<ProjectGroupRecord>> {
         Ok(self
             .list_project_groups()?
             .into_iter()
@@ -306,6 +362,7 @@ impl Database {
                 path: path.clone(),
                 name: project_display_name(path),
                 position: position as i64,
+                kind: ProjectGroupRootKind::Workspace,
             })
             .collect::<Vec<_>>();
         for path in &canonical_paths {
@@ -380,6 +437,19 @@ impl Database {
             }
             selected.push(path);
         }
+        // The resource directory stays the first root while the project has
+        // one; editing workspaces must not demote or drop it (MC-ADR-0003).
+        if let Some(resources) = current.resource_root() {
+            if !selected.iter().any(|path| path == &resources.path) {
+                return Err(anyhow!("the resource folder cannot be removed"));
+            }
+            if requested_primary
+                .as_ref()
+                .is_some_and(|requested| requested != &resources.path)
+            {
+                return Err(anyhow!("the resource folder must stay first"));
+            }
+        }
         let primary = match requested_primary {
             Some(requested) if selected.iter().any(|path| path == &requested) => requested,
             Some(requested) => {
@@ -435,6 +505,7 @@ impl Database {
                 path: path.clone(),
                 name: project_display_name(path),
                 position: position as i64,
+                kind: current.root_kind(path),
             })
             .collect::<Vec<_>>();
         let mut detached_paths = current.detached_paths;
@@ -534,6 +605,11 @@ impl Database {
             .map(|root| root.path.clone())
             .filter(|candidate| candidate != &removed)
             .collect();
+        if !remaining.is_empty() && current.root_kind(&removed) == ProjectGroupRootKind::Resources {
+            return Err(anyhow!(
+                "the resource folder cannot be removed while the project has workspaces"
+            ));
+        }
         if remaining.is_empty() {
             self.delete_project_group_record(&current.id)?;
             return Ok(None);
@@ -560,6 +636,7 @@ impl Database {
                 path: candidate.clone(),
                 name: project_display_name(candidate),
                 position: position as i64,
+                kind: current.root_kind(candidate),
             })
             .collect::<Vec<_>>();
         let group = ProjectGroupRecord {

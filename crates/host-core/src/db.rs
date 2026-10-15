@@ -19,6 +19,7 @@ mod migrations;
 mod model;
 mod plugin_providers_migration;
 mod project_groups;
+mod project_resources;
 mod repositories;
 mod schema;
 mod session_collaboration_migration;
@@ -34,8 +35,8 @@ pub(crate) use migrations::{
 pub(crate) use model::PlanWorkRow;
 pub use model::{Database, ProjectMemoryEntryRecord, ProjectMemoryRecord, ProjectRecord};
 pub use project_groups::{
-    ProjectGroupContextRecord, ProjectGroupRecord, ProjectGroupRoot, RemoteWorkspace,
-    REMOTE_PROJECT_PREFIX,
+    ProjectGroupContextRecord, ProjectGroupRecord, ProjectGroupRoot, ProjectGroupRootKind,
+    RemoteWorkspace, REMOTE_PROJECT_PREFIX,
 };
 pub(crate) use repositories::{
     canonical_project_path, normalize_project_path, project_display_name,
