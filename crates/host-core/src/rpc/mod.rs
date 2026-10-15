@@ -1,5 +1,6 @@
 mod config_sync_rpc;
 mod remote_tools;
+mod resource_catalog_rpc;
 mod resource_dirs_rpc;
 mod scheduled_rpc;
 mod scheduled_tools;
@@ -1971,6 +1972,10 @@ async fn handle_request(
         "project.resources.ensure" => {
             let st = state.lock().await;
             resource_dirs_rpc::ensure(&st, &params)
+        }
+        method if method.starts_with("project.resources.catalog.") => {
+            let st = state.lock().await;
+            resource_catalog_rpc::handle(&st, method, &params)
         }
         "project.workspaces.notes" => {
             let st = state.lock().await;

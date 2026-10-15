@@ -3,7 +3,7 @@ import test from "node:test";
 import { IPC } from "@pi-desktop/shared";
 import { registerProjectResourcesIpc } from "../electron/main/ipc/project-resources-ipc.ts";
 
-function setup(responses = {}) {
+function setup(responses = {}, { picked = null } = {}) {
   const handlers = new Map();
   const calls = [];
   const refreshes = [];
@@ -24,6 +24,10 @@ function setup(responses = {}) {
       opened.push(path);
       return "";
     },
+    openExternal: async (url) => {
+      opened.push(url);
+    },
+    pickFile: async () => picked,
   });
   const invoke = (channel, input) => handlers.get(channel)(input);
   return { invoke, calls, refreshes, host, opened };
@@ -129,4 +133,62 @@ test("reveal opens only the resource folder host-core has for the project", asyn
   await assert.rejects(invoke(IPC.invoke.projectResourcesReveal, { groupId: "g2" }), /no resource folder/);
   await assert.rejects(invoke(IPC.invoke.projectResourcesReveal, { groupId: "missing" }), /no resource folder/);
   assert.deepEqual(opened, ["/docs/App"]);
+});
+
+test("catalog status changes accept only settable statuses", async () => {
+  const { invoke, calls } = setup();
+  await invoke(IPC.invoke.projectResourcesSetStatus, { groupId: "g1", key: "folder:a.md", status: "confirmed" });
+  for (const status of ["changed", "missing", "", 3]) {
+    await assert.rejects(
+      invoke(IPC.invoke.projectResourcesSetStatus, { groupId: "g1", key: "folder:a.md", status }),
+      /status must be/,
+    );
+  }
+  assert.deepEqual(calls, [
+    {
+      method: "project.resources.catalog.setStatus",
+      params: { groupId: "g1", key: "folder:a.md", status: "confirmed" },
+    },
+  ]);
+});
+
+test("registering a file uses the native picker's path, never one from the renderer", async () => {
+  const picked = setup({}, { picked: "/code/web/README.md" });
+  await picked.invoke(IPC.invoke.projectResourcesRegisterFile, {
+    groupId: "g1",
+    category: "reference",
+    path: "/etc/passwd",
+  });
+  assert.deepEqual(picked.calls, [
+    {
+      method: "project.resources.catalog.registerFile",
+      params: { groupId: "g1", path: "/code/web/README.md", category: "reference" },
+    },
+  ]);
+  const canceled = setup({}, { picked: null });
+  assert.deepEqual(await canceled.invoke(IPC.invoke.projectResourcesRegisterFile, { groupId: "g1" }), {
+    canceled: true,
+  });
+  assert.equal(canceled.calls.length, 0);
+});
+
+test("links must be http(s) to be registered or opened", async () => {
+  const { invoke, calls } = setup();
+  for (const url of ["file:///etc/passwd", "javascript:alert(1)", ""]) {
+    await assert.rejects(
+      invoke(IPC.invoke.projectResourcesRegisterUrl, { groupId: "g1", url }),
+      /http\(s\) link/,
+    );
+  }
+  assert.equal(calls.length, 0);
+
+  const bad = setup({ "project.resources.catalog.locate": { url: "file:///etc/passwd" } });
+  await assert.rejects(bad.invoke(IPC.invoke.projectResourcesOpen, { groupId: "g1", key: "entry:1" }), /http\(s\)/);
+  assert.deepEqual(bad.opened, []);
+
+  const good = setup({ "project.resources.catalog.locate": { url: "https://example.com" } });
+  await good.invoke(IPC.invoke.projectResourcesOpen, { groupId: "g1", key: "entry:1" });
+  const file = setup({ "project.resources.catalog.locate": { path: "/docs/App/requirements/a.md" } });
+  await file.invoke(IPC.invoke.projectResourcesOpen, { groupId: "g1", key: "folder:requirements/a.md" });
+  assert.deepEqual([...good.opened, ...file.opened], ["https://example.com", "/docs/App/requirements/a.md"]);
 });

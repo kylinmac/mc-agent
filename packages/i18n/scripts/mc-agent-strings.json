@@ -78,5 +78,170 @@
     "en": "The project was renamed, but its resource folder stayed in place: {{message}}",
     "zh-CN": "项目已改名，但资料目录没有跟着改名：{{message}}",
     "zh-TW": "專案已改名，但資料目錄沒有跟著改名：{{message}}"
+  },
+  "overviewTitle": {
+    "en": "Overview",
+    "zh-CN": "概览",
+    "zh-TW": "概覽"
+  },
+  "goalLabel": {
+    "en": "Project goal",
+    "zh-CN": "项目目标",
+    "zh-TW": "專案目標"
+  },
+  "goalPlaceholder": {
+    "en": "What should this project achieve?",
+    "zh-CN": "这个项目要达成什么？",
+    "zh-TW": "這個專案要達成什麼？"
+  },
+  "goalError": {
+    "en": "Could not save the goal: {{message}}",
+    "zh-CN": "目标保存失败：{{message}}",
+    "zh-TW": "目標儲存失敗：{{message}}"
+  },
+  "summaryTotal": {
+    "en": "{{count}} resources",
+    "zh-CN": "资料 {{count}}",
+    "zh-TW": "資料 {{count}}"
+  },
+  "summaryConfirmed": {
+    "en": "{{count}} confirmed",
+    "zh-CN": "已确认 {{count}}",
+    "zh-TW": "已確認 {{count}}"
+  },
+  "summaryChanged": {
+    "en": "{{count}} changed since confirmed",
+    "zh-CN": "确认后有修改 {{count}}",
+    "zh-TW": "確認後有修改 {{count}}"
+  },
+  "summaryDraft": {
+    "en": "{{count}} drafts",
+    "zh-CN": "草稿 {{count}}",
+    "zh-TW": "草稿 {{count}}"
+  },
+  "summaryMissing": {
+    "en": "{{count}} missing",
+    "zh-CN": "缺失 {{count}}",
+    "zh-TW": "缺失 {{count}}"
+  },
+  "needsAttention": {
+    "en": "Needs attention",
+    "zh-CN": "需要处理",
+    "zh-TW": "需要處理"
+  },
+  "resourcesListTitle": {
+    "en": "Resources",
+    "zh-CN": "资料",
+    "zh-TW": "資料"
+  },
+  "resourcesEmpty": {
+    "en": "No resources yet. Put files into the resource folder, register a workspace file, or add a link.",
+    "zh-CN": "还没有资料。把文件放进资料目录，或登记工作区文件、添加链接。",
+    "zh-TW": "還沒有資料。把檔案放進資料目錄，或登記工作區檔案、新增連結。"
+  },
+  "resourcesTruncated": {
+    "en": "Only the first 2000 files are listed.",
+    "zh-CN": "只列出前 2000 个文件。",
+    "zh-TW": "只列出前 2000 個檔案。"
+  },
+  "uncategorized": {
+    "en": "Uncategorized",
+    "zh-CN": "未分类",
+    "zh-TW": "未分類"
+  },
+  "sourceWorkspace": {
+    "en": "Workspace",
+    "zh-CN": "工作区",
+    "zh-TW": "工作區"
+  },
+  "sourceLink": {
+    "en": "Link",
+    "zh-CN": "链接",
+    "zh-TW": "連結"
+  },
+  "statusDraft": {
+    "en": "Draft",
+    "zh-CN": "草稿",
+    "zh-TW": "草稿"
+  },
+  "statusConfirmed": {
+    "en": "Confirmed",
+    "zh-CN": "已确认",
+    "zh-TW": "已確認"
+  },
+  "statusChanged": {
+    "en": "Changed since confirmed",
+    "zh-CN": "确认后有修改",
+    "zh-TW": "確認後有修改"
+  },
+  "statusDeprecated": {
+    "en": "Deprecated",
+    "zh-CN": "已废弃",
+    "zh-TW": "已廢棄"
+  },
+  "statusMissing": {
+    "en": "Missing",
+    "zh-CN": "缺失",
+    "zh-TW": "缺失"
+  },
+  "actionConfirm": {
+    "en": "Confirm",
+    "zh-CN": "确认",
+    "zh-TW": "確認"
+  },
+  "actionReconfirm": {
+    "en": "Confirm this version",
+    "zh-CN": "确认当前版本",
+    "zh-TW": "確認目前版本"
+  },
+  "actionDraft": {
+    "en": "Back to draft",
+    "zh-CN": "设为草稿",
+    "zh-TW": "設為草稿"
+  },
+  "actionDeprecate": {
+    "en": "Deprecate",
+    "zh-CN": "废弃",
+    "zh-TW": "廢棄"
+  },
+  "actionRemove": {
+    "en": "Remove",
+    "zh-CN": "解除登记",
+    "zh-TW": "解除登記"
+  },
+  "actionRemoveHint": {
+    "en": "Removes the registration only; the file is not deleted.",
+    "zh-CN": "只解除登记，不删除文件。",
+    "zh-TW": "只解除登記，不刪除檔案。"
+  },
+  "registerFile": {
+    "en": "Register workspace file",
+    "zh-CN": "登记工作区文件",
+    "zh-TW": "登記工作區檔案"
+  },
+  "addLink": {
+    "en": "Add link",
+    "zh-CN": "添加链接",
+    "zh-TW": "新增連結"
+  },
+  "linkPlaceholder": {
+    "en": "https://…",
+    "zh-CN": "https://…",
+    "zh-TW": "https://…"
+  },
+  "categoryLabel": {
+    "en": "Category",
+    "zh-CN": "分类",
+    "zh-TW": "分類"
+  },
+  "refresh": {
+    "en": "Refresh",
+    "zh-CN": "刷新",
+    "zh-TW": "重新整理"
+  },
+  "resourceActionError": {
+    "en": "Resource action failed: {{message}}",
+    "zh-CN": "资料操作失败：{{message}}",
+    "zh-TW": "資料操作失敗：{{message}}"
   }
 }

@@ -16,6 +16,7 @@ mod plugin_sessions;
 mod plugin_usage;
 mod plugins;
 mod providers;
+mod resource_catalog;
 mod resource_dirs;
 mod review;
 mod rpc;

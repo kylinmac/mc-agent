@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * mc-agent resource directories through the real host-core binary
- * and workspace descriptions (MC-ADR-0003, validation V22 / V27 / V29). No model and no Electron: the RPC
+ * workspace descriptions and the resource catalog (MC-ADR-0003, validation
+ * V12 / V13 / V22 / V27 / V29). No model and no Electron: the RPC
  * surface Main calls is driven directly, with an isolated data directory and
  * an isolated mc-agent home (`MC_AGENT_HOME`).
  */
@@ -113,6 +114,41 @@ try {
     })
     .then(() => false, () => true);
   record("E2E-PROJECT-resources-root-cannot-be-dropped-or-demoted", refusedDrop && refusedDemote);
+
+  // V12/V13: the catalog lists the folder, confirms a version and flags edits.
+  writeFileSync(join(resources.path, "requirements", "login.md"), "v1");
+  const catalog = (method, params = {}) =>
+    host.call(`project.resources.catalog.${method}`, { groupId: group.id, ...params });
+  const listed1 = await catalog("list");
+  await catalog("setStatus", { key: "folder:requirements/login.md", status: "confirmed" });
+  const confirmed = (await catalog("list")).items.find((item) => item.key === "folder:requirements/login.md");
+  writeFileSync(join(resources.path, "requirements", "login.md"), "v2");
+  const listed2 = await catalog("list");
+  const link = await catalog("registerUrl", { url: "https://example.com/spec", category: "reference" });
+  const file = await catalog("registerFile", { path: join(web, "keep.txt"), category: "reference" });
+  const refusedOutsideFile = await catalog("registerFile", { path: join(temp, "data", "pi.sqlite") }).then(
+    () => false,
+    () => true,
+  );
+  const refusedTraversal = await catalog("locate", { key: "folder:../../data/pi.sqlite" }).then(
+    () => false,
+    () => true,
+  );
+  await catalog("unregister", { key: file.key });
+  const listed3 = await catalog("list");
+  record(
+    "E2E-PROJECT-resource-catalog-confirms-and-flags-changes",
+    listed1.items.some((item) => item.key === "folder:requirements/login.md" && item.status === "draft") &&
+      listed1.items.every((item) => !["workspaces.md", "AGENTS.md"].includes(item.title)) &&
+      confirmed?.status === "confirmed" &&
+      listed2.items.find((item) => item.key === "folder:requirements/login.md")?.status === "changed" &&
+      listed2.summary.changed === 1 &&
+      listed3.items.some((item) => item.key === link.key && item.source === "url") &&
+      listed3.items.every((item) => item.key !== file.key) &&
+      existsSync(join(web, "keep.txt")) &&
+      refusedOutsideFile &&
+      refusedTraversal,
+  );
 
   // V27: an existing legacy single-folder project is backfilled with `blank`.
   await host.call("projects.create", { path: legacy });

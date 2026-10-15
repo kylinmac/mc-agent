@@ -14,6 +14,10 @@ export type ProjectResourcesIpcDependencies = {
   refreshProjectGroups: (host: HostProcess) => Promise<unknown>;
   /** `shell.openPath`; resolves to an error message, empty on success. */
   openPath: (path: string) => Promise<string>;
+  /** Opens an http(s) URL in the user's browser. */
+  openExternal: (url: string) => Promise<void>;
+  /** Native single-file picker; `null` when the user cancels. */
+  pickFile: (defaultPath?: string) => Promise<string | null>;
 };
 
 const MAX_GROUP_ID_LENGTH = 256;
@@ -39,6 +43,8 @@ export function registerProjectResourcesIpc({
   getHost,
   refreshProjectGroups,
   openPath,
+  openExternal,
+  pickFile,
 }: ProjectResourcesIpcDependencies): void {
   registrar.handle(IPC.invoke.projectResourcesTemplates, async () => {
     const host = getHost();
@@ -115,6 +121,104 @@ export function registerProjectResourcesIpc({
         path,
         description: input.description,
       });
+    },
+  );
+
+  // R2/R3/R4 resource catalog. host-core resolves every key against the
+  // project's own folders; Main validates shapes and performs the open.
+  const catalog = (method: string, params: Record<string, unknown>) => {
+    const host = getHost();
+    if (!host) throw new Error("host unavailable");
+    return host.call(`project.resources.catalog.${method}`, params);
+  };
+  const keyOf = (input: { key?: unknown } | undefined): string => {
+    const key = typeof input?.key === "string" ? input.key.trim() : "";
+    if (!key || key.length > MAX_PATH_LENGTH) throw invalid("resource key required");
+    return key;
+  };
+  const categoryOf = (input: { category?: unknown } | undefined): string =>
+    typeof input?.category === "string" ? input.category.trim().slice(0, 80) : "";
+  const titleOf = (input: { title?: unknown } | undefined): string | undefined =>
+    typeof input?.title === "string" && input.title.trim() ? input.title.trim().slice(0, 200) : undefined;
+
+  registrar.handle(IPC.invoke.projectResourcesList, async (input: { groupId?: unknown } = {}) =>
+    catalog("list", { groupId: groupIdOf(input) }),
+  );
+
+  registrar.handle(
+    IPC.invoke.projectResourcesSetStatus,
+    async (input: { groupId?: unknown; key?: unknown; status?: unknown } = {}) => {
+      if (input?.status !== "draft" && input?.status !== "confirmed" && input?.status !== "deprecated") {
+        throw invalid("status must be draft, confirmed or deprecated");
+      }
+      return catalog("setStatus", { groupId: groupIdOf(input), key: keyOf(input), status: input.status });
+    },
+  );
+
+  registrar.handle(
+    IPC.invoke.projectResourcesRegisterUrl,
+    async (input: { groupId?: unknown; url?: unknown; category?: unknown; title?: unknown } = {}) => {
+      const url = typeof input?.url === "string" ? input.url.trim() : "";
+      if (!/^https?:\/\//i.test(url) || url.length > 2048) throw invalid("an http(s) link is required");
+      const title = titleOf(input);
+      return catalog("registerUrl", {
+        groupId: groupIdOf(input), url, category: categoryOf(input), ...(title ? { title } : {}),
+      });
+    },
+  );
+
+  // The file comes from the native picker, never from the renderer; host-core
+  // still refuses anything outside the project's workspaces.
+  registrar.handle(
+    IPC.invoke.projectResourcesRegisterFile,
+    async (input: { groupId?: unknown; category?: unknown; defaultPath?: unknown } = {}) => {
+      const groupId = groupIdOf(input);
+      const defaultPath =
+        typeof input?.defaultPath === "string" && input.defaultPath.length <= MAX_PATH_LENGTH
+          ? input.defaultPath
+          : undefined;
+      const path = await pickFile(defaultPath);
+      if (!path) return { canceled: true };
+      return catalog("registerFile", { groupId, path, category: categoryOf(input) });
+    },
+  );
+
+  registrar.handle(
+    IPC.invoke.projectResourcesUnregister,
+    async (input: { groupId?: unknown; key?: unknown } = {}) =>
+      catalog("unregister", { groupId: groupIdOf(input), key: keyOf(input) }),
+  );
+
+  registrar.handle(
+    IPC.invoke.projectResourcesOpen,
+    async (input: { groupId?: unknown; key?: unknown } = {}) => {
+      const target = (await catalog("locate", { groupId: groupIdOf(input), key: keyOf(input) })) as {
+        path?: string;
+        url?: string;
+      };
+      if (target.url) {
+        if (!/^https?:\/\//i.test(target.url)) throw invalid("only http(s) links can be opened");
+        await openExternal(target.url);
+        return { ok: true };
+      }
+      if (!target.path) throw invalid("resource not found");
+      const failure = await openPath(target.path);
+      if (failure) throw new Error(failure);
+      return { ok: true };
+    },
+  );
+
+  registrar.handle(IPC.invoke.projectGoalGet, async (input: { groupId?: unknown } = {}) =>
+    catalog("goal", { groupId: groupIdOf(input) }),
+  );
+
+  registrar.handle(
+    IPC.invoke.projectGoalSet,
+    async (input: { groupId?: unknown; goal?: unknown } = {}) => {
+      if (typeof input?.goal !== "string" || input.goal.length > MAX_DESCRIPTION_LENGTH) {
+        throw invalid("project goal required");
+      }
+      return catalog("setGoal", { groupId: groupIdOf(input), goal: input.goal });
     },
   );
 }

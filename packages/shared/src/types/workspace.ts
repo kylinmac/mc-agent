@@ -70,6 +70,38 @@ export type WorkspaceNote = {
   description: string;
 };
 
+/** mc-agent resource catalog (R3/R4). `changed` and `missing` are computed. */
+export type ResourceStatus = "draft" | "confirmed" | "changed" | "deprecated" | "missing";
+
+export type ResourceItem = {
+  /** `folder:<relative path>` or `entry:<id>`. */
+  key: string;
+  source: "folder" | "workspace" | "url";
+  /** First-level folder of the resource folder; empty when uncategorized. */
+  category: string;
+  title: string;
+  path?: string;
+  url?: string;
+  status: ResourceStatus;
+  confirmedAt?: number;
+};
+
+export type ResourceSummary = {
+  total: number;
+  draft: number;
+  confirmed: number;
+  changed: number;
+  deprecated: number;
+  missing: number;
+};
+
+export type ResourceListing = {
+  items: ResourceItem[];
+  summary: ResourceSummary;
+  categories: string[];
+  truncated: boolean;
+};
+
 export type ProjectGroupRecord = {
   remote?: RemoteWorkspace;
   id: string;

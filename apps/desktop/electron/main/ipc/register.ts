@@ -310,6 +310,15 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     getHost,
     refreshProjectGroups,
     openPath: (path) => shell.openPath(path),
+    openExternal: (url) => shell.openExternal(url),
+    pickFile: async (defaultPath) => {
+      const window = getMainWindow();
+      const options = { properties: ["openFile" as const], ...(defaultPath ? { defaultPath } : {}) };
+      const result = window
+        ? await dialog.showOpenDialog(window, options)
+        : await dialog.showOpenDialog(options);
+      return result.canceled ? null : (result.filePaths[0] ?? null);
+    },
   });
   registerWorktreeIpc({
     registrar,

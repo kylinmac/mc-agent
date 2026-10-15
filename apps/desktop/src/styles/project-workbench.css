@@ -82,3 +82,95 @@
 .mc-workbench-description:disabled {
   opacity: 0.5;
 }
+
+.mc-workbench-overview,
+.mc-workbench-catalog {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mc-workbench-summary {
+  color: var(--ds-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.mc-workbench-summary .is-warning,
+.mc-workbench-status.is-changed,
+.mc-workbench-status.is-missing {
+  color: var(--ds-error);
+}
+
+.mc-workbench-attention {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+.mc-workbench-category-title {
+  color: var(--ds-text-faint);
+  font-size: var(--text-2xs);
+}
+
+.mc-workbench-resources {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mc-workbench-resource {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+  font-size: var(--text-xs);
+}
+
+.mc-workbench-link {
+  overflow: hidden;
+  max-width: 24rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ds-text-primary);
+  font-size: var(--text-xs);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.mc-workbench-link:hover:not(:disabled) {
+  color: var(--ds-accent);
+}
+
+.mc-workbench-link:disabled {
+  color: var(--ds-text-faint);
+  cursor: default;
+}
+
+.mc-workbench-tag,
+.mc-workbench-status {
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+}
+
+.mc-workbench-status.is-confirmed {
+  color: var(--ds-accent);
+}
+
+.mc-workbench-actions {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.mc-workbench-link-input {
+  flex: 1 1 12rem;
+}

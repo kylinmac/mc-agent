@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { WorkspaceNote } from "@pi-desktop/shared";
+import type { ResourceItem, ResourceListing, WorkspaceNote } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { Button } from "../../components/ui";
 import { IconFolder, IconPlus } from "../../components/icons";
 import { shortenPath, type ProjectIndexItem } from "../../lib/project-archive";
 import { chooseStartFolder, rememberedStartFolder, rememberStartFolder } from "./start-folder";
+import { ProjectOverview } from "./ProjectOverview";
+import { ResourceCatalog } from "./ResourceCatalog";
 
 /*
   mc-agent project workbench (R1, R10): the project's resource folder, its
@@ -38,6 +40,7 @@ export function ProjectWorkbench({
   const [preparing, setPreparing] = useState(false);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [listing, setListing] = useState<ResourceListing | null>(null);
   const [startFolder, setStartFolder] = useState(() =>
     chooseStartFolder(project.roots, project.path, rememberedStartFolder(project.groupId)),
   );
@@ -90,6 +93,36 @@ export function ProjectWorkbench({
   }, [resources, project.groupId]);
   useEffect(() => loadNotes(), [loadNotes]);
 
+  const loadListing = useCallback(() => {
+    if (!resources) return () => {};
+    let canceled = false;
+    void api
+      .listProjectResources(project.groupId)
+      .then((loaded) => {
+        if (!canceled) setListing(loaded);
+      })
+      .catch((error: unknown) => {
+        if (!canceled) onErrorRef.current(t("mcProject.resourceActionError", { message: messageOf(error) }));
+      });
+    return () => {
+      canceled = true;
+    };
+  }, [resources, project.groupId, t]);
+  useEffect(() => loadListing(), [loadListing]);
+
+  const resourceAction = async (action: () => Promise<unknown>) => {
+    try {
+      await action();
+    } catch (error) {
+      onError(t("mcProject.resourceActionError", { message: messageOf(error) }));
+    }
+    loadListing();
+  };
+  const openResource = (item: ResourceItem) =>
+    void api
+      .openProjectResource(project.groupId, item.key)
+      .catch((error: unknown) => onError(t("mcProject.resourceActionError", { message: messageOf(error) })));
+
   useEffect(() => {
     setStartFolder(chooseStartFolder(project.roots, project.path, rememberedStartFolder(project.groupId)));
   }, [project.roots, project.path, project.groupId]);
@@ -116,6 +149,14 @@ export function ProjectWorkbench({
 
   return (
     <section className="mc-workbench" aria-label={t("mcProject.resourcesTitle")}>
+      {resources ? (
+        <ProjectOverview
+          groupId={project.groupId}
+          listing={listing}
+          onOpenResource={openResource}
+          onError={onError}
+        />
+      ) : null}
       <div className="mc-workbench-row">
         <span className="mc-workbench-label">{t("mcProject.resourcesTitle")}</span>
         {resources ? (
@@ -170,6 +211,28 @@ export function ProjectWorkbench({
           );
         })}
       </ul>
+
+      {resources ? (
+        <ResourceCatalog
+          listing={listing}
+          onOpen={openResource}
+          onSetStatus={(item, status) =>
+            void resourceAction(() => api.setProjectResourceStatus(project.groupId, item.key, status))
+          }
+          onRemove={(item) =>
+            void resourceAction(() => api.unregisterProjectResource(project.groupId, item.key))
+          }
+          onRegisterFile={(category) =>
+            void resourceAction(() =>
+              api.registerProjectResourceFile(project.groupId, category, workspaces[0]?.path),
+            )
+          }
+          onAddLink={(url, category) =>
+            void resourceAction(() => api.registerProjectResourceUrl(project.groupId, url, category))
+          }
+          onRefresh={() => loadListing()}
+        />
+      ) : null}
 
       <div className="mc-workbench-row">
         <label className="mc-workbench-label" htmlFor={`mc-start-${project.groupId}`}>

@@ -75,6 +75,7 @@ import type {
   ProjectRecord,
   ProjectGroupRecord,
   ResourceTemplateSummary,
+  ResourceListing,
   WorkspaceNote,
   ProjectMemory,
   ProjectMemoryEntry,
@@ -895,6 +896,32 @@ export const api = {
     }),
   revealProjectResources: (groupId: string) =>
     invoke<{ ok: true }>(IPC.invoke.projectResourcesReveal, { groupId }),
+  listProjectResources: (groupId: string) =>
+    invoke<ResourceListing>(IPC.invoke.projectResourcesList, { groupId }),
+  setProjectResourceStatus: (groupId: string, key: string, status: "draft" | "confirmed" | "deprecated") =>
+    invoke<{ ok: true }>(IPC.invoke.projectResourcesSetStatus, { groupId, key, status }),
+  // Main shows the native picker; resolves `{ canceled: true }` when dismissed.
+  registerProjectResourceFile: (groupId: string, category: string, defaultPath?: string) =>
+    invoke<{ key?: string; canceled?: true }>(IPC.invoke.projectResourcesRegisterFile, {
+      groupId,
+      category,
+      ...(defaultPath ? { defaultPath } : {}),
+    }),
+  registerProjectResourceUrl: (groupId: string, url: string, category: string, title?: string) =>
+    invoke<{ key: string }>(IPC.invoke.projectResourcesRegisterUrl, {
+      groupId,
+      url,
+      category,
+      ...(title ? { title } : {}),
+    }),
+  unregisterProjectResource: (groupId: string, key: string) =>
+    invoke<{ ok: true }>(IPC.invoke.projectResourcesUnregister, { groupId, key }),
+  openProjectResource: (groupId: string, key: string) =>
+    invoke<{ ok: true }>(IPC.invoke.projectResourcesOpen, { groupId, key }),
+  getProjectGoal: (groupId: string) =>
+    invoke<{ goal: string }>(IPC.invoke.projectGoalGet, { groupId }),
+  setProjectGoal: (groupId: string, goal: string) =>
+    invoke<{ goal: string }>(IPC.invoke.projectGoalSet, { groupId, goal }),
   listWorkspaceNotes: (groupId: string) =>
     invoke<{ notes: WorkspaceNote[] }>(IPC.invoke.projectWorkspaceNotes, { groupId }),
   // An empty description removes that workspace's section from workspaces.md.
