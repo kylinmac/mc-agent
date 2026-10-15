@@ -8,6 +8,7 @@ import { shortenPath, type ProjectIndexItem } from "../../lib/project-archive";
 import { chooseStartFolder, rememberedStartFolder, rememberStartFolder } from "./start-folder";
 import { ProjectOverview } from "./ProjectOverview";
 import { ResourceCatalog } from "./ResourceCatalog";
+import { TemplateMigration } from "./TemplateMigration";
 
 /*
   mc-agent project workbench (R1, R10): the project's resource folder, its
@@ -231,6 +232,14 @@ export function ProjectWorkbench({
             void resourceAction(() => api.registerProjectResourceUrl(project.groupId, url, category))
           }
           onRefresh={() => loadListing()}
+        />
+      ) : null}
+      {resources ? (
+        <TemplateMigration
+          resourceFolder={resources.path}
+          currentCategories={listing?.categories ?? []}
+          workspaces={workspaces.map((root) => ({ path: root.path, description: notes[root.path] }))}
+          onError={onError}
         />
       ) : null}
 

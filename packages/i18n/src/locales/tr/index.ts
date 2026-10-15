@@ -2822,6 +2822,12 @@ importConfirm: "İçe aktarılan uzantılar ajan sürecinde, ajanın kendi araç
     categoryLabel: "Category",
     refresh: "Refresh",
     resourceActionError: "Resource action failed: {{message}}",
+    migrationTitle: "Organize with AI",
+    migrationTemplate: "Target template",
+    migrationModel: "Model",
+    migrationCurrentStructure: "Current structure",
+    migrationStart: "Draft a plan",
+    migrationHint: "Runs in Plan mode: nothing changes until you approve the plan. Workspace files are only copied.",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

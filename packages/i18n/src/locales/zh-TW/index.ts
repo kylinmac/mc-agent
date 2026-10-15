@@ -2813,6 +2813,12 @@ sklm: {
     categoryLabel: "分類",
     refresh: "重新整理",
     resourceActionError: "資料操作失敗：{{message}}",
+    migrationTitle: "AI 整理資料",
+    migrationTemplate: "目標範本",
+    migrationModel: "模型",
+    migrationCurrentStructure: "目前結構",
+    migrationStart: "產生整理計畫",
+    migrationHint: "以 Plan 模式執行：核准計畫前不改任何檔案；工作區檔案只複製不移動。",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

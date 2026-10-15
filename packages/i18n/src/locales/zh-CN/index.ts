@@ -2863,6 +2863,12 @@ sklm: {
     categoryLabel: "分类",
     refresh: "刷新",
     resourceActionError: "资料操作失败：{{message}}",
+    migrationTitle: "AI 整理资料",
+    migrationTemplate: "目标模板",
+    migrationModel: "模型",
+    migrationCurrentStructure: "当前结构",
+    migrationStart: "生成整理计划",
+    migrationHint: "以 Plan 模式运行：批准计划前不改任何文件；工作区文件只复制不移动。",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

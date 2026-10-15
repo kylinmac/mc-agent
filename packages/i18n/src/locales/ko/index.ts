@@ -2828,6 +2828,12 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
     categoryLabel: "Category",
     refresh: "Refresh",
     resourceActionError: "Resource action failed: {{message}}",
+    migrationTitle: "Organize with AI",
+    migrationTemplate: "Target template",
+    migrationModel: "Model",
+    migrationCurrentStructure: "Current structure",
+    migrationStart: "Draft a plan",
+    migrationHint: "Runs in Plan mode: nothing changes until you approve the plan. Workspace files are only copied.",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

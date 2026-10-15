@@ -243,5 +243,35 @@
     "en": "Resource action failed: {{message}}",
     "zh-CN": "资料操作失败：{{message}}",
     "zh-TW": "資料操作失敗：{{message}}"
+  },
+  "migrationTitle": {
+    "en": "Organize with AI",
+    "zh-CN": "AI 整理资料",
+    "zh-TW": "AI 整理資料"
+  },
+  "migrationTemplate": {
+    "en": "Target template",
+    "zh-CN": "目标模板",
+    "zh-TW": "目標範本"
+  },
+  "migrationModel": {
+    "en": "Model",
+    "zh-CN": "模型",
+    "zh-TW": "模型"
+  },
+  "migrationCurrentStructure": {
+    "en": "Current structure",
+    "zh-CN": "当前结构",
+    "zh-TW": "目前結構"
+  },
+  "migrationStart": {
+    "en": "Draft a plan",
+    "zh-CN": "生成整理计划",
+    "zh-TW": "產生整理計畫"
+  },
+  "migrationHint": {
+    "en": "Runs in Plan mode: nothing changes until you approve the plan. Workspace files are only copied.",
+    "zh-CN": "以 Plan 模式运行：批准计划前不改任何文件；工作区文件只复制不移动。",
+    "zh-TW": "以 Plan 模式執行：核准計畫前不改任何檔案；工作區檔案只複製不移動。"
   }
 }
