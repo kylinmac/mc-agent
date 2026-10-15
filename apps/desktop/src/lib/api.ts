@@ -74,6 +74,7 @@ import type {
   PluginInstallProgress,
   ProjectRecord,
   ProjectGroupRecord,
+  ResourceTemplateSummary,
   ProjectMemory,
   ProjectMemoryEntry,
   ProjectWorkspace,
@@ -881,6 +882,16 @@ export const api = {
     invoke<{ group: ProjectGroupRecord }>(IPC.invoke.projectGroupCreateRemote, { name, hostKey, path }),
   createProjectGroup: (name: string, folders: string[]) =>
     invoke<{ group: ProjectGroupRecord }>(IPC.invoke.projectGroupCreate, { name, folders }),
+  listResourceTemplates: () =>
+    invoke<{ home: string; templates: ResourceTemplateSummary[] }>(
+      IPC.invoke.projectResourcesTemplates,
+    ),
+  // Gives the project its resource directory if it has none; idempotent.
+  ensureProjectResources: (groupId: string, template?: string) =>
+    invoke<{ group: ProjectGroupRecord }>(IPC.invoke.projectResourcesEnsure, {
+      groupId,
+      ...(template ? { template } : {}),
+    }),
   renameProjectGroup: (groupId: string, name: string) =>
     invoke<{ group: ProjectGroupRecord }>(IPC.invoke.projectGroupRename, { groupId, name }),
   // `primary` names the folder that becomes the group's primary root; the host

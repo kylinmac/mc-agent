@@ -195,6 +195,9 @@ export const IPC = {
     projectGroupCreate: "pi-desktop/project-group/create",
     projectGroupRename: "pi-desktop/project-group/rename",
     projectGroupUpdate: "pi-desktop/project-group/update",
+    // mc-agent resource directories (MC-ADR-0003).
+    projectResourcesTemplates: "pi-desktop/project-resources/templates",
+    projectResourcesEnsure: "pi-desktop/project-resources/ensure",
     projectGroupMemoryGet: "pi-desktop/project-group/memory/get",
     projectGroupMemorySave: "pi-desktop/project-group/memory/save",
     projectGroupInstructionsGet: "pi-desktop/project-group/instructions/get",

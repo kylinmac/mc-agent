@@ -1,5 +1,6 @@
 mod config_sync_rpc;
 mod remote_tools;
+mod resource_dirs_rpc;
 mod scheduled_rpc;
 mod scheduled_tools;
 mod todos;
@@ -1961,6 +1962,14 @@ async fn handle_request(
                 .update_project_group(group_id, name, &folders, primary)
                 .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
             Ok(json!({ "group": group }))
+        }
+        "project.resources.templates" => {
+            let st = state.lock().await;
+            resource_dirs_rpc::templates(&st)
+        }
+        "project.resources.ensure" => {
+            let st = state.lock().await;
+            resource_dirs_rpc::ensure(&st, &params)
         }
         "project.group.rename" => {
             let id = params

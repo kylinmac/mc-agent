@@ -18,6 +18,8 @@ import { registerNotificationIpc } from "./notification-ipc";
 import { registerPluginIpc } from "./plugin-ipc";
 import { registerPluginUiIpc } from "./plugin-ui-ipc";
 import { registerJevIpc } from "./jev-ipc";
+import { refreshProjectGroups } from "../workspace-roots";
+import { registerProjectResourcesIpc } from "./project-resources-ipc";
 import { registerProviderIpc } from "./provider-ipc";
 import { registerScheduledIpc } from "./scheduled-ipc";
 import { registerSessionIpc } from "./session-ipc";
@@ -303,6 +305,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     onProviderInvalidated: (providerId) => liveCallService?.invalidateProvider(providerId),
   });
   registerJevIpc({ registrar, logger });
+  registerProjectResourcesIpc({ registrar, getHost, refreshProjectGroups });
   registerWorktreeIpc({
     registrar,
     getHost,

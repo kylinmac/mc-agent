@@ -52,6 +52,15 @@ export type ProjectGroupRoot = {
   kind?: ProjectGroupRootKind;
 };
 
+/** A resource-directory template under `<mc-agent home>/templates`. */
+export type ResourceTemplateSummary = {
+  name: string;
+  path: string;
+  builtin: boolean;
+  /** First-level folders: the categories a new project starts with. */
+  categories: string[];
+};
+
 export type ProjectGroupRecord = {
   remote?: RemoteWorkspace;
   id: string;

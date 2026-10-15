@@ -10,6 +10,11 @@ use super::repositories::canonical_project_path;
 use super::*;
 
 impl Database {
+    /// One project group by id, legacy projections included.
+    pub fn project_group(&self, id: &str) -> Result<Option<ProjectGroupRecord>> {
+        self.group_by_id(id.trim())
+    }
+
     /// Attach an existing directory as the project's resource directory.
     ///
     /// The directory becomes `roots[0]` and the primary path; the existing
