@@ -135,9 +135,9 @@
     "zh-TW": "資料"
   },
   "resourcesEmpty": {
-    "en": "No resources yet. Put files into the resource folder, register a workspace file, or add a link.",
-    "zh-CN": "还没有资料。把文件放进资料目录，或登记工作区文件、添加链接。",
-    "zh-TW": "還沒有資料。把檔案放進資料目錄，或登記工作區檔案、新增連結。"
+    "en": "No resources yet. Put files into the resource folder, or list workspace files and links in a category's INDEX.md.",
+    "zh-CN": "还没有资料。把文件放进资料目录，或在分类的 INDEX.md 里登记工作区文件和链接。",
+    "zh-TW": "還沒有資料。把檔案放進資料目錄，或在分類的 INDEX.md 裡登記工作區檔案和連結。"
   },
   "resourcesTruncated": {
     "en": "Only the first 2000 files are listed.",
@@ -210,9 +210,9 @@
     "zh-TW": "解除登記"
   },
   "actionRemoveHint": {
-    "en": "Removes the registration only; the file is not deleted.",
-    "zh-CN": "只解除登记，不删除文件。",
-    "zh-TW": "只解除登記，不刪除檔案。"
+    "en": "Removes the line from INDEX.md; the file itself is not deleted.",
+    "zh-CN": "只从 INDEX.md 删掉这一行，不删除文件本身。",
+    "zh-TW": "只從 INDEX.md 刪掉這一行，不刪除檔案本身。"
   },
   "registerFile": {
     "en": "Register workspace file",
@@ -270,9 +270,9 @@
     "zh-TW": "產生整理計畫"
   },
   "migrationHint": {
-    "en": "Runs in Plan mode: nothing changes until you approve the plan. Workspace files are only copied.",
-    "zh-CN": "以 Plan 模式运行：批准计划前不改任何文件；工作区文件只复制不移动。",
-    "zh-TW": "以 Plan 模式執行：核准計畫前不改任何檔案；工作區檔案只複製不移動。"
+    "en": "Runs in Plan mode: nothing changes until you approve. Workspace documents are listed in each category's INDEX.md, not copied.",
+    "zh-CN": "以 Plan 模式运行：批准计划前不改任何文件；工作区文档只登记到分类的 INDEX.md，不复制。",
+    "zh-TW": "以 Plan 模式執行：核准計畫前不改任何檔案；工作區文件只登記到分類的 INDEX.md，不複製。"
   },
   "tasksTitle": {
     "en": "Tasks",

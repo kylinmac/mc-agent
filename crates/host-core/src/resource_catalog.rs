@@ -21,8 +21,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::db::{now_ms, Database, ProjectGroupRecord, ProjectGroupRootKind};
+use crate::resource_index::{self, IndexTarget};
 
-const ENTRIES_NAMESPACE: &str = "mcResourceEntries";
 const STATES_NAMESPACE: &str = "mcResourceStates";
 const RESERVED_ROOT_FILES: &[&str] = &[crate::workspace_notes::FILE_NAME, "AGENTS.md"];
 const MAX_LISTED_FILES: usize = 2_000;
@@ -90,21 +90,6 @@ pub struct ResourceListing {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-struct Entry {
-    id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    root: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    relative: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    url: Option<String>,
-    title: String,
-    category: String,
-    added_at: i64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
 struct State {
     confirmed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -149,33 +134,41 @@ pub fn list(db: &Database, group: &ProjectGroupRecord) -> Result<ResourceListing
             )?);
         }
     }
-    for entry in load_entries(db, &group.id)? {
-        let key = format!("entry:{}", entry.id);
-        let item = match (&entry.url, &entry.root, &entry.relative) {
-            (Some(url), _, _) => item(
-                &key,
-                ResourceSource::Url,
-                entry.category.clone(),
-                entry.title.clone(),
-                None,
-                Some(url.clone()),
-                &states,
-            )?,
-            (None, Some(root), Some(relative)) => {
-                let path = Path::new(root).join(relative);
-                item(
-                    &key,
-                    ResourceSource::Workspace,
+    if let Some(resources) = group.resource_root() {
+        for entry in resource_index::read_all(Path::new(&resources.path))? {
+            let item = match &entry.target {
+                IndexTarget::Url(url) => item(
+                    &entry.key,
+                    ResourceSource::Url,
                     entry.category.clone(),
                     entry.title.clone(),
-                    Some(path),
                     None,
+                    Some(url.clone()),
                     &states,
-                )?
-            }
-            _ => continue,
-        };
-        items.push(item);
+                )?,
+                IndexTarget::Path(path) => {
+                    // A path outside the project is shown as missing and
+                    // never opened or hashed.
+                    let inside = inside_project(group, path);
+                    item(
+                        &entry.key,
+                        ResourceSource::Workspace,
+                        entry.category.clone(),
+                        entry.title.clone(),
+                        inside.then(|| path.clone()),
+                        None,
+                        &states,
+                    )
+                    .map(|mut item| {
+                        if !inside {
+                            item.status = ResourceStatus::Missing;
+                        }
+                        item
+                    })?
+                }
+            };
+            items.push(item);
+        }
     }
     let mut summary = ResourceSummary {
         total: items.len(),
@@ -243,127 +236,118 @@ pub fn set_status(
     save_states(db, &group.id, &states)
 }
 
-/// Register a file inside one of the project's workspaces.
+/// Register a file inside one of the project's workspaces by adding a link
+/// to the category's `INDEX.md`; the file itself is not copied.
 pub fn register_file(
-    db: &Database,
+    _db: &Database,
     group: &ProjectGroupRecord,
     path: &str,
     category: &str,
     title: Option<&str>,
 ) -> Result<String> {
+    let resources = resource_folder(group)?;
     let canonical =
         fs::canonicalize(path).with_context(|| format!("resource file not found: {path}"))?;
     if !canonical.is_file() {
         return Err(anyhow!("resource is not a file: {path}"));
     }
-    let root = group
+    let in_workspace = group
         .roots
         .iter()
         .filter(|root| root.kind == ProjectGroupRootKind::Workspace)
-        .find_map(|root| {
-            let base = fs::canonicalize(&root.path).ok()?;
-            let relative = canonical.strip_prefix(&base).ok()?;
-            Some((root.path.clone(), relative.to_path_buf()))
-        });
-    let Some((root, relative)) = root else {
+        .any(|root| fs::canonicalize(&root.path).is_ok_and(|base| canonical.starts_with(base)));
+    if !in_workspace {
         return Err(anyhow!(
             "file is not inside a workspace of this project: {path}"
         ));
-    };
-    let relative = relative_string(&relative)?;
-    let title = clean_title(title)
-        .unwrap_or_else(|| relative.rsplit('/').next().unwrap_or(&relative).to_string());
-    add_entry(
-        db,
-        group,
-        Entry {
-            id: uuid::Uuid::new_v4().to_string(),
-            root: Some(root),
-            relative: Some(relative),
-            url: None,
-            title,
-            category: clean_category(category)?,
-            added_at: now_ms(),
-        },
+    }
+    let title = clean_title(title).unwrap_or_else(|| {
+        canonical
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default()
+    });
+    resource_index::add(
+        resources,
+        &clean_category(category)?,
+        &title,
+        &IndexTarget::Path(canonical),
     )
 }
 
 pub fn register_url(
-    db: &Database,
+    _db: &Database,
     group: &ProjectGroupRecord,
     url: &str,
     category: &str,
     title: Option<&str>,
 ) -> Result<String> {
+    let resources = resource_folder(group)?;
     let url = url.trim();
     let scheme_ok = url.starts_with("https://") || url.starts_with("http://");
     if !scheme_ok || url.chars().count() > MAX_URL_CHARS || url.chars().any(char::is_whitespace) {
         return Err(anyhow!("resource link must be an http(s) URL"));
     }
-    add_entry(
-        db,
-        group,
-        Entry {
-            id: uuid::Uuid::new_v4().to_string(),
-            root: None,
-            relative: None,
-            url: Some(url.to_string()),
-            title: clean_title(title).unwrap_or_else(|| url.to_string()),
-            category: clean_category(category)?,
-            added_at: now_ms(),
-        },
+    resource_index::add(
+        resources,
+        &clean_category(category)?,
+        &clean_title(title).unwrap_or_else(|| url.to_string()),
+        &IndexTarget::Url(url.to_string()),
     )
 }
 
-/// Remove a registration. Folder files are not registrations and the file on
-/// disk is never touched.
+/// Remove an index entry. Folder files are not entries, and the linked file
+/// is never touched.
 pub fn unregister(db: &Database, group: &ProjectGroupRecord, key: &str) -> Result<()> {
-    let id = key
-        .strip_prefix("entry:")
-        .ok_or_else(|| anyhow!("only registered resources can be removed: {key}"))?;
-    let mut entries = load_entries(db, &group.id)?;
-    let before = entries.len();
-    entries.retain(|entry| entry.id != id);
-    if entries.len() == before {
-        return Err(anyhow!("resource not found: {key}"));
+    if !key.starts_with("index:") {
+        return Err(anyhow!("only indexed resources can be removed: {key}"));
     }
-    save_entries(db, &group.id, &entries)?;
+    resource_index::remove(resource_folder(group)?, key)?;
     let mut states = load_states(db, &group.id)?;
     states.remove(key);
     save_states(db, &group.id, &states)
 }
 
 /// Resolve a key to the file or URL it names, only within this project.
-pub fn locate(db: &Database, group: &ProjectGroupRecord, key: &str) -> Result<ResourceTarget> {
+pub fn locate(_db: &Database, group: &ProjectGroupRecord, key: &str) -> Result<ResourceTarget> {
+    let resources = resource_folder(group)?;
     if let Some(relative) = key.strip_prefix("folder:") {
-        let resources = group
-            .resource_root()
-            .ok_or_else(|| anyhow!("project has no resource folder"))?;
         let relative = safe_relative(relative)?;
         return Ok(ResourceTarget::Path(
-            Path::new(&resources.path)
-                .join(relative)
-                .to_string_lossy()
-                .into_owned(),
+            resources.join(relative).to_string_lossy().into_owned(),
         ));
     }
-    let id = key
-        .strip_prefix("entry:")
-        .ok_or_else(|| anyhow!("unknown resource key: {key}"))?;
-    let entry = load_entries(db, &group.id)?
-        .into_iter()
-        .find(|entry| entry.id == id)
-        .ok_or_else(|| anyhow!("resource not found: {key}"))?;
-    match (entry.url, entry.root, entry.relative) {
-        (Some(url), _, _) => Ok(ResourceTarget::Url(url)),
-        (None, Some(root), Some(relative)) => Ok(ResourceTarget::Path(
-            Path::new(&root)
-                .join(safe_relative(&relative)?)
-                .to_string_lossy()
-                .into_owned(),
-        )),
-        _ => Err(anyhow!("resource entry is malformed: {key}")),
+    if key.starts_with("index:") {
+        return match resource_index::find(resources, key)?.target {
+            IndexTarget::Url(url) => Ok(ResourceTarget::Url(url)),
+            IndexTarget::Path(path) if inside_project(group, &path) => {
+                Ok(ResourceTarget::Path(path.to_string_lossy().into_owned()))
+            }
+            IndexTarget::Path(path) => Err(anyhow!(
+                "indexed file is outside this project: {}",
+                path.display()
+            )),
+        };
     }
+    Err(anyhow!("unknown resource key: {key}"))
+}
+
+fn resource_folder(group: &ProjectGroupRecord) -> Result<&Path> {
+    group
+        .resource_root()
+        .map(|root| Path::new(&root.path))
+        .ok_or_else(|| anyhow!("project has no resource folder"))
+}
+
+/// Whether `path` (resolved, possibly through symlinks) lies in one of the
+/// project's folders.
+fn inside_project(group: &ProjectGroupRecord, path: &Path) -> bool {
+    let resolved = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    group.roots.iter().any(|root| {
+        fs::canonicalize(&root.path)
+            .map(|base| resolved.starts_with(base))
+            .unwrap_or(false)
+    })
 }
 
 fn item(
@@ -419,6 +403,10 @@ fn scan(root: &Path) -> Result<(Vec<String>, bool)> {
         }
         let relative = relative_string(entry.path().strip_prefix(root)?)?;
         if !relative.contains('/') && RESERVED_ROOT_FILES.contains(&relative.as_str()) {
+            continue;
+        }
+        let depth = relative.matches('/').count();
+        if depth <= 1 && relative.rsplit('/').next() == Some(resource_index::INDEX_FILE) {
             continue;
         }
         if files.len() == MAX_LISTED_FILES {
@@ -500,34 +488,6 @@ fn clean_category(category: &str) -> Result<String> {
         return Err(anyhow!("invalid resource category: {category}"));
     }
     Ok(category.to_string())
-}
-
-fn add_entry(db: &Database, group: &ProjectGroupRecord, entry: Entry) -> Result<String> {
-    let mut entries = load_entries(db, &group.id)?;
-    let duplicate = entries.iter().any(|existing| {
-        (entry.url.is_some() && existing.url == entry.url)
-            || (entry.relative.is_some()
-                && existing.root == entry.root
-                && existing.relative == entry.relative)
-    });
-    if duplicate {
-        return Err(anyhow!("resource is already registered"));
-    }
-    let key = format!("entry:{}", entry.id);
-    entries.push(entry);
-    save_entries(db, &group.id, &entries)?;
-    Ok(key)
-}
-
-fn load_entries(db: &Database, group_id: &str) -> Result<Vec<Entry>> {
-    Ok(match db.kv_get(ENTRIES_NAMESPACE, group_id)? {
-        Some(value) => serde_json::from_value(value).context("parse resource registrations")?,
-        None => Vec::new(),
-    })
-}
-
-fn save_entries(db: &Database, group_id: &str, entries: &[Entry]) -> Result<()> {
-    db.kv_set(ENTRIES_NAMESPACE, group_id, &serde_json::to_value(entries)?)
 }
 
 fn load_states(db: &Database, group_id: &str) -> Result<BTreeMap<String, State>> {
@@ -754,6 +714,49 @@ mod tests {
                     .to_string_lossy()
                     .into_owned()
             )
+        );
+    }
+
+    #[test]
+    fn indexes_link_originals_and_never_reach_outside_the_project() {
+        let f = fixture();
+        let key = register_file(
+            &f.db,
+            &f.group,
+            &f.web.join("README.md").to_string_lossy(),
+            "reference",
+            Some("Web 说明"),
+        )
+        .unwrap();
+        let index = fs::read_to_string(f.resources.join("reference/INDEX.md")).unwrap();
+        assert!(index.contains("- [Web 说明](<../../web/README.md>)"));
+        assert!(
+            !f.resources.join("reference/README.md").exists(),
+            "nothing is copied"
+        );
+
+        fs::write(
+            f.resources.join("reference/INDEX.md"),
+            format!("{index}- [secret](<../../../../../etc/passwd>)\n"),
+        )
+        .unwrap();
+        let listing = list(&f.db, &f.group).unwrap();
+        let outside = listing
+            .items
+            .iter()
+            .find(|item| item.title == "secret")
+            .unwrap();
+        assert_eq!(outside.status, ResourceStatus::Missing);
+        assert!(outside.path.is_none());
+        assert!(locate(&f.db, &f.group, &outside.key).is_err());
+        assert!(listing.items.iter().all(|item| item.title != "INDEX.md"));
+        assert_eq!(status_of(&listing, &key), ResourceStatus::Draft);
+
+        set_status(&f.db, &f.group, &key, ResourceStatus::Confirmed).unwrap();
+        fs::write(f.web.join("README.md"), "edited at the source").unwrap();
+        assert_eq!(
+            status_of(&list(&f.db, &f.group).unwrap(), &key),
+            ResourceStatus::Changed
         );
     }
 

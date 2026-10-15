@@ -145,6 +145,9 @@ try {
       listed2.summary.changed === 1 &&
       listed3.items.some((item) => item.key === link.key && item.source === "url") &&
       listed3.items.every((item) => item.key !== file.key) &&
+      file.key.startsWith("index:reference/") &&
+      !existsSync(join(resources.path, "reference", "keep.txt")) &&
+      readFileSync(join(resources.path, "reference", "INDEX.md"), "utf8").includes("https://example.com/spec") &&
       existsSync(join(web, "keep.txt")) &&
       refusedOutsideFile &&
       refusedTraversal,

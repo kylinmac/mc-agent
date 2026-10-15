@@ -13,6 +13,8 @@ test("the instruction names the folders, categories and the copy-only rule for w
   assert.match(prompt, /- requirements\/\n- reference\//);
   assert.match(prompt, /- \/code\/web — 前端\n- \/code\/server\n/);
   assert.match(prompt, /Never modify, move or delete anything inside a workspace/);
+  assert.match(prompt, /Do not copy documents out of a workspace\. INDEX a workspace document/);
+  assert.match(prompt, /INDEX or MOVE/);
   assert.match(prompt, /Do not change any file before the plan is approved/);
   assert.match(prompt, /This list is complete; do not look for the template elsewhere/);
   assert.match(prompt, /do not browse their parent folders or any other path/);
