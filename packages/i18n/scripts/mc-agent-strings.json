@@ -408,5 +408,35 @@
     "en": "Tasks: {{todo}} to do · {{inProgress}} in progress · {{awaitingReview}} awaiting review · {{blocked}} blocked",
     "zh-CN": "任务：待办 {{todo}} · 进行中 {{inProgress}} · 待验收 {{awaitingReview}} · 阻塞 {{blocked}}",
     "zh-TW": "任務：待辦 {{todo}} · 進行中 {{inProgress}} · 待驗收 {{awaitingReview}} · 阻塞 {{blocked}}"
+  },
+  "templateCurrent": {
+    "en": "Current template: {{name}} (v{{version}})",
+    "zh-CN": "当前模板：{{name}}（v{{version}}）",
+    "zh-TW": "目前範本：{{name}}（v{{version}}）"
+  },
+  "templateUnknown": {
+    "en": "No template recorded",
+    "zh-CN": "未记录模板",
+    "zh-TW": "未記錄範本"
+  },
+  "templateOutdated": {
+    "en": "The template changed since this project used it; organize again to catch up.",
+    "zh-CN": "该模板在项目创建后有更新，可重新整理以跟上。",
+    "zh-TW": "該範本在專案建立後有更新，可重新整理以跟上。"
+  },
+  "templateMissing": {
+    "en": "The recorded template no longer exists.",
+    "zh-CN": "记录的模板已不存在。",
+    "zh-TW": "記錄的範本已不存在。"
+  },
+  "templateAdopt": {
+    "en": "Record as current template",
+    "zh-CN": "记为当前模板",
+    "zh-TW": "記為目前範本"
+  },
+  "templateAdopted": {
+    "en": "Recorded {{name}} as this project's template",
+    "zh-CN": "已将 {{name}} 记为本项目模板",
+    "zh-TW": "已將 {{name}} 記為本專案範本"
   }
 }

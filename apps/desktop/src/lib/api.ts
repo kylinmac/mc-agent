@@ -79,6 +79,7 @@ import type {
   ProjectTask,
   ProjectTaskInput,
   ProjectTaskPreflight,
+  ProjectTemplateStatus,
   WorkspaceNote,
   ProjectMemory,
   ProjectMemoryEntry,
@@ -967,6 +968,18 @@ export const api = {
         params: { taskId, revision, verdict, note },
       }),
   },
+  projectTemplateStatus: (groupId: string) =>
+    invoke<{ status: ProjectTemplateStatus | null }>(IPC.invoke.projectResourcesMeta, { groupId }),
+  adoptProjectTemplate: (groupId: string, template: string) =>
+    invoke<{ recorded: ProjectTemplateStatus["recorded"] }>(IPC.invoke.projectResourcesAdoptTemplate, {
+      groupId,
+      template,
+    }),
+  relocateProjectResources: (groupId: string) =>
+    invoke<{ group: ProjectGroupRecord; resourcesMoved: { from: string; to: string } | null }>(
+      IPC.invoke.projectResourcesRelocate,
+      { groupId },
+    ),
   listWorkspaceNotes: (groupId: string) =>
     invoke<{ notes: WorkspaceNote[] }>(IPC.invoke.projectWorkspaceNotes, { groupId }),
   // An empty description removes that workspace's section from workspaces.md.

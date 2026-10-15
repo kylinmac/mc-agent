@@ -248,6 +248,7 @@ export function ProjectWorkbench({
       ) : null}
       {resources ? (
         <TemplateMigration
+          groupId={project.groupId}
           resourceFolder={resources.path}
           currentCategories={listing?.categories ?? []}
           workspaces={workspaces.map((root) => ({ path: root.path, description: notes[root.path] }))}

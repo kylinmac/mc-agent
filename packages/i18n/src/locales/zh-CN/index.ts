@@ -2896,6 +2896,12 @@ sklm: {
     taskResourcesBlocked: "请先处理这些资料（缺失或确认后有修改）：{{names}}",
     taskNoSession: "无法创建会话。",
     summaryTasks: "任务：待办 {{todo}} · 进行中 {{inProgress}} · 待验收 {{awaitingReview}} · 阻塞 {{blocked}}",
+    templateCurrent: "当前模板：{{name}}（v{{version}}）",
+    templateUnknown: "未记录模板",
+    templateOutdated: "该模板在项目创建后有更新，可重新整理以跟上。",
+    templateMissing: "记录的模板已不存在。",
+    templateAdopt: "记为当前模板",
+    templateAdopted: "已将 {{name}} 记为本项目模板",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

@@ -239,6 +239,31 @@ export function registerProjectResourcesIpc({
       return host.call(`project.tasks.${operation}`, params);
     },
   );
+
+  registrar.handle(IPC.invoke.projectResourcesMeta, async (input: { groupId?: unknown } = {}) => {
+    const host = getHost();
+    if (!host) throw new Error("host unavailable");
+    return host.call("project.resources.home.meta", { groupId: groupIdOf(input) });
+  });
+
+  registrar.handle(
+    IPC.invoke.projectResourcesAdoptTemplate,
+    async (input: { groupId?: unknown; template?: unknown } = {}) => {
+      const template = typeof input?.template === "string" ? input.template.trim() : "";
+      if (!template || template.length > MAX_TEMPLATE_NAME_LENGTH) throw invalid("template name is invalid");
+      const host = getHost();
+      if (!host) throw new Error("host unavailable");
+      return host.call("project.resources.home.adoptTemplate", { groupId: groupIdOf(input), template });
+    },
+  );
+
+  registrar.handle(IPC.invoke.projectResourcesRelocate, async (input: { groupId?: unknown } = {}) => {
+    const host = getHost();
+    if (!host) throw new Error("host unavailable");
+    const result = await host.call("project.resources.home.relocate", { groupId: groupIdOf(input) });
+    void refreshProjectGroups(host);
+    return result;
+  });
 }
 
 const TASK_OPERATIONS = new Set([

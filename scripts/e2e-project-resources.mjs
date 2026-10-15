@@ -43,7 +43,7 @@ try {
       ensured.group.primaryPath === resources.path &&
       resources.path === join(home, "projects", "登录项目") &&
       software?.categories.join(",") === "architecture,prototype,reference,requirements" &&
-      readdirSync(resources.path).sort().join(",") ===
+      readdirSync(resources.path).filter((name) => !name.startsWith(".")).sort().join(",") ===
         "AGENTS.md,architecture,prototype,reference,requirements,workspaces.md" &&
       roots.slice(1).map((root) => root.path).join(",") === [web, server].join(",") &&
       roots.slice(1).every((root) => root.kind === undefined),
@@ -204,7 +204,8 @@ try {
     legacyGroup.legacy === true &&
       backfilled.group.legacy === false &&
       backfilled.group.roots[0].kind === "resources" &&
-      readdirSync(backfilled.group.roots[0].path).length === 0 &&
+      readdirSync(backfilled.group.roots[0].path).filter((name) => !name.startsWith(".")).length === 0 &&
+      existsSync(join(backfilled.group.roots[0].path, ".mc-agent", "project.json")) &&
       backfilled.group.roots[1].path === legacy,
   );
 

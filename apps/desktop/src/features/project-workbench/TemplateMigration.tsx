@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ResourceTemplateSummary } from "@pi-desktop/shared";
+import type { ProjectTemplateStatus, ResourceTemplateSummary } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { Button } from "../../components/ui";
@@ -13,11 +13,13 @@ import { migrationPrompt } from "./migration-prompt";
   upstream Plan flow; no separate executor exists.
 */
 export function TemplateMigration({
+  groupId,
   resourceFolder,
   currentCategories,
   workspaces,
   onError,
 }: {
+  groupId: string;
   resourceFolder: string;
   currentCategories: readonly string[];
   workspaces: ReadonlyArray<{ path: string; description?: string }>;
@@ -43,6 +45,38 @@ export function TemplateMigration({
   );
   const [modelKey, setModelKey] = useState("");
   const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<ProjectTemplateStatus | null>(null);
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    let canceled = false;
+    void api
+      .projectTemplateStatus(groupId)
+      .then(({ status: loaded }) => {
+        if (canceled) return;
+        setStatus(loaded);
+        // Default to the project's own template so organizing follows it.
+        if (loaded?.recorded && loaded.templateExists) setTemplate(loaded.recorded.template);
+      })
+      .catch(() => {
+        // Without metadata the panel offers the current structure.
+      });
+    return () => {
+      canceled = true;
+    };
+  }, [groupId]);
+
+  const adopt = async () => {
+    if (!template) return;
+    try {
+      await api.adoptProjectTemplate(groupId, template);
+      const { status: loaded } = await api.projectTemplateStatus(groupId);
+      setStatus(loaded);
+      setNotice(t("mcProject.templateAdopted", { name: template }));
+    } catch (error) {
+      onError(error instanceof Error ? error.message : String(error));
+    }
+  };
 
   useEffect(() => {
     let canceled = false;
@@ -123,6 +157,20 @@ export function TemplateMigration({
       <Button size="sm" variant="ghost" disabled={!modelKey || busy} onClick={() => void start()}>
         {t("mcProject.migrationStart")}
       </Button>
+      <Button size="sm" variant="ghost" disabled={!template || busy} onClick={() => void adopt()}>
+        {t("mcProject.templateAdopt")}
+      </Button>
+      <span className="mc-workbench-muted">
+        {status?.recorded
+          ? t("mcProject.templateCurrent", {
+              name: status.recorded.template,
+              version: status.recorded.templateVersion,
+            })
+          : t("mcProject.templateUnknown")}
+        {status?.outdated ? ` · ${t("mcProject.templateOutdated")}` : ""}
+        {status?.recorded && !status.templateExists ? ` · ${t("mcProject.templateMissing")}` : ""}
+        {notice ? ` · ${notice}` : ""}
+      </span>
       <span className="mc-workbench-muted">{t("mcProject.migrationHint")}</span>
     </div>
   );

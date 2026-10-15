@@ -2820,6 +2820,12 @@ sklm: {
     taskResourcesBlocked: "Fix these resources first (missing or changed since confirmed): {{names}}",
     taskNoSession: "The session could not be created.",
     summaryTasks: "Tasks: {{todo}} to do · {{inProgress}} in progress · {{awaitingReview}} awaiting review · {{blocked}} blocked",
+    templateCurrent: "Current template: {{name}} (v{{version}})",
+    templateUnknown: "No template recorded",
+    templateOutdated: "The template changed since this project used it; organize again to catch up.",
+    templateMissing: "The recorded template no longer exists.",
+    templateAdopt: "Record as current template",
+    templateAdopted: "Recorded {{name}} as this project's template",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

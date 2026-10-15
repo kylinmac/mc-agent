@@ -59,6 +59,9 @@ export type ResourceTemplateSummary = {
   builtin: boolean;
   /** First-level folders: the categories a new project starts with. */
   categories: string[];
+  version: number;
+  description: string;
+  categoryDescriptions: Record<string, string>;
 };
 
 /** One workspace's description from `<resource dir>/workspaces.md` (R10). */
@@ -141,6 +144,15 @@ export type ProjectTaskPreflight = {
   resources: Array<{ key: string; title: string; status: ResourceStatus }>;
   blocking: string[];
   drafts: string[];
+};
+
+/** A resource folder's template record (`.mc-agent/project.json`). */
+export type ProjectTemplateStatus = {
+  recorded?: { template: string; templateVersion: number; templateFingerprint: string; recordedAt: number };
+  templateExists: boolean;
+  currentVersion?: number;
+  /** The template changed since the project recorded it. */
+  outdated: boolean;
 };
 
 export type ProjectGroupRecord = {

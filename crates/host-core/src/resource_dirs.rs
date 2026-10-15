@@ -71,6 +71,11 @@ pub struct TemplateSummary {
     pub builtin: bool,
     /// First-level folders, i.e. the categories a new project starts with.
     pub categories: Vec<String>,
+    /// From `template.json`; 1 when the template has none.
+    pub version: u32,
+    pub description: String,
+    /// Category folder → what belongs in it, from `template.json`.
+    pub category_descriptions: std::collections::BTreeMap<String, String>,
 }
 
 /// The mc-agent home: `$MC_AGENT_HOME`, else `<Documents>/mc-agent`.
@@ -100,8 +105,34 @@ pub fn seed_builtin_templates(home: &Path) -> Result<()> {
         for (file, contents) in *files {
             fs::write(root.join(file), contents)?;
         }
+        crate::resource_templates::write_template_meta(&root, &builtin_meta(name))?;
     }
     Ok(())
+}
+
+fn builtin_meta(name: &str) -> crate::resource_templates::TemplateMeta {
+    let mut meta = crate::resource_templates::TemplateMeta {
+        version: 1,
+        ..Default::default()
+    };
+    if name == "software" {
+        meta.description =
+            "Software project: requirements, architecture, prototypes, references.".into();
+        for (category, text) in [
+            (
+                "requirements",
+                "Requirements, user stories and acceptance criteria",
+            ),
+            ("architecture", "Architecture, interfaces and data design"),
+            ("prototype", "Prototypes, wireframes and UI drafts"),
+            ("reference", "References, links and third-party documents"),
+        ] {
+            meta.categories.insert(category.into(), text.into());
+        }
+    } else {
+        meta.description = "Empty resource folder.".into();
+    }
+    meta
 }
 
 pub fn list_templates(home: &Path) -> Result<Vec<TemplateSummary>> {
@@ -116,12 +147,16 @@ pub fn list_templates(home: &Path) -> Result<Vec<TemplateSummary>> {
         if name.starts_with('.') {
             continue;
         }
+        let meta = crate::resource_templates::read_template_meta(&entry.path()).unwrap_or_default();
         templates.push(TemplateSummary {
             builtin: BUILTIN_TEMPLATES
                 .iter()
                 .any(|(builtin, _, _)| *builtin == name),
             path: entry.path().to_string_lossy().into_owned(),
             categories: categories(&entry.path())?,
+            version: meta.version.max(1),
+            description: meta.description,
+            category_descriptions: meta.categories,
             name,
         });
     }
@@ -162,6 +197,10 @@ pub fn ensure_project_resources(
     fs::create_dir_all(&projects)?;
     let target = create_unique_dir(&projects, &directory_name(&group.name))?;
     let attached = copy_template(&source, &target)
+        .and_then(|()| {
+            crate::resource_templates::record_project_template(&target, template, &source)
+                .map(|_| ())
+        })
         .and_then(|()| db.attach_project_resource_root(&group.id, &target.to_string_lossy()));
     match attached {
         Ok(group) => Ok(group),
@@ -239,8 +278,54 @@ pub fn follow_project_name(
     }
     let parent = current.parent().unwrap_or(&projects).to_path_buf();
     let target = free_name(&parent, &wanted)?;
-    let roots = crate::data_relocation::Roots::moving(&current, &target);
-    fs::rename(&current, &target).with_context(|| format!("rename {}", current.display()))?;
+    move_resource_folder(db, &current, &target).map(Some)
+}
+
+/// Move a resource folder that lives outside `<home>/projects` into it, e.g.
+/// one created under another home. Returns `None` when it is already there.
+pub fn relocate_into_home(
+    db: &Database,
+    home: &Path,
+    group_id: &str,
+) -> Result<Option<ResourceMove>> {
+    let group = db
+        .project_group(group_id)?
+        .ok_or_else(|| anyhow!("project group not found"))?;
+    let resources = group
+        .resource_root()
+        .ok_or_else(|| anyhow!("project has no resource folder"))?;
+    let current = PathBuf::from(&resources.path);
+    let projects = home.join(PROJECTS_DIR);
+    fs::create_dir_all(&projects)?;
+    let projects = fs::canonicalize(&projects)?;
+    if current
+        .parent()
+        .and_then(|parent| fs::canonicalize(parent).ok())
+        .is_some_and(|parent| parent == projects)
+    {
+        return Ok(None);
+    }
+    if !current.is_dir() {
+        return Err(anyhow!("resource folder is missing: {}", current.display()));
+    }
+    ensure_rename_allowed(db, group_id)?;
+    let target = free_name(&projects, &directory_name(&group.name))?;
+    move_resource_folder(db, &current, &target).map(Some)
+}
+
+/// Move `current` to `target` and rewrite every host-owned path below it in
+/// one transaction. A rename that crosses volumes falls back to copy and
+/// delete; any failure puts the folder back so disk and database agree.
+fn move_resource_folder(db: &Database, current: &Path, target: &Path) -> Result<ResourceMove> {
+    let roots = crate::data_relocation::Roots::moving(current, target);
+    let copied = match fs::rename(current, target) {
+        Ok(()) => false,
+        Err(error) if error.kind() == std::io::ErrorKind::CrossesDevices => {
+            copy_tree(current, target)?;
+            true
+        }
+        Err(error) => return Err(error).with_context(|| format!("move {}", current.display())),
+    };
     let rewritten = (|| -> Result<()> {
         let transaction = db.conn.unchecked_transaction()?;
         crate::data_relocation::rewrite_database_paths(&transaction, &roots)?;
@@ -248,13 +333,38 @@ pub fn follow_project_name(
         Ok(())
     })();
     if let Err(error) = rewritten {
-        let _ = fs::rename(&target, &current);
+        if copied {
+            let _ = fs::remove_dir_all(target);
+        } else {
+            let _ = fs::rename(target, current);
+        }
         return Err(error);
     }
-    Ok(Some(ResourceMove {
+    if copied {
+        fs::remove_dir_all(current)
+            .with_context(|| format!("remove the old folder {}", current.display()))?;
+    }
+    Ok(ResourceMove {
         from: current.to_string_lossy().into_owned(),
         to: target.to_string_lossy().into_owned(),
-    }))
+    })
+}
+
+fn copy_tree(source: &Path, target: &Path) -> Result<()> {
+    fs::create_dir_all(target)?;
+    for entry in walkdir::WalkDir::new(source)
+        .min_depth(1)
+        .follow_links(false)
+    {
+        let entry = entry?;
+        let destination = target.join(entry.path().strip_prefix(source)?);
+        if entry.file_type().is_dir() {
+            fs::create_dir_all(&destination)?;
+        } else if entry.file_type().is_file() {
+            fs::copy(entry.path(), &destination)?;
+        }
+    }
+    Ok(())
 }
 
 /// `name-2`, `name-3`, … count as already following `name`.
@@ -345,7 +455,9 @@ fn copy_template(source: &Path, target: &Path) -> Result<()> {
         .follow_links(false)
     {
         let entry = entry?;
-        if entry.file_name() == ".DS_Store" || entry.path_is_symlink() {
+        let template_meta = entry.depth() == 1
+            && entry.file_name() == crate::resource_templates::TEMPLATE_META_FILE;
+        if entry.file_name() == ".DS_Store" || entry.path_is_symlink() || template_meta {
             continue;
         }
         copied += 1;
@@ -461,6 +573,11 @@ mod tests {
         let resources = Path::new(&root.path);
         assert!(resources.join("architecture").is_dir());
         assert!(resources.join("workspaces.md").is_file());
+        assert!(!resources.join("template.json").exists());
+        let meta = crate::resource_templates::read_project_meta(resources)
+            .unwrap()
+            .unwrap();
+        assert_eq!(meta.template, "software");
         assert!(resources.join("AGENTS.md").is_file());
         assert_eq!(
             fs::read_to_string(resources.join("requirements/TEMPLATE.md")).unwrap(),
@@ -478,8 +595,22 @@ mod tests {
         let first = ensure_project_resources(&f.db, &f.home, &group.id, DEFAULT_TEMPLATE).unwrap();
         let second = ensure_project_resources(&f.db, &f.home, &group.id, "software").unwrap();
         assert_eq!(first.roots[0].path, second.roots[0].path);
-        let entries = fs::read_dir(&first.roots[0].path).unwrap().count();
-        assert_eq!(entries, 0);
+        let visible = fs::read_dir(&first.roots[0].path)
+            .unwrap()
+            .filter(|entry| {
+                !entry
+                    .as_ref()
+                    .unwrap()
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with('.')
+            })
+            .count();
+        assert_eq!(visible, 0);
+        let meta = crate::resource_templates::read_project_meta(Path::new(&first.roots[0].path))
+            .unwrap()
+            .unwrap();
+        assert_eq!(meta.template, "blank");
         assert_eq!(fs::read_dir(f.home.join("projects")).unwrap().count(), 1);
     }
 
@@ -579,6 +710,30 @@ mod tests {
             .unwrap()
             .is_none());
         assert!(elsewhere.is_dir());
+    }
+
+    #[test]
+    fn relocating_moves_a_foreign_folder_into_the_home() {
+        let f = fixture();
+        let elsewhere = f.dir.path().join("old-home/projects/App");
+        fs::create_dir_all(elsewhere.join("requirements")).unwrap();
+        fs::write(elsewhere.join("requirements/a.md"), "a").unwrap();
+        let group =
+            f.db.create_project_group("App", std::slice::from_ref(&f.web))
+                .unwrap();
+        f.db.attach_project_resource_root(&group.id, &elsewhere.to_string_lossy())
+            .unwrap();
+        let moved = relocate_into_home(&f.db, &f.home, &group.id)
+            .unwrap()
+            .unwrap();
+        assert!(moved.to.ends_with("projects/App"));
+        assert!(Path::new(&moved.to).join("requirements/a.md").is_file());
+        assert!(!elsewhere.exists());
+        let reloaded = f.db.project_group(&group.id).unwrap().unwrap();
+        assert_eq!(reloaded.resource_root().unwrap().path, moved.to);
+        assert!(relocate_into_home(&f.db, &f.home, &group.id)
+            .unwrap()
+            .is_none());
     }
 
     #[cfg(unix)]

@@ -1974,6 +1974,10 @@ async fn handle_request(
             let st = state.lock().await;
             resource_dirs_rpc::ensure(&st, &params)
         }
+        method if method.starts_with("project.resources.home.") => {
+            let mut st = state.lock().await;
+            resource_dirs_rpc::home(&mut st, method, &params)
+        }
         method if method.starts_with("project.tasks.") => {
             let st = state.lock().await;
             project_tasks_rpc::handle(&st, method, &params)

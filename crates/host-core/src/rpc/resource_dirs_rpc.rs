@@ -58,6 +58,73 @@ pub fn group_context(state: &AppState, path: &str) -> Result<Value, JsonRpcError
     Ok(json!({ "context": value }))
 }
 
+/// `project.resources.home.*`: template metadata of a project's resource
+/// folder (`meta`), recording a template as adopted (`adoptTemplate`), and
+/// moving a foreign resource folder into the mc-agent home (`relocate`).
+pub fn home(state: &mut AppState, method: &str, params: &Value) -> Result<Value, JsonRpcError> {
+    let group = group(state, params)?;
+    let home = resource_dirs::home_dir().map_err(internal)?;
+    let templates = home.join("templates");
+    let invalid = |error: anyhow::Error| rpc_err(1002, error.to_string(), "INVALID_PARAMS");
+    match method {
+        "project.resources.home.meta" => {
+            let Some(resources) = group.resource_root() else {
+                return Ok(json!({ "status": null }));
+            };
+            let status = crate::resource_templates::project_template_status(
+                std::path::Path::new(&resources.path),
+                &templates,
+            )
+            .map_err(internal)?;
+            Ok(json!({ "status": status }))
+        }
+        "project.resources.home.adoptTemplate" => {
+            let name = required_str(params, "template")?;
+            if name.contains(['/', '\\']) || name.starts_with('.') {
+                return Err(rpc_err(1002, "invalid template name", "INVALID_PARAMS"));
+            }
+            let resources = group
+                .resource_root()
+                .ok_or_else(|| rpc_err(1002, "project has no resource folder", "INVALID_PARAMS"))?;
+            let source = templates.join(name);
+            if !source.is_dir() {
+                return Err(rpc_err(
+                    1002,
+                    format!("template not found: {name}"),
+                    "INVALID_PARAMS",
+                ));
+            }
+            let meta = crate::resource_templates::record_project_template(
+                std::path::Path::new(&resources.path),
+                name,
+                &source,
+            )
+            .map_err(internal)?;
+            Ok(json!({ "recorded": meta }))
+        }
+        "project.resources.home.relocate" => {
+            let moved =
+                resource_dirs::relocate_into_home(&state.db, &home, &group.id).map_err(invalid)?;
+            if let Some(moved) = &moved {
+                if state
+                    .workspace
+                    .get()
+                    .is_some_and(|workspace| workspace.path == moved.from)
+                {
+                    state.workspace.set(&moved.to);
+                }
+            }
+            let group = state.db.project_group(&group.id).map_err(internal)?;
+            Ok(json!({ "group": group, "resourcesMoved": moved }))
+        }
+        _ => Err(rpc_err(
+            -32601,
+            format!("method not found: {method}"),
+            "NOT_FOUND",
+        )),
+    }
+}
+
 pub fn notes(state: &AppState, params: &Value) -> Result<Value, JsonRpcError> {
     let group = group(state, params)?;
     let notes = workspace_notes::read(&group).map_err(internal)?;

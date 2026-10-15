@@ -2846,6 +2846,12 @@ sklm: {
     taskResourcesBlocked: "請先處理這些資料（缺失或確認後有修改）：{{names}}",
     taskNoSession: "無法建立工作階段。",
     summaryTasks: "任務：待辦 {{todo}} · 進行中 {{inProgress}} · 待驗收 {{awaitingReview}} · 阻塞 {{blocked}}",
+    templateCurrent: "目前範本：{{name}}（v{{version}}）",
+    templateUnknown: "未記錄範本",
+    templateOutdated: "該範本在專案建立後有更新，可重新整理以跟上。",
+    templateMissing: "記錄的範本已不存在。",
+    templateAdopt: "記為目前範本",
+    templateAdopted: "已將 {{name}} 記為本專案範本",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;
