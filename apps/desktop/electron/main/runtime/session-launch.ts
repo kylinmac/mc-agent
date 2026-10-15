@@ -7,10 +7,13 @@ import {
   imageGenerationBindings,
   isImageGenerationModel,
   normalizeMode,
+  projectFolderGuide,
   trustedExtensionAgentKeyFromProviderId,
   type CommandShellCatalog,
   type McpServerRecord,
   type ModelBinding,
+  type ProjectFolderGuideNote,
+  type ProjectFolderGuideRoot,
   type Mode,
   type Risk,
   type SessionThinkingLevel,
@@ -444,7 +447,8 @@ export function createSessionLaunchRuntime({
       try {
         const result = await runtimeState.host!.call<{
           context?: {
-            roots?: Array<{ path?: string }>;
+            roots?: ProjectFolderGuideRoot[];
+            notes?: ProjectFolderGuideNote[];
             instructions?: string;
             memory?: { content?: string };
           } | null;
@@ -452,13 +456,13 @@ export function createSessionLaunchRuntime({
         const groupRoots = result.context?.roots ?? [];
         // An isolated session's root is its worktree; the group's other roots
         // are outside it and are not advertised (ADR 0329).
-        const groupRootGuide = !workspaceRoot && groupRoots.length > 1
-          ? [
-              `Primary root: ${groupRoots[0]?.path ?? projectPath}`,
-              ...groupRoots.slice(1).map((root) => `Additional root: ${root.path}`),
-              "Use an absolute path when reading or editing an additional root.",
-            ].join("\n")
-          : "";
+        const groupRootGuide = workspaceRoot
+          ? ""
+          : projectFolderGuide({
+              roots: groupRoots,
+              startPath: projectPath,
+              notes: result.context?.notes,
+            });
         const groupInstructions = result.context?.instructions?.trim();
         if (groupRootGuide || groupInstructions) {
           projectInstructions = {

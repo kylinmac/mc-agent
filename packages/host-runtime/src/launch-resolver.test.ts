@@ -4,7 +4,11 @@ import { createHeadlessLaunchResolver, type HostProviderRecord } from "./launch-
 
 type Call = { method: string; params: Record<string, unknown> };
 
-function hostWith(providers: HostProviderRecord[], secrets: Record<string, string> = {}) {
+function hostWith(
+  providers: HostProviderRecord[],
+  secrets: Record<string, string> = {},
+  groupContext: unknown = null,
+) {
   const calls: Call[] = [];
   return {
     calls,
@@ -30,7 +34,7 @@ function hostWith(providers: HostProviderRecord[], secrets: Record<string, strin
           case "agents.disabledBuiltins":
             return { disabled: [] } as T;
           case "project.group.context":
-            return { context: null } as T;
+            return { context: groupContext } as T;
           case "project.memory.get":
             return { memory: { content: "remember me" } } as T;
           default:
@@ -75,6 +79,38 @@ describe("createHeadlessLaunchResolver", () => {
     expect(launch.sidecarParams.commandShell).toMatchObject({ id: "bash" });
     expect(launch.sidecarParams.infiniteProviderRetry).toBe(false);
     expect(calls.some((call) => call.method === "providers.getSecret")).toBe(true);
+  });
+
+  it("tells the session its start folder and the other workspaces with their descriptions", async () => {
+    const { host } = hostWith([provider], { p1: "sk-test" }, {
+      groupId: "g1",
+      roots: [
+        { path: "/docs/App", kind: "resources" },
+        { path: "/work/web" },
+        { path: "/work/server" },
+      ],
+      notes: [
+        { path: "/work/web", heading: "web", description: "前端" },
+        { path: "/work/server", heading: "server", description: "后端 API" },
+      ],
+      instructions: "",
+      memory: { content: "" },
+    });
+    const resolver = createHeadlessLaunchResolver({ getHost: () => host, dataDir: "/data", log: () => undefined });
+    const launch = await resolver.resolve(
+      "s1",
+      { providerId: "p1", modelId: "gpt-a", projectPath: "/work/server" },
+      { defaultMode: "agent" },
+    );
+    const folders = launch.sidecarParams.projectInstructions?.entries.find(
+      (entry) => entry.source === "ChatGPT Project folders",
+    )?.content;
+    expect(folders?.split("\n").slice(0, 4)).toEqual([
+      "Project folders:",
+      '- Start folder. Workspace "server": /work/server — 后端 API',
+      "- Resource folder (project documents): /docs/App",
+      '- Workspace "web": /work/web — 前端',
+    ]);
   });
 
   it("uses only the full wire ID binding for a routed model, retaining its request ID", async () => {

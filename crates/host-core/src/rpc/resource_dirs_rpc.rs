@@ -31,6 +31,33 @@ pub fn ensure(state: &AppState, params: &Value) -> Result<Value, JsonRpcError> {
     Ok(json!({ "group": group }))
 }
 
+/// `project.group.context`: the upstream group context plus the workspace
+/// descriptions from the resource directory (R10), which every launch path
+/// renders into the project-folders note. Descriptions are best effort: a
+/// read failure is reported in `notesError` and never blocks a launch.
+pub fn group_context(state: &AppState, path: &str) -> Result<Value, JsonRpcError> {
+    let context = state
+        .db
+        .project_group_context_for_path(path)
+        .map_err(|error| rpc_err(1002, error.to_string(), "INVALID_PARAMS"))?;
+    let Some(context) = context else {
+        return Ok(json!({ "context": null }));
+    };
+    let mut value = serde_json::to_value(&context).map_err(|error| internal(error.into()))?;
+    let notes = state
+        .db
+        .project_group(&context.group_id)
+        .and_then(|group| match group {
+            Some(group) => workspace_notes::read(&group),
+            None => Ok(Vec::new()),
+        });
+    match notes {
+        Ok(notes) => value["notes"] = json!(notes),
+        Err(error) => value["notesError"] = json!(error.to_string()),
+    }
+    Ok(json!({ "context": value }))
+}
+
 pub fn notes(state: &AppState, params: &Value) -> Result<Value, JsonRpcError> {
     let group = group(state, params)?;
     let notes = workspace_notes::read(&group).map_err(internal)?;

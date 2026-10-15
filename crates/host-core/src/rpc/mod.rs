@@ -2056,11 +2056,7 @@ async fn handle_request(
                 .and_then(Value::as_str)
                 .ok_or_else(|| rpc_err(1002, "path required", "INVALID_PARAMS"))?;
             let st = state.lock().await;
-            let context = st
-                .db
-                .project_group_context_for_path(path)
-                .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
-            Ok(json!({ "context": context }))
+            resource_dirs_rpc::group_context(&st, path)
         }
         "projects.create" => {
             let path = params

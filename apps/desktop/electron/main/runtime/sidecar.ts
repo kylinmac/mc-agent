@@ -1,4 +1,11 @@
-import { IPC, type AgentEventEnvelope, type UiMessage } from "@pi-desktop/shared";
+import {
+  IPC,
+  projectFolderGuide,
+  type AgentEventEnvelope,
+  type ProjectFolderGuideNote,
+  type ProjectFolderGuideRoot,
+  type UiMessage,
+} from "@pi-desktop/shared";
 import {
   findSubagentProviderSource,
   modelConfigWithBinding,
@@ -392,18 +399,15 @@ export function createSidecarRuntime({
     try {
       const result = await runtimeState.host.call<{
         context?: {
-          roots?: Array<{ path?: string }>;
+          roots?: ProjectFolderGuideRoot[];
+          notes?: ProjectFolderGuideNote[];
           instructions?: string;
         } | null;
       }>("project.group.context", { path: project });
       const roots = result.context?.roots ?? [];
-      const rootGuide = !isolated && roots.length > 1
-        ? [
-            `Primary root: ${roots[0]?.path ?? projectPath}`,
-            ...roots.slice(1).map((root) => `Additional root: ${root.path ?? ""}`),
-            "Use an absolute path when reading or editing an additional root.",
-          ].join("\n")
-        : "";
+      const rootGuide = isolated
+        ? ""
+        : projectFolderGuide({ roots, startPath: project, notes: result.context?.notes });
       const groupInstructions = result.context?.instructions?.trim();
       if (!rootGuide && !groupInstructions) return instructions;
       return {

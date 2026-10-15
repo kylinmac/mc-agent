@@ -7,11 +7,14 @@ import {
   isActiveInProject,
   isCommandShellCatalog,
   normalizeMode,
+  projectFolderGuide,
   resolveBindingLimits,
   trustedExtensionAgentKeyFromProviderId,
   type CommandShellCatalog,
   type ModelBinding,
   type Mode,
+  type ProjectFolderGuideNote,
+  type ProjectFolderGuideRoot,
   type SessionThinkingLevel,
   type UserSkillRecord,
   type UserSubagentRecord,
@@ -262,17 +265,19 @@ export function createHeadlessLaunchResolver(options: HeadlessLaunchResolverOpti
     if (projectPath) {
       try {
         const result = await host.call<{
-          context?: { roots?: Array<{ path?: string }>; instructions?: string; memory?: { content?: string } } | null;
+          context?: {
+            roots?: ProjectFolderGuideRoot[];
+            notes?: ProjectFolderGuideNote[];
+            instructions?: string;
+            memory?: { content?: string };
+          } | null;
         }>("project.group.context", { path: projectPath });
         const groupRoots = result.context?.roots ?? [];
-        const groupRootGuide =
-          groupRoots.length > 1
-            ? [
-                `Primary root: ${groupRoots[0]?.path ?? projectPath}`,
-                ...groupRoots.slice(1).map((root) => `Additional root: ${root.path}`),
-                "Use an absolute path when reading or editing an additional root.",
-              ].join("\n")
-            : "";
+        const groupRootGuide = projectFolderGuide({
+          roots: groupRoots,
+          startPath: projectPath,
+          notes: result.context?.notes,
+        });
         const groupInstructions = result.context?.instructions?.trim();
         if (groupRootGuide || groupInstructions) {
           projectInstructions = {

@@ -73,6 +73,7 @@ try {
   await host.call("project.workspaces.setNote", { groupId: group.id, path: web, description: "前端，React + Vite" });
   const notes = (await host.call("project.workspaces.notes", { groupId: group.id })).notes;
   const notesText = readFileSync(notesFile, "utf8");
+  const launchContext = (await host.call("project.group.context", { path: server })).context;
   const refusedOutside = await host
     .call("project.workspaces.setNote", { groupId: group.id, path: resources.path, description: "x" })
     .then(() => false, () => true);
@@ -81,6 +82,7 @@ try {
     notes.map((note) => `${note.heading}=${note.description}`).join("|") ===
       "web=前端，React + Vite|server=后端 Rust API" &&
       notesText.includes("## 备注\n手写内容") &&
+      launchContext?.notes?.find((note) => note.path === server)?.description === "后端 Rust API" &&
       refusedOutside,
   );
 

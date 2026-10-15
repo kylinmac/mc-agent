@@ -112,7 +112,7 @@ test("an isolated session launches in its worktree with its project's configurat
     assert.match(isolatedText, /SESSION BRANCH RULES/);
     assert.doesNotMatch(isolatedText, /MAIN CHECKOUT RULES/);
     assert.match(isolatedText, /GROUP NOTES/);
-    assert.doesNotMatch(isolatedText, /Additional root/);
+    assert.doesNotMatch(isolatedText, /Project folders:/);
     assert.equal(isolated.sidecarParams.projectMemory, "PROJECT MEMORY");
     assert.deepEqual(groupContextPaths, [project]);
 
@@ -121,7 +121,7 @@ test("an isolated session launches in its worktree with its project's configurat
     assert.equal("workspaceRoot" in ordinary.sidecarParams, false);
     const ordinaryText = text(ordinary.sidecarParams.projectInstructions);
     assert.match(ordinaryText, /MAIN CHECKOUT RULES/);
-    assert.match(ordinaryText, /Additional root/);
+    assert.match(ordinaryText, /Project folders:/);
 
     locationAvailable = false;
     await assert.rejects(
