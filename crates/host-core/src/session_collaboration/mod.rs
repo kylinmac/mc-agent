@@ -164,7 +164,12 @@ fn spawn(db: &Database, input: &Value) -> Result<Value> {
                 .get("modelId")
                 .and_then(Value::as_str)
                 .map(str::to_owned),
-            project_path: parent.summary.project_path,
+            // mc-agent R1.6: a Worker may start in another folder of the
+            // parent's project; anything outside the project is refused.
+            project_path: db.worker_project_path(
+                parent.summary.project_path.as_deref(),
+                input.get("workspace").and_then(Value::as_str),
+            )?,
             thinking_level: Some(parent.summary.thinking_level),
             permission_mode: Some(parent.summary.permission_mode),
         },

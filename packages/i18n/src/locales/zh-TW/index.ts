@@ -2779,6 +2779,7 @@ sklm: {
     newSessionIn: "新增工作階段",
     templateLabel: "範本",
     templateHint: "建立時複製一次到專案的資料目錄。",
+    resourcesRenameError: "專案已改名，但資料目錄沒有跟著改名：{{message}}",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

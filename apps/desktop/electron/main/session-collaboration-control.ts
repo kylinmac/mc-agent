@@ -11,7 +11,7 @@ export const SESSION_COLLABORATION_OPERATIONS: McpControlOperation[] = [
   {
     id: "session/collaboration/spawn", channel: "internal:session-collaboration", risk: "write",
     description: "Create a durable Agent session and deliver its first task with authenticated session provenance.",
-    argumentShape: ["{task,title?,modelKey?,notifyOnCompletion?,idempotencyKey?}"],
+    argumentShape: ["{task,title?,modelKey?,notifyOnCompletion?,idempotencyKey?,workspace?}"],
     pluginOnly: true,
   },
   {

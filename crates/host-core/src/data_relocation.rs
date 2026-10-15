@@ -23,13 +23,22 @@ pub fn run_cli() -> Result<bool> {
     Ok(true)
 }
 
-struct Roots {
+pub(crate) struct Roots {
     source: PathBuf,
     canonical_source: PathBuf,
     destination: PathBuf,
 }
 
 impl Roots {
+    /// Roots that move one directory tree, e.g. a renamed resource folder.
+    pub(crate) fn moving(source: &Path, destination: &Path) -> Self {
+        Self {
+            canonical_source: fs::canonicalize(source).unwrap_or_else(|_| source.to_path_buf()),
+            source: source.to_path_buf(),
+            destination: destination.to_path_buf(),
+        }
+    }
+
     fn remap(&self, text: &str) -> Option<String> {
         // A component boundary prevents matching `.pi-desktop-other`; reject
         // traversal spellings rather than converting them to privileged paths.
@@ -41,7 +50,13 @@ impl Roots {
             .strip_prefix(&self.source)
             .or_else(|_| path.strip_prefix(&self.canonical_source))
             .ok()?;
-        Some(self.destination.join(suffix).to_string_lossy().into_owned())
+        // `join("")` would append a separator to the moved root itself.
+        let target = if suffix.as_os_str().is_empty() {
+            self.destination.clone()
+        } else {
+            self.destination.join(suffix)
+        };
+        Some(target.to_string_lossy().into_owned())
     }
 
     fn string(&self, value: &mut Value) -> bool {
@@ -320,17 +335,10 @@ fn column_exists(connection: &Connection, table: &str, column: &str) -> Result<b
     Ok(false)
 }
 
-fn relocate_database(roots: &Roots) -> Result<()> {
-    let path = roots.destination.join("pi.sqlite");
-    if !regular_file(&path)? {
-        return Ok(());
-    }
-    for extension in ["pi.sqlite-wal", "pi.sqlite-shm"] {
-        regular_file(&roots.destination.join(extension))?;
-    }
-    let mut connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_WRITE)?;
-    connection.busy_timeout(std::time::Duration::from_secs(5))?;
-    let transaction = connection.transaction()?;
+/// Rewrite every host-owned structured path below `roots.source` to the same
+/// location below `roots.destination`, inside the caller's transaction. Shared
+/// by data-directory relocation and mc-agent resource-folder renames.
+pub(crate) fn rewrite_database_paths(connection: &Connection, roots: &Roots) -> Result<()> {
     for (table, column, json) in [
         ("projects", "path", false),
         ("artifacts", "path", false),
@@ -340,11 +348,11 @@ fn relocate_database(roots: &Roots) -> Result<()> {
         // host-core repairs git's back-links on the next start.
         ("worktrees", "path", false),
     ] {
-        if !column_exists(&transaction, table, column)? {
+        if !column_exists(connection, table, column)? {
             continue;
         }
         let rows = {
-            let mut statement = transaction.prepare(&format!(
+            let mut statement = connection.prepare(&format!(
                 "SELECT DISTINCT {column} FROM {table} WHERE {column} IS NOT NULL"
             ))?;
             let rows = statement
@@ -361,16 +369,16 @@ fn relocate_database(roots: &Roots) -> Result<()> {
                 roots.remap(&text)
             };
             if let Some(next) = next {
-                transaction.execute(
+                connection.execute(
                     &format!("UPDATE {table} SET {column} = ?1 WHERE {column} = ?2"),
                     params![next, text],
                 )?;
             }
         }
     }
-    if column_exists(&transaction, "kv", "value_json")? {
+    if column_exists(connection, "kv", "value_json")? {
         let rows = {
-            let mut statement = transaction.prepare("SELECT ns, key, value_json FROM kv WHERE ns IN ('app','ui','projectGroups','projectMemory','projectInstructions')")?;
+            let mut statement = connection.prepare("SELECT ns, key, value_json FROM kv WHERE ns IN ('app','ui','projectGroups','projectMemory','projectInstructions')")?;
             let rows = statement
                 .query_map([], |row| {
                     Ok((
@@ -399,13 +407,28 @@ fn relocate_database(roots: &Roots) -> Result<()> {
                 false
             };
             if changed || next_key != key {
-                transaction.execute(
+                connection.execute(
                     "UPDATE kv SET key = ?1, value_json = ?2 WHERE ns = ?3 AND key = ?4",
                     params![next_key, value.to_string(), namespace, key],
                 )?;
             }
         }
     }
+    Ok(())
+}
+
+fn relocate_database(roots: &Roots) -> Result<()> {
+    let path = roots.destination.join("pi.sqlite");
+    if !regular_file(&path)? {
+        return Ok(());
+    }
+    for extension in ["pi.sqlite-wal", "pi.sqlite-shm"] {
+        regular_file(&roots.destination.join(extension))?;
+    }
+    let mut connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_WRITE)?;
+    connection.busy_timeout(std::time::Duration::from_secs(5))?;
+    let transaction = connection.transaction()?;
+    rewrite_database_paths(&transaction, roots)?;
     transaction.commit()?;
     let (busy, _, _): (i64, i64, i64) =
         connection.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {

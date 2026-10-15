@@ -560,6 +560,9 @@ type SpawnInput = {
   modelKey?: string
   notifyOnCompletion?: boolean
   idempotencyKey?: string
+  // mc-agent：让 Worker 从调用方所属项目的这个目录启动（项目根目录的绝对路径）。
+  // 省略时沿用调用方自己的目录；项目以外的目录返回 PERMISSION_DENIED。
+  workspace?: string
 }
 type SendInput = {
   sessionId: string

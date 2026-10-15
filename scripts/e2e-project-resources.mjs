@@ -86,6 +86,23 @@ try {
       refusedOutside,
   );
 
+  // R1.3: renaming the project moves its resource folder and every host path.
+  const renamed = await host.call("project.group.rename", { groupId: group.id, name: "改名后" });
+  const movedTo = join(home, "projects", "改名后");
+  const afterRename = (await host.call("project.groups.list", {})).groups.find((item) => item.id === group.id);
+  const movedContext = await host.call("project.group.context", { path: movedTo });
+  record(
+    "E2E-PROJECT-resources-follow-project-rename",
+    renamed.resourcesMoved?.from === resources.path &&
+      renamed.resourcesMoved?.to === movedTo &&
+      !existsSync(resources.path) &&
+      readFileSync(join(movedTo, "workspaces.md"), "utf8").includes("后端 Rust API") &&
+      afterRename?.primaryPath === movedTo &&
+      afterRename?.roots[0].kind === "resources" &&
+      movedContext.context?.groupId === group.id,
+  );
+  resources.path = movedTo;
+
   // Editing workspaces cannot drop or demote the resource directory.
   const refusedDrop = await host
     .call("project.group.update", { groupId: group.id, name: "登录项目", folders: [web, server] })

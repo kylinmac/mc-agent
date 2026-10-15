@@ -2753,6 +2753,7 @@ sklm: {
     newSessionIn: "New session",
     templateLabel: "Template",
     templateHint: "Copied once into the project's resource folder.",
+    resourcesRenameError: "The project was renamed, but its resource folder stayed in place: {{message}}",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

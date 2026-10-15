@@ -308,7 +308,7 @@ export function createSessionCollaborationService(deps: SessionCollaborationDepe
             ...source, content,
             idempotencyKey: text(data, "idempotencyKey", false) ?? randomUUID(),
             ...(typeof notify === "boolean" ? { notifyOnCompletion: notify } : {}),
-            ...(spawn ? { ...model, title: text(data, "title", false) }
+            ...(spawn ? { ...model, title: text(data, "title", false), workspace: text(data, "workspace", false) }
               : { sessionId: text(data, "sessionId"), kind: messageKind(data.kind) }),
           });
           return dispatch(response.message, input.signal);

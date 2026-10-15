@@ -692,6 +692,10 @@ type SpawnInput = {
   modelKey?: string
   notifyOnCompletion?: boolean
   idempotencyKey?: string
+  // mc-agent: start the Worker in this folder of the caller's project
+  // (absolute path of a project root). Omitted: the caller's own folder.
+  // A folder outside the caller's project is refused with PERMISSION_DENIED.
+  workspace?: string
 }
 type SendInput = {
   sessionId: string

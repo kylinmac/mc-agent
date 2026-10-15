@@ -174,6 +174,111 @@ pub fn ensure_project_resources(
     }
 }
 
+/// Where a renamed project's resource folder moved (R1.3).
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ResourceMove {
+    pub from: String,
+    pub to: String,
+}
+
+/// A project may be renamed only while no session that started in its
+/// resource folder has a running turn: that turn owns the folder as its
+/// working directory, and moving it would pull it out from under the tools.
+pub fn ensure_rename_allowed(db: &Database, group_id: &str) -> Result<()> {
+    let Some(group) = db.project_group(group_id)? else {
+        return Ok(());
+    };
+    let Some(resources) = group.resource_root() else {
+        return Ok(());
+    };
+    for session in db.project_session_ids(&resources.path)? {
+        if crate::sessions::session_has_running_turn(db, &session)? {
+            return Err(anyhow!(
+                "a session in this project's resource folder is still running"
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Rename the project's resource folder to follow the project name, when the
+/// folder is one mc-agent manages (directly below `<home>/projects`). Every
+/// host-owned path below the old folder is rewritten in one transaction; if
+/// that fails the folder is moved back, so disk and database never disagree.
+/// Returns `None` when nothing had to move.
+pub fn follow_project_name(
+    db: &Database,
+    home: &Path,
+    group_id: &str,
+) -> Result<Option<ResourceMove>> {
+    let Some(group) = db.project_group(group_id)? else {
+        return Ok(None);
+    };
+    let Some(resources) = group.resource_root() else {
+        return Ok(None);
+    };
+    let current = PathBuf::from(&resources.path);
+    let projects = home.join(PROJECTS_DIR);
+    let managed = current
+        .parent()
+        .zip(fs::canonicalize(&projects).ok())
+        .is_some_and(|(parent, projects)| {
+            fs::canonicalize(parent).is_ok_and(|parent| parent == projects)
+        });
+    if !managed || !current.is_dir() {
+        return Ok(None);
+    }
+    let wanted = directory_name(&group.name);
+    let folder = current
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    if folder == wanted || is_suffixed(&folder, &wanted) {
+        return Ok(None);
+    }
+    let parent = current.parent().unwrap_or(&projects).to_path_buf();
+    let target = free_name(&parent, &wanted)?;
+    let roots = crate::data_relocation::Roots::moving(&current, &target);
+    fs::rename(&current, &target).with_context(|| format!("rename {}", current.display()))?;
+    let rewritten = (|| -> Result<()> {
+        let transaction = db.conn.unchecked_transaction()?;
+        crate::data_relocation::rewrite_database_paths(&transaction, &roots)?;
+        transaction.commit()?;
+        Ok(())
+    })();
+    if let Err(error) = rewritten {
+        let _ = fs::rename(&target, &current);
+        return Err(error);
+    }
+    Ok(Some(ResourceMove {
+        from: current.to_string_lossy().into_owned(),
+        to: target.to_string_lossy().into_owned(),
+    }))
+}
+
+/// `name-2`, `name-3`, … count as already following `name`.
+fn is_suffixed(folder: &str, wanted: &str) -> bool {
+    folder
+        .strip_prefix(wanted)
+        .and_then(|rest| rest.strip_prefix('-'))
+        .is_some_and(|number| !number.is_empty() && number.chars().all(|c| c.is_ascii_digit()))
+}
+
+fn free_name(parent: &Path, name: &str) -> Result<PathBuf> {
+    for attempt in 1..=1_000u32 {
+        let candidate = if attempt == 1 {
+            parent.join(name)
+        } else {
+            parent.join(format!("{name}-{attempt}"))
+        };
+        if fs::symlink_metadata(&candidate).is_err() {
+            return Ok(candidate);
+        }
+    }
+    Err(anyhow!("no free folder name for {name}"))
+}
+
 /// A folder name for `project_name`: path separators, `:` and control
 /// characters become `-`, surrounding dots and spaces are trimmed, and an empty
 /// result falls back to `project`. Non-ASCII names are kept as they are.
@@ -402,6 +507,78 @@ mod tests {
         assert!(!projects.exists() || fs::read_dir(&projects).unwrap().count() == 0);
         let unchanged = f.db.project_group(&group.id).unwrap().unwrap();
         assert!(unchanged.resource_root().is_none());
+    }
+
+    #[test]
+    fn renaming_moves_the_folder_and_rewrites_host_paths() {
+        let f = fixture();
+        let group =
+            f.db.create_project_group("Old", std::slice::from_ref(&f.web))
+                .unwrap();
+        let attached = ensure_project_resources(&f.db, &f.home, &group.id, "software").unwrap();
+        let old = attached.roots[0].path.clone();
+        f.db.ensure_project(&old, false).unwrap();
+        f.db.rename_project_group(&group.id, "新名字").unwrap();
+
+        let moved = follow_project_name(&f.db, &f.home, &group.id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(moved.from, old);
+        assert!(moved.to.ends_with("projects/新名字"));
+        assert!(!Path::new(&old).exists());
+        assert!(Path::new(&moved.to).join("requirements").is_dir());
+        let reloaded = f.db.project_group(&group.id).unwrap().unwrap();
+        assert_eq!(reloaded.primary_path, moved.to);
+        assert_eq!(reloaded.roots[0].kind, ProjectGroupRootKind::Resources);
+        assert!(f
+            .db
+            .list_projects()
+            .unwrap()
+            .iter()
+            .any(|p| p.path == moved.to));
+        assert!(f.db.list_projects().unwrap().iter().all(|p| p.path != old));
+
+        // Nothing moves when the name already matches.
+        assert!(follow_project_name(&f.db, &f.home, &group.id)
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn renaming_avoids_taken_names_and_leaves_unmanaged_folders_alone() {
+        let f = fixture();
+        let group =
+            f.db.create_project_group("A", std::slice::from_ref(&f.web))
+                .unwrap();
+        ensure_project_resources(&f.db, &f.home, &group.id, "blank").unwrap();
+        fs::create_dir_all(f.home.join("projects/B")).unwrap();
+        f.db.rename_project_group(&group.id, "B").unwrap();
+        let moved = follow_project_name(&f.db, &f.home, &group.id)
+            .unwrap()
+            .unwrap();
+        assert!(moved.to.ends_with("projects/B-2"));
+        // B-2 already follows "B".
+        assert!(follow_project_name(&f.db, &f.home, &group.id)
+            .unwrap()
+            .is_none());
+
+        let elsewhere = f.dir.path().join("my-docs");
+        let server = f.dir.path().join("server");
+        fs::create_dir_all(&elsewhere).unwrap();
+        fs::create_dir_all(&server).unwrap();
+        let custom =
+            f.db.create_project_group(
+                "Custom",
+                &[canonical_project_path(&server.to_string_lossy()).unwrap()],
+            )
+            .unwrap();
+        f.db.attach_project_resource_root(&custom.id, &elsewhere.to_string_lossy())
+            .unwrap();
+        f.db.rename_project_group(&custom.id, "Renamed").unwrap();
+        assert!(follow_project_name(&f.db, &f.home, &custom.id)
+            .unwrap()
+            .is_none());
+        assert!(elsewhere.is_dir());
     }
 
     #[cfg(unix)]

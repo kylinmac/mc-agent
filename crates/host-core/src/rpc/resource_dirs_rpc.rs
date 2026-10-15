@@ -76,6 +76,47 @@ pub fn set_note(state: &AppState, params: &Value) -> Result<Value, JsonRpcError>
     Ok(json!({ "note": note }))
 }
 
+/// Before a project rename: refuse while a session in its resource folder is
+/// running (R1.3). A save that keeps the name is never blocked.
+pub fn rename_guard(state: &AppState, group_id: &str, new_name: &str) -> Result<(), JsonRpcError> {
+    let current = state.db.project_group(group_id).map_err(internal)?;
+    if current.is_none_or(|group| group.name == new_name.trim()) {
+        return Ok(());
+    }
+    resource_dirs::ensure_rename_allowed(&state.db, group_id)
+        .map_err(|error| rpc_err(1008, error.to_string(), "CONFLICT"))
+}
+
+/// After a project rename: move its resource folder to follow the new name.
+/// The rename itself already succeeded, so a failed move is reported in
+/// `resourcesRenameError` with the folder left where it was.
+pub fn after_rename(
+    state: &mut AppState,
+    group: crate::db::ProjectGroupRecord,
+) -> Result<Value, JsonRpcError> {
+    let moved = resource_dirs::home_dir()
+        .and_then(|home| resource_dirs::follow_project_name(&state.db, &home, &group.id));
+    match moved {
+        Ok(Some(moved)) => {
+            if state
+                .workspace
+                .get()
+                .is_some_and(|workspace| workspace.path == moved.from)
+            {
+                state.workspace.set(&moved.to);
+            }
+            let group = state
+                .db
+                .project_group(&group.id)
+                .map_err(internal)?
+                .unwrap_or(group);
+            Ok(json!({ "group": group, "resourcesMoved": moved }))
+        }
+        Ok(None) => Ok(json!({ "group": group })),
+        Err(error) => Ok(json!({ "group": group, "resourcesRenameError": error.to_string() })),
+    }
+}
+
 fn group(state: &AppState, params: &Value) -> Result<crate::db::ProjectGroupRecord, JsonRpcError> {
     let group_id = required_str(params, "groupId")?;
     state

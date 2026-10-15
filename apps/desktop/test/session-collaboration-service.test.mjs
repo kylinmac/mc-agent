@@ -360,3 +360,18 @@ test("spawn without a model key never selects an un opted-in default model (#118
   );
   assert.deepEqual(methodCalls(host, "session.collaboration.spawn"), []);
 });
+
+test("spawn forwards a target workspace for host-core to check against the project (mc-agent R1.6)", async () => {
+  const host = spawnHost();
+
+  await invokeSpawn(spawnService(host), { task: "Build the login API", workspace: " /code/server " });
+  await invokeSpawn(spawnService(host), { task: "Review the diff" });
+
+  const spawns = methodCalls(host, "session.collaboration.spawn");
+  assert.equal(spawns[0].params.workspace, "/code/server");
+  assert.equal("workspace" in spawns[1].params && spawns[1].params.workspace !== undefined, false);
+  await assert.rejects(
+    invokeSpawn(spawnService(host), { task: "x", workspace: 7 }),
+    { code: "INVALID_ARGUMENT" },
+  );
+});

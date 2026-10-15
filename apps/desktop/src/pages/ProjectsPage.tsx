@@ -677,6 +677,13 @@ export function ProjectsPage() {
           onClose={() => setEditProjectFor(null)}
           onSaved={(group) => {
             renameProject(group.primaryPath, group.name);
+            // mc-agent: a rename can move the resource folder (the row's path);
+            // keep its card open on the new path.
+            setOpenPath((current) =>
+              current && normalizeProjectPath(current) === normalizeProjectPath(editProjectFor.path)
+                ? group.primaryPath
+                : current,
+            );
             // Promoting another folder to primary moves the group's identity,
             // while the row that is still open keeps the same display name.
             if (

@@ -15,6 +15,40 @@ impl Database {
         self.group_by_id(id.trim())
     }
 
+    /// The folder a Worker session starts in (R1.6). Without a request the
+    /// Worker inherits its parent's folder; a requested workspace must be a
+    /// root of the parent's own project, so delegation can never reach a
+    /// folder outside it.
+    pub fn worker_project_path(
+        &self,
+        parent: Option<&str>,
+        requested: Option<&str>,
+    ) -> Result<Option<String>> {
+        let Some(requested) = requested.map(str::trim).filter(|path| !path.is_empty()) else {
+            return Ok(parent.map(str::to_string));
+        };
+        let parent = parent.ok_or_else(|| {
+            anyhow!(
+                "PERMISSION_DENIED: the parent session has no project to choose a workspace from"
+            )
+        })?;
+        let group = self.project_group_for_path(parent)?.ok_or_else(|| {
+            anyhow!(
+                "PERMISSION_DENIED: the parent session has no project to choose a workspace from"
+            )
+        })?;
+        let wanted = canonical_project_path(requested)
+            .ok_or_else(|| anyhow!("INVALID_ARGUMENT: workspace path is invalid"))?;
+        group
+            .roots
+            .iter()
+            .find(|root| root.path == wanted)
+            .map(|root| Some(root.path.clone()))
+            .ok_or_else(|| {
+                anyhow!("PERMISSION_DENIED: workspace is not a folder of this project: {wanted}")
+            })
+    }
+
     /// Attach an existing directory as the project's resource directory.
     ///
     /// The directory becomes `roots[0]` and the primary path; the existing
@@ -221,6 +255,40 @@ mod tests {
                 &[f.resources.clone(), f.server.clone()],
                 Some(&f.server),
             )
+            .is_err());
+    }
+
+    #[test]
+    fn workers_start_in_a_folder_of_the_parent_project_only() {
+        let f = fixture();
+        let group =
+            f.db.create_project_group("Split", &[f.web.clone(), f.server.clone()])
+                .unwrap();
+        f.db.attach_project_resource_root(&group.id, &f.resources)
+            .unwrap();
+
+        assert_eq!(
+            f.db.worker_project_path(Some(&f.resources), None).unwrap(),
+            Some(f.resources.clone())
+        );
+        assert_eq!(
+            f.db.worker_project_path(Some(&f.resources), Some(&format!("{}/", f.server)))
+                .unwrap(),
+            Some(f.server.clone())
+        );
+        assert!(f
+            .db
+            .worker_project_path(Some(&f.resources), Some("/etc"))
+            .is_err());
+        assert!(f.db.worker_project_path(None, Some(&f.server)).is_err());
+        let outsider = f._dir.path().join("outsider");
+        std::fs::create_dir_all(&outsider).unwrap();
+        let outsider = canonical_project_path(&outsider.to_string_lossy()).unwrap();
+        f.db.create_project_group("Other", std::slice::from_ref(&outsider))
+            .unwrap();
+        assert!(f
+            .db
+            .worker_project_path(Some(&f.resources), Some(&outsider))
             .is_err());
     }
 

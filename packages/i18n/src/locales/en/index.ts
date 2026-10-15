@@ -2895,6 +2895,7 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     newSessionIn: "New session",
     templateLabel: "Template",
     templateHint: "Copied once into the project's resource folder.",
+    resourcesRenameError: "The project was renamed, but its resource folder stayed in place: {{message}}",
   },
   // mc-agent:end
 } as const;

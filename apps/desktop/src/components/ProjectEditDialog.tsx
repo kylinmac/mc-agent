@@ -4,6 +4,11 @@ import { portalToBody } from "../lib/portal-visibility";
 import { useTranslation } from "react-i18next";
 import type { ProjectGroupRecord, ProjectGroupRoot } from "@pi-desktop/shared";
 import { api } from "../lib/api";
+import { useAppStore } from "../stores/app-store";
+import {
+  planResourceMove,
+  type ProjectRenameResult,
+} from "../features/project-workbench/follow-move";
 import { MAX_PROJECT_NAME_CHARS } from "../lib/sidebar-preferences";
 import { OverlayBackdrop, Button, Input, TooltipButton } from "./ui";
 import {
@@ -183,7 +188,21 @@ export function ProjectEditDialog({
       const result = group.remote
         ? await api.renameProjectGroup(group.id, trimmedName)
         : await api.updateProjectGroup(group.id, trimmedName, folders, primaryPath);
+      // mc-agent (R1.3): the resource folder follows the project name.
+      const { resourcesMoved, resourcesRenameError } = result as ProjectRenameResult;
+      if (resourcesMoved) {
+        const store = useAppStore.getState();
+        const plan = planResourceMove(
+          { workspacePath: store.workspace?.path, openProjectPaths: store.openProjectPaths },
+          resourcesMoved,
+        );
+        for (const path of plan.close) await store.closeProject(path);
+        if (plan.activate) await store.activateProject(plan.activate);
+      }
       onSaved(result.group);
+      if (resourcesRenameError) {
+        onError(new Error(t("mcProject.resourcesRenameError", { message: resourcesRenameError })));
+      }
       onClose();
     } catch (error) {
       onError(error);

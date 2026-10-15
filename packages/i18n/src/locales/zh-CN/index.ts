@@ -2829,6 +2829,7 @@ sklm: {
     newSessionIn: "新建会话",
     templateLabel: "模板",
     templateHint: "创建时复制一次到项目的资料目录。",
+    resourcesRenameError: "项目已改名，但资料目录没有跟着改名：{{message}}",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

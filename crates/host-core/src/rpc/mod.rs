@@ -1956,12 +1956,13 @@ async fn handle_request(
                 .map(str::to_string)
                 .collect::<Vec<_>>();
             let primary = params.get("primary").and_then(Value::as_str);
-            let st = state.lock().await;
+            let mut st = state.lock().await;
+            resource_dirs_rpc::rename_guard(&st, group_id, name)?;
             let group = st
                 .db
                 .update_project_group(group_id, name, &folders, primary)
                 .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
-            Ok(json!({ "group": group }))
+            resource_dirs_rpc::after_rename(&mut st, group)
         }
         "project.resources.templates" => {
             let st = state.lock().await;
@@ -1988,12 +1989,13 @@ async fn handle_request(
                 .get("name")
                 .and_then(Value::as_str)
                 .ok_or_else(|| rpc_err(1002, "name required", "INVALID_PARAMS"))?;
-            let st = state.lock().await;
+            let mut st = state.lock().await;
+            resource_dirs_rpc::rename_guard(&st, id, name)?;
             let group = st
                 .db
                 .rename_project_group(id, name)
                 .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
-            Ok(json!({ "group": group }))
+            resource_dirs_rpc::after_rename(&mut st, group)
         }
         "project.group.memory.get" => {
             let id = params

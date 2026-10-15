@@ -1,17 +1,82 @@
 {
-  "resourcesTitle": { "en": "Resource folder", "zh-CN": "资料目录", "zh-TW": "資料目錄" },
-  "resourcesPreparing": { "en": "Preparing the resource folder…", "zh-CN": "正在准备资料目录…", "zh-TW": "正在準備資料目錄…" },
-  "resourcesRemote": { "en": "Remote projects have no resource folder.", "zh-CN": "远程项目没有资料目录。", "zh-TW": "遠端專案沒有資料目錄。" },
-  "resourcesError": { "en": "Could not prepare the resource folder: {{message}}", "zh-CN": "无法准备资料目录：{{message}}", "zh-TW": "無法準備資料目錄：{{message}}" },
-  "reveal": { "en": "Show in Finder", "zh-CN": "在访达中显示", "zh-TW": "在 Finder 中顯示" },
-  "workspacesTitle": { "en": "Workspaces", "zh-CN": "工作区", "zh-TW": "工作區" },
-  "workspaceDescriptionPlaceholder": { "en": "What is this workspace for?", "zh-CN": "这个工作区是做什么的？", "zh-TW": "這個工作區是做什麼的？" },
-  "workspaceDescriptionLabel": { "en": "Description of {{name}}", "zh-CN": "{{name}} 的说明", "zh-TW": "{{name}} 的說明" },
-  "workspaceDescriptionSaved": { "en": "Description saved", "zh-CN": "说明已保存", "zh-TW": "說明已儲存" },
-  "workspaceDescriptionError": { "en": "Could not save the description: {{message}}", "zh-CN": "说明保存失败：{{message}}", "zh-TW": "說明儲存失敗：{{message}}" },
-  "startFolderLabel": { "en": "Start in", "zh-CN": "起始目录", "zh-TW": "起始目錄" },
-  "startFolderResources": { "en": "Resource folder", "zh-CN": "资料目录", "zh-TW": "資料目錄" },
-  "newSessionIn": { "en": "New session", "zh-CN": "新建会话", "zh-TW": "新增工作階段" },
-  "templateLabel": { "en": "Template", "zh-CN": "模板", "zh-TW": "範本" },
-  "templateHint": { "en": "Copied once into the project's resource folder.", "zh-CN": "创建时复制一次到项目的资料目录。", "zh-TW": "建立時複製一次到專案的資料目錄。" }
+  "resourcesTitle": {
+    "en": "Resource folder",
+    "zh-CN": "资料目录",
+    "zh-TW": "資料目錄"
+  },
+  "resourcesPreparing": {
+    "en": "Preparing the resource folder…",
+    "zh-CN": "正在准备资料目录…",
+    "zh-TW": "正在準備資料目錄…"
+  },
+  "resourcesRemote": {
+    "en": "Remote projects have no resource folder.",
+    "zh-CN": "远程项目没有资料目录。",
+    "zh-TW": "遠端專案沒有資料目錄。"
+  },
+  "resourcesError": {
+    "en": "Could not prepare the resource folder: {{message}}",
+    "zh-CN": "无法准备资料目录：{{message}}",
+    "zh-TW": "無法準備資料目錄：{{message}}"
+  },
+  "reveal": {
+    "en": "Show in Finder",
+    "zh-CN": "在访达中显示",
+    "zh-TW": "在 Finder 中顯示"
+  },
+  "workspacesTitle": {
+    "en": "Workspaces",
+    "zh-CN": "工作区",
+    "zh-TW": "工作區"
+  },
+  "workspaceDescriptionPlaceholder": {
+    "en": "What is this workspace for?",
+    "zh-CN": "这个工作区是做什么的？",
+    "zh-TW": "這個工作區是做什麼的？"
+  },
+  "workspaceDescriptionLabel": {
+    "en": "Description of {{name}}",
+    "zh-CN": "{{name}} 的说明",
+    "zh-TW": "{{name}} 的說明"
+  },
+  "workspaceDescriptionSaved": {
+    "en": "Description saved",
+    "zh-CN": "说明已保存",
+    "zh-TW": "說明已儲存"
+  },
+  "workspaceDescriptionError": {
+    "en": "Could not save the description: {{message}}",
+    "zh-CN": "说明保存失败：{{message}}",
+    "zh-TW": "說明儲存失敗：{{message}}"
+  },
+  "startFolderLabel": {
+    "en": "Start in",
+    "zh-CN": "起始目录",
+    "zh-TW": "起始目錄"
+  },
+  "startFolderResources": {
+    "en": "Resource folder",
+    "zh-CN": "资料目录",
+    "zh-TW": "資料目錄"
+  },
+  "newSessionIn": {
+    "en": "New session",
+    "zh-CN": "新建会话",
+    "zh-TW": "新增工作階段"
+  },
+  "templateLabel": {
+    "en": "Template",
+    "zh-CN": "模板",
+    "zh-TW": "範本"
+  },
+  "templateHint": {
+    "en": "Copied once into the project's resource folder.",
+    "zh-CN": "创建时复制一次到项目的资料目录。",
+    "zh-TW": "建立時複製一次到專案的資料目錄。"
+  },
+  "resourcesRenameError": {
+    "en": "The project was renamed, but its resource folder stayed in place: {{message}}",
+    "zh-CN": "项目已改名，但资料目录没有跟着改名：{{message}}",
+    "zh-TW": "專案已改名，但資料目錄沒有跟著改名：{{message}}"
+  }
 }
