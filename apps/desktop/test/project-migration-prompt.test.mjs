@@ -22,7 +22,8 @@ test("the instruction names the folders, categories and the copy-only rule for w
   assert.match(prompt, /Never modify, move or delete anything inside a workspace/);
   assert.match(prompt, /Do not copy documents out of a workspace\. INDEX a workspace document/);
   assert.match(prompt, /INDEX, MOVE or DRAFT/);
-  assert.match(prompt, /Do not change any file before the plan is approved/);
+  assert.match(prompt, /Work directly; do not wait for a plan approval/);
+  assert.doesNotMatch(prompt, /before the plan is approved/);
   assert.match(prompt, /This list is complete; do not look for the template elsewhere/);
   assert.match(prompt, /do not browse their parent folders or any other path/);
 });

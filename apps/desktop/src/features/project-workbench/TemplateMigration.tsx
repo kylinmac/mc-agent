@@ -7,10 +7,10 @@ import { Button } from "../../components/ui";
 import { migrationPrompt } from "./migration-prompt";
 
 /*
-  R5 template migration: start a Plan-mode session in the resource folder with
-  the chosen template's categories and the chosen model. The model proposes a
-  copy/move plan and nothing changes until the user approves it through the
-  upstream Plan flow; no separate executor exists.
+  R5 template migration: start an Agent-mode session in the resource folder
+  with the chosen template's categories and the chosen model. It organizes
+  directly in the conversation, where the user follows or stops it; tool
+  approvals follow the user's permission mode. No separate executor exists.
 */
 export function TemplateMigration({
   groupId,
@@ -112,7 +112,7 @@ export function TemplateMigration({
       const store = useAppStore.getState();
       await store.newSession({ projectPath: resourceFolder });
       await store.configureActiveSession({
-        mode: "plan",
+        mode: "agent",
         providerId: model.providerId,
         modelId: model.modelId,
         thinkingLevel: "medium",
