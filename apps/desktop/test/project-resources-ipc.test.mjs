@@ -77,6 +77,56 @@ test("templates are listed by host-core", async () => {
   assert.deepEqual(await invoke(IPC.invoke.projectResourcesTemplates), listing);
 });
 
+test("template edits are shape-checked and templates are revealed by listed name only", async () => {
+  const listing = { home: "/h", templates: [{ name: "software", path: "/h/templates/software" }] };
+  const { invoke, calls, opened } = setup({
+    "project.resources.templates": listing,
+    "project.resources.templates.save": listing,
+    "project.resources.templates.delete": listing,
+  });
+  await invoke(IPC.invoke.projectResourcesTemplateSave, {
+    template: {
+      name: " notes ",
+      categories: [{ name: "a", description: "x" }, { name: "b" }],
+      create: true,
+      copyFrom: "software",
+      extra: "dropped",
+    },
+  });
+  assert.deepEqual(calls.at(-1), {
+    method: "project.resources.templates.save",
+    params: {
+      template: {
+        name: "notes",
+        description: "",
+        categories: [
+          { name: "a", description: "x" },
+          { name: "b", description: "" },
+        ],
+        create: true,
+        copyFrom: "software",
+      },
+    },
+  });
+  for (const template of [
+    undefined,
+    { name: "x" },
+    { name: "", categories: [] },
+    { name: "x", categories: [{ name: 3 }] },
+    { name: "x", categories: [], create: "yes" },
+    { name: "x", categories: Array.from({ length: 65 }, (_, i) => ({ name: `c${i}` })) },
+  ]) {
+    await assert.rejects(invoke(IPC.invoke.projectResourcesTemplateSave, { template }));
+  }
+  await invoke(IPC.invoke.projectResourcesTemplateDelete, { name: " notes " });
+  assert.deepEqual(calls.at(-1), { method: "project.resources.templates.delete", params: { name: "notes" } });
+
+  await invoke(IPC.invoke.projectResourcesTemplateReveal, { name: "software" });
+  assert.deepEqual(opened, ["/h/templates/software"]);
+  await assert.rejects(invoke(IPC.invoke.projectResourcesTemplateReveal, { name: "../etc" }), /not found/);
+  assert.equal(opened.length, 1);
+});
+
 test("host errors reach the caller unchanged", async () => {
   const { invoke } = setup({ "project.resources.ensure": new Error("template not found: x") });
   await assert.rejects(

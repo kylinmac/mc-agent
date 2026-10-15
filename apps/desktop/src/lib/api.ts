@@ -74,6 +74,7 @@ import type {
   PluginInstallProgress,
   ProjectRecord,
   ProjectGroupRecord,
+  ResourceTemplateDraft,
   ResourceTemplateSummary,
   ResourceListing,
   ProjectTask,
@@ -892,6 +893,18 @@ export const api = {
     invoke<{ home: string; templates: ResourceTemplateSummary[] }>(
       IPC.invoke.projectResourcesTemplates,
     ),
+  saveResourceTemplate: (template: ResourceTemplateDraft) =>
+    invoke<{ home: string; templates: ResourceTemplateSummary[] }>(
+      IPC.invoke.projectResourcesTemplateSave,
+      { template },
+    ),
+  deleteResourceTemplate: (name: string) =>
+    invoke<{ home: string; templates: ResourceTemplateSummary[] }>(
+      IPC.invoke.projectResourcesTemplateDelete,
+      { name },
+    ),
+  revealResourceTemplate: (name: string) =>
+    invoke<{ ok: true }>(IPC.invoke.projectResourcesTemplateReveal, { name }),
   // Gives the project its resource directory if it has none; idempotent.
   ensureProjectResources: (groupId: string, template?: string) =>
     invoke<{ group: ProjectGroupRecord }>(IPC.invoke.projectResourcesEnsure, {

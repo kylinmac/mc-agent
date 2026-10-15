@@ -24,12 +24,12 @@ pub const HOME_ENV: &str = "MC_AGENT_HOME";
 /// Template used when the caller names none, and for existing projects.
 pub const DEFAULT_TEMPLATE: &str = "blank";
 
-const TEMPLATES_DIR: &str = "templates";
+pub(crate) const TEMPLATES_DIR: &str = "templates";
 const PROJECTS_DIR: &str = "projects";
 const HOME_DIR_NAME: &str = "mc-agent";
 /// Upper bound on entries copied from one template; templates are skeletons.
 const MAX_TEMPLATE_ENTRIES: usize = 2_000;
-const MAX_NAME_CHARS: usize = 80;
+pub(crate) const MAX_NAME_CHARS: usize = 80;
 
 /// Built-in templates: first-level folders (the resource categories) and
 /// starter files at the template root.
@@ -149,9 +149,7 @@ pub fn list_templates(home: &Path) -> Result<Vec<TemplateSummary>> {
         }
         let meta = crate::resource_templates::read_template_meta(&entry.path()).unwrap_or_default();
         templates.push(TemplateSummary {
-            builtin: BUILTIN_TEMPLATES
-                .iter()
-                .any(|(builtin, _, _)| *builtin == name),
+            builtin: is_builtin_template(&name),
             path: entry.path().to_string_lossy().into_owned(),
             categories: categories(&entry.path())?,
             version: meta.version.max(1),
@@ -432,7 +430,13 @@ fn create_unique_dir(parent: &Path, name: &str) -> Result<PathBuf> {
     Err(anyhow!("no free folder name for {name}"))
 }
 
-fn validate_template_name(name: &str) -> Result<()> {
+pub(crate) fn is_builtin_template(name: &str) -> bool {
+    BUILTIN_TEMPLATES
+        .iter()
+        .any(|(builtin, _, _)| *builtin == name)
+}
+
+pub(crate) fn validate_template_name(name: &str) -> Result<()> {
     let valid = !name.is_empty()
         && name != "."
         && name != ".."
@@ -448,7 +452,7 @@ fn validate_template_name(name: &str) -> Result<()> {
 
 /// Copy the template tree into the empty `target`. Symlinks are skipped rather
 /// than followed, so a template cannot pull content from outside itself.
-fn copy_template(source: &Path, target: &Path) -> Result<()> {
+pub(crate) fn copy_template(source: &Path, target: &Path) -> Result<()> {
     let mut copied = 0usize;
     for entry in walkdir::WalkDir::new(source)
         .min_depth(1)

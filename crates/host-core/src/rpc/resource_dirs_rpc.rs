@@ -18,6 +18,23 @@ pub fn templates(_state: &AppState) -> Result<Value, JsonRpcError> {
     Ok(json!({ "home": home.to_string_lossy(), "templates": templates }))
 }
 
+/// `project.resources.templates.save` / `.delete` (R1.4 in-app editing).
+/// Both answer with the refreshed template list.
+pub fn edit_template(method: &str, params: &Value) -> Result<Value, JsonRpcError> {
+    let home = resource_dirs::home_dir().map_err(internal)?;
+    let invalid = |error: anyhow::Error| rpc_err(1002, error.to_string(), "INVALID_PARAMS");
+    if method == "project.resources.templates.delete" {
+        crate::template_editor::delete(&home, required_str(params, "name")?).map_err(invalid)?;
+    } else {
+        let input: crate::template_editor::TemplateInput =
+            serde_json::from_value(params.get("template").cloned().unwrap_or(Value::Null))
+                .map_err(|error| rpc_err(1002, error.to_string(), "INVALID_PARAMS"))?;
+        crate::template_editor::save(&home, &input).map_err(invalid)?;
+    }
+    let templates = resource_dirs::list_templates(&home).map_err(internal)?;
+    Ok(json!({ "home": home.to_string_lossy(), "templates": templates }))
+}
+
 pub fn ensure(state: &AppState, params: &Value) -> Result<Value, JsonRpcError> {
     let group_id = required_str(params, "groupId")?;
     let template = match params.get("template") {

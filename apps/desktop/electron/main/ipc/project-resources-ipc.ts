@@ -34,6 +34,41 @@ function groupIdOf(input: { groupId?: unknown } | undefined): string {
   return groupId;
 }
 
+function templateNameOf(value: unknown): string {
+  const name = typeof value === "string" ? value.trim() : "";
+  if (!name || name.length > MAX_TEMPLATE_NAME_LENGTH) throw invalid("template name is invalid");
+  return name;
+}
+
+const MAX_TEMPLATE_CATEGORIES = 64;
+
+/** Shape check only; host-core validates names and bounds descriptions. */
+function templateDraftOf(value: unknown) {
+  if (!value || typeof value !== "object") throw invalid("template required");
+  const draft = value as Record<string, unknown>;
+  const text = (field: unknown, label: string) => {
+    if (field === undefined) return "";
+    if (typeof field !== "string" || field.length > MAX_DESCRIPTION_LENGTH) throw invalid(`${label} is invalid`);
+    return field;
+  };
+  if (!Array.isArray(draft.categories) || draft.categories.length > MAX_TEMPLATE_CATEGORIES) {
+    throw invalid("template categories are invalid");
+  }
+  const categories = draft.categories.map((category: unknown) => {
+    if (!category || typeof category !== "object") throw invalid("template category is invalid");
+    const entry = category as Record<string, unknown>;
+    return { name: templateNameOf(entry.name), description: text(entry.description, "category description") };
+  });
+  if (draft.create !== undefined && typeof draft.create !== "boolean") throw invalid("create must be a boolean");
+  return {
+    name: templateNameOf(draft.name),
+    description: text(draft.description, "template description"),
+    categories,
+    create: draft.create === true,
+    ...(draft.copyFrom !== undefined && draft.copyFrom !== "" ? { copyFrom: templateNameOf(draft.copyFrom) } : {}),
+  };
+}
+
 function invalid(message: string): Error {
   return Object.assign(new Error(message), { errorCode: ErrorCodes.INVALID_ARGUMENT });
 }
@@ -51,6 +86,43 @@ export function registerProjectResourcesIpc({
     if (!host) throw new Error("host unavailable");
     return host.call("project.resources.templates", {});
   });
+
+  registrar.handle(
+    IPC.invoke.projectResourcesTemplateSave,
+    async (input: { template?: unknown } = {}) => {
+      const host = getHost();
+      if (!host) throw new Error("host unavailable");
+      return host.call("project.resources.templates.save", { template: templateDraftOf(input?.template) });
+    },
+  );
+
+  registrar.handle(
+    IPC.invoke.projectResourcesTemplateDelete,
+    async (input: { name?: unknown } = {}) => {
+      const host = getHost();
+      if (!host) throw new Error("host unavailable");
+      return host.call("project.resources.templates.delete", { name: templateNameOf(input?.name) });
+    },
+  );
+
+  // Like the resource folder, a template is revealed by name: Main opens only
+  // a folder host-core lists as a template.
+  registrar.handle(
+    IPC.invoke.projectResourcesTemplateReveal,
+    async (input: { name?: unknown } = {}) => {
+      const host = getHost();
+      if (!host) throw new Error("host unavailable");
+      const name = templateNameOf(input?.name);
+      const { templates } = (await host.call("project.resources.templates", {})) as {
+        templates?: Array<{ name: string; path: string }>;
+      };
+      const folder = templates?.find((template) => template.name === name)?.path;
+      if (!folder) throw invalid("template not found");
+      const failure = await openPath(folder);
+      if (failure) throw new Error(failure);
+      return { ok: true };
+    },
+  );
 
   registrar.handle(
     IPC.invoke.projectResourcesEnsure,

@@ -224,3 +224,10 @@
 .mc-workbench-tag.is-reference {
   color: var(--ds-accent);
 }
+
+.mc-workbench-template-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}

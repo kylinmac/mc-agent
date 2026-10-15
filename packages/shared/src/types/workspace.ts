@@ -64,6 +64,16 @@ export type ResourceTemplateSummary = {
   categoryDescriptions: Record<string, string>;
 };
 
+/** A template as the in-app editor saves it (R1.4). */
+export type ResourceTemplateDraft = {
+  name: string;
+  description: string;
+  categories: Array<{ name: string; description: string }>;
+  /** Create a new template, optionally copying another one's folder. */
+  create?: boolean;
+  copyFrom?: string;
+};
+
 /** One workspace's description from `<resource dir>/workspaces.md` (R10). */
 export type WorkspaceNote = {
   path: string;

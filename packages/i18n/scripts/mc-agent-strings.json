@@ -265,14 +265,14 @@
     "zh-TW": "目前結構"
   },
   "migrationStart": {
-    "en": "Draft a plan",
-    "zh-CN": "生成整理计划",
-    "zh-TW": "產生整理計畫"
+    "en": "Organize with AI",
+    "zh-CN": "AI 整理",
+    "zh-TW": "AI 整理"
   },
   "migrationHint": {
-    "en": "Runs in Plan mode: nothing changes until you approve. Workspace documents are listed in each category's INDEX.md, not copied.",
-    "zh-CN": "以 Plan 模式运行：批准计划前不改任何文件；工作区文档只登记到分类的 INDEX.md，不复制。",
-    "zh-TW": "以 Plan 模式執行：核准計畫前不改任何檔案；工作區文件只登記到分類的 INDEX.md，不複製。"
+    "en": "Runs directly in a new conversation, where you can follow or stop it. Workspace documents are listed in each category's INDEX.md, not copied.",
+    "zh-CN": "在新对话中直接执行，可随时查看或停止；工作区文档只登记到分类的 INDEX.md，不复制。",
+    "zh-TW": "在新對話中直接執行，可隨時查看或停止；工作區文件只登記到分類的 INDEX.md，不複製。"
   },
   "tasksTitle": {
     "en": "Tasks",
@@ -463,5 +463,160 @@
     "en": "Could not change the folder type: {{message}}",
     "zh-CN": "目录类型修改失败：{{message}}",
     "zh-TW": "目錄類型修改失敗：{{message}}"
+  },
+  "templateEditorTitle": {
+    "en": "Templates",
+    "zh-CN": "模板",
+    "zh-TW": "範本"
+  },
+  "templateEditorOpen": {
+    "en": "Manage templates",
+    "zh-CN": "管理模板",
+    "zh-TW": "管理範本"
+  },
+  "templateEditorClose": {
+    "en": "Close",
+    "zh-CN": "收起",
+    "zh-TW": "收起"
+  },
+  "templateEditorSelect": {
+    "en": "Template to edit",
+    "zh-CN": "要编辑的模板",
+    "zh-TW": "要編輯的範本"
+  },
+  "templateBuiltin": {
+    "en": "built-in",
+    "zh-CN": "内置",
+    "zh-TW": "內建"
+  },
+  "templateNew": {
+    "en": "New template",
+    "zh-CN": "新建模板",
+    "zh-TW": "新增範本"
+  },
+  "templateNewName": {
+    "en": "New template name",
+    "zh-CN": "新模板名称",
+    "zh-TW": "新範本名稱"
+  },
+  "templateCopyFrom": {
+    "en": "Start from",
+    "zh-CN": "基于",
+    "zh-TW": "基於"
+  },
+  "templateCopyNone": {
+    "en": "Start empty",
+    "zh-CN": "从空白开始",
+    "zh-TW": "從空白開始"
+  },
+  "templateCopyFromName": {
+    "en": "Copy {{name}}",
+    "zh-CN": "复制 {{name}}",
+    "zh-TW": "複製 {{name}}"
+  },
+  "templateCreate": {
+    "en": "Create",
+    "zh-CN": "创建",
+    "zh-TW": "建立"
+  },
+  "templateCreated": {
+    "en": "Created {{name}}",
+    "zh-CN": "已创建 {{name}}",
+    "zh-TW": "已建立 {{name}}"
+  },
+  "templateNameInvalid": {
+    "en": "Template names cannot be empty, start with a dot, or contain slashes.",
+    "zh-CN": "模板名称不能为空、不能以点开头，也不能包含斜杠。",
+    "zh-TW": "範本名稱不能為空、不能以點開頭，也不能包含斜線。"
+  },
+  "templateDescription": {
+    "en": "Template description",
+    "zh-CN": "模板说明",
+    "zh-TW": "範本說明"
+  },
+  "templateCategoryNew": {
+    "en": "new",
+    "zh-CN": "新",
+    "zh-TW": "新"
+  },
+  "templateCategoryRemove": {
+    "en": "Remove category {{name}}",
+    "zh-CN": "删除分类 {{name}}",
+    "zh-TW": "刪除分類 {{name}}"
+  },
+  "templateCategoryRemoveShort": {
+    "en": "Remove",
+    "zh-CN": "删除",
+    "zh-TW": "刪除"
+  },
+  "templateCategoryDescription": {
+    "en": "Description of {{name}}",
+    "zh-CN": "{{name}} 的说明",
+    "zh-TW": "{{name}} 的說明"
+  },
+  "templateCategoryDescriptionPlaceholder": {
+    "en": "What belongs in this category",
+    "zh-CN": "这个分类放什么",
+    "zh-TW": "這個分類放什麼"
+  },
+  "templateCategoryAdd": {
+    "en": "Add category",
+    "zh-CN": "添加分类",
+    "zh-TW": "新增分類"
+  },
+  "templateCategoryAddPlaceholder": {
+    "en": "Category folder name, e.g. design",
+    "zh-CN": "分类文件夹名，如 design",
+    "zh-TW": "分類資料夾名，如 design"
+  },
+  "templateCategoryError_empty": {
+    "en": "Enter a folder name.",
+    "zh-CN": "请输入文件夹名。",
+    "zh-TW": "請輸入資料夾名。"
+  },
+  "templateCategoryError_invalid": {
+    "en": "Folder names cannot start with a dot or contain slashes.",
+    "zh-CN": "文件夹名不能以点开头，也不能包含斜杠。",
+    "zh-TW": "資料夾名不能以點開頭，也不能包含斜線。"
+  },
+  "templateCategoryError_duplicate": {
+    "en": "This category already exists.",
+    "zh-CN": "这个分类已存在。",
+    "zh-TW": "這個分類已存在。"
+  },
+  "templateSave": {
+    "en": "Save template",
+    "zh-CN": "保存模板",
+    "zh-TW": "儲存範本"
+  },
+  "templateSaved": {
+    "en": "Saved {{name}}",
+    "zh-CN": "已保存 {{name}}",
+    "zh-TW": "已儲存 {{name}}"
+  },
+  "templateReveal": {
+    "en": "Open in Finder",
+    "zh-CN": "在 Finder 中打开",
+    "zh-TW": "在 Finder 中開啟"
+  },
+  "templateDelete": {
+    "en": "Delete template",
+    "zh-CN": "删除模板",
+    "zh-TW": "刪除範本"
+  },
+  "templateDeleteConfirm": {
+    "en": "Delete template {{name}}? Its folder moves to templates/.trash; projects created from it keep their files.",
+    "zh-CN": "删除模板 {{name}}？模板文件夹会移到 templates/.trash，用它创建的项目不受影响。",
+    "zh-TW": "刪除範本 {{name}}？範本資料夾會移到 templates/.trash，用它建立的專案不受影響。"
+  },
+  "templateDeleted": {
+    "en": "Deleted {{name}}",
+    "zh-CN": "已删除 {{name}}",
+    "zh-TW": "已刪除 {{name}}"
+  },
+  "templateEditorHint": {
+    "en": "Categories are the template's first-level folders; a category is removed only while its folder is empty. Edit starter files such as AGENTS.md in Finder. Projects created from a changed template show it as changed.",
+    "zh-CN": "分类就是模板的一级文件夹，只有文件夹为空时才能删除。AGENTS.md 等起始文件在 Finder 中编辑。模板改动后，用它创建的项目会提示模板已更新。",
+    "zh-TW": "分類就是範本的一級資料夾，只有資料夾為空時才能刪除。AGENTS.md 等起始檔案在 Finder 中編輯。範本變更後，用它建立的專案會提示範本已更新。"
   }
 }

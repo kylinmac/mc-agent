@@ -31,6 +31,7 @@ mod session_search;
 mod session_worktrees;
 mod sessions;
 mod state;
+mod template_editor;
 mod todos;
 mod tool_budget;
 mod tools;

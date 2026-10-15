@@ -8,6 +8,7 @@ import { shortenPath, type ProjectIndexItem } from "../../lib/project-archive";
 import { chooseStartFolder, rememberedStartFolder, rememberStartFolder } from "./start-folder";
 import { ProjectOverview } from "./ProjectOverview";
 import { ResourceCatalog } from "./ResourceCatalog";
+import { TemplateEditor } from "./TemplateEditor";
 import { TemplateMigration } from "./TemplateMigration";
 import { TaskBoard } from "./TaskBoard";
 
@@ -43,6 +44,8 @@ export function ProjectWorkbench({
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [listing, setListing] = useState<ResourceListing | null>(null);
+  // Bumped by the template editor so the organize panel reloads templates.
+  const [templatesRevision, setTemplatesRevision] = useState(0);
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [startFolder, setStartFolder] = useState(() =>
     chooseStartFolder(project.roots, project.path, rememberedStartFolder(project.groupId)),
@@ -269,6 +272,7 @@ export function ProjectWorkbench({
       ) : null}
       {resources ? (
         <TemplateMigration
+          key={templatesRevision}
           groupId={project.groupId}
           resourceFolder={resources.path}
           currentCategories={listing?.categories ?? []}
@@ -280,6 +284,7 @@ export function ProjectWorkbench({
           onError={onError}
         />
       ) : null}
+      <TemplateEditor onChanged={() => setTemplatesRevision((value) => value + 1)} onError={onError} />
 
       <div className="mc-workbench-row">
         <label className="mc-workbench-label" htmlFor={`mc-start-${project.groupId}`}>

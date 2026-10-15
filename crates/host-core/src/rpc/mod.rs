@@ -1970,6 +1970,10 @@ async fn handle_request(
             let st = state.lock().await;
             resource_dirs_rpc::templates(&st)
         }
+        "project.resources.templates.save" | "project.resources.templates.delete" => {
+            let _st = state.lock().await;
+            resource_dirs_rpc::edit_template(method, &params)
+        }
         "project.resources.ensure" => {
             let st = state.lock().await;
             resource_dirs_rpc::ensure(&st, &params)
