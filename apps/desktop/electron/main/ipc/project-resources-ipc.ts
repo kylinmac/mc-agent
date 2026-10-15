@@ -264,6 +264,26 @@ export function registerProjectResourcesIpc({
     void refreshProjectGroups(host);
     return result;
   });
+
+  registrar.handle(
+    IPC.invoke.projectRootKindSet,
+    async (input: { groupId?: unknown; path?: unknown; kind?: unknown } = {}) => {
+      const path = typeof input?.path === "string" ? input.path.trim() : "";
+      if (!path || path.length > MAX_PATH_LENGTH) throw invalid("folder path required");
+      if (input?.kind !== "workspace" && input?.kind !== "reference") {
+        throw invalid("kind must be workspace or reference");
+      }
+      const host = getHost();
+      if (!host) throw new Error("host unavailable");
+      const result = await host.call("project.resources.home.setRootKind", {
+        groupId: groupIdOf(input),
+        path,
+        kind: input.kind,
+      });
+      void refreshProjectGroups(host);
+      return result;
+    },
+  );
 }
 
 const TASK_OPERATIONS = new Set([

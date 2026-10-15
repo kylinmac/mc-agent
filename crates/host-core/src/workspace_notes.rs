@@ -107,7 +107,7 @@ fn workspaces(group: &ProjectGroupRecord) -> Vec<(String, String)> {
     let roots: Vec<_> = group
         .roots
         .iter()
-        .filter(|root| root.kind == ProjectGroupRootKind::Workspace)
+        .filter(|root| root.kind != ProjectGroupRootKind::Resources)
         .collect();
     let folder = |path: &str| {
         Path::new(path)

@@ -11,7 +11,7 @@
 
 export type ProjectFolderGuideRoot = {
   path?: string;
-  kind?: "workspace" | "resources";
+  kind?: "workspace" | "resources" | "reference";
 };
 
 export type ProjectFolderGuideNote = {
@@ -55,7 +55,8 @@ export function projectFolderGuide({ roots, startPath, notes = [] }: ProjectFold
     const note = notes.find((candidate) => comparable(candidate.path) === comparable(root.path));
     const name = note?.heading || folderName(root.path);
     const description = oneLine(note?.description);
-    return `Workspace "${name}": ${root.path}${description ? ` — ${description}` : ""}`;
+    const label = root.kind === "reference" ? "Reference folder" : "Workspace";
+    return `${label} "${name}": ${root.path}${description ? ` — ${description}` : ""}`;
   };
   const startRoot = folders.find((root) => comparable(root.path) === start);
   const lines = [

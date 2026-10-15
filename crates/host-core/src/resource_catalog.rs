@@ -254,7 +254,7 @@ pub fn register_file(
     let in_workspace = group
         .roots
         .iter()
-        .filter(|root| root.kind == ProjectGroupRootKind::Workspace)
+        .filter(|root| root.kind != ProjectGroupRootKind::Resources)
         .any(|root| fs::canonicalize(&root.path).is_ok_and(|base| canonical.starts_with(base)));
     if !in_workspace {
         return Err(anyhow!(

@@ -975,6 +975,8 @@ export const api = {
       groupId,
       template,
     }),
+  setProjectRootKind: (groupId: string, path: string, kind: "workspace" | "reference") =>
+    invoke<{ group: ProjectGroupRecord }>(IPC.invoke.projectRootKindSet, { groupId, path, kind }),
   relocateProjectResources: (groupId: string) =>
     invoke<{ group: ProjectGroupRecord; resourcesMoved: { from: string; to: string } | null }>(
       IPC.invoke.projectResourcesRelocate,

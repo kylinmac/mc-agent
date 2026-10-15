@@ -104,6 +104,22 @@ try {
   );
   resources.path = movedTo;
 
+  // Folder types: a reference folder keeps its label and its description in
+  // the launch context, and can be switched back.
+  await host.call("project.resources.home.setRootKind", { groupId: group.id, path: server, kind: "reference" });
+  const asReference = (await host.call("project.groups.list", {})).groups.find((item) => item.id === group.id);
+  const refusedResourcesKind = await host
+    .call("project.resources.home.setRootKind", { groupId: group.id, path: asReference.roots[0].path, kind: "reference" })
+    .then(() => false, () => true);
+  await host.call("project.resources.home.setRootKind", { groupId: group.id, path: server, kind: "workspace" });
+  const asWorkspace = (await host.call("project.groups.list", {})).groups.find((item) => item.id === group.id);
+  record(
+    "E2E-PROJECT-folder-kinds-label-reference-folders",
+    asReference.roots.find((root) => root.path === server)?.kind === "reference" &&
+      refusedResourcesKind &&
+      asWorkspace.roots.find((root) => root.path === server)?.kind === undefined,
+  );
+
   // Editing workspaces cannot drop or demote the resource directory.
   const refusedDrop = await host
     .call("project.group.update", { groupId: group.id, name: "登录项目", folders: [web, server] })

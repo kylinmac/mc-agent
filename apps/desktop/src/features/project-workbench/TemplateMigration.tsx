@@ -22,7 +22,7 @@ export function TemplateMigration({
   groupId: string;
   resourceFolder: string;
   currentCategories: readonly string[];
-  workspaces: ReadonlyArray<{ path: string; description?: string }>;
+  workspaces: ReadonlyArray<{ path: string; description?: string; kind?: "workspace" | "reference" }>;
   onError: (message: string) => void;
 }) {
   const { t } = useTranslation();

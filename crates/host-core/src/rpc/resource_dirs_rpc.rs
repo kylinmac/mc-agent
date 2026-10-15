@@ -102,6 +102,16 @@ pub fn home(state: &mut AppState, method: &str, params: &Value) -> Result<Value,
             .map_err(internal)?;
             Ok(json!({ "recorded": meta }))
         }
+        "project.resources.home.setRootKind" => {
+            let kind: crate::db::ProjectGroupRootKind =
+                serde_json::from_value(params.get("kind").cloned().unwrap_or(Value::Null))
+                    .map_err(|error| rpc_err(1002, error.to_string(), "INVALID_PARAMS"))?;
+            let group = state
+                .db
+                .set_project_root_kind(&group.id, required_str(params, "path")?, kind)
+                .map_err(invalid)?;
+            Ok(json!({ "group": group }))
+        }
         "project.resources.home.relocate" => {
             let moved =
                 resource_dirs::relocate_into_home(&state.db, &home, &group.id).map_err(invalid)?;

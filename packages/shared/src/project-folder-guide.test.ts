@@ -57,6 +57,15 @@ describe("project folder guide", () => {
     ]);
   });
 
+  it("labels reference folders so they are not mistaken for code", () => {
+    const guide = projectFolderGuide({
+      roots: [...roots, { path: "/materials/brand", kind: "reference" }],
+      startPath: "/docs/App",
+      notes: [{ path: "/materials/brand", heading: "brand", description: "客户提供的品牌素材" }],
+    });
+    expect(guide).toContain('- Reference folder "brand": /materials/brand — 客户提供的品牌素材');
+  });
+
   it("shortens long descriptions", () => {
     const guide = projectFolderGuide({
       roots,

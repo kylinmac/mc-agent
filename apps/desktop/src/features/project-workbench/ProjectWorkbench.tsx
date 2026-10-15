@@ -195,6 +195,27 @@ export function ProjectWorkbench({
               <span className="mc-workbench-path" title={root.path}>
                 <IconFolder size={12} aria-hidden />
                 <span>{name}</span>
+                <span className={`mc-workbench-tag is-${root.kind ?? "workspace"}`}>
+                  {root.kind === "reference" ? t("mcProject.kindReference") : t("mcProject.kindWorkspace")}
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    void api
+                      .setProjectRootKind(
+                        project.groupId,
+                        root.path,
+                        root.kind === "reference" ? "workspace" : "reference",
+                      )
+                      .then(() => onProjectChangedRef.current(project.path))
+                      .catch((error: unknown) =>
+                        onError(t("mcProject.kindError", { message: messageOf(error) })),
+                      )
+                  }
+                >
+                  {root.kind === "reference" ? t("mcProject.setAsWorkspace") : t("mcProject.setAsReference")}
+                </Button>
               </span>
               <input
                 className="mc-workbench-description"
@@ -251,7 +272,11 @@ export function ProjectWorkbench({
           groupId={project.groupId}
           resourceFolder={resources.path}
           currentCategories={listing?.categories ?? []}
-          workspaces={workspaces.map((root) => ({ path: root.path, description: notes[root.path] }))}
+          workspaces={workspaces.map((root) => ({
+            path: root.path,
+            description: notes[root.path],
+            kind: root.kind === "reference" ? ("reference" as const) : ("workspace" as const),
+          }))}
           onError={onError}
         />
       ) : null}

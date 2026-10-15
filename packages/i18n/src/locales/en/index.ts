@@ -2885,7 +2885,7 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     resourcesRemote: "Remote projects have no resource folder.",
     resourcesError: "Could not prepare the resource folder: {{message}}",
     reveal: "Show in Finder",
-    workspacesTitle: "Workspaces",
+    workspacesTitle: "Folders",
     workspaceDescriptionPlaceholder: "What is this workspace for?",
     workspaceDescriptionLabel: "Description of {{name}}",
     workspaceDescriptionSaved: "Description saved",
@@ -2968,6 +2968,11 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     templateMissing: "The recorded template no longer exists.",
     templateAdopt: "Record as current template",
     templateAdopted: "Recorded {{name}} as this project's template",
+    kindWorkspace: "Workspace",
+    kindReference: "Reference",
+    setAsReference: "Mark as reference",
+    setAsWorkspace: "Mark as workspace",
+    kindError: "Could not change the folder type: {{message}}",
   },
   // mc-agent:end
 } as const;

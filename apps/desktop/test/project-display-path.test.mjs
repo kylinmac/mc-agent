@@ -12,6 +12,13 @@ test("a project row shows its first workspace, not its resource folder", () => {
   );
   assert.equal(projectDisplayPath({ path: "/code/web", roots: [{ path: "/code/web" }] }), "/code/web");
   assert.equal(
+    projectDisplayPath({
+      path: "/docs/x",
+      roots: [{ path: "/docs/x", kind: "resources" }, { path: "/materials", kind: "reference" }, { path: "/code/app" }],
+    }),
+    "/code/app",
+  );
+  assert.equal(
     projectDisplayPath({ path: "/docs/x", roots: [{ path: "/docs/x", kind: "resources" }] }),
     "/docs/x",
   );

@@ -5,7 +5,11 @@
  */
 export function projectDisplayPath(project: {
   path: string;
-  roots: ReadonlyArray<{ path: string; kind?: "workspace" | "resources" }>;
+  roots: ReadonlyArray<{ path: string; kind?: "workspace" | "resources" | "reference" }>;
 }): string {
-  return project.roots.find((root) => root.kind !== "resources")?.path ?? project.path;
+  return (
+    project.roots.find((root) => !root.kind || root.kind === "workspace")?.path ??
+    project.roots.find((root) => root.kind !== "resources")?.path ??
+    project.path
+  );
 }

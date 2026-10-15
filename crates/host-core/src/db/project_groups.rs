@@ -51,6 +51,10 @@ pub enum ProjectGroupRootKind {
     Workspace,
     /// The project's resource directory. At most one, always `roots[0]`.
     Resources,
+    /// An external reference folder (documents, materials). It behaves like a
+    /// workspace for tools and permissions; the kind only tells people and
+    /// agents what it holds.
+    Reference,
 }
 
 impl ProjectGroupRootKind {

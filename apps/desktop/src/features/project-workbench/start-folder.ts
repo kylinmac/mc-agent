@@ -7,7 +7,7 @@
  * resource folder once the project has one (MC-ADR-0003).
  */
 
-export type StartFolderRoot = { path: string; kind?: "workspace" | "resources" };
+export type StartFolderRoot = { path: string; kind?: "workspace" | "resources" | "reference" };
 
 const KEY_PREFIX = "mc-agent.startFolder.";
 

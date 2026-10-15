@@ -2769,7 +2769,7 @@ sklm: {
     resourcesRemote: "遠端專案沒有資料目錄。",
     resourcesError: "無法準備資料目錄：{{message}}",
     reveal: "在 Finder 中顯示",
-    workspacesTitle: "工作區",
+    workspacesTitle: "目錄",
     workspaceDescriptionPlaceholder: "這個工作區是做什麼的？",
     workspaceDescriptionLabel: "{{name}} 的說明",
     workspaceDescriptionSaved: "說明已儲存",
@@ -2852,6 +2852,11 @@ sklm: {
     templateMissing: "記錄的範本已不存在。",
     templateAdopt: "記為目前範本",
     templateAdopted: "已將 {{name}} 記為本專案範本",
+    kindWorkspace: "工作區",
+    kindReference: "外部資料",
+    setAsReference: "設為外部資料",
+    setAsWorkspace: "設為工作區",
+    kindError: "目錄類型修改失敗：{{message}}",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

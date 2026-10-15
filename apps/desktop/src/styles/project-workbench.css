@@ -220,3 +220,7 @@
 .mc-workbench-status.is-task-blocked {
   color: var(--ds-error);
 }
+
+.mc-workbench-tag.is-reference {
+  color: var(--ds-accent);
+}

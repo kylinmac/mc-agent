@@ -2819,7 +2819,7 @@ sklm: {
     resourcesRemote: "远程项目没有资料目录。",
     resourcesError: "无法准备资料目录：{{message}}",
     reveal: "在访达中显示",
-    workspacesTitle: "工作区",
+    workspacesTitle: "目录",
     workspaceDescriptionPlaceholder: "这个工作区是做什么的？",
     workspaceDescriptionLabel: "{{name}} 的说明",
     workspaceDescriptionSaved: "说明已保存",
@@ -2902,6 +2902,11 @@ sklm: {
     templateMissing: "记录的模板已不存在。",
     templateAdopt: "记为当前模板",
     templateAdopted: "已将 {{name}} 记为本项目模板",
+    kindWorkspace: "工作区",
+    kindReference: "外部资料",
+    setAsReference: "设为外部资料",
+    setAsWorkspace: "设为工作区",
+    kindError: "目录类型修改失败：{{message}}",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

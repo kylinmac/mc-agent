@@ -49,6 +49,41 @@ impl Database {
             })
     }
 
+    /// Mark a non-resource root as a development workspace or an external
+    /// reference folder. Only the label changes; tools treat both alike.
+    pub fn set_project_root_kind(
+        &self,
+        id: &str,
+        path: &str,
+        kind: ProjectGroupRootKind,
+    ) -> Result<ProjectGroupRecord> {
+        if kind == ProjectGroupRootKind::Resources {
+            return Err(anyhow!("use the resource folder actions to change it"));
+        }
+        let mut group = self
+            .group_by_id(id.trim())?
+            .ok_or_else(|| anyhow!("project group not found"))?;
+        if group.legacy {
+            return Err(anyhow!(
+                "open the project once so it becomes a project group first"
+            ));
+        }
+        let wanted =
+            canonical_project_path(path).ok_or_else(|| anyhow!("folder path is invalid"))?;
+        let root = group
+            .roots
+            .iter_mut()
+            .find(|root| root.path == wanted)
+            .ok_or_else(|| anyhow!("not a folder of this project: {wanted}"))?;
+        if root.kind == ProjectGroupRootKind::Resources {
+            return Err(anyhow!("the resource folder cannot change its kind"));
+        }
+        root.kind = kind;
+        group.updated_at = now_ms();
+        self.store_project_group(&group)?;
+        Ok(group)
+    }
+
     /// Attach an existing directory as the project's resource directory.
     ///
     /// The directory becomes `roots[0]` and the primary path; the existing
@@ -290,6 +325,46 @@ mod tests {
             .db
             .worker_project_path(Some(&f.resources), Some(&outsider))
             .is_err());
+    }
+
+    #[test]
+    fn folders_can_be_labelled_as_reference_and_back() {
+        let f = fixture();
+        let group =
+            f.db.create_project_group("Split", &[f.web.clone(), f.server.clone()])
+                .unwrap();
+        f.db.attach_project_resource_root(&group.id, &f.resources)
+            .unwrap();
+        let labelled =
+            f.db.set_project_root_kind(&group.id, &f.server, ProjectGroupRootKind::Reference)
+                .unwrap();
+        assert_eq!(labelled.roots[2].kind, ProjectGroupRootKind::Reference);
+        let stored = serde_json::to_value(&labelled).unwrap();
+        assert_eq!(stored["roots"][2]["kind"], "reference");
+        // Editing folders keeps the label.
+        let edited =
+            f.db.update_project_group(
+                &group.id,
+                "Split",
+                &[f.resources.clone(), f.web.clone(), f.server.clone()],
+                None,
+            )
+            .unwrap();
+        assert_eq!(edited.roots[2].kind, ProjectGroupRootKind::Reference);
+        assert!(f
+            .db
+            .set_project_root_kind(&group.id, &f.resources, ProjectGroupRootKind::Reference)
+            .is_err());
+        assert!(f
+            .db
+            .set_project_root_kind(&group.id, &f.web, ProjectGroupRootKind::Resources)
+            .is_err());
+        let back =
+            f.db.set_project_root_kind(&group.id, &f.server, ProjectGroupRootKind::Workspace)
+                .unwrap();
+        assert!(serde_json::to_value(&back).unwrap()["roots"][2]
+            .get("kind")
+            .is_none());
     }
 
     #[test]

@@ -25,9 +25,9 @@
     "zh-TW": "在 Finder 中顯示"
   },
   "workspacesTitle": {
-    "en": "Workspaces",
-    "zh-CN": "工作区",
-    "zh-TW": "工作區"
+    "en": "Folders",
+    "zh-CN": "目录",
+    "zh-TW": "目錄"
   },
   "workspaceDescriptionPlaceholder": {
     "en": "What is this workspace for?",
@@ -438,5 +438,30 @@
     "en": "Recorded {{name}} as this project's template",
     "zh-CN": "已将 {{name}} 记为本项目模板",
     "zh-TW": "已將 {{name}} 記為本專案範本"
+  },
+  "kindWorkspace": {
+    "en": "Workspace",
+    "zh-CN": "工作区",
+    "zh-TW": "工作區"
+  },
+  "kindReference": {
+    "en": "Reference",
+    "zh-CN": "外部资料",
+    "zh-TW": "外部資料"
+  },
+  "setAsReference": {
+    "en": "Mark as reference",
+    "zh-CN": "设为外部资料",
+    "zh-TW": "設為外部資料"
+  },
+  "setAsWorkspace": {
+    "en": "Mark as workspace",
+    "zh-CN": "设为工作区",
+    "zh-TW": "設為工作區"
+  },
+  "kindError": {
+    "en": "Could not change the folder type: {{message}}",
+    "zh-CN": "目录类型修改失败：{{message}}",
+    "zh-TW": "目錄類型修改失敗：{{message}}"
   }
 }

@@ -26,7 +26,7 @@ export type ProjectRoot = {
   name: string;
   position: number;
   /** mc-agent: `"resources"` marks the project's resource folder (MC-ADR-0003). */
-  kind?: "workspace" | "resources";
+  kind?: "workspace" | "resources" | "reference";
 };
 
 export type ProjectIndexItem = RecentProject & {
