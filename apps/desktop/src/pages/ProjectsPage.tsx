@@ -463,7 +463,11 @@ export function ProjectsPage() {
                     )
                   }
                   workbench={
-                    project.remote ? undefined : <ProjectWorkbench
+                    // Only projects host-core knows get a workbench; a stale
+                    // recent entry must never backfill or relabel anything.
+                    project.remote || !durableProjects.some((group) => group.id === project.groupId)
+                      ? undefined
+                      : <ProjectWorkbench
                       project={project}
                       onProjectChanged={(primaryPath) => {
                         // A backfill moves the row's path; the list and the
