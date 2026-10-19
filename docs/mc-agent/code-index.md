@@ -157,6 +157,7 @@ host-core 也可作为内部工具子进程启动（`tools::INTERNAL_TOOL_RUNNER
 |---|---|
 | 资料目录标记、挂载、Worker 目标工作区校验 | `crates/host-core/src/db/project_resources.rs`；`project_groups.rs` 中的 `kind` 字段 |
 | 资料目录创建、模板、改名跟随 | `crates/host-core/src/resource_dirs.rs`；路径改写复用 `data_relocation.rs::rewrite_database_paths` |
+| 新建类型、转换与解除（R1.7） | 对话框 `apps/desktop/src/features/project-workbench/ProjectKindPicker.tsx`；转换 `ConvertToManaged.tsx`；解除 `db/project_resources.rs::detach_project_resource_root`；接回旧目录在 `resource_dirs.rs::ensure_project_resources` |
 | 工作区说明（`workspaces.md`） | `crates/host-core/src/workspace_notes.rs` |
 | 资料清单、确认、项目目标 | `crates/host-core/src/resource_catalog.rs`；分类索引 `resource_index.rs`（`INDEX.md`）；模板元数据 `resource_templates.rs` |
 | 项目任务、执行、验收 | `crates/host-core/src/project_tasks.rs` |
