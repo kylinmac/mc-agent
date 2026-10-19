@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { MAX_TABS, closeTab, openTab, pruneTabs } from "../src/features/session-tabs/tab-list.ts";
+import { MAX_TABS, closeTab, moveTab, openTab, pruneTabs, tabDropTarget } from "../src/features/session-tabs/tab-list.ts";
 
 test("tabs keep their opening order and never duplicate", () => {
   let tabs = openTab([], "a");
@@ -38,4 +38,22 @@ test("app pages are tabs too and survive pruning", async () => {
   assert.equal(tabPage("page:unknown"), null);
   assert.equal(tabPage("s1"), null);
   assert.deepEqual(pruneTabs(["page:settings", "gone", "s1"], new Set(["s1"])), ["page:settings", "s1"]);
+});
+
+test("tabs reorder by drag position or a neighbour move", () => {
+  const tabs = ["a", "b", "c", "d"];
+  assert.deepEqual(moveTab(tabs, "d", "a", false), ["d", "a", "b", "c"]);
+  assert.deepEqual(moveTab(tabs, "a", "c", true), ["b", "c", "a", "d"]);
+  assert.deepEqual(moveTab(tabs, "a", "a", true), tabs);
+  assert.deepEqual(moveTab(tabs, "x", "a", true), tabs);
+  const rects = [
+    { key: "a", left: 0, right: 100 },
+    { key: "b", left: 102, right: 200 },
+  ];
+  assert.deepEqual(tabDropTarget(20, rects), { key: "a", after: false });
+  assert.deepEqual(tabDropTarget(80, rects), { key: "a", after: true });
+  assert.deepEqual(tabDropTarget(101, rects), { key: "a", after: true });
+  assert.deepEqual(tabDropTarget(500, rects), { key: "b", after: true });
+  assert.deepEqual(tabDropTarget(-5, rects), { key: "a", after: false });
+  assert.equal(tabDropTarget(10, []), null);
 });

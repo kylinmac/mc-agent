@@ -202,6 +202,19 @@
     color var(--motion-duration-fast) var(--motion-ease-out);
 }
 
+/* Reordering by drag: the moving tab dims, a bar marks where it lands. */
+.mc-session-tab.is-dragging {
+  opacity: 0.5;
+}
+
+.mc-session-tab.is-drop-before {
+  box-shadow: inset 2px 0 0 var(--ds-accent);
+}
+
+.mc-session-tab.is-drop-after {
+  box-shadow: inset -2px 0 0 var(--ds-accent);
+}
+
 .mc-session-tab:hover {
   background: var(--ds-bg-hover);
   color: var(--ds-text-secondary);
@@ -319,6 +332,22 @@
   background: none;
 }
 
+/* The settings nav takes the conversation list's card tone: the platform
+   glass of .sidebar-surface must not paint over it, and its selected and
+   hovered rows match the conversation rows. */
+:root[data-platform] .mc-sidebar-slot .settings-nav.sidebar-surface,
+.mc-sidebar-slot .settings-nav.sidebar-surface {
+  background: none;
+}
+
+.mc-sidebar-slot .settings-nav-item:hover {
+  background: var(--ds-bg-hover);
+}
+
+.mc-sidebar-slot .settings-nav-item.active {
+  background: var(--ds-bg-active);
+}
+
 .mc-sidebar-slot .settings-nav-top {
   padding: 8px 8px 6px;
 }
@@ -333,6 +362,12 @@
 }
 
 .mc-settings-tab .settings-content {
+  padding-top: calc(var(--ds-toolbar-height) + 20px);
+}
+
+/* Full pages (extensions, scheduled tasks, projects) start the same distance
+   under the title bar as settings; upstream's 8px suited its taller band. */
+:root[data-platform] .app-shell .page-frame {
   padding-top: calc(var(--ds-toolbar-height) + 20px);
 }
 

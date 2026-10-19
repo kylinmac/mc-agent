@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { create } from "zustand";
 import { useAppStore } from "../../stores/app-store";
@@ -8,9 +8,11 @@ import {
   activeTabKey,
   closeTab,
   loadTabs,
+  moveTab,
   openTab,
   pruneTabs,
   saveTabs,
+  tabDropTarget,
   tabPage,
   type PageTab,
 } from "./tab-list";
@@ -45,7 +47,11 @@ const PAGE_ICONS: Record<PageTab, ReactNode> = {
   scheduled tasks, settings) each get a tab. Clicking a tab switches to it,
   closing one shows its neighbour (or a new task when it was the last), "+"
   starts a new task, and the notification bell sits at the bar's right end.
+  Tabs reorder by dragging (past a few pixels, so a click still switches) or
+  with Alt+Left / Alt+Right.
 */
+
+const DRAG_THRESHOLD = 5;
 export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
   const { t } = useTranslation();
   const activeSessionId = useAppStore((s) => s.activeSessionId);
@@ -57,6 +63,45 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
   const tabs = useTabStore((s) => s.tabs);
   const setTabs = useTabStore((s) => s.setTabs);
   const activeKey = activeTabKey(page, activeSessionId);
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  const drag = useRef<{ pointerId: number; key: string; startX: number; armed: boolean } | null>(null);
+  const suppressClick = useRef(false);
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [drop, setDrop] = useState<{ key: string; after: boolean } | null>(null);
+
+  const onTabPointerDown = (event: PointerEvent<HTMLDivElement>, key: string) => {
+    if (event.button !== 0 || (event.target as Element).closest("button")) return;
+    drag.current = { pointerId: event.pointerId, key, startX: event.clientX, armed: false };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const onTabPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const current = drag.current;
+    if (!current || current.pointerId !== event.pointerId) return;
+    if (!current.armed) {
+      if (Math.abs(event.clientX - current.startX) < DRAG_THRESHOLD) return;
+      current.armed = true;
+      setDragging(current.key);
+    }
+    const rects = [...(stripRef.current?.querySelectorAll<HTMLElement>("[data-tab-key]") ?? [])]
+      .filter((element) => element.dataset.tabKey !== current.key)
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        return { key: element.dataset.tabKey ?? "", left: rect.left, right: rect.right };
+      });
+    setDrop(tabDropTarget(event.clientX, rects));
+  };
+  const onTabPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    const current = drag.current;
+    if (!current || current.pointerId !== event.pointerId) return;
+    drag.current = null;
+    if (current.armed) {
+      // The click that follows a drag must not also switch tabs.
+      suppressClick.current = true;
+      if (drop) setTabs((tabs) => moveTab(tabs, current.key, drop.key, drop.after));
+    }
+    setDragging(null);
+    setDrop(null);
+  };
 
   const byId = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
 
@@ -105,7 +150,7 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
 
   return (
     <div className="mc-titlebar-tabs">
-      <div className="mc-session-tabs" role="tablist" aria-label={t("mcProject.sessionTabsLabel")}>
+      <div ref={stripRef} className="mc-session-tabs" role="tablist" aria-label={t("mcProject.sessionTabsLabel")}>
         {tabs.map((key) => {
           const active = key === activeKey;
           const title = titleOf(key);
@@ -116,9 +161,26 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
               role="tab"
               tabIndex={0}
               aria-selected={active}
-              className={`mc-session-tab${active ? " active" : ""}`}
+              aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight"
+              data-tab-key={key}
+              className={[
+                "mc-session-tab",
+                active && "active",
+                dragging === key && "is-dragging",
+                drop?.key === key && (drop.after ? "is-drop-after" : "is-drop-before"),
+              ]
+                .filter(Boolean)
+                .join(" ")}
               title={title}
+              onPointerDown={(event) => onTabPointerDown(event, key)}
+              onPointerMove={onTabPointerMove}
+              onPointerUp={onTabPointerUp}
+              onPointerCancel={onTabPointerUp}
               onClick={() => {
+                if (suppressClick.current) {
+                  suppressClick.current = false;
+                  return;
+                }
                 if (!active) show(key);
               }}
               onAuxClick={(event) => {
@@ -128,6 +190,13 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
                   if (!active) show(key);
+                  return;
+                }
+                if (event.altKey && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+                  event.preventDefault();
+                  const index = tabs.indexOf(key);
+                  const neighbour = tabs[index + (event.key === "ArrowLeft" ? -1 : 1)];
+                  if (neighbour) setTabs((current) => moveTab(current, key, neighbour, event.key === "ArrowRight"));
                 }
               }}
             >

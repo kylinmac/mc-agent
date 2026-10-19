@@ -56,6 +56,35 @@ export function closeTab(
   return { tabs: rest, next: rest[index] ?? rest[index - 1] ?? null, closedActive: true };
 }
 
+/** Move `source` before or after `target`; anything else returns a copy. */
+export function moveTab(tabs: readonly string[], source: string, target: string, after: boolean): string[] {
+  if (source === target || !tabs.includes(source) || !tabs.includes(target)) return [...tabs];
+  const next = tabs.filter((tab) => tab !== source);
+  next.splice(next.indexOf(target) + (after ? 1 : 0), 0, source);
+  return next;
+}
+
+/**
+ * The tab a horizontal drag at `x` drops onto, from the other tabs' spans:
+ * before it on its left half, after it on its right half; past either end,
+ * the end tab.
+ */
+export function tabDropTarget(
+  x: number,
+  rects: readonly { key: string; left: number; right: number }[],
+): { key: string; after: boolean } | null {
+  for (const rect of rects) {
+    if (x >= rect.left && x <= rect.right) return { key: rect.key, after: x > (rect.left + rect.right) / 2 };
+  }
+  const first = rects[0];
+  const last = rects.at(-1);
+  if (first && x < first.left) return { key: first.key, after: false };
+  if (last && x > last.right) return { key: last.key, after: true };
+  // In a gap between two tabs: after the one on its left.
+  const left = [...rects].reverse().find((rect) => rect.right < x);
+  return left ? { key: left.key, after: true } : null;
+}
+
 /** Drop conversation tabs whose session no longer exists. */
 export function pruneTabs(tabs: readonly string[], known: ReadonlySet<string>): string[] {
   return tabs.filter((tab) => tabPage(tab) !== null || known.has(tab));
