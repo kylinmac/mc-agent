@@ -114,7 +114,7 @@ function ensureTooltipGuards() {
   );
 }
 
-type TooltipPosition = { left: number; top: number; bottom: number };
+type TooltipPosition = { left: number; top: number; bottom: number; right: number; middle: number };
 
 function useTooltip<T extends HTMLElement>(
   label: string,
@@ -296,6 +296,8 @@ function useTooltip<T extends HTMLElement>(
         left: rect.left + rect.width / 2,
         top: rect.top - 8,
         bottom: rect.bottom + 8,
+        right: rect.right + 8,
+        middle: rect.top + rect.height / 2,
       });
     };
     updatePosition();
@@ -326,10 +328,13 @@ function PortalTooltip({
   label,
   position,
   className,
+  side,
 }: {
   label: string;
   position: TooltipPosition;
   className?: string;
+  /** mc-agent: "right" places the label beside the anchor (app rail). */
+  side?: "right";
 }) {
   const tooltipRef = useRef<HTMLSpanElement>(null);
   const [layout, setLayout] = useState({ left: position.left, below: false });
@@ -351,7 +356,11 @@ function PortalTooltip({
       ref={tooltipRef}
       className={cx("ui-tooltip", className)}
       role="tooltip"
-      style={{
+      style={side === "right" ? {
+        left: position.right,
+        top: position.middle,
+        transform: "translateY(-50%)",
+      } : {
         left: layout.left,
         top: layout.below ? position.bottom : position.top,
         transform: layout.below ? "translateX(-50%)" : "translate(-50%, -100%)",
@@ -421,6 +430,8 @@ export type TooltipButtonProps = Omit<
   tooltipDelayMs?: number;
   tooltipHideDelayMs?: number;
   tooltipClassName?: string;
+  /** mc-agent: show the tooltip to the right of the button (app rail). */
+  tooltipSide?: "right";
   ref?: Ref<HTMLButtonElement>;
 };
 
@@ -433,6 +444,7 @@ export function TooltipButton({
   tooltipDelayMs = 300,
   tooltipHideDelayMs = 100,
   tooltipClassName,
+  tooltipSide,
   ref,
   onPointerEnter,
   onPointerLeave,
@@ -492,6 +504,7 @@ export function TooltipButton({
           label={label}
           position={tooltip.position}
           className={tooltipClassName}
+          side={tooltipSide}
         />
       ) : null}
     </>

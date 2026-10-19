@@ -1974,6 +1974,10 @@ async fn handle_request(
             let _st = state.lock().await;
             resource_dirs_rpc::edit_template(method, &params)
         }
+        "project.folders.missing" => {
+            let st = state.lock().await;
+            resource_dirs_rpc::missing_folders(&st)
+        }
         "project.resources.ensure" => {
             let st = state.lock().await;
             resource_dirs_rpc::ensure(&st, &params)

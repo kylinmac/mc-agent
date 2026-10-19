@@ -1,5 +1,7 @@
 import { type CSSProperties, lazy, type ReactNode, Suspense, useEffect } from "react";
 import { ConversationTopbar } from "../../components/ConversationTopbar";
+import { AppRail } from "../app-rail/AppRail";
+import { SessionTabs } from "../session-tabs/SessionTabs";
 import { ExtensionPromptHost } from "../../components/ExtensionPromptDialog";
 import { PluginRendererHost } from "../../plugins/renderer-host/PluginRendererHost";
 import {
@@ -134,12 +136,11 @@ export function AppShell() {
   if (ready) {
     shell = (
       <>
-        <PortalVisibilityProvider visible={page !== "settings"}>
+        <PortalVisibilityProvider visible>
           <div
             className="app-chat-shell"
-            hidden={page === "settings"}
-            inert={page === "settings" ? true : undefined}
           >
+            <AppRail />
             {!sidebarCollapsed || sidebarExiting ? (
               <Sidebar
                 className={cx(sidebarEntering && "is-entering", sidebarExiting && "is-exiting")}
@@ -212,9 +213,11 @@ export function AppShell() {
                         />
                       </div>
                     )}
+                    {/* mc-agent: the same tab bar as the conversation title bar. */}
+                    <SessionTabs onNewTask={() => void runMenuCommand("newTask")} />
                   </div>
                 )}
-                {page !== "settings" ? <UpdateBanner /> : null}
+                <UpdateBanner />
 
                 {backendDown && (
                   <div
@@ -280,6 +283,11 @@ export function AppShell() {
                     <div className="route-surface route-page">
                       <PluginsPage />
                     </div>
+                  ) : page === "settings" ? (
+                    /* mc-agent: settings opens as a tab inside the main pane. */
+                    <div className="route-surface route-page mc-settings-tab">
+                      <SettingsPage />
+                    </div>
                   ) : (
                     <ChatSurface visible={page === "chat"} />
                   )}
@@ -337,17 +345,11 @@ export function AppShell() {
             </TooltipButton>
           </div>
         </PortalVisibilityProvider>
-        {page === "settings" ? (
-          <Suspense fallback={<RoutePending />}>
-            <SettingsPage />
-          </Suspense>
-        ) : null}
         <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
         <ToastHost />
         <LiveVoiceStatusHost />
         <PluginRendererHost />
         <ExtensionPromptHost />
-        {page === "settings" ? <UpdateBanner /> : null}
       </>
     );
   }
@@ -358,7 +360,6 @@ export function AppShell() {
       className={cx(
         "app-shell",
         !ready && "app-shell-boot",
-        page === "settings" && ready && "settings-mode",
         sidebarCollapsed && "sidebar-collapsed",
         workPanelMaximized && "work-panel-maximized",
         showSplash && "is-booting",

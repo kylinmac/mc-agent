@@ -893,6 +893,8 @@ export const api = {
     invoke<{ home: string; templates: ResourceTemplateSummary[] }>(
       IPC.invoke.projectResourcesTemplates,
     ),
+  /** Local project folders on record that no longer exist (mc-agent). */
+  missingProjectFolders: () => invoke<{ folders: string[] }>(IPC.invoke.projectFoldersMissing),
   saveResourceTemplate: (template: ResourceTemplateDraft) =>
     invoke<{ home: string; templates: ResourceTemplateSummary[] }>(
       IPC.invoke.projectResourcesTemplateSave,

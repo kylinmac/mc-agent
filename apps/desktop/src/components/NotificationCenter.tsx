@@ -62,8 +62,11 @@ function formatRelativeTime(value: string, locale: string, justNow: string): str
 
 export function NotificationCenter({
   onBeforeOpen,
+  tooltipSide,
 }: {
   onBeforeOpen?: () => void;
+  /** mc-agent: the app rail shows its tooltips to the right. */
+  tooltipSide?: "right";
 }) {
   const { t, i18n } = useTranslation();
   const storedNotifications = useAppStore((state) => state.notifications);
@@ -89,7 +92,7 @@ export function NotificationCenter({
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<NotificationFilter>("all");
-  const [popoverPos, setPopoverPos] = useState<{ bottom: number; left: number } | null>(null);
+  const [popoverPos, setPopoverPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -118,6 +121,16 @@ export function NotificationCenter({
       const rect = triggerRef.current?.getBoundingClientRect();
       if (!rect) return;
       const width = Math.min(360, window.innerWidth - 24);
+      // mc-agent: a trigger in the upper half opens the panel beside it,
+      // top-aligned, or below it when it sits at the window's right edge.
+      if (rect.top < window.innerHeight / 2) {
+        const beside = rect.right + 8 + width <= window.innerWidth - 12;
+        setPopoverPos(beside
+          ? { top: rect.top, left: rect.right + 8 }
+          // Near the right edge (the title bar), open below, right-aligned.
+          : { top: rect.bottom + 6, left: Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12)) });
+        return;
+      }
       const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
       setPopoverPos({
         bottom: Math.max(12, window.innerHeight - rect.top + 8),
@@ -231,6 +244,7 @@ export function NotificationCenter({
         type="button"
         className={`footer-notification notification-trigger ${open ? "active" : ""}`}
         tooltip={unreadLabel}
+        tooltipSide={tooltipSide}
         ariaLabel={unreadLabel}
         aria-haspopup="dialog"
         aria-controls="notification-popover"
@@ -263,7 +277,7 @@ export function NotificationCenter({
               role="dialog"
               aria-labelledby="notification-title"
               onKeyDown={onPopoverKeyDown}
-              style={{ bottom: popoverPos.bottom, left: popoverPos.left }}
+              style={{ top: popoverPos.top, bottom: popoverPos.bottom, left: popoverPos.left }}
             >
           <header className="notification-header">
             <h2 id="notification-title">{t("notifications.title")}</h2>

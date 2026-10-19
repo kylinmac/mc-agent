@@ -41,6 +41,9 @@ export function ProjectWorkbench({
     [project.roots],
   );
   const [preparing, setPreparing] = useState(false);
+  const rootsKey = project.roots.map((root) => root.path).join("\n");
+  // Every folder of the project is gone (e.g. a stale record): no backfill.
+  const [foldersMissing, setFoldersMissing] = useState(false);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [listing, setListing] = useState<ResourceListing | null>(null);
@@ -63,10 +66,21 @@ export function ProjectWorkbench({
     if (resources || remote || !project.groupId || project.archived) return;
     let canceled = false;
     setPreparing(true);
+    const trim = (path: string) => path.replace(/[\\/]+$/, "");
     void api
-      .ensureProjectResources(project.groupId)
-      .then(({ group }) => {
-        if (!canceled) onProjectChangedRef.current(group.primaryPath);
+      .missingProjectFolders()
+      .then(({ folders }) => {
+        const missing = new Set(folders.map(trim));
+        return project.roots.length > 0 && project.roots.every((root) => missing.has(trim(root.path)));
+      })
+      .catch(() => false)
+      .then((gone) => {
+        if (canceled) return null;
+        setFoldersMissing(gone);
+        return gone ? null : api.ensureProjectResources(project.groupId);
+      })
+      .then((result) => {
+        if (!canceled && result) onProjectChangedRef.current(result.group.primaryPath);
       })
       .catch((error: unknown) => {
         if (!canceled) onErrorRef.current(t("mcProject.resourcesError", { message: messageOf(error) }));
@@ -77,7 +91,8 @@ export function ProjectWorkbench({
     return () => {
       canceled = true;
     };
-  }, [resources, remote, project.groupId, project.archived, t]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rootsKey names project.roots, a new array each render
+  }, [resources, remote, project.groupId, project.archived, rootsKey, t]);
 
   const loadNotes = useCallback(() => {
     if (!resources) return () => {};
@@ -185,7 +200,9 @@ export function ProjectWorkbench({
             </Button>
           </>
         ) : (
-          <span className="mc-workbench-muted">{preparing ? t("mcProject.resourcesPreparing") : ""}</span>
+          <span className="mc-workbench-muted">
+            {foldersMissing ? t("mcProject.foldersMissing") : preparing ? t("mcProject.resourcesPreparing") : ""}
+          </span>
         )}
       </div>
 

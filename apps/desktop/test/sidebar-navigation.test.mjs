@@ -17,6 +17,10 @@ const hoverHookSource = await readFile(
   "utf8",
 );
 const globalStyles = await loadStyles();
+const railSource = await readFile(
+  new URL("../src/features/app-rail/AppRail.tsx", import.meta.url),
+  "utf8",
+);
 const appSource = await readAppSource();
 const panelSource = await readFile(
   new URL("../src/components/workpanel/WorkPanel.tsx", import.meta.url),
@@ -28,9 +32,10 @@ const shortcutSource = await readFile(
 );
 test("home sidebar exposes only the supported destination entries", () => {
   assert.match(sidebarSource, /data-nav="home"/);
-  assert.match(sidebarSource, /data-nav="plugins"/);
+  // mc-agent: plugins and scheduled tasks live in the app rail.
+  assert.match(railSource, /data-nav="plugins"/);
   assert.doesNotMatch(sidebarSource, /data-nav="projects"/);
-  assert.match(sidebarSource, /data-nav="scheduled"/);
+  assert.match(railSource, /data-nav="scheduled"/);
   assert.doesNotMatch(sidebarSource, /t\("nav\.scheduled"\)/);
 });
 

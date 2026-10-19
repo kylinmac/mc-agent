@@ -31,23 +31,33 @@ test("the sidebar footer is an action bar, not a fabricated identity", () => {
   }
 });
 
-test("footer exposes settings, plugins, scheduled tasks and notifications in one row", () => {
-  assert.match(sidebarSource, /className="footer-actions"/);
-  assert.match(sidebarSource, /data-nav="settings"/);
-  assert.match(sidebarSource, /data-nav="plugins"/);
-  const pluginsAction = sidebarSource.match(
+// mc-agent: the app-level destinations moved from the sidebar footer to the
+// app rail at the window's left edge (features/app-rail/AppRail.tsx).
+const railSource = await readFile(
+  new URL("../src/features/app-rail/AppRail.tsx", import.meta.url),
+  "utf8",
+);
+const tabsSource = await readFile(
+  new URL("../src/features/session-tabs/SessionTabs.tsx", import.meta.url),
+  "utf8",
+);
+
+test("app rail exposes plugins, scheduled tasks and settings; notifications sit in the title bar", () => {
+  assert.doesNotMatch(sidebarSource, /className="footer-actions"/);
+  assert.match(railSource, /className="footer-actions app-rail-actions no-drag"/);
+  assert.match(railSource, /data-nav="settings"/);
+  assert.match(railSource, /data-nav="plugins"/);
+  const pluginsAction = railSource.match(
     /<TooltipButton[\s\S]*?data-nav="plugins"[\s\S]*?<\/TooltipButton>/,
   )?.[0] ?? "";
-  assert.match(pluginsAction, /<IconPlug size=\{14\} aria-hidden \/>/);
-  assert.doesNotMatch(sidebarSource, /data-nav="theme"/);
-  assert.match(
-    sidebarSource,
-    /<NotificationCenter onBeforeOpen=\{\(\) => closeMenus\(false\)\} \/>/,
-  );
-  // Logs live in Settings → About; the footer stays down to daily controls.
-  assert.doesNotMatch(sidebarSource, /openLogs/);
+  assert.match(pluginsAction, /<IconPlug size=\{16\} aria-hidden \/>/);
+  assert.doesNotMatch(railSource, /data-nav="theme"/);
+  assert.doesNotMatch(railSource, /<NotificationCenter/);
+  assert.match(tabsSource, /<NotificationCenter \/>/);
+  // Logs live in Settings → About; the rail stays down to daily controls.
+  assert.doesNotMatch(railSource, /openLogs/);
   // Every action is icon-only, so each needs a label for pointer and AT users.
-  const actions = sidebarSource
+  const actions = railSource
     .split("<TooltipButton")
     .filter((chunk) => /className=(?:"footer-action"|\{`footer-action )/.test(chunk));
   assert.equal(actions.length, 3);
@@ -56,25 +66,19 @@ test("footer exposes settings, plugins, scheduled tasks and notifications in one
     assert.match(attrs, /tooltip=/);
     assert.match(attrs, /ariaLabel=/);
   }
-  // All footer destinations report their active state to assistive tech; the
+  // All destinations report their active state to assistive tech; the
   // Plugins button also reports the Back toggle a second activation performs.
-  const footerAttributes = (marker) => {
-    const at = sidebarSource.indexOf(marker);
+  const railAttributes = (marker) => {
+    const at = railSource.indexOf(marker);
     if (at < 0) return "";
-    return sidebarSource.slice(
-      sidebarSource.lastIndexOf("<TooltipButton", at),
-      sidebarSource.indexOf("</TooltipButton>", at),
+    return railSource.slice(
+      railSource.lastIndexOf("<TooltipButton", at),
+      railSource.indexOf("</TooltipButton>", at),
     );
   };
-  assert.match(
-    footerAttributes('data-nav="settings"'),
-    /aria-pressed=\{page === "settings"\}/,
-  );
-  assert.match(
-    footerAttributes('data-nav="plugins"'),
-    /aria-pressed=\{page === "plugins"\}/,
-  );
-  assert.match(footerAttributes('data-nav="scheduled"'), /aria-pressed=\{page === "scheduled"\}/);
+  assert.match(railAttributes('data-nav="settings"'), /aria-pressed=\{page === "settings"\}/);
+  assert.match(railAttributes('data-nav="plugins"'), /aria-pressed=\{page === "plugins"\}/);
+  assert.match(railAttributes('data-nav="scheduled"'), /aria-pressed=\{page === "scheduled"\}/);
 });
 
 test("footer sits on the sidebar content grid without a hairline", () => {

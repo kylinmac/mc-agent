@@ -11,15 +11,18 @@ const settingsPage = await readFile(
   "utf8",
 );
 
-test("settings hides and inerts chat without aria-hiding a focused descendant", () => {
+// mc-agent: Settings opens as a tab inside the main pane, so the chat shell
+// (rail, sidebar, title bar) stays visible and interactive around it.
+test("settings opens as a tab without hiding the chat shell", () => {
   const chatShell = appShell.match(
     /<div\s+className="app-chat-shell"[\s\S]*?>/,
   )?.[0];
 
   assert.ok(chatShell, "chat shell must exist");
-  assert.match(chatShell, /hidden=\{page === "settings"\}/);
-  assert.match(chatShell, /inert=\{page === "settings" \? true : undefined\}/);
+  assert.doesNotMatch(chatShell, /hidden=/);
+  assert.doesNotMatch(chatShell, /inert=/);
   assert.doesNotMatch(chatShell, /aria-hidden/);
+  assert.match(appShell, /page === "settings" \? \([\s\S]*?className="route-surface route-page mc-settings-tab"[\s\S]*?<SettingsPage \/>/);
 });
 
 test("entering Settings moves focus to its first search control", () => {
@@ -45,6 +48,6 @@ test("chat code loads inside the existing route boundary and stays mounted in Se
   );
   assert.match(
     appShell,
-    /className="app-chat-shell"[\s\S]*?hidden=\{page === "settings"\}[\s\S]*?<ChatSurface visible=\{page === "chat"\} \/>/,
+    /className="app-chat-shell"[\s\S]*?<ChatSurface visible=\{page === "chat"\} \/>/,
   );
 });

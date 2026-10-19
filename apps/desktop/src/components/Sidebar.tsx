@@ -1,4 +1,3 @@
-import { IconClock } from "./icons";
 import { RemoteProjectGroups } from "./remote/RemoteProjectGroups";
 import { groupRemoteProjectSessions } from "../lib/remote-project-catalog";
 import { isRemoteSession, sessionAllows } from "../lib/remote-session-safety";
@@ -40,6 +39,8 @@ import {
   updateProjectSessionExpansion,
 } from "../lib/sidebar-project-sessions";
 import { listableSessions } from "../lib/session-origin";
+import { mergeProjectEntries, sessionFolderLabel } from "../features/project-sidebar/project-merge";
+import { useProjectFolderIndex } from "../features/project-sidebar/useProjectFolderIndex";
 import {
   composerDropItems,
   hasComposerFileDrag,
@@ -72,7 +73,6 @@ import {
   sidebarResetWidth,
 } from "../lib/sidebar-resize";
 import { BrandLogo } from "./BrandLogo";
-import { NotificationCenter } from "./NotificationCenter";
 import { ProjectEditDialog } from "./ProjectEditDialog";
 import {
   WorktreeBadge,
@@ -90,7 +90,6 @@ import {
   IconArchive,
   IconArchiveRestore,
   IconArrowUpDown,
-  IconPlug,
   IconBranch,
   IconCheck,
   IconChevronDown,
@@ -103,7 +102,6 @@ import {
   IconPin,
   IconPencil,
   IconSidebar,
-  IconSettings,
   IconStar,
   IconTrash,
   IconX,
@@ -120,6 +118,8 @@ type ProjectEntry = {
   meta: ProjectMeta;
   /** Best-effort git branch from the project workspace, if known. */
   branch?: string;
+  /** mc-agent: every folder of the merged project group, normalized. */
+  memberKeys?: string[];
 };
 
 /** Private MIME so a sidebar session drag is never mistaken for an OS file drop. */
@@ -753,7 +753,7 @@ export function Sidebar({
     [pinnedSessions],
   );
 
-  const projectEntries = useMemo(() => {
+  const folderEntries = useMemo(() => {
     const byPath = new Map<string, ProjectEntry>();
     const add = (rawPath: string, name?: string, branch?: string, open = false) => {
       const normalized = normalizeProjectPath(rawPath);
@@ -847,11 +847,35 @@ export function Sidebar({
     compareSessions,
   ]);
 
+  // mc-agent: one entry per project group instead of one per start folder.
+  // Entries whose folder no longer exists are hidden unless they are active
+  // or still hold sessions, so nothing the user can reach disappears.
+  const { index: projectFolderIndex, missing: missingProjectFolders } = useProjectFolderIndex(
+    `${openProjectPaths.join("\n")}|${sessions.length}`,
+  );
+  const projectEntries = useMemo(
+    () =>
+      mergeProjectEntries(
+        folderEntries.filter(
+          (entry) => !missingProjectFolders.has(entry.key) || entry.active || entry.sessions.length > 0,
+        ),
+        filtered,
+        projectFolderIndex,
+        normalizeProjectPath,
+        compareSessions,
+      ),
+    [folderEntries, filtered, projectFolderIndex, missingProjectFolders, compareSessions],
+  );
+
   // Look up project entries by normalized path so session rows can fetch the
   // workspace name (and any other project metadata) for the hover card.
   const projectEntriesByPath = useMemo(() => {
     const map = new Map<string, ProjectEntry>();
     for (const entry of projectEntries) map.set(entry.key, entry);
+    // mc-agent: sessions from any folder of a merged project find its entry.
+    for (const entry of projectEntries) {
+      for (const key of entry.memberKeys ?? []) if (!map.has(key)) map.set(key, entry);
+    }
     return map;
   }, [projectEntries]);
 
@@ -1302,8 +1326,8 @@ export function Sidebar({
     const next =
       !archived && wasActive
         ? session.projectPath
-          ? projectEntries
-              .find((entry) => entry.key === normalizeProjectPath(session.projectPath))
+          ? projectEntriesByPath
+              .get(normalizeProjectPath(session.projectPath) ?? "")
               ?.sessions.find(
                 (item) =>
                   item.id !== session.id &&
@@ -1348,9 +1372,7 @@ export function Sidebar({
     closeMenus();
     const wasActive = activeSessionId === session.id;
     const sameScope = session.projectPath
-      ? projectEntries.find(
-          (entry) => entry.key === normalizeProjectPath(session.projectPath),
-        )?.sessions ?? []
+      ? projectEntriesByPath.get(normalizeProjectPath(session.projectPath) ?? "")?.sessions ?? []
       : temporarySessions;
     const next = wasActive
       ? sameScope.find(
@@ -1669,6 +1691,8 @@ export function Sidebar({
     if (!sessionId) return;
     const dragged = sessions.find((item) => item.id === sessionId);
     if (!dragged || normalizeProjectPath(dragged.projectPath) === entry.key) return;
+    // mc-agent: a merged project is one drop target for all of its folders.
+    if (entry.memberKeys?.includes(normalizeProjectPath(dragged.projectPath) ?? "")) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
     setDropProjectKey(entry.key);
@@ -1748,6 +1772,8 @@ export function Sidebar({
         ?? projectName(normalizedProjectPath, projectMetaFor(normalizedProjectPath, projectMeta).name)
       : t("nav.hoverCardTemporarySpace");
     const active = page === "chat" && selectedSessionId === session.id;
+    // mc-agent: which folder of a multi-folder project the session started in.
+    const startFolder = temporary ? null : sessionFolderLabel(session.projectPath, projectFolderIndex, normalizeProjectPath);
     const archived = sessionArchived(session, meta);
     const running = Boolean(runningSessions[session.id]);
     const hasPendingPermission = (pendingPermissions[session.id]?.length ?? 0) > 0;
@@ -1832,6 +1858,9 @@ export function Sidebar({
           ) : null}
           {isRemoteSession(session) && <span className="thread-item-source" title={session.remoteHostLabel}>{t("remote:remote")}</span>}
           <WorktreeBadge worktree={session.worktree} sessionId={session.id} />
+          {startFolder ? (
+            <span className="thread-item-source mc-thread-folder" title={startFolder.path}>{startFolder.label}</span>
+          ) : null}
           <span className="thread-item-title">{taskTitle(session.title)}</span>
           {options?.global ? (
             <span className="thread-item-project">
@@ -2569,44 +2598,7 @@ export function Sidebar({
         </div>
 
         <div className="sidebar-footer no-drag">
-          <div className="footer-actions">
-            <TooltipButton
-              type="button"
-              className={`footer-action ${page === "settings" ? "active" : ""}`}
-              data-nav="settings"
-              tooltip={t("nav.settings")}
-              ariaLabel={t("nav.settings")}
-              onClick={() => setPage("settings")}
-              aria-pressed={page === "settings"}
-            >
-              <IconSettings size={14} aria-hidden />
-            </TooltipButton>
-            <TooltipButton
-              type="button"
-              className={`footer-action ${page === "plugins" ? "active" : ""}`}
-              data-nav="plugins"
-              tooltip={t("nav.plugins")}
-              ariaLabel={t("nav.plugins")}
-              onClick={() => page === "plugins"
-                ? (canNavBack() ? navBack() : setPage("chat"))
-                : setPage("plugins")}
-              aria-pressed={page === "plugins"}
-            >
-              <IconPlug size={14} aria-hidden />
-            </TooltipButton>
-            <TooltipButton
-              type="button"
-              className={`footer-action ${page === "scheduled" ? "active" : ""}`}
-              data-nav="scheduled"
-              tooltip={t("scheduled.title")}
-              ariaLabel={t("scheduled.title")}
-              onClick={() => setPage("scheduled")}
-              aria-pressed={page === "scheduled"}
-            >
-              <IconClock size={14} aria-hidden />
-            </TooltipButton>
-            <NotificationCenter onBeforeOpen={() => closeMenus(false)} />
-          </div>
+          {/* mc-agent: plugins, scheduled, notifications and settings moved to the app rail (features/app-rail). */}
 
           <TooltipButton
             type="button"

@@ -10,8 +10,9 @@ const { usePluginBrowseState } = await import("../src/features/plugins/browse-st
 
 // Execute the actual footer handler against the real history slice. Native
 // rendering and retained composer behavior are covered by the manual UI journey.
-const source = ts.createSourceFile("Sidebar.tsx",
-  readFileSync(new URL("../src/components/Sidebar.tsx", import.meta.url), "utf8"),
+// mc-agent: the Plugins button moved to the app rail (features/app-rail).
+const source = ts.createSourceFile("AppRail.tsx",
+  readFileSync(new URL("../src/features/app-rail/AppRail.tsx", import.meta.url), "utf8"),
   ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 const handlers = [];
 function visit(node) {

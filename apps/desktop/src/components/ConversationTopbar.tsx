@@ -18,6 +18,7 @@ import {
   IconSearch,
 } from "./icons";
 import { TooltipButton } from "./ui";
+import { SessionTabs } from "../features/session-tabs/SessionTabs";
 
 function projectName(path?: string | null, name?: string | null) {
   if (name) return name;
@@ -160,6 +161,8 @@ export function ConversationTopbar({
           <span className="ct-title">{fullTaskTitle}</span>
           {isRemoteSession(activeSession) && <span className="thread-item-source">{t("remote:remote")} · {activeSession?.remoteHostLabel}</span>}
         </div>
+        {/* mc-agent: open conversations as tabs; hides the single title above. */}
+        <SessionTabs onNewTask={onNewTask} />
       </div>
 
       <div className="ct-right">

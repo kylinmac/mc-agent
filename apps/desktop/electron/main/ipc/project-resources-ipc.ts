@@ -87,6 +87,12 @@ export function registerProjectResourcesIpc({
     return host.call("project.resources.templates", {});
   });
 
+  registrar.handle(IPC.invoke.projectFoldersMissing, async () => {
+    const host = getHost();
+    if (!host) throw new Error("host unavailable");
+    return host.call("project.folders.missing", {});
+  });
+
   registrar.handle(
     IPC.invoke.projectResourcesTemplateSave,
     async (input: { template?: unknown } = {}) => {

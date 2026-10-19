@@ -231,3 +231,12 @@
   gap: 6px;
   min-width: 0;
 }
+
+/* Start-folder tag on sidebar sessions of multi-folder projects. */
+.mc-thread-folder {
+  flex: 0 0 auto;
+  max-width: 7em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

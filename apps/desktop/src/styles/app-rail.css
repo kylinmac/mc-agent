@@ -1,0 +1,258 @@
+/* mc-agent app rail (features/app-rail): app-level destinations at the
+   window's left edge, visible whether or not the sidebar is open.
+
+   Three tones, after ChatGPT's desktop layout: the rail and the title-bar
+   row share the darkest "chrome" tone, the sidebar body is a lighter card
+   with a rounded corner, and the conversation keeps the primary surface.
+   Tones derive from the theme's own colors so contributed themes still
+   apply. */
+:root {
+  --mc-app-rail-width: 52px;
+  --mc-chrome-bg: color-mix(in oklab, var(--ds-bg-primary) 92%, #000);
+  --mc-card-bg: color-mix(in oklab, var(--ds-bg-primary) 97%, #000);
+  --mc-card-border: color-mix(in oklab, var(--ds-text-primary) 7%, transparent);
+}
+
+:root[data-theme="dark"] {
+  --mc-chrome-bg: color-mix(in oklab, var(--ds-bg-primary) 62%, #000);
+  --mc-card-bg: color-mix(in oklab, var(--ds-bg-primary) 94%, #fff);
+}
+
+.app-rail {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  width: var(--mc-app-rail-width);
+  flex: 0 0 var(--mc-app-rail-width);
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+  padding: 0 0 10px;
+  background: var(--mc-chrome-bg);
+}
+
+/* The top band belongs to the window title bar: it drags the window and
+   leaves the traffic lights their corner. */
+.app-rail-drag {
+  width: 100%;
+  height: var(--ds-toolbar-height);
+  flex: 0 0 var(--ds-toolbar-height);
+  -webkit-app-region: drag;
+}
+
+.app-rail-actions,
+.app-rail-plugins,
+.app-rail-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Built-in destinations above, plugin entries below. */
+.app-rail-divider {
+  width: 24px;
+  height: 1px;
+  flex: 0 0 1px;
+  margin: 10px 0;
+  background: var(--ds-border-subtle);
+}
+
+.app-rail-bottom {
+  margin-top: auto;
+}
+
+/* The sidebar sits on the chrome tone; its body is the card. */
+.app-rail ~ .sidebar.sidebar-surface,
+:root[data-platform="darwin"] .app-rail ~ .sidebar.sidebar-surface {
+  background: var(--mc-chrome-bg);
+  background-image: none;
+}
+
+.app-rail ~ .sidebar .sidebar-body {
+  border-top: 1px solid var(--mc-card-border);
+  border-left: 1px solid var(--mc-card-border);
+  border-top-left-radius: 12px;
+  padding-top: 6px;
+  background: var(--mc-card-bg);
+}
+
+/* The title-bar row runs across the window in the chrome tone, on every
+   page: conversations, route pages and settings alike. */
+.app-rail ~ .main-pane :is(.conversation-topbar, .main-titlebar) {
+  background: var(--mc-chrome-bg);
+}
+
+.app-rail ~ .main-pane .main-titlebar:has(.mc-titlebar-tabs) {
+  justify-content: flex-start;
+  gap: 8px;
+  /* Keep clear of the work-panel toggle pinned at the top-right corner. */
+  padding-right: calc(var(--ds-work-panel-toggle-size, 28px) + 20px);
+}
+
+/* Settings open as a tab: the main title bar replaces settings' own band,
+   and the tab bar replaces its "back to app" button. */
+.mc-settings-tab .settings-titlebar,
+.mc-settings-tab .settings-nav-footer {
+  display: none;
+}
+
+/* The traffic lights now overhang the rail, so content to its right only
+   reserves what is left of their footprint. */
+:root[data-platform="darwin"]:not([data-fullscreen="true"]) .app-rail ~ :is(.sidebar, .main-pane) {
+  --ds-window-lead-inset: max(
+    8px,
+    calc(var(--ds-traffic-light-edge) + var(--ds-traffic-light-gap) - var(--mc-app-rail-width))
+  );
+}
+
+/* Conversation tabs across the title bar (features/session-tabs). */
+.conversation-topbar .ct-left:has(.mc-titlebar-tabs) {
+  flex: 1 1 auto;
+  min-width: 0;
+  align-self: stretch;
+}
+
+.conversation-topbar .ct-left:has(.mc-titlebar-tabs) .ct-title-wrap {
+  display: none;
+}
+
+.mc-titlebar-tabs {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-self: stretch;
+  align-items: stretch;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.mc-titlebar-end {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  margin-left: auto;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.mc-session-tab-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--ds-text-muted);
+}
+
+.mc-session-tabs {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: stretch;
+  gap: 2px;
+  overflow-x: auto;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.mc-session-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.mc-session-tab {
+  position: relative;
+  display: inline-flex;
+  min-width: 96px;
+  max-width: 200px;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px 0 10px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+  cursor: default;
+  user-select: none;
+  transition: background var(--motion-duration-fast) var(--motion-ease-out),
+    color var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.mc-session-tab:hover {
+  background: var(--ds-bg-hover);
+  color: var(--ds-text-secondary);
+}
+
+.mc-session-tab.active {
+  color: var(--ds-text-primary);
+}
+
+.mc-session-tab.active::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  bottom: 0;
+  left: 8px;
+  height: 2px;
+  border-radius: var(--radius-full);
+  background: var(--ds-text-primary);
+}
+
+.mc-session-tab:focus-visible {
+  outline: 2px solid var(--ds-accent);
+  outline-offset: -2px;
+}
+
+.mc-session-tab-dot {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 5px;
+  border-radius: var(--radius-round);
+  background: currentColor;
+  opacity: 0.45;
+}
+
+.mc-session-tab-dot.running {
+  background: var(--ds-accent);
+  opacity: 1;
+}
+
+.mc-session-tab-title {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mc-session-tab-close,
+.mc-session-tab-new {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-3xs);
+  color: var(--ds-text-muted);
+}
+
+.mc-session-tab-close {
+  visibility: hidden;
+}
+
+.mc-session-tab:hover .mc-session-tab-close,
+.mc-session-tab.active .mc-session-tab-close {
+  visibility: visible;
+}
+
+.mc-session-tab-close:hover,
+.mc-session-tab-new:hover {
+  background: var(--ds-bg-active);
+  color: var(--ds-text-primary);
+}
+
+.mc-session-tab-new {
+  align-self: center;
+  width: 24px;
+  height: 24px;
+  flex-basis: 24px;
+  margin-left: 4px;
+}

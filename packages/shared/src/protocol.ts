@@ -197,6 +197,7 @@ export const IPC = {
     projectGroupUpdate: "pi-desktop/project-group/update",
     // mc-agent resource directories (MC-ADR-0003).
     projectResourcesTemplates: "pi-desktop/project-resources/templates",
+    projectFoldersMissing: "pi-desktop/project-resources/missing-folders",
     projectResourcesTemplateSave: "pi-desktop/project-resources/templates/save",
     projectResourcesTemplateDelete: "pi-desktop/project-resources/templates/delete",
     projectResourcesTemplateReveal: "pi-desktop/project-resources/templates/reveal",

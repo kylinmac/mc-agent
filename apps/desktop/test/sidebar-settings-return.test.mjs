@@ -6,20 +6,21 @@ import { loadStyles } from "./helpers/styles.mjs";
 
 const idle = (collapsed = false, presented = true) => ({ collapsed, presented, phase: "idle" });
 
-test("Settings hides the mounted chat shell and keeps its portal layers out of view", async () => {
+// mc-agent: Settings is a tab in the main pane; the chat shell and its portal
+// layers stay visible around it.
+test("Settings renders inside the chat shell as a tab", async () => {
   const [appShell, styles, portalVisibility] = await Promise.all([
     readFile(new URL("../src/features/app/AppShell.tsx", import.meta.url), "utf8"),
     loadStyles(),
     readFile(new URL("../src/lib/portal-visibility.tsx", import.meta.url), "utf8"),
   ]);
-  assert.match(appShell, /<PortalVisibilityProvider visible=\{page !== "settings"\}>/);
-  assert.match(appShell, /className="app-chat-shell"[\s\S]*?hidden=\{page === "settings"\}/);
-  assert.match(appShell, /inert=\{page === "settings" \? true : undefined\}/);
+  assert.match(appShell, /<PortalVisibilityProvider visible>/);
+  assert.doesNotMatch(appShell, /hidden=\{page === "settings"\}/);
   const chatShell = appShell.match(/<div\s+className="app-chat-shell"[\s\S]*?>/)?.[0];
   assert.ok(chatShell, "chat shell must exist");
   assert.doesNotMatch(chatShell, /aria-hidden/);
   assert.match(appShell, /className="app-chat-shell"[\s\S]*?<ChatSurface visible=\{page === "chat"\} \/>/);
-  assert.match(appShell, /\{page === "settings" \? \([\s\S]*?<SettingsPage \/>/);
+  assert.match(appShell, /page === "settings" \? \([\s\S]*?<SettingsPage \/>/);
   assert.match(appShell, /<ChatSurface visible=\{page === "chat"\} \/>/);
   assert.match(appShell, /<SearchDialog open=\{searchOpen\}/);
   assert.match(styles, /\.app-chat-shell\s*\{\s*display:\s*contents;/);

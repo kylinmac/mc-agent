@@ -35,6 +35,39 @@ pub fn edit_template(method: &str, params: &Value) -> Result<Value, JsonRpcError
     Ok(json!({ "home": home.to_string_lossy(), "templates": templates }))
 }
 
+/// `project.folders.missing`: the local project folders host-core has on
+/// record (projects and project-group roots) that no longer exist, so the
+/// sidebar can hide stale entries. Takes no paths: the renderer cannot use it
+/// to probe arbitrary locations.
+pub fn missing_folders(state: &AppState) -> Result<Value, JsonRpcError> {
+    let groups = state.db.list_project_groups().map_err(internal)?;
+    let remote: std::collections::HashSet<String> = groups
+        .iter()
+        .filter(|group| group.remote.is_some())
+        .flat_map(|group| group.roots.iter().map(|root| root.path.clone()))
+        .collect();
+    let mut known: std::collections::BTreeSet<String> = groups
+        .iter()
+        .filter(|group| group.remote.is_none())
+        .flat_map(|group| group.roots.iter().map(|root| root.path.clone()))
+        .collect();
+    known.extend(
+        state
+            .db
+            .list_projects()
+            .map_err(internal)?
+            .into_iter()
+            .map(|project| project.path),
+    );
+    let missing: Vec<String> = known
+        .into_iter()
+        .filter(|path| !remote.contains(path))
+        .filter(|path| std::path::Path::new(path).is_absolute())
+        .filter(|path| !std::path::Path::new(path).is_dir())
+        .collect();
+    Ok(json!({ "folders": missing }))
+}
+
 pub fn ensure(state: &AppState, params: &Value) -> Result<Value, JsonRpcError> {
     let group_id = required_str(params, "groupId")?;
     let template = match params.get("template") {
