@@ -75,6 +75,7 @@ import type {
   ProjectRecord,
   ProjectGroupRecord,
   ResourceTemplateDraft,
+  SessionContextBreakdown,
   ResourceTemplateSummary,
   ResourceListing,
   ProjectTask,
@@ -895,6 +896,9 @@ export const api = {
     ),
   /** Local project folders on record that no longer exist (mc-agent). */
   missingProjectFolders: () => invoke<{ folders: string[] }>(IPC.invoke.projectFoldersMissing),
+  /** mc-agent: estimated context use by kind; null until the session has run. */
+  sessionContextBreakdown: (sessionId: string) =>
+    invoke<{ breakdown: SessionContextBreakdown | null }>(IPC.invoke.sessionContextBreakdown, { sessionId }),
   /** Turn a managed project back into a simple one; the folder stays on disk. */
   detachProjectResources: (groupId: string) =>
     invoke<{ group: ProjectGroupRecord }>(IPC.invoke.projectResourcesDetach, { groupId }),
@@ -1797,6 +1801,23 @@ export const api = {
     if (!window.piDesktop?.on) return () => undefined;
     return window.piDesktop.on(IPC.event.hostStatus, (payload) =>
       listener(payload as HostStatusEvent),
+    );
+  },
+  // mc-agent work-panel terminal (MC-ADR-0005).
+  terminalCreate: (input: { tabId: string; cwd: string; cols?: number; rows?: number }) =>
+    invoke<{ termId: string; replay: string }>(IPC.invoke.terminalCreate, input),
+  terminalWrite: (termId: string, data: string) => invoke<{ ok: true }>(IPC.invoke.terminalWrite, { termId, data }),
+  terminalResize: (termId: string, cols: number, rows: number) =>
+    invoke<{ ok: true }>(IPC.invoke.terminalResize, { termId, cols, rows }),
+  terminalDispose: (tabId: string) => invoke<{ ok: true }>(IPC.invoke.terminalDispose, { tabId }),
+  onTerminalData: (listener: (event: { termId: string; data: string }) => void) => {
+    if (!window.piDesktop?.on) return () => undefined;
+    return window.piDesktop.on(IPC.event.terminalData, (payload) => listener(payload as { termId: string; data: string }));
+  },
+  onTerminalExit: (listener: (event: { termId: string; exitCode: number | null }) => void) => {
+    if (!window.piDesktop?.on) return () => undefined;
+    return window.piDesktop.on(IPC.event.terminalExit, (payload) =>
+      listener(payload as { termId: string; exitCode: number | null }),
     );
   },
   onNotificationChanged: (

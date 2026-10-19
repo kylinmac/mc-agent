@@ -703,5 +703,235 @@
     "en": "Detach the resource folder? The project becomes a simple project; the folder and its files stay on disk, and sessions started there keep their place.",
     "zh-CN": "解除资料目录？项目会变回简单项目；资料目录和里面的文件保留在磁盘上，在那里开过的会话也不受影响。",
     "zh-TW": "解除資料目錄？專案會變回簡單專案；資料目錄和裡面的檔案保留在磁碟上，在那裡開過的會話也不受影響。"
+  },
+  "sessionInfoTitle": {
+    "en": "Session info",
+    "zh-CN": "会话信息",
+    "zh-TW": "會話資訊"
+  },
+  "sessionInfoEnvironment": {
+    "en": "Environment",
+    "zh-CN": "环境",
+    "zh-TW": "環境"
+  },
+  "sessionInfoProject": {
+    "en": "Project",
+    "zh-CN": "项目",
+    "zh-TW": "專案"
+  },
+  "sessionInfoNoProject": {
+    "en": "No project",
+    "zh-CN": "不属于项目",
+    "zh-TW": "不屬於專案"
+  },
+  "sessionInfoBranch": {
+    "en": "Branch",
+    "zh-CN": "分支",
+    "zh-TW": "分支"
+  },
+  "sessionInfoWorktree": {
+    "en": "isolated worktree",
+    "zh-CN": "隔离 worktree",
+    "zh-TW": "隔離 worktree"
+  },
+  "sessionInfoModel": {
+    "en": "Model",
+    "zh-CN": "模型",
+    "zh-TW": "模型"
+  },
+  "sessionInfoContext": {
+    "en": "Context",
+    "zh-CN": "上下文",
+    "zh-TW": "上下文"
+  },
+  "sessionInfoUsed": {
+    "en": "{{percent}}% used",
+    "zh-CN": "已用 {{percent}}%",
+    "zh-TW": "已用 {{percent}}%"
+  },
+  "sessionInfoCompactions": {
+    "en": "Compacted {{count}} times",
+    "zh-CN": "已压缩 {{count}} 次",
+    "zh-TW": "已壓縮 {{count}} 次"
+  },
+  "sessionInfoNoUsage": {
+    "en": "No usage yet",
+    "zh-CN": "还没有用量",
+    "zh-TW": "還沒有用量"
+  },
+  "sessionInfoChanges": {
+    "en": "Changes",
+    "zh-CN": "改动",
+    "zh-TW": "改動"
+  },
+  "sessionInfoReview": {
+    "en": "Review {{count}} changes",
+    "zh-CN": "查看 {{count}} 处改动",
+    "zh-TW": "查看 {{count}} 處改動"
+  },
+  "sessionInfoNoChanges": {
+    "en": "No file changes",
+    "zh-CN": "没有文件改动",
+    "zh-TW": "沒有檔案改動"
+  },
+  "sessionInfoWorkers": {
+    "en": "Workers",
+    "zh-CN": "派出的任务",
+    "zh-TW": "派出的任務"
+  },
+  "sessionInfoDispatchedBy": {
+    "en": "Dispatched by {{title}}",
+    "zh-CN": "由「{{title}}」派出",
+    "zh-TW": "由「{{title}}」派出"
+  },
+  "sessionInfoNoWorkers": {
+    "en": "No Workers",
+    "zh-CN": "没有派出的会话",
+    "zh-TW": "沒有派出的會話"
+  },
+  "sessionInfoConnectors": {
+    "en": "Connectors",
+    "zh-CN": "连接器",
+    "zh-TW": "連接器"
+  },
+  "sessionInfoConnectorsCount": {
+    "en": "{{ready}} of {{total}} MCP servers connected",
+    "zh-CN": "MCP 已连接 {{ready}} / {{total}}",
+    "zh-TW": "MCP 已連接 {{ready}} / {{total}}"
+  },
+  "sessionInfoClose": {
+    "en": "Close session info",
+    "zh-CN": "关闭会话信息",
+    "zh-TW": "關閉會話資訊"
+  },
+  "sessionInfoKind_messages": {
+    "en": "Messages",
+    "zh-CN": "消息",
+    "zh-TW": "訊息"
+  },
+  "sessionInfoKind_systemPrompt": {
+    "en": "System prompt",
+    "zh-CN": "系统提示",
+    "zh-TW": "系統提示"
+  },
+  "sessionInfoKind_tools": {
+    "en": "Built-in tools",
+    "zh-CN": "内置工具",
+    "zh-TW": "內建工具"
+  },
+  "sessionInfoKind_mcpTools": {
+    "en": "MCP tools",
+    "zh-CN": "MCP 工具",
+    "zh-TW": "MCP 工具"
+  },
+  "sessionInfoKind_skills": {
+    "en": "Skills",
+    "zh-CN": "技能",
+    "zh-TW": "技能"
+  },
+  "sessionInfoKind_projectInstructions": {
+    "en": "AGENTS.md",
+    "zh-CN": "AGENTS.md",
+    "zh-TW": "AGENTS.md"
+  },
+  "sessionInfoKind_memory": {
+    "en": "Project memory",
+    "zh-CN": "项目记忆",
+    "zh-TW": "專案記憶"
+  },
+  "sessionInfoKind_buffer": {
+    "en": "Auto-compact buffer",
+    "zh-CN": "自动压缩预留",
+    "zh-TW": "自動壓縮預留"
+  },
+  "sessionInfoKind_free": {
+    "en": "Free space",
+    "zh-CN": "剩余空间",
+    "zh-TW": "剩餘空間"
+  },
+  "sessionInfoUntilCompact": {
+    "en": "{{tokens}} until auto-compact",
+    "zh-CN": "距自动压缩还有 {{tokens}}",
+    "zh-TW": "距自動壓縮還有 {{tokens}}"
+  },
+  "sessionInfoEstimated": {
+    "en": "By kind: estimates from the agent runtime",
+    "zh-CN": "按类别为运行时估算值",
+    "zh-TW": "按類別為執行時估算值"
+  },
+  "sessionInfoNoBreakdown": {
+    "en": "Send a message in this session to see the breakdown",
+    "zh-CN": "在本会话发送一条消息后可查看分类",
+    "zh-TW": "在本會話傳送一則訊息後可查看分類"
+  },
+  "sessionInfoCompact": {
+    "en": "Compact session",
+    "zh-CN": "压缩会话",
+    "zh-TW": "壓縮會話"
+  },
+  "sessionInfoCustomize": {
+    "en": "Choose sections",
+    "zh-CN": "选择显示的分区",
+    "zh-TW": "選擇顯示的分區"
+  },
+  "sessionInfoResetLayout": {
+    "en": "Reset layout",
+    "zh-CN": "恢复默认布局",
+    "zh-TW": "恢復預設佈局"
+  },
+  "sessionInfoResize": {
+    "en": "Resize session info",
+    "zh-CN": "调整会话信息宽度",
+    "zh-TW": "調整會話資訊寬度"
+  },
+  "sessionInfoSectionHint": {
+    "en": "Click to fold, drag to reorder",
+    "zh-CN": "点击折叠，拖动调整顺序",
+    "zh-TW": "點擊摺疊，拖動調整順序"
+  },
+  "sessionInfoOpenFolder": {
+    "en": "Open in Finder",
+    "zh-CN": "在访达中打开",
+    "zh-TW": "在 Finder 中開啟"
+  },
+  "quickToolsLabel": {
+    "en": "Tools",
+    "zh-CN": "工具",
+    "zh-TW": "工具"
+  },
+  "quickToolTerminal": {
+    "en": "Terminal",
+    "zh-CN": "终端",
+    "zh-TW": "終端"
+  },
+  "quickToolTerminalUnavailable": {
+    "en": "Open a local conversation to start a terminal in its folder",
+    "zh-CN": "打开一个本地会话后，可在其目录中打开终端",
+    "zh-TW": "開啟一個本機會話後，可在其目錄中開啟終端"
+  },
+  "quickToolBrowser": {
+    "en": "New browser tab",
+    "zh-CN": "新建浏览器标签",
+    "zh-TW": "新增瀏覽器分頁"
+  },
+  "quickToolFiles": {
+    "en": "Files",
+    "zh-CN": "文件",
+    "zh-TW": "檔案"
+  },
+  "terminalExited": {
+    "en": "Shell exited",
+    "zh-CN": "Shell 已退出",
+    "zh-TW": "Shell 已結束"
+  },
+  "terminalRestart": {
+    "en": "Restart",
+    "zh-CN": "重新启动",
+    "zh-TW": "重新啟動"
+  },
+  "terminalStartFailed": {
+    "en": "Could not start the terminal",
+    "zh-CN": "无法启动终端",
+    "zh-TW": "無法啟動終端"
   }
 }

@@ -18,6 +18,8 @@ export type ProjectResourcesIpcDependencies = {
   openExternal: (url: string) => Promise<void>;
   /** Native single-file picker; `null` when the user cancels. */
   pickFile: (defaultPath?: string) => Promise<string | null>;
+  /** The agent sidecar, for the session info panel's context breakdown. */
+  getSidecar?: () => { call: (method: string, params: Record<string, unknown>) => Promise<unknown> } | null;
 };
 
 const MAX_GROUP_ID_LENGTH = 256;
@@ -80,7 +82,17 @@ export function registerProjectResourcesIpc({
   openPath,
   openExternal,
   pickFile,
+  getSidecar,
 }: ProjectResourcesIpcDependencies): void {
+  // mc-agent: estimated context use by kind for one session (sidecar-owned).
+  registrar.handle(IPC.invoke.sessionContextBreakdown, async (input: { sessionId?: unknown } = {}) => {
+    const sessionId = typeof input?.sessionId === "string" ? input.sessionId.trim() : "";
+    if (!sessionId || sessionId.length > MAX_GROUP_ID_LENGTH) throw invalid("session id required");
+    const sidecar = getSidecar?.();
+    if (!sidecar) return { breakdown: null };
+    return sidecar.call("agent.contextBreakdown", { sessionId });
+  });
+
   registrar.handle(IPC.invoke.projectResourcesTemplates, async () => {
     const host = getHost();
     if (!host) throw new Error("host unavailable");

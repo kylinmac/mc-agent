@@ -7,7 +7,7 @@ mc-agent 是 kylinmac 个人维护的 PI-Desktop Fork。本文件统一规定所
 ## 当前阶段
 
 - **开发阶段。** 已确认的需求 R1–R11 已实现并合入 `main`；新需求先在文档里确认编号（R 已确认、X 待评审），再动代码。
-- 规划文档入口：[`docs/mc-agent/README.md`](docs/mc-agent/README.md)。架构决定：[MC-ADR-0002](docs/mc-agent/adr/mc-0002-fork-pi-desktop.md)（Fork）、[MC-ADR-0003](docs/mc-agent/adr/mc-0003-equal-workspaces-and-project-home.md)（项目结构）、[MC-ADR-0004](docs/mc-agent/adr/mc-0004-app-rail-and-title-tabs.md)（界面外壳）。
+- 规划文档入口：[`docs/mc-agent/README.md`](docs/mc-agent/README.md)。架构决定：[MC-ADR-0002](docs/mc-agent/adr/mc-0002-fork-pi-desktop.md)（Fork）、[MC-ADR-0003](docs/mc-agent/adr/mc-0003-equal-workspaces-and-project-home.md)（项目结构）、[MC-ADR-0004](docs/mc-agent/adr/mc-0004-app-rail-and-title-tabs.md)（界面外壳）、[MC-ADR-0005](docs/mc-agent/adr/mc-0005-work-panel-terminal-and-tools.md)（工作面板终端）。
 - 验证状态见 [`docs/mc-agent/validation-plan.md`](docs/mc-agent/validation-plan.md) 第 2.1 节；开发版实例可随时停，不碰已安装的 PI-Desktop（`~/.pi-desktop`）。
 
 ## 沟通

@@ -197,6 +197,12 @@ export const IPC = {
     projectGroupUpdate: "pi-desktop/project-group/update",
     // mc-agent resource directories (MC-ADR-0003).
     projectResourcesTemplates: "pi-desktop/project-resources/templates",
+    sessionContextBreakdown: "pi-desktop/session-info/context-breakdown",
+    // mc-agent work-panel terminal (MC-ADR-0005).
+    terminalCreate: "pi-desktop/mc-terminal/create",
+    terminalWrite: "pi-desktop/mc-terminal/write",
+    terminalResize: "pi-desktop/mc-terminal/resize",
+    terminalDispose: "pi-desktop/mc-terminal/dispose",
     projectFoldersMissing: "pi-desktop/project-resources/missing-folders",
     projectResourcesTemplateSave: "pi-desktop/project-resources/templates/save",
     projectResourcesTemplateDelete: "pi-desktop/project-resources/templates/delete",
@@ -436,6 +442,9 @@ export const IPC = {
   },
   event: {
     pluginChanged: "pi-desktop/event/pluginChanged",
+    // mc-agent work-panel terminal output and exit (MC-ADR-0005).
+    terminalData: "pi-desktop/mc-terminal/event/data",
+    terminalExit: "pi-desktop/mc-terminal/event/exit",
     /** Progress of an install or update, while it is still running. */
     pluginInstallProgress: "pi-desktop/plugin/event/installProgress",
     /** Host-originated app settings mutation (e.g. plugin `app.setTheme`). */

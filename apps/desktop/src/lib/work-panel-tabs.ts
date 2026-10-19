@@ -3,7 +3,9 @@ export type WorkPanelTabKind =
   | "review"
   | "file"
   | "plugin"
-  | "subagent";
+  | "subagent"
+  // mc-agent: an interactive shell; `resource` is its start folder (MC-ADR-0005).
+  | "terminal";
 
 export type WorkPanelTab = {
   id: string;
@@ -248,7 +250,9 @@ export function isKnownWorkPanelTab(tab: WorkPanelTab): boolean {
     Boolean(tab) &&
     (tab.kind === "new" || tab.kind === "review" ||
       tab.kind === "file" || tab.kind === "plugin" ||
-      tab.kind === "subagent")
+      tab.kind === "subagent") ||
+    // mc-agent work-panel terminal (MC-ADR-0005).
+    (Boolean(tab) && tab.kind === "terminal")
   );
 }
 

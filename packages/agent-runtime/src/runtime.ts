@@ -227,6 +227,7 @@ import {
 import { genericModelConfig, visionFromModelConfig } from "./model-capabilities.js";
 import type { ProjectInstructions } from "./project-instructions.js";
 import { projectInstructionsPrompt } from "./project-instructions-prompt.js";
+import { contextBreakdown, type ContextBreakdown } from "./context-breakdown.js";
 import type { CustomSystemPrompt } from "./custom-system-prompt.js";
 import { projectMemoryPrompt } from "./project-memory-prompt.js";
 import {
@@ -9125,6 +9126,18 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     this.acceptingSteering = false;
     this.gracefulStopRequested = true;
     return { requested: true };
+  }
+
+  /** mc-agent: estimated context use by kind, for the session info panel. */
+  contextBreakdown(): ContextBreakdown {
+    return contextBreakdown({
+      sections: this.composedSections,
+      projectInstructionsPrompt: projectInstructionsPrompt(this.projectInstructions) ?? "",
+      memoryPrompt: projectMemoryPrompt(this.projectMemory) ?? "",
+      tools: this.agent?.state.tools ?? [],
+      messages: this.agent?.state.messages ?? [],
+      model: this.model,
+    });
   }
 
   getStatus(): AgentStatus {

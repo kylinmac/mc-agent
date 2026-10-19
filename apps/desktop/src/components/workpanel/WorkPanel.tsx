@@ -40,11 +40,14 @@ import {
   IconPanelRestore,
   IconPlug,
   IconPlus,
+  IconTerminal,
 } from "../icons";
 import { ReviewTab } from "./ReviewTab";
 import { FilesTab } from "./FilesTab";
 import { PluginViewTab } from "./PluginViewTab";
 import { SubagentTranscriptTab } from "./SubagentTranscriptTab";
+import { TerminalTab } from "../../features/work-tools/TerminalTab";
+import { WorkPanelQuickTools } from "../../features/work-tools/WorkPanelQuickTools";
 import {
   MAIN_PANE_MIN_WIDTH,
   WORK_PANEL_COMPACT_MIN_WIDTH,
@@ -61,6 +64,7 @@ const TAB_ICONS = {
   file: IconFileText,
   plugin: IconPlug,
   subagent: IconBot,
+  terminal: IconTerminal,
 } as const;
 
 type WorkPanelResizeState = {
@@ -115,6 +119,7 @@ function tabLabel(
   }
   if (tab.kind === "new") return t("panel.new.title");
   if (tab.kind === "subagent") return tab.label ?? t("panel.tabs.subagent");
+  if (tab.kind === "terminal") return tab.label ?? t("mcProject.quickToolTerminal");
   if (tab.kind !== "file") return t(`panel.tabs.${tab.kind}`);
   const path = tab.resource ?? "";
   return path.split("/").filter(Boolean).pop() || t("panel.tabs.file");
@@ -890,6 +895,8 @@ function LocalWorkPanel({
               </div>
           </div>
           <div className="work-panel-actions no-drag">
+              {/* mc-agent: one-click tools (MC-ADR-0005). */}
+              <WorkPanelQuickTools />
               <TooltipButton
                 ref={newTabButtonRef}
                 type="button"
@@ -926,6 +933,17 @@ function LocalWorkPanel({
               aria-labelledby={`work-panel-tab-${activeTab.id}`}
             >
               <SubagentTranscriptTab delegationId={activeTab.resource ?? ""} />
+            </div>
+          )}
+          {activeTab?.kind === "terminal" && activeTab.resource && (
+            <div
+              key={activeTab.id}
+              id={`work-panel-surface-${activeTab.id}`}
+              className="work-panel-tabpane"
+              role="tabpanel"
+              aria-labelledby={`work-panel-tab-${activeTab.id}`}
+            >
+              <TerminalTab tabId={activeTab.id} cwd={activeTab.resource} active />
             </div>
           )}
           {activeTab?.kind === "review" && (

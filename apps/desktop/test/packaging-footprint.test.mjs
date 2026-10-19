@@ -31,6 +31,8 @@ test("packaging keeps native voice modules as runtime dependencies", () => {
   assert.deepEqual(Object.keys(packageJson.dependencies).sort(), [
     "@picovoice/pvrecorder-node",
     "electron-updater",
+    // mc-agent (MC-ADR-0005): the work-panel terminal's native PTY.
+    "node-pty",
     "transcribe-cpp",
   ]);
 
@@ -115,11 +117,11 @@ test("main bundles JavaScript dependencies and externalizes runtime modules", ()
   // jiti is listed so the trusted-extension loader's lazy import never
   // enters the main bundle; main itself never loads it (spec 16 §4.2).
   assert.match(viteConfigSource, /external:\s*\[/);
-  for (const moduleName of ["@picovoice/pvrecorder-node", "transcribe-cpp"]) {
+  // mc-agent (MC-ADR-0005): node-pty returns for the work-panel terminal.
+  for (const moduleName of ["@picovoice/pvrecorder-node", "transcribe-cpp", "node-pty"]) {
     assert.match(viteConfigSource, new RegExp(`"${moduleName.replaceAll("/", "\\/")}"`));
   }
-  assert.doesNotMatch(viteConfigSource, /node-pty/);
-  assert.doesNotMatch(JSON.stringify(packageJson.dependencies), /node-pty/);
+  assert.equal(packageJson.dependencies["node-pty"], "1.1.0");
 });
 
 test("sandbox preload entries use standalone shared subpath bundles", () => {
@@ -214,7 +216,7 @@ test("packaging keeps only shipped locales and excludes non-runtime artifacts", 
       to: "models.dev",
     },
   ]);
-  assert.doesNotMatch(JSON.stringify(packageJson.build), /node-pty/);
+  assert.doesNotMatch(JSON.stringify(packageJson.build.extraResources), /node-pty/);
 });
 
 test("macOS targets follow the native architecture selected by the runner", () => {
@@ -263,14 +265,16 @@ test("macOS DMG remains a two-icon install and artifacts omit first-launch guida
   assert.equal(dmgBackgroundRetina.readUInt32BE(20), 880);
 });
 
-test("packaging keeps voice native payloads unpacked and excludes removed PTY payloads", () => {
+test("packaging keeps voice and PTY native payloads unpacked and drops PTY sources", () => {
   assert.deepEqual(packageJson.build.asar, { smartUnpack: false });
   assert.deepEqual(packageJson.build.asarUnpack, [
     "node_modules/transcribe-cpp/**/*.node",
     "node_modules/transcribe-cpp/**/bin/**",
     "node_modules/@picovoice/pvrecorder-node/**/*.node",
     "node_modules/@picovoice/pvrecorder-node/**/lib/**",
+    "node_modules/node-pty/build/Release/**",
+    "node_modules/node-pty/prebuilds/**",
   ]);
-  assert.doesNotMatch(JSON.stringify(packageJson.build.files), /node-pty/);
+  assert.ok(packageJson.build.files.includes("!**/node_modules/node-pty/{deps,scripts,src,typings,third_party}/**"));
   assert.doesNotMatch(JSON.stringify(packageJson.build.extraResources), /node-pty/);
 });

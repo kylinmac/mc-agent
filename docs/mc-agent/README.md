@@ -21,6 +21,7 @@
 | [验收与开发计划](validation-plan.md) | 先验证继承能力，再验证新增闭环 |
 | [决策清单](decisions.md) | 集中处理待确认问题 |
 | [M1 基线记录](m1-baseline.md) | 构建、冒烟和 B1–B8 实测结果 |
+| [MC-ADR-0005](adr/mc-0005-work-panel-terminal-and-tools.md) | 工作面板终端与工具栏 |
 | [MC-ADR-0004](adr/mc-0004-app-rail-and-title-tabs.md) | 左侧竖栏、顶部标签栏与设置标签 |
 | [MC-ADR-0003](adr/mc-0003-equal-workspaces-and-project-home.md) | 多工作区平等与项目资料目录 |
 | [MC-ADR-0002](adr/mc-0002-fork-pi-desktop.md) | 当前 Fork 架构决定 |

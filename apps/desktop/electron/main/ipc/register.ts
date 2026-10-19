@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { dialog, shell, type BrowserWindow, type IpcMain, type IpcMainInvokeEvent } from "electron";
+import { app, dialog, shell, type BrowserWindow, type IpcMain, type IpcMainInvokeEvent } from "electron";
 import { err, ErrorCodes, IPC, ok, type Result } from "@pi-desktop/shared";
 import type { AgentHostBridge } from "../agent-host-bridge";
 import type { AgentSidecar } from "../agent-sidecar";
@@ -20,6 +20,8 @@ import { registerPluginUiIpc } from "./plugin-ui-ipc";
 import { registerJevIpc } from "./jev-ipc";
 import { refreshProjectGroups } from "../workspace-roots";
 import { registerProjectResourcesIpc } from "./project-resources-ipc";
+import { registerMcTerminalIpc } from "./mc-terminal-ipc";
+import { TerminalManager } from "../mc-terminal";
 import { registerProviderIpc } from "./provider-ipc";
 import { registerScheduledIpc } from "./scheduled-ipc";
 import { registerSessionIpc } from "./session-ipc";
@@ -308,6 +310,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
   registerProjectResourcesIpc({
     registrar,
     getHost,
+    getSidecar,
     refreshProjectGroups,
     openPath: (path) => shell.openPath(path),
     openExternal: (url) => shell.openExternal(url),
@@ -319,6 +322,15 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
         : await dialog.showOpenDialog(options);
       return result.canceled ? null : (result.filePaths[0] ?? null);
     },
+  });
+  registerMcTerminalIpc({
+    registrar,
+    getHost,
+    onQuit: (dispose) => app.on("will-quit", dispose),
+    manager: new TerminalManager({
+      onData: (termId, data) => sendToRenderer(IPC.event.terminalData, { termId, data }),
+      onExit: (termId, exitCode) => sendToRenderer(IPC.event.terminalExit, { termId, exitCode }),
+    }),
   });
   registerWorktreeIpc({
     registrar,

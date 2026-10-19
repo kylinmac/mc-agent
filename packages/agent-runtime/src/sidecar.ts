@@ -604,6 +604,12 @@ async function handle(method: string, params: any): Promise<unknown> {
         },
       };
     }
+    // mc-agent: per-kind context estimate; null until the session has run here.
+    case "agent.contextBreakdown": {
+      const sessionId = String(params.sessionId);
+      if (sessionId.startsWith(NATIVE_PI_SESSION_PREFIX)) return { breakdown: null };
+      return { breakdown: runtimes.get(sessionId)?.contextBreakdown() ?? null };
+    }
     case "agent.disposeSession": {
       const sessionId = String(params.sessionId);
       if (sessionId.startsWith(NATIVE_PI_SESSION_PREFIX)) {

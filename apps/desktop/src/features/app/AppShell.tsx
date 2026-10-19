@@ -2,6 +2,7 @@ import { type CSSProperties, lazy, type ReactNode, Suspense, useEffect } from "r
 import { ConversationTopbar } from "../../components/ConversationTopbar";
 import { AppRail } from "../app-rail/AppRail";
 import { SessionTabs } from "../session-tabs/SessionTabs";
+import { SessionInfo } from "../session-info/SessionInfo";
 import { ExtensionPromptHost } from "../../components/ExtensionPromptDialog";
 import { PluginRendererHost } from "../../plugins/renderer-host/PluginRendererHost";
 import {
@@ -218,6 +219,8 @@ export function AppShell() {
                   </div>
                 )}
                 <UpdateBanner />
+                {/* mc-agent: session information card in the conversation's left margin. */}
+                {page === "chat" ? <SessionInfo /> : null}
 
                 {backendDown && (
                   <div

@@ -32,8 +32,9 @@
   },
   "dependencies": {
     "@picovoice/pvrecorder-node": "1.2.9",
-    "transcribe-cpp": "0.2.2",
-    "electron-updater": "^6.8.9"
+    "electron-updater": "^6.8.9",
+    "node-pty": "1.1.0",
+    "transcribe-cpp": "0.2.2"
   },
   "devDependencies": {
     "@earendil-works/pi-ai": "1.1.0",
@@ -52,6 +53,8 @@
     "@types/react-dom": "^19.2.4",
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^4.6.0",
+    "@xterm/addon-fit": "0.11.0",
+    "@xterm/xterm": "6.0.0",
     "dompurify": "^3.4.17",
     "electron": "^43.4.1",
     "electron-builder": "^26.15.3",
@@ -103,7 +106,8 @@
       "!**/node_modules/**/*.{test,spec}.{js,cjs,mjs}",
       "!**/node_modules/node-addon-api/tools/**",
       "!**/node_modules/node-addon-api/*.{c,gyp,gypi,h,js,json}",
-      "!**/node_modules/node-addon-api/README.md"
+      "!**/node_modules/node-addon-api/README.md",
+      "!**/node_modules/node-pty/{deps,scripts,src,typings,third_party}/**"
     ],
     "electronLanguages": [
       "en-US",
@@ -287,7 +291,9 @@
       "node_modules/transcribe-cpp/**/*.node",
       "node_modules/transcribe-cpp/**/bin/**",
       "node_modules/@picovoice/pvrecorder-node/**/*.node",
-      "node_modules/@picovoice/pvrecorder-node/**/lib/**"
+      "node_modules/@picovoice/pvrecorder-node/**/lib/**",
+      "node_modules/node-pty/build/Release/**",
+      "node_modules/node-pty/prebuilds/**"
     ],
     "asar": {
       "smartUnpack": false

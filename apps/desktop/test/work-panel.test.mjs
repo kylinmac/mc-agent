@@ -493,9 +493,11 @@ test("Electron enforces the responsive shell minimum", () => {
   assert.doesNotMatch(mainSource, /setMinimumSize\(windowMinWidth, windowMinHeight\);\n\s*\/\/ Prefer normal layer/);
 });
 
-test("built-in terminal is absent while the work panel keeps its other surfaces", () => {
-  assert.doesNotMatch(panelSource, /TerminalTab|terminalOpen|kind: "terminal"/);
-  assert.doesNotMatch(panelSource, /work-panel-surface-terminal|activeTab\?\.kind !== "terminal"/);
+// mc-agent (MC-ADR-0005) brings the terminal back as one tab kind among the
+// others; upstream's old always-mounted terminal surface stays gone.
+test("the terminal is an ordinary tab while the work panel keeps its other surfaces", () => {
+  assert.match(panelSource, /activeTab\?\.kind === "terminal" && activeTab\.resource/);
+  assert.doesNotMatch(panelSource, /terminalOpen|work-panel-surface-terminal|activeTab\?\.kind !== "terminal"/);
   assert.match(panelSource, /activeTab\?\.kind === "review"/);
   assert.match(panelSource, /activeTab\?\.kind === "plugin"/);
   assert.match(panelSource, /activeTab\?\.kind === "file"/);

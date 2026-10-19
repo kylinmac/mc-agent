@@ -194,3 +194,24 @@ export type ProjectGroupContext = {
  * login rather than a pasted API key. Shared so main, the sidecar runtime and
  * the renderer all branch on the same spelling.
  */
+
+/**
+ * mc-agent: estimated context use by kind for one session, computed by the
+ * agent runtime (`context-breakdown.ts`) for the session info panel.
+ */
+export type SessionContextBreakdown = {
+  contextWindow: number;
+  autoCompactAt: number;
+  categories: Record<
+    "systemPrompt" | "projectInstructions" | "memory" | "skills" | "tools" | "mcpTools" | "messages",
+    number
+  >;
+  usedTokens: number;
+  toolCount: number;
+  mcpToolCount: number;
+  skillCount: number;
+  messageCount: number;
+  toolNames: string[];
+  mcpToolNames: string[];
+  skillNames: string[];
+};

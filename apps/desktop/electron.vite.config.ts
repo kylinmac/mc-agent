@@ -71,6 +71,8 @@ export default defineConfig({
           "jiti/static",
           "@picovoice/pvrecorder-node",
           "transcribe-cpp",
+          // mc-agent (MC-ADR-0005): the work-panel terminal's native PTY.
+          "node-pty",
         ],
         input: {
           index: resolve(__dirname, "electron/main/entry.ts"),
