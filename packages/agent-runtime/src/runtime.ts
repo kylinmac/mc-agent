@@ -745,6 +745,9 @@ const AGENT_CORE_TOOL_NAMES = new Set([
   "Write",
   "Edit",
   "Bash",
+  // mc-agent: reading and stopping background commands (MC-ADR-0006).
+  "BashOutput",
+  "KillBash",
   ASK_TOOL_NAME,
   // The slash menu answers a user-invoked `/skill:<skill-id>` with an instruction to
   // call `Skill { id }` on the first turn (ADR 0219), and a capability the
@@ -1261,6 +1264,11 @@ const TOOL_PARAM_ALIASES: Record<string, Record<string, string>> = {
   BrowserPreview: { ...PATH_ARG_ALIASES },
   Glob: { query: "pattern" },
   Grep: { query: "pattern" },
+  // mc-agent background commands (MC-ADR-0006). Bash's optional
+  // `run_in_background` spelling is read by host-core, since aliases here are
+  // required parameters.
+  BashOutput: { bash_id: "backgroundId", shell_id: "backgroundId" },
+  KillBash: { bash_id: "backgroundId", shell_id: "backgroundId" },
 };
 const TOOL_OUTPUT_UPDATE_THROTTLE_MS = 100;
 const MAX_TOOL_PROGRESS_CHARS = 64 * 1024;
@@ -3269,7 +3277,11 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         case "Edit":
           return `Replace, insert, or delete lines in an existing file. Names positions and supplies new content only — never old_string. Required: path, tag (4 hex from the latest Read/Grep/Write/Edit), ops. Ops: PUT N.=M: replace inclusive lines N–M; PUT <N: insert before N; PUT >N: insert after N; PUT >$: append; CUT N.=M delete; REM delete the file; MV DEST rename after other ops. Body rows are + plus the final line text. Every PUT with body rows must include the trailing colon, for example PUT 48.=48:; PUT 48.=48 followed by + rows is invalid. A colonless PUT is only for a register paste such as PUT <1 @name. No -old or context rows. Ranges name only the lines being changed. Re-ground on the tag returned by every successful write. After one failed Edit, classify the error: Read the live file for a stale tag or unseen lines (or retry unchanged on a complete EDIT_LINES_UNSEEN reveal), but correct syntax or range errors directly; do not guess. Do not edit the same path concurrently.${scratchPathHint}${externalPathHint}`;
         case "Bash":
-          return `${commandShellToolDescription(this.commandShell, this.scratchDir)} Use Edit or Write instead of apply_patch, git apply, or patch; do not retry a failed shell patch command repeatedly.`;
+          return `${commandShellToolDescription(this.commandShell, this.scratchDir)} Use Edit or Write instead of apply_patch, git apply, or patch; do not retry a failed shell patch command repeatedly.${this.mode === "agent" ? " For a long-running process (a dev server, a watcher, a long build or test run) set runInBackground: true: the call returns a backgroundId at once and the process keeps running after the turn; read its new output with BashOutput and stop it with KillBash when it is no longer needed." : ""}`;
+        case "BashOutput":
+          return "Read the new output of a background command started with Bash runInBackground, since your last read, plus its status (running, exited with exitCode, killed, failed). Output is combined stdout and stderr; when much was printed only the latest part is returned. Poll sparingly: check after doing other work rather than in a tight loop.";
+        case "KillBash":
+          return "Stop a background command started with Bash runInBackground, including the processes it started. Stop servers and watchers you started once the task no longer needs them.";
         case "TodoWrite":
           return todoWriteDescription;
         case ASK_TOOL_NAME:
@@ -3375,8 +3387,20 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
           }),
         ),
       },
+      BashOutput: {
+        backgroundId: Type.String({ description: "The backgroundId returned by Bash runInBackground." }),
+      },
+      KillBash: {
+        backgroundId: Type.String({ description: "The backgroundId returned by Bash runInBackground." }),
+      },
       Bash: {
         command: Type.String(),
+        runInBackground: Type.Optional(
+          Type.Boolean({
+            description:
+              "Agent mode: start the command and return a backgroundId immediately instead of waiting; timeout does not apply.",
+          }),
+        ),
         timeout: Type.Optional(
           Type.Number({
             minimum: MIN_COMMAND_TIMEOUT_SECONDS,
@@ -3849,6 +3873,9 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
             "BrowserPreview",
             "PluginCheck",
             "TodoWrite",
+            // mc-agent background commands (MC-ADR-0006).
+            "BashOutput",
+            "KillBash",
           ]
         : ["Read", "Glob", "Grep", "BrowserPreview", "Bash", "Write", "Edit"];
     if (this.mode === "agent") {

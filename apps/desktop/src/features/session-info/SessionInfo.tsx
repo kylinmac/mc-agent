@@ -8,6 +8,8 @@ import { calculateContextUsage } from "../../lib/context-usage";
 import { reviewChangesFromMessages, summarizeReviewChanges } from "../../lib/workspace-review";
 import { toolWorkPanelTab } from "../../lib/work-panel-tabs";
 import { normalizeProjectPath } from "../../lib/sidebar-session-groups";
+import { isRemoteSession } from "../../lib/remote-session-safety";
+import { formatElapsed, sessionSubagents } from "./session-subagents";
 import { IconChevronDown, IconChevronRight, IconFolder, IconInfo, IconMore } from "../../components/icons";
 import { useProjectFolderIndex } from "../project-sidebar/useProjectFolderIndex";
 import { sessionFolderLabel } from "../project-sidebar/project-merge";
@@ -15,6 +17,7 @@ import {
   breakdownRows,
   clampPanelWidth,
   DEFAULT_PREFS,
+  conversationOffset,
   panelMode,
   readPrefs,
   reorderSections,
@@ -70,6 +73,7 @@ export function SessionInfo() {
   const compactions = useAppStore((s) => (s.activeSessionId ? s.sessionCompactions[s.activeSessionId] : undefined));
   const openWorkPanelTab = useAppStore((s) => s.openWorkPanelTab);
   const selectSession = useAppStore((s) => s.selectSession);
+  const openSubagentTab = useAppStore((s) => s.openSubagentTab);
   const compactContext = useAppStore((s) => s.compactContext);
   const session = sessions.find((candidate) => candidate.id === activeSessionId);
   const open = prefs.open;
@@ -96,23 +100,52 @@ export function SessionInfo() {
     return () => observer.disconnect();
   }, [mounted]);
 
-  // The conversation narrows by the docked width (CSS reads this variable).
+  // The conversation band's preferred width (its edge handles set it on the
+  // chat surface), so the docked panel can sit in the margin beside it.
+  const [contentWidth, setContentWidth] = useState(760);
+  useEffect(() => {
+    if (!mounted) return;
+    const surface = rootRef.current?.closest<HTMLElement>(".main-pane")?.querySelector<HTMLElement>(".chat-surface");
+    if (!surface) return;
+    const read = () => {
+      const value = Number.parseFloat(surface.style.getPropertyValue("--chat-content-max-width"));
+      setContentWidth(Number.isFinite(value) && value > 0 ? value : 760);
+    };
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(surface, { attributes: true, attributeFilter: ["style"] });
+    return () => observer.disconnect();
+  }, [mounted, activeSessionId]);
+
+  // Docked: the conversation moves aside only by what the panel overlaps
+  // (CSS reads this variable).
   const docked = mounted && open && mode === "docked";
+  const offset = conversationOffset(paneWidth, prefs.width, contentWidth);
   useEffect(() => {
     const pane = rootRef.current?.closest<HTMLElement>(".main-pane");
     if (!pane) return;
-    if (docked) pane.style.setProperty("--mc-info-width", `${prefs.width}px`);
-    else pane.style.removeProperty("--mc-info-width");
+    if (docked) pane.style.setProperty("--mc-info-offset", `${offset}px`);
+    else pane.style.removeProperty("--mc-info-offset");
     return () => {
-      pane.style.removeProperty("--mc-info-width");
+      pane.style.removeProperty("--mc-info-offset");
     };
-  }, [docked, prefs.width]);
+  }, [docked, offset]);
 
   const context = useMemo(() => {
     const inspector = latestTurnContextInspector(messages, providerModels, providers, compactions);
     return inspector ? { ...calculateContextUsage(inspector.usage, inspector.contextWindow), window: inspector.contextWindow } : null;
   }, [messages, providerModels, providers, compactions]);
   const changes = useMemo(() => summarizeReviewChanges(reviewChangesFromMessages(messages)), [messages]);
+  // Subtasks: this conversation's `Task` subagents, then the sessions it
+  // dispatched (MC-ADR-0005 follow-up).
+  const subagents = useMemo(() => sessionSubagents(messages, { turnLive: isRunning }), [messages, isRunning]);
+  const anyRunning = subagents.some((item) => item.status === "running" || item.status === "creating");
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!open || !anyRunning) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [open, anyRunning]);
 
   const [breakdown, setBreakdown] = useState<SessionContextBreakdown | null>(null);
   const [collaboration, setCollaboration] = useState<SessionCollaborationSummary | null>(null);
@@ -378,6 +411,34 @@ export function SessionInfo() {
       ),
     workers: (
       <>
+        {subagents.length > 0 ? (
+          <>
+            {workers.length > 0 ? <div className="mc-session-info-sublabel">{t("mcProject.sessionInfoSubagents")}</div> : null}
+            <ul className="mc-session-info-list">
+              {subagents.map((item) => {
+                const end = item.completedAt ?? (item.status === "running" ? now : undefined);
+                const elapsed = item.startedAt !== undefined && end !== undefined ? formatElapsed(end - item.startedAt) : "";
+                const label = item.status === "creating" ? t("chat.subagentCreating") : t(`chat.subagentStatus.${item.status}`);
+                return (
+                  <li key={item.delegationId}>
+                    <button
+                      type="button"
+                      className="mc-session-info-subtask"
+                      data-status={item.status}
+                      disabled={Boolean(session && isRemoteSession(session))}
+                      title={[item.agentName, label, elapsed].filter(Boolean).join(" · ")}
+                      onClick={() => openSubagentTab(item.delegationId, item.agentName || undefined)}
+                    >
+                      <span className="mc-session-info-subtask-dot" aria-hidden />
+                      <span className="mc-session-info-subtask-name">{item.agentName || t("panel.tabs.subagent")}</span>
+                      <span className="mc-session-info-subtask-meta">{[label, elapsed].filter(Boolean).join(" · ")}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        ) : null}
         {collaboration?.createdBySession ? (
           <button
             type="button"
@@ -388,6 +449,8 @@ export function SessionInfo() {
           </button>
         ) : null}
         {workers.length > 0 ? (
+          <>
+          {subagents.length > 0 ? <div className="mc-session-info-sublabel">{t("mcProject.sessionInfoWorkerSessions")}</div> : null}
           <ul className="mc-session-info-list">
             {workers.map((worker) => (
               <li key={worker.sessionId}>
@@ -402,7 +465,8 @@ export function SessionInfo() {
               </li>
             ))}
           </ul>
-        ) : !collaboration?.createdBySession ? (
+          </>
+        ) : !collaboration?.createdBySession && subagents.length === 0 ? (
           <div className="mc-session-info-muted">{t("mcProject.sessionInfoNoWorkers")}</div>
         ) : null}
       </>

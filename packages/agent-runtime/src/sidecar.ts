@@ -610,6 +610,15 @@ async function handle(method: string, params: any): Promise<unknown> {
       if (sessionId.startsWith(NATIVE_PI_SESSION_PREFIX)) return { breakdown: null };
       return { breakdown: runtimes.get(sessionId)?.contextBreakdown() ?? null };
     }
+    // mc-agent: load a session's runtime without prompting, so the session
+    // info panel can show its context breakdown right after the app starts
+    // (MC-ADR-0005 follow-up). Same launch path as a manual compaction.
+    case "agent.prepare": {
+      const sessionId = String(params.sessionId);
+      if (sessionId.startsWith(NATIVE_PI_SESSION_PREFIX)) return { breakdown: null };
+      const runtime = await runtimeFor(params);
+      return { breakdown: runtime.contextBreakdown() };
+    }
     case "agent.disposeSession": {
       const sessionId = String(params.sessionId);
       if (sessionId.startsWith(NATIVE_PI_SESSION_PREFIX)) {

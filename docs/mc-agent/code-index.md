@@ -147,7 +147,8 @@ host-core 也可作为内部工具子进程启动（`tools::INTERNAL_TOOL_RUNNER
 | 设置以标签打开 | `apps/desktop/src/features/app/AppShell.tsx`（`mc-settings-tab`）；设置导航进侧边栏 `features/sidebar-slot/SidebarSlot.tsx` |
 | 侧边栏按项目合并 | `apps/desktop/src/features/project-sidebar/`；host 侧失效目录查询 `project.folders.missing`（`rpc/resource_dirs_rpc.rs`） |
 | 工作面板终端与工具 | Main：`apps/desktop/electron/main/mc-terminal.ts`、`ipc/mc-terminal-ipc.ts`；界面：`apps/desktop/src/features/work-tools/`（`TerminalTab.tsx`、`WorkPanelQuickTools.tsx`、`tool-tabs.ts`；分区 `WorkPanes.tsx`、`work-panes-model.ts`、`pane-layout.ts`）；多个插件视图同时显示：`apps/desktop/electron/main/plugin-view-host.ts` |
-| 会话信息栏 | `apps/desktop/src/features/session-info/`（停靠与浮层、行计算在 `session-info-model.ts`）；按类别估算 `packages/agent-runtime/src/context-breakdown.ts`，sidecar 方法 `agent.contextBreakdown`，Main 通道在 `project-resources-ipc.ts` |
+| 后台命令 | host-core：`crates/host-core/src/tools/background.rs`（注册表、监管、读写），接线在 `rpc/mod.rs`（`tools.execute` 分支、`backgroundShells.*`、会话删除）与 `state.rs`（关闭时结束）；运行时：`packages/agent-runtime/src/runtime.ts`（Bash `runInBackground`、`BashOutput`、`KillBash`）；桌面：`apps/desktop/electron/main/ipc/mc-background-ipc.ts`、`src/features/work-tools/BackgroundPane.tsx`、`background-shells.ts` |
+| 会话信息栏 | `apps/desktop/src/features/session-info/`（停靠与浮层、行计算在 `session-info-model.ts`；子任务列表 `session-subagents.ts`，复用 `lib/subagent-topology.ts` 的状态规则）；按类别估算 `packages/agent-runtime/src/context-breakdown.ts`，sidecar 方法 `agent.contextBreakdown`，Main 通道在 `project-resources-ipc.ts` |
 | 提示显示在右侧 | `apps/desktop/src/components/ui.tsx` 的 `tooltipSide` |
 | 图标源文件 | `apps/desktop/build/icon.svg`、`tray-icon.svg`、`logo-dark.svg` |
 | 模板编辑 | `crates/host-core/src/template_editor.rs`；界面 `features/project-workbench/TemplateEditor.tsx` |

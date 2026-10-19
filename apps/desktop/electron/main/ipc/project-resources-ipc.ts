@@ -20,6 +20,8 @@ export type ProjectResourcesIpcDependencies = {
   pickFile: (defaultPath?: string) => Promise<string | null>;
   /** The agent sidecar, for the session info panel's context breakdown. */
   getSidecar?: () => { call: (method: string, params: Record<string, unknown>) => Promise<unknown> } | null;
+  /** Load an idle local session's runtime and return its breakdown, or null. */
+  prepareRuntime?: (sessionId: string) => Promise<{ breakdown: unknown } | null>;
 };
 
 const MAX_GROUP_ID_LENGTH = 256;
@@ -83,6 +85,7 @@ export function registerProjectResourcesIpc({
   openExternal,
   pickFile,
   getSidecar,
+  prepareRuntime,
 }: ProjectResourcesIpcDependencies): void {
   // mc-agent: estimated context use by kind for one session (sidecar-owned).
   registrar.handle(IPC.invoke.sessionContextBreakdown, async (input: { sessionId?: unknown } = {}) => {
@@ -90,7 +93,15 @@ export function registerProjectResourcesIpc({
     if (!sessionId || sessionId.length > MAX_GROUP_ID_LENGTH) throw invalid("session id required");
     const sidecar = getSidecar?.();
     if (!sidecar) return { breakdown: null };
-    return sidecar.call("agent.contextBreakdown", { sessionId });
+    const loaded = (await sidecar.call("agent.contextBreakdown", { sessionId })) as { breakdown: unknown };
+    if (loaded?.breakdown || !prepareRuntime) return loaded;
+    // No runtime yet (nothing sent since the app started): load it, so the
+    // breakdown does not wait for the next message.
+    try {
+      return (await prepareRuntime(sessionId)) ?? loaded;
+    } catch {
+      return loaded;
+    }
   });
 
   registrar.handle(IPC.invoke.projectResourcesTemplates, async () => {

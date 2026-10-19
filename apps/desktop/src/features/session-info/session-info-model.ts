@@ -10,6 +10,21 @@ export function clampPanelWidth(width: number): number {
   return Math.round(Math.min(PANEL_MAX_WIDTH, Math.max(PANEL_MIN_WIDTH, width)));
 }
 
+/** Space kept between the docked panel and the conversation band. */
+export const DOCK_GAP = 16;
+
+/**
+ * How far the conversation moves aside for the docked panel. The panel sits
+ * in the empty margin left of the centered conversation band; the band moves
+ * right only by what the panel would overlap, keeping its width while the
+ * pane allows, and never moves further than the panel's own width.
+ */
+export function conversationOffset(paneWidth: number, panelWidth: number, contentWidth: number): number {
+  const reserve = panelWidth + DOCK_GAP;
+  const band = Math.min(contentWidth, paneWidth);
+  return Math.round(Math.max(0, Math.min(reserve, 2 * reserve - (paneWidth - band))));
+}
+
 /** Dock when the conversation keeps a usable width beside the panel. */
 export function panelMode(paneWidth: number, panelWidth = PANEL_DEFAULT_WIDTH): "docked" | "overlay" {
   return paneWidth >= panelWidth + MIN_CONVERSATION_WIDTH ? "docked" : "overlay";

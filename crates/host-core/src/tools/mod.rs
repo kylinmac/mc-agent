@@ -19,6 +19,7 @@ use tokio::sync::{mpsc, watch};
 use crate::workspace::{resolve_tool_path_with_external, simple_canonicalize, ToolRoot};
 
 mod grep_rg;
+pub mod background;
 pub mod hashline;
 pub mod ignore_rules;
 pub mod shell;

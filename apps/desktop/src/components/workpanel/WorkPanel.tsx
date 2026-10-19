@@ -27,6 +27,7 @@ import { cx } from "../ui";
 import { TooltipButton } from "../ui";
 import type { IconProps } from "../icons";
 import {
+  IconActivity,
   IconBot,
   IconClose,
   IconDiff,
@@ -44,6 +45,7 @@ import { SubagentTranscriptTab } from "./SubagentTranscriptTab";
 import { TerminalTab } from "../../features/work-tools/TerminalTab";
 import { useTerminalCwd, WorkPanelQuickTools } from "../../features/work-tools/WorkPanelQuickTools";
 import { WorkPanes } from "../../features/work-tools/WorkPanes";
+import { BackgroundPane } from "../../features/work-tools/BackgroundPane";
 import {
   MAIN_PANE_MIN_WIDTH,
   WORK_PANEL_COMPACT_MIN_WIDTH,
@@ -61,6 +63,7 @@ const TAB_ICONS = {
   plugin: IconPlug,
   subagent: IconBot,
   terminal: IconTerminal,
+  background: IconActivity,
 } as const;
 
 type WorkPanelResizeState = {
@@ -97,6 +100,7 @@ function tabLabel(
   if (tab.kind === "new") return t("panel.new.title");
   if (tab.kind === "subagent") return tab.label ?? t("panel.tabs.subagent");
   if (tab.kind === "terminal") return tab.label ?? t("mcProject.quickToolTerminal");
+  if (tab.kind === "background") return t("mcProject.paneBackground");
   if (tab.kind !== "file") return t(`panel.tabs.${tab.kind}`);
   const path = tab.resource ?? "";
   return path.split("/").filter(Boolean).pop() || t("panel.tabs.file");
@@ -441,6 +445,13 @@ function LocalWorkPanel({
           <TerminalTab tabId={tab.id} cwd={tab.resource} active={tab.id === activeTabId} />
         </div>
       ) : null;
+    }
+    if (tab.kind === "background") {
+      return (
+        <div key={tab.id} {...surfaceProps}>
+          <BackgroundPane />
+        </div>
+      );
     }
     if (tab.kind === "review") {
       return (

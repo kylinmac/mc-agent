@@ -1185,6 +1185,37 @@ fn command_shell_catalog(state: &AppState) -> Result<tools::shell::ShellCatalog,
     Ok(tools::shell::catalog(configured_id))
 }
 
+/// mc-agent (MC-ADR-0006): a background-command tool outcome as a tool result.
+fn background_tool_result(
+    p: &ToolsExecuteParams,
+    outcome: Result<Value, (String, String)>,
+    call_started: std::time::Instant,
+) -> tools::ToolsExecuteResult {
+    let duration_ms = call_started.elapsed().as_millis() as u64;
+    match outcome {
+        Ok(content) => tools::ToolsExecuteResult {
+            tool_call_id: p.tool_call_id.clone(),
+            ok: true,
+            is_error: None,
+            content,
+            duration_ms,
+            denied: None,
+            error_code: None,
+            command_shell_id: None,
+        },
+        Err((code, message)) => tools::ToolsExecuteResult {
+            tool_call_id: p.tool_call_id.clone(),
+            ok: false,
+            is_error: Some(true),
+            content: json!({ "error": message, "code": code }),
+            duration_ms,
+            denied: Some(false),
+            error_code: Some(code),
+            command_shell_id: None,
+        },
+    }
+}
+
 fn shell_failure_result(
     p: &ToolsExecuteParams,
     error_code: &str,
@@ -2814,6 +2845,7 @@ async fn handle_request(
                 .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
             if ok {
                 drop_session_side_data(&st, id);
+                st.background_shells.drop_session(id);
             }
             drop(st);
             worktree_rpc::spawn_orphan_cleanup(&state);
@@ -3814,6 +3846,28 @@ async fn handle_request(
             worktree_rpc::handle(&state, method, params).await
         }
 
+        // mc-agent (MC-ADR-0006): the desktop's background-command panel.
+        "backgroundShells.list" | "backgroundShells.view" | "backgroundShells.kill" => {
+            let session_id = params
+                .get("sessionId")
+                .and_then(Value::as_str)
+                .ok_or_else(|| rpc_err(1002, "sessionId required", "INVALID_PARAMS"))?
+                .to_string();
+            let shells = state.lock().await.background_shells.clone();
+            if method == "backgroundShells.list" {
+                return Ok(shells.list(&session_id));
+            }
+            let id = params
+                .get("id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| rpc_err(1002, "id required", "INVALID_PARAMS"))?;
+            let outcome = if method == "backgroundShells.view" {
+                shells.view(&session_id, id)
+            } else {
+                shells.kill(&session_id, id).await
+            };
+            outcome.map_err(|(code, message)| rpc_err(1007, message, &code))
+        }
         "tools.list" => {
             let mut definitions = tools::builtin_tool_defs();
             if let Some(items) = definitions.as_array_mut() {
@@ -3825,6 +3879,30 @@ async fn handle_request(
             let call_started = std::time::Instant::now();
             let p: ToolsExecuteParams = serde_json::from_value(params.clone())
                 .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
+            // mc-agent (MC-ADR-0006): reading or stopping the session's own
+            // background command needs no approval; the Bash call that
+            // started it already had one.
+            if matches!(
+                p.tool_name.as_str(),
+                tools::background::OUTPUT_TOOL | tools::background::KILL_TOOL
+            ) {
+                let shells = state.lock().await.background_shells.clone();
+                let outcome = if p.tool_name == tools::background::OUTPUT_TOOL {
+                    shells.read_new(&p.session_id, &p.args)
+                } else {
+                    let id = p
+                        .args
+                        .get("backgroundId")
+                        .or_else(|| p.args.get("bash_id"))
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string();
+                    shells.kill(&p.session_id, &id).await
+                };
+                let result = background_tool_result(&p, outcome, call_started);
+                return serde_json::to_value(result)
+                    .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"));
+            }
             let execution_timeout_ms = tools::effective_timeout_ms(&p.tool_name, p.timeout_ms);
 
             let remote_workspace = {
@@ -4374,6 +4452,36 @@ async fn handle_request(
                 } else if scheduled_tools::recognizes(&p.tool_name) {
                     let st = state.lock().await;
                     scheduled_tools::execute(&st, &p)
+                } else if p.tool_name == "Bash" && tools::background::requested(&p.args) {
+                    // mc-agent (MC-ADR-0006): approved like any Bash call,
+                    // then left running instead of awaited.
+                    let outcome = if remote_workspace.is_some() {
+                        Err((
+                            "BACKGROUND_UNAVAILABLE".to_string(),
+                            "background commands are not available in remote sessions".to_string(),
+                        ))
+                    } else if p.permission_scope.is_some() || p.delegation_id.is_some() {
+                        Err((
+                            "BACKGROUND_UNAVAILABLE".to_string(),
+                            "subagents cannot start background commands".to_string(),
+                        ))
+                    } else if sessions::is_contract_mode(&durable_mode) {
+                        Err((
+                            "BACKGROUND_UNAVAILABLE".to_string(),
+                            "background commands are only available in Agent mode".to_string(),
+                        ))
+                    } else if let Some(options) = bash_options.take() {
+                        let shells = state.lock().await.background_shells.clone();
+                        shells
+                            .start(ws_path.as_deref(), scratch_path.as_deref(), &p.args, options)
+                            .await
+                    } else {
+                        Err((
+                            "SHELL_NOT_FOUND".to_string(),
+                            tools::shell::SHELL_MISSING_GUIDANCE.to_string(),
+                        ))
+                    };
+                    background_tool_result(&p, outcome, call_started)
                 } else if let Some(remote) = remote_workspace.clone() {
                     remote_tools::execute_remote_tool(
                         &state,

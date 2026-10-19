@@ -199,6 +199,21 @@ export type ProjectGroupContext = {
  * mc-agent: estimated context use by kind for one session, computed by the
  * agent runtime (`context-breakdown.ts`) for the session info panel.
  */
+/** mc-agent background command (MC-ADR-0006), as host-core lists it. */
+export type BackgroundShell = {
+  id: string;
+  command: string;
+  cwd: string;
+  status: "running" | "exited" | "killed" | "failed";
+  /** Present once the command exited on its own. */
+  exitCode?: number;
+  error: string | null;
+  startedAt: number;
+  endedAt: number | null;
+  /** The last few KB of output (list only). */
+  tail?: string;
+};
+
 export type SessionContextBreakdown = {
   contextWindow: number;
   autoCompactAt: number;

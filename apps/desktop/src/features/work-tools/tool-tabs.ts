@@ -29,6 +29,11 @@ export function browserTab(): WorkPanelTab {
   return { id: `plugin:${resource}#${instanceId()}`, kind: "plugin", resource };
 }
 
+/** The background tasks tab: one per session (MC-ADR-0006). */
+export function backgroundTab(): WorkPanelTab {
+  return { id: "background", kind: "background" };
+}
+
 /** Terminal tab ids across every session's work panel. */
 export function terminalTabIds(tabs: Iterable<WorkPanelTab>): Set<string> {
   const ids = new Set<string>();

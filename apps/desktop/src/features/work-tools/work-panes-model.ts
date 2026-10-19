@@ -8,9 +8,9 @@
   Pure functions, no imports, so Node tests can load this file directly.
 */
 
-export type PaneId = "terminal" | "browser" | "files" | "review" | "other";
+export type PaneId = "terminal" | "background" | "browser" | "files" | "review" | "other";
 
-export const PANE_IDS: readonly PaneId[] = ["terminal", "browser", "files", "review", "other"];
+export const PANE_IDS: readonly PaneId[] = ["terminal", "background", "browser", "files", "review", "other"];
 
 /** The fields of a work-panel tab the grouping reads. */
 export type PaneTab = { id: string; kind: string; resource?: string };
@@ -20,6 +20,7 @@ export const FILES_VIEW_REF = "pi.file-manager/manager";
 
 export function paneOf(tab: PaneTab): PaneId {
   if (tab.kind === "terminal") return "terminal";
+  if (tab.kind === "background") return "background";
   if (tab.kind === "review") return "review";
   if (tab.kind === "file") return "files";
   if (tab.kind === "plugin" && tab.resource === BROWSER_VIEW_REF) return "browser";

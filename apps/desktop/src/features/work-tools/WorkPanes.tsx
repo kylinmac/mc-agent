@@ -5,6 +5,7 @@ import type { WorkPanelTab } from "../../lib/work-panel-tabs";
 import { cx } from "../../components/ui";
 import type { IconProps } from "../../components/icons";
 import {
+  IconActivity,
   IconChevronDown,
   IconChevronRight,
   IconClose,
@@ -42,6 +43,7 @@ import { browserTab, terminalTab } from "./tool-tabs";
 
 const PANE_ICONS: Record<PaneId, ComponentType<IconProps>> = {
   terminal: IconTerminal,
+  background: IconActivity,
   browser: IconGlobe,
   files: IconFolder,
   review: IconDiff,
@@ -190,7 +192,10 @@ export function WorkPanes({ tabs, activeTabId, terminalCwd, labelFor, iconFor, r
         const PaneIcon = PANE_ICONS[group.id];
         const paneTitle = t(`mcProject.pane${group.id[0]?.toUpperCase()}${group.id.slice(1)}`);
         // A pane holding just its own single tool needs no tab chip.
-        const showChips = !(group.tabs.length === 1 && (group.id === "review" || group.id === "files"));
+        const showChips = !(
+          group.tabs.length === 1 &&
+          (group.id === "review" || group.id === "files" || group.id === "background")
+        );
         const canAdd = (group.id === "terminal" && Boolean(terminalCwd)) || group.id === "browser";
         return (
           <Fragment key={group.id}>

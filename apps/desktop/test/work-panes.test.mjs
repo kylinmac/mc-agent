@@ -20,6 +20,7 @@ test("tabs group into one pane per tool", () => {
   assert.equal(paneOf({ id: "plugin:pi.file-manager/manager", kind: "plugin", resource: "pi.file-manager/manager" }), "files");
   assert.equal(paneOf({ id: "file:/a.md", kind: "file", resource: "/a.md" }), "files");
   assert.equal(paneOf({ id: "review", kind: "review" }), "review");
+  assert.equal(paneOf({ id: "background", kind: "background" }), "background");
   assert.equal(paneOf({ id: "subagent:d1", kind: "subagent", resource: "d1" }), "other");
   assert.equal(paneOf({ id: "plugin:x.y/v", kind: "plugin", resource: "x.y/v" }), "other");
 });
@@ -44,10 +45,10 @@ test("a pane shows the tab last selected in it, else its newest", () => {
 
 test("stored layout is normalized", () => {
   const prefs = normalizePanePrefs({ order: ["files", "nope", "files"], collapsed: ["review", 3], sizes: { files: 900, bad: 1 } });
-  assert.deepEqual(prefs.order, ["files", "terminal", "browser", "review", "other"]);
+  assert.deepEqual(prefs.order, ["files", "terminal", "background", "browser", "review", "other"]);
   assert.deepEqual(prefs.collapsed, ["review"]);
   assert.deepEqual(prefs.sizes, { files: 20 });
-  assert.deepEqual(normalizePanePrefs("junk").order, ["terminal", "browser", "files", "review", "other"]);
+  assert.deepEqual(normalizePanePrefs("junk").order, ["terminal", "background", "browser", "files", "review", "other"]);
 });
 
 test("panes move, collapse and drop by pointer position", () => {

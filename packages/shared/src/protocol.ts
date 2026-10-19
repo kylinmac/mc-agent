@@ -203,6 +203,10 @@ export const IPC = {
     terminalWrite: "pi-desktop/mc-terminal/write",
     terminalResize: "pi-desktop/mc-terminal/resize",
     terminalDispose: "pi-desktop/mc-terminal/dispose",
+    // mc-agent background commands (MC-ADR-0006).
+    backgroundShellsList: "pi-desktop/mc-background/list",
+    backgroundShellsView: "pi-desktop/mc-background/view",
+    backgroundShellsKill: "pi-desktop/mc-background/kill",
     projectFoldersMissing: "pi-desktop/project-resources/missing-folders",
     projectResourcesTemplateSave: "pi-desktop/project-resources/templates/save",
     projectResourcesTemplateDelete: "pi-desktop/project-resources/templates/delete",

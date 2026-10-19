@@ -21,6 +21,7 @@ import { registerJevIpc } from "./jev-ipc";
 import { refreshProjectGroups } from "../workspace-roots";
 import { registerProjectResourcesIpc } from "./project-resources-ipc";
 import { registerMcTerminalIpc } from "./mc-terminal-ipc";
+import { registerMcBackgroundIpc } from "./mc-background-ipc";
 import { TerminalManager } from "../mc-terminal";
 import { registerProviderIpc } from "./provider-ipc";
 import { registerScheduledIpc } from "./scheduled-ipc";
@@ -311,6 +312,21 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     registrar,
     getHost,
     getSidecar,
+    // mc-agent session info: the context breakdown of a session nothing was
+    // sent to since the app started. Only idle local sessions; the launch is
+    // the same one a manual compaction uses.
+    prepareRuntime: async (sessionId) => {
+      const host = getHost();
+      const sidecar = getSidecar();
+      if (!host || !sidecar || activeTurns.has(sessionId)) return null;
+      if (sessionId.startsWith("remote:") || sessionId.startsWith("native-pi:")) return null;
+      const settings = await host.call<any>("settings.get");
+      const detail = await host.call<{ session?: any }>("session.get", { id: sessionId });
+      if (!detail.session || detail.session.remote) return null;
+      const launch = await resolveAgentRuntimeLaunch(sessionId, detail.session, settings);
+      sidecar.setProjectInstructionRoot(sessionId, launch.workspaceRoot ?? launch.projectPath);
+      return sidecar.call("agent.prepare", launch.sidecarParams) as Promise<{ breakdown: unknown }>;
+    },
     refreshProjectGroups,
     openPath: (path) => shell.openPath(path),
     openExternal: (url) => shell.openExternal(url),
@@ -332,6 +348,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
       onExit: (termId, exitCode) => sendToRenderer(IPC.event.terminalExit, { termId, exitCode }),
     }),
   });
+  registerMcBackgroundIpc({ registrar, getHost });
   registerWorktreeIpc({
     registrar,
     getHost,

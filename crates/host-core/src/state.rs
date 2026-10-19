@@ -75,6 +75,9 @@ pub struct AppState {
     /// Session-scoped Read/Edit snapshot store (ADR 0087). Interior mutex so
     /// tool execution does not hold the AppState lock.
     pub hashline: crate::tools::HashlineStore,
+    /// mc-agent background commands (MC-ADR-0006). Interior mutex, so tool
+    /// calls and desktop reads never hold the AppState lock while they run.
+    pub background_shells: crate::tools::background::BackgroundShells,
 }
 
 impl AppState {
@@ -152,6 +155,7 @@ impl AppState {
             pending_permissions: HashMap::new(),
             pending_bash_aborts: HashMap::new(),
             hashline: crate::tools::HashlineStore::new(),
+            background_shells: Default::default(),
         })
     }
 
@@ -297,6 +301,7 @@ impl AppState {
             let _ = sender.send(true);
         }
         self.active_bash_cancellations.clear();
+        self.background_shells.kill_all();
 
         let pending_request_ids: Vec<String> = self.pending_permissions.keys().cloned().collect();
         for request_id in pending_request_ids {

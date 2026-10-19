@@ -2293,6 +2293,9 @@ describe("DesktopAgentRuntime deferred tool catalog", () => {
       "Write",
       "Glob",
       "Grep",
+      // mc-agent background commands (MC-ADR-0006).
+      "BashOutput",
+      "KillBash",
       "asktool",
       "Skill",
       "EnterPlanMode",

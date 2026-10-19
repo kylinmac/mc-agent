@@ -2,6 +2,7 @@ import { projectPlanHistory } from "./plan-history";
 import { guardRemoteInvocation } from "./remote-ipc-safety";
 import { isRemoteSession, safeSessionSummary } from "./remote-session-safety";
 import type {
+  BackgroundShell,
   ConfigSyncTestInput,
   ConfigSyncTestResult,
   ScheduledTaskRun,
@@ -1806,6 +1807,13 @@ export const api = {
       listener(payload as HostStatusEvent),
     );
   },
+  // mc-agent background commands (MC-ADR-0006).
+  backgroundShellsList: (sessionId: string) =>
+    invoke<{ shells: BackgroundShell[] }>(IPC.invoke.backgroundShellsList, { sessionId }),
+  backgroundShellsView: (sessionId: string, id: string) =>
+    invoke<BackgroundShell & { output: string; truncated: boolean }>(IPC.invoke.backgroundShellsView, { sessionId, id }),
+  backgroundShellsKill: (sessionId: string, id: string) =>
+    invoke<BackgroundShell>(IPC.invoke.backgroundShellsKill, { sessionId, id }),
   // mc-agent work-panel terminal (MC-ADR-0005).
   terminalCreate: (input: { tabId: string; cwd: string; cols?: number; rows?: number }) =>
     invoke<{ termId: string; replay: string }>(IPC.invoke.terminalCreate, input),

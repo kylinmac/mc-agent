@@ -775,9 +775,9 @@
     "zh-TW": "沒有檔案改動"
   },
   "sessionInfoWorkers": {
-    "en": "Workers",
-    "zh-CN": "派出的任务",
-    "zh-TW": "派出的任務"
+    "en": "Subtasks",
+    "zh-CN": "子任务",
+    "zh-TW": "子任務"
   },
   "sessionInfoDispatchedBy": {
     "en": "Dispatched by {{title}}",
@@ -785,9 +785,9 @@
     "zh-TW": "由「{{title}}」派出"
   },
   "sessionInfoNoWorkers": {
-    "en": "No Workers",
-    "zh-CN": "没有派出的会话",
-    "zh-TW": "沒有派出的會話"
+    "en": "No subtasks",
+    "zh-CN": "没有子任务",
+    "zh-TW": "沒有子任務"
   },
   "sessionInfoConnectors": {
     "en": "Connectors",
@@ -988,5 +988,65 @@
     "en": "{{name}} — open a conversation first",
     "zh-CN": "{{name}}：请先打开一个会话",
     "zh-TW": "{{name}}：請先開啟一個會話"
+  },
+  "sessionInfoSubagents": {
+    "en": "Subagents",
+    "zh-CN": "子代理",
+    "zh-TW": "子代理"
+  },
+  "sessionInfoWorkerSessions": {
+    "en": "Dispatched sessions",
+    "zh-CN": "派出的会话",
+    "zh-TW": "派出的會話"
+  },
+  "paneBackground": {
+    "en": "Background tasks",
+    "zh-CN": "后台任务",
+    "zh-TW": "背景任務"
+  },
+  "backgroundRunning": {
+    "en": "Running",
+    "zh-CN": "运行中",
+    "zh-TW": "執行中"
+  },
+  "backgroundKilled": {
+    "en": "Stopped",
+    "zh-CN": "已停止",
+    "zh-TW": "已停止"
+  },
+  "backgroundFailed": {
+    "en": "Failed",
+    "zh-CN": "出错",
+    "zh-TW": "出錯"
+  },
+  "backgroundExited": {
+    "en": "Exited ({{code}})",
+    "zh-CN": "已退出（{{code}}）",
+    "zh-TW": "已結束（{{code}}）"
+  },
+  "backgroundStop": {
+    "en": "Stop",
+    "zh-CN": "停止",
+    "zh-TW": "停止"
+  },
+  "backgroundCommands": {
+    "en": "Background commands",
+    "zh-CN": "后台命令",
+    "zh-TW": "背景命令"
+  },
+  "backgroundSubagents": {
+    "en": "Running subagents",
+    "zh-CN": "运行中的子代理",
+    "zh-TW": "執行中的子代理"
+  },
+  "backgroundRunningCount": {
+    "en": "{{count}} background commands running",
+    "zh-CN": "{{count}} 个后台命令运行中",
+    "zh-TW": "{{count}} 個背景命令執行中"
+  },
+  "backgroundEmpty": {
+    "en": "No background tasks. When the agent runs a dev server, watcher or long build in the background, it shows up here with its output.",
+    "zh-CN": "没有后台任务。Agent 以后台方式运行开发服务器、监听或长时间构建时，会显示在这里，并可查看输出、停止。",
+    "zh-TW": "沒有背景任務。Agent 以背景方式執行開發伺服器、監聽或長時間建置時，會顯示在這裡，並可查看輸出、停止。"
   }
 }

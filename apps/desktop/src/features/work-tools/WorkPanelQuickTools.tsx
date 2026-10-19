@@ -3,10 +3,11 @@ import { useTranslation } from "react-i18next";
 import { useAppStore } from "../../stores/app-store";
 import { TooltipButton } from "../../components/ui";
 import type { IconProps } from "../../components/icons";
-import { IconDiff, IconFolder, IconGlobe, IconTerminal } from "../../components/icons";
+import { IconActivity, IconDiff, IconFolder, IconGlobe, IconTerminal } from "../../components/icons";
 import { pluginWorkPanelTab, toolWorkPanelTab } from "../../lib/work-panel-tabs";
 import { isRemoteSession } from "../../lib/remote-session-safety";
-import { browserTab, FILES_VIEW, terminalTab } from "./tool-tabs";
+import { backgroundTab, browserTab, FILES_VIEW, terminalTab } from "./tool-tabs";
+import { useBackgroundShells } from "./background-shells";
 import { paneOf, type PaneId } from "./work-panes-model";
 import { expandPane } from "./pane-layout";
 
@@ -30,6 +31,8 @@ export function WorkPanelQuickTools() {
   const tabs = useAppStore((s) => s.workPanelTabs);
   const pluginViews = useAppStore((s) => s.pluginViews);
   const cwd = useTerminalCwd();
+  const activeSessionId = useAppStore((s) => s.activeSessionId);
+  const runningInBackground = useBackgroundShells(activeSessionId).filter((shell) => shell.status === "running").length;
   const openPanes = new Set(tabs.map(paneOf));
   const hasView = (pluginId: string, viewId: string) =>
     pluginViews.some((view) => view.pluginId === pluginId && view.viewId === viewId);
@@ -62,6 +65,15 @@ export function WorkPanelQuickTools() {
         }]
       : []),
     {
+      pane: "background",
+      icon: IconActivity,
+      label: t("mcProject.paneBackground"),
+      tooltip: runningInBackground
+        ? t("mcProject.backgroundRunningCount", { count: runningInBackground })
+        : undefined,
+      open: () => openWorkPanelTab(backgroundTab()),
+    },
+    {
       pane: "review",
       icon: IconDiff,
       label: t("panel.tabs.review"),
@@ -86,6 +98,11 @@ export function WorkPanelQuickTools() {
           }}
         >
           <tool.icon size={15} />
+          {tool.pane === "background" && runningInBackground > 0 ? (
+            <span className="mc-quick-tool-badge" aria-hidden>
+              {runningInBackground}
+            </span>
+          ) : null}
         </TooltipButton>
       ))}
     </div>

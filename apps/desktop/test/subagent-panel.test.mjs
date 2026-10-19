@@ -52,8 +52,9 @@ test("a topology node opens a real subagent tab in the work panel", () => {
   // The overlay state and its actions are gone: closing happens per tab.
   assert.doesNotMatch(storeSource, /subagentPanel/);
   assert.doesNotMatch(storeSource, /toggleSubagentPanel|closeSubagentPanel/);
-  // mc-agent (MC-ADR-0005) appends the terminal kind after subagent.
-  assert.match(tabsSource, /\| "plugin"\s*\|\s*"subagent"(?:;|\s*\/\/[^\n]*\n\s*\| "terminal";)/);
+  // mc-agent appends its own kinds after subagent: terminal (MC-ADR-0005)
+  // and background (MC-ADR-0006).
+  assert.match(tabsSource, /\| "plugin"\s*\|\s*"subagent"(?:;|\s*\/\/[^\n]*\n\s*\| "terminal")/);
   assert.match(
     tabsSource,
     /export function subagentWorkPanelTab\(\s*delegationId: string,\s*agentName\?: string,\s*\): WorkPanelTab \{/,

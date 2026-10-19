@@ -10,8 +10,7 @@ import {
   PANEL_MAX_WIDTH,
   PANEL_MIN_WIDTH,
   reorderSections,
-  SECTION_IDS,
-} from "../src/features/session-info/session-info-model.ts";
+  SECTION_IDS, conversationOffset, DOCK_GAP } from "../src/features/session-info/session-info-model.ts";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 const [card, shell, ipc] = await Promise.all([
@@ -39,8 +38,9 @@ test("one button opens and closes it, docked or floating", () => {
   assert.equal(panelMode(PANEL_DEFAULT_WIDTH + 559), "overlay");
   // A wider panel needs a wider pane before it docks.
   assert.equal(panelMode(PANEL_DEFAULT_WIDTH + 560, 400), "overlay");
-  // Docked, the conversation and the floating composer narrow by the width.
-  assert.match(card, /pane\.style\.setProperty\("--mc-info-width"/);
+  // Docked, the conversation and the floating composer move aside only by
+  // what the panel overlaps.
+  assert.match(card, /pane\.style\.setProperty\("--mc-info-offset"/);
   assert.match(card, /compactContext\(\)/);
 });
 
@@ -78,4 +78,16 @@ test("context rows are shares of the window with buffer and free space", () => {
   assert.equal(byKey.buffer.tokens, 100);
   assert.equal(byKey.free.tokens, 600);
   assert.equal(rows.at(-1).key, "free");
+});
+
+test("the docked panel sits in the margin and moves the conversation only by its overlap", () => {
+  // Wide pane: the margin already fits the panel, nothing moves.
+  assert.equal(conversationOffset(1800, 300, 760), 0);
+  // The margin is short by some amount: the band moves right just enough,
+  // keeping its width (its left edge lands panel + gap from the pane edge).
+  const offset = conversationOffset(1107, 285, 760);
+  assert.equal(offset, 255);
+  assert.equal((1107 + offset - 760) / 2, 285 + DOCK_GAP);
+  // Narrow pane: never more than the panel's own width plus the gap.
+  assert.equal(conversationOffset(900, 300, 760), 300 + DOCK_GAP);
 });
