@@ -3024,6 +3024,7 @@ sklm: {
     backgroundSubagents: "运行中的子代理",
     backgroundRunningCount: "{{count}} 个后台命令运行中",
     backgroundEmpty: "没有后台任务。Agent 以后台方式运行开发服务器、监听或长时间构建时，会显示在这里，并可查看输出、停止。",
+    sessionInfoNoBackground: "没有后台命令",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

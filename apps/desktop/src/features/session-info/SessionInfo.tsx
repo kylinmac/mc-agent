@@ -10,6 +10,9 @@ import { toolWorkPanelTab } from "../../lib/work-panel-tabs";
 import { normalizeProjectPath } from "../../lib/sidebar-session-groups";
 import { isRemoteSession } from "../../lib/remote-session-safety";
 import { formatElapsed, sessionSubagents } from "./session-subagents";
+import { focusBackgroundShell, useBackgroundShells } from "../work-tools/background-shells";
+import { backgroundTab } from "../work-tools/tool-tabs";
+import { expandPane } from "../work-tools/pane-layout";
 import { IconChevronDown, IconChevronRight, IconFolder, IconInfo, IconMore } from "../../components/icons";
 import { useProjectFolderIndex } from "../project-sidebar/useProjectFolderIndex";
 import { sessionFolderLabel } from "../project-sidebar/project-merge";
@@ -139,7 +142,12 @@ export function SessionInfo() {
   // Subtasks: this conversation's `Task` subagents, then the sessions it
   // dispatched (MC-ADR-0005 follow-up).
   const subagents = useMemo(() => sessionSubagents(messages, { turnLive: isRunning }), [messages, isRunning]);
-  const anyRunning = subagents.some((item) => item.status === "running" || item.status === "creating");
+  // The poller is shared with the work panel header, which follows the
+  // active session too, so both always ask for the same list.
+  const shells = useBackgroundShells(activeSessionId);
+  const anyRunning =
+    subagents.some((item) => item.status === "running" || item.status === "creating") ||
+    shells.some((shell) => shell.status === "running");
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!open || !anyRunning) return;
@@ -247,6 +255,7 @@ export function SessionInfo() {
     context: t("mcProject.sessionInfoContext"),
     changes: t("mcProject.sessionInfoChanges"),
     workers: t("mcProject.sessionInfoWorkers"),
+    background: t("mcProject.paneBackground"),
     connectors: t("mcProject.sessionInfoConnectors"),
   };
 
@@ -471,6 +480,45 @@ export function SessionInfo() {
         ) : null}
       </>
     ),
+    // Background commands (MC-ADR-0006); a click opens the command's output
+    // in the work panel's background pane, as Claude Code's session panel does.
+    background:
+      shells.length > 0 ? (
+        <ul className="mc-session-info-list">
+          {shells.map((shell) => {
+            const label =
+              shell.status === "running"
+                ? t("mcProject.backgroundRunning")
+                : shell.status === "killed"
+                  ? t("mcProject.backgroundKilled")
+                  : shell.status === "failed"
+                    ? t("mcProject.backgroundFailed")
+                    : t("mcProject.backgroundExited", { code: shell.exitCode ?? "?" });
+            const elapsed = formatElapsed((shell.endedAt ?? now) - shell.startedAt);
+            return (
+              <li key={shell.id}>
+                <button
+                  type="button"
+                  className="mc-session-info-subtask"
+                  data-status={shell.status}
+                  title={`${shell.command}\n${shell.cwd}`}
+                  onClick={() => {
+                    openWorkPanelTab(backgroundTab());
+                    expandPane("background");
+                    focusBackgroundShell(shell.id);
+                  }}
+                >
+                  <span className="mc-session-info-subtask-dot" aria-hidden />
+                  <span className="mc-session-info-subtask-name mc-session-info-command">{shell.command}</span>
+                  <span className="mc-session-info-subtask-meta">{`${label} · ${elapsed}`}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <div className="mc-session-info-muted">{t("mcProject.sessionInfoNoBackground")}</div>
+      ),
     connectors: (
       <div className="mc-session-info-muted">
         {connectors

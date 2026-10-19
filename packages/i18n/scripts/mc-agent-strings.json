@@ -1048,5 +1048,10 @@
     "en": "No background tasks. When the agent runs a dev server, watcher or long build in the background, it shows up here with its output.",
     "zh-CN": "没有后台任务。Agent 以后台方式运行开发服务器、监听或长时间构建时，会显示在这里，并可查看输出、停止。",
     "zh-TW": "沒有背景任務。Agent 以背景方式執行開發伺服器、監聽或長時間建置時，會顯示在這裡，並可查看輸出、停止。"
+  },
+  "sessionInfoNoBackground": {
+    "en": "No background commands",
+    "zh-CN": "没有后台命令",
+    "zh-TW": "沒有背景命令"
   }
 }

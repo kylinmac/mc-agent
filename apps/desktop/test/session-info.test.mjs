@@ -48,7 +48,14 @@ test("layout preferences are repaired, reordered and bounded", () => {
   const prefs = normalizePrefs({ open: true, width: 9999, order: ["workers", "bogus", "workers"], hidden: ["nope", "changes"] });
   assert.equal(prefs.open, true);
   assert.equal(prefs.width, PANEL_MAX_WIDTH);
-  assert.deepEqual(prefs.order, ["workers", ...SECTION_IDS.filter((id) => id !== "workers")]);
+  // Missing sections return to their default place relative to the others.
+  assert.deepEqual(prefs.order, ["environment", "context", "changes", "workers", "background", "connectors"]);
+  // A section added later (background) lands after the one it follows by
+  // default, keeping the user's own order for the rest.
+  assert.deepEqual(
+    normalizePrefs({ order: ["connectors", "workers", "environment", "context", "changes"] }).order,
+    ["connectors", "workers", "background", "environment", "context", "changes"],
+  );
   assert.deepEqual(prefs.hidden, ["changes"]);
   assert.equal(normalizePrefs(null).open, false);
   assert.equal(clampPanelWidth(10), PANEL_MIN_WIDTH);

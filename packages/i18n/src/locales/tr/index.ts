@@ -2983,6 +2983,7 @@ importConfirm: "İçe aktarılan uzantılar ajan sürecinde, ajanın kendi araç
     backgroundSubagents: "Running subagents",
     backgroundRunningCount: "{{count}} background commands running",
     backgroundEmpty: "No background tasks. When the agent runs a dev server, watcher or long build in the background, it shows up here with its output.",
+    sessionInfoNoBackground: "No background commands",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

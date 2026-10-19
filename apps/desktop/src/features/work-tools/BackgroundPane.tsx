@@ -4,7 +4,7 @@ import type { BackgroundShell } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { formatElapsed, sessionSubagents } from "../session-info/session-subagents";
-import { refreshBackgroundShells, useBackgroundShells } from "./background-shells";
+import { refreshBackgroundShells, useBackgroundFocus, useBackgroundShells } from "./background-shells";
 
 /*
   mc-agent background tasks pane (MC-ADR-0006), after Claude Code's: the
@@ -65,6 +65,18 @@ export function BackgroundPane() {
   const openSubagentTab = useAppStore((s) => s.openSubagentTab);
   const shells = useBackgroundShells(sessionId);
   const [expanded, setExpanded] = useState<string | null>(null);
+  // Opened from the session info panel: show that command's output.
+  const focus = useBackgroundFocus();
+  const listRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!focus) return;
+    setExpanded(focus.id);
+    requestAnimationFrame(() =>
+      listRef.current
+        ?.querySelector(`[data-shell-id="${CSS.escape(focus.id)}"]`)
+        ?.scrollIntoView({ block: "nearest" }),
+    );
+  }, [focus]);
   const [stopping, setStopping] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(() => Date.now());
   const subagents = useMemo(
@@ -102,7 +114,7 @@ export function BackgroundPane() {
   }
 
   return (
-    <div className="mc-bg">
+    <div className="mc-bg" ref={listRef}>
       {shells.length > 0 ? (
         <section className="mc-bg-section">
           <div className="mc-bg-heading">{t("mcProject.backgroundCommands")}</div>
@@ -111,7 +123,7 @@ export function BackgroundPane() {
               const end = shell.endedAt ?? now;
               const open = expanded === shell.id;
               return (
-                <li key={shell.id} className="mc-bg-item" data-status={shell.status}>
+                <li key={shell.id} className="mc-bg-item" data-status={shell.status} data-shell-id={shell.id}>
                   <div className="mc-bg-row">
                     <span className="mc-bg-dot" aria-hidden />
                     <button

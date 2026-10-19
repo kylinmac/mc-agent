@@ -30,7 +30,7 @@ export function panelMode(paneWidth: number, panelWidth = PANEL_DEFAULT_WIDTH): 
   return paneWidth >= panelWidth + MIN_CONVERSATION_WIDTH ? "docked" : "overlay";
 }
 
-export const SECTION_IDS = ["environment", "context", "changes", "workers", "connectors"] as const;
+export const SECTION_IDS = ["environment", "context", "changes", "workers", "background", "connectors"] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
 
 export type PanelPrefs = {
@@ -60,7 +60,13 @@ export function normalizePrefs(value: unknown): PanelPrefs {
   if (!value || typeof value !== "object") return { ...DEFAULT_PREFS, order: [...SECTION_IDS] };
   const raw = value as Record<string, unknown>;
   const order = [...new Set(sectionList(raw.order))];
-  for (const id of SECTION_IDS) if (!order.includes(id)) order.push(id);
+  // A section added in a later version lands at its default place (after
+  // the section it follows by default), not at the end of a saved order.
+  SECTION_IDS.forEach((id, index) => {
+    if (order.includes(id)) return;
+    const before = SECTION_IDS.slice(0, index).reverse().find((candidate) => order.includes(candidate));
+    order.splice(before ? order.indexOf(before) + 1 : 0, 0, id);
+  });
   return {
     open: raw.open === true,
     width: clampPanelWidth(typeof raw.width === "number" ? raw.width : PANEL_DEFAULT_WIDTH),

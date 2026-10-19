@@ -25,6 +25,31 @@ function publish(next: Snapshot) {
   for (const listener of listeners) listener();
 }
 
+/*
+  A request to show one command's output, from the session info panel: the
+  background pane expands it and scrolls it into view.
+*/
+let focusRequest: { id: string; seq: number } | null = null;
+const focusListeners = new Set<() => void>();
+
+export function focusBackgroundShell(id: string): void {
+  focusRequest = { id, seq: (focusRequest?.seq ?? 0) + 1 };
+  for (const listener of focusListeners) listener();
+}
+
+export function useBackgroundFocus(): { id: string; seq: number } | null {
+  return useSyncExternalStore(
+    (listener) => {
+      focusListeners.add(listener);
+      return () => {
+        focusListeners.delete(listener);
+      };
+    },
+    () => focusRequest,
+    () => focusRequest,
+  );
+}
+
 export async function refreshBackgroundShells(): Promise<void> {
   const sessionId = wanted;
   if (!sessionId) {

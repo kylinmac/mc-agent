@@ -803,7 +803,8 @@
   background: var(--ds-accent);
 }
 
-.mc-session-info-subtask[data-status="completed"] .mc-session-info-subtask-dot {
+.mc-session-info-subtask[data-status="completed"] .mc-session-info-subtask-dot,
+.mc-session-info-subtask[data-status="exited"] .mc-session-info-subtask-dot {
   background: var(--ds-success);
 }
 
@@ -814,7 +815,8 @@
 
 .mc-session-info-subtask[data-status="timed_out"] .mc-session-info-subtask-dot,
 .mc-session-info-subtask[data-status="aborted"] .mc-session-info-subtask-dot,
-.mc-session-info-subtask[data-status="stopped"] .mc-session-info-subtask-dot {
+.mc-session-info-subtask[data-status="stopped"] .mc-session-info-subtask-dot,
+.mc-session-info-subtask[data-status="killed"] .mc-session-info-subtask-dot {
   background: var(--ds-warning);
 }
 
@@ -823,6 +825,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.mc-session-info-command {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--text-2xs);
 }
 
 .mc-session-info-subtask-meta {

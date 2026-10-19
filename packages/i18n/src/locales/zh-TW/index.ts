@@ -2974,6 +2974,7 @@ sklm: {
     backgroundSubagents: "執行中的子代理",
     backgroundRunningCount: "{{count}} 個背景命令執行中",
     backgroundEmpty: "沒有背景任務。Agent 以背景方式執行開發伺服器、監聽或長時間建置時，會顯示在這裡，並可查看輸出、停止。",
+    sessionInfoNoBackground: "沒有背景命令",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;
