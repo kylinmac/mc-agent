@@ -138,6 +138,19 @@ host-core 也可作为内部工具子进程启动（`tools::INTERNAL_TOOL_RUNNER
 
 渲染进程能调用的通道都从 `apps/desktop/electron/main/ipc/` 注册。新增 UI 能力先加这里的 handler，再决定数据落在 host-core 还是只留在 Main。不要从渲染进程直接 spawn host-core 或 sidecar。
 
+## mc-agent 界面外壳（R11）
+
+| 功能 | 代码 |
+|---|---|
+| 左侧竖栏 | `apps/desktop/src/features/app-rail/AppRail.tsx`；样式 `apps/desktop/src/styles/app-rail.css`（含三层配色、标签栏样式） |
+| 顶部标签栏 | `apps/desktop/src/features/session-tabs/`（`tab-list.ts` 纯逻辑，`SessionTabs.tsx` 组件）；挂在 `ConversationTopbar.tsx` 与 `AppShell.tsx` 的 `main-titlebar` |
+| 设置以标签打开 | `apps/desktop/src/features/app/AppShell.tsx`（`mc-settings-tab`） |
+| 侧边栏按项目合并 | `apps/desktop/src/features/project-sidebar/`；host 侧失效目录查询 `project.folders.missing`（`rpc/resource_dirs_rpc.rs`） |
+| 提示显示在右侧 | `apps/desktop/src/components/ui.tsx` 的 `tooltipSide` |
+| 图标源文件 | `apps/desktop/build/icon.svg`、`tray-icon.svg`、`logo-dark.svg` |
+| 模板编辑 | `crates/host-core/src/template_editor.rs`；界面 `features/project-workbench/TemplateEditor.tsx` |
+| Session Orchestrator（含 `workspace`） | `plugins/session-orchestrator/` |
+
 ## mc-agent 项目管理（R1–R10）
 
 | 功能 | 代码 |
@@ -145,7 +158,7 @@ host-core 也可作为内部工具子进程启动（`tools::INTERNAL_TOOL_RUNNER
 | 资料目录标记、挂载、Worker 目标工作区校验 | `crates/host-core/src/db/project_resources.rs`；`project_groups.rs` 中的 `kind` 字段 |
 | 资料目录创建、模板、改名跟随 | `crates/host-core/src/resource_dirs.rs`；路径改写复用 `data_relocation.rs::rewrite_database_paths` |
 | 工作区说明（`workspaces.md`） | `crates/host-core/src/workspace_notes.rs` |
-| 资料清单、确认、项目目标 | `crates/host-core/src/resource_catalog.rs` |
+| 资料清单、确认、项目目标 | `crates/host-core/src/resource_catalog.rs`；分类索引 `resource_index.rs`（`INDEX.md`）；模板元数据 `resource_templates.rs` |
 | 项目任务、执行、验收 | `crates/host-core/src/project_tasks.rs` |
 | RPC | `crates/host-core/src/rpc/resource_dirs_rpc.rs`、`resource_catalog_rpc.rs`、`project_tasks_rpc.rs` |
 | Main IPC | `apps/desktop/electron/main/ipc/project-resources-ipc.ts` |

@@ -8,7 +8,7 @@
 | 首发平台 | macOS | 用户填写的产品定位 |
 | 技术底座 | Fork PI-Desktop，复用已有 Agent 和桌面功能 | 用户本轮确认 |
 | 开源方向 | 接受开源，按许可要求二次开发与分发 | 用户本轮确认 |
-| 当前阶段 | 先分析和完善文档，暂不开发 | 用户本轮确认 |
+| 当前阶段 | 开发阶段；R1–R11 已合入 `main` | 2026-10-14 用户确认开始开发，2026-10-18 确认合并 |
 | 项目结构（R1） | 工作区平等；每个项目一个资料目录，默认 `~/Documents/mc-agent/projects/<项目名>/`，随项目改名 | 2026-10-14 用户确认，[MC-ADR-0003](adr/mc-0003-equal-workspaces-and-project-home.md) |
 | 资料分类 | 由模板决定，一级子目录即分类；内置 software、blank，可在应用里编辑和新增；不做“另存为模板” | 2026-10-14 用户确认 |
 | 起始目录 | 资料目录或任一工作区，记住每个项目上次的选择 | 2026-10-14 用户确认 |
@@ -19,8 +19,11 @@
 | AI 整理执行方式（R5） | 改为直接执行：Agent 模式会话，对话中查看或停止；工作区文档只登记 INDEX.md | 2026-10-15 用户确认 |
 | 模板编辑（R1.4） | 应用内编辑分类与说明，起始文件在访达编辑；删除进 `.trash` | 2026-10-15 用户确认 |
 | 工作区说明（R10） | 资料目录根下 `workspaces.md`，每工作区一节；界面显示并注入会话的工作区列表；归首版 | 2026-10-15 用户确认 |
+| 外部资料目录 | 目录可标为 `reference`，权限与工作区相同，只做标识 | 2026-10-15 用户确认 |
+| Session Orchestrator | 插件源码放本仓库 `plugins/session-orchestrator/`（MIT，0.7.1+mc.1），只加 `workspace` 参数；从文件夹安装 | 2026-10-15 用户确认 |
+| 界面外壳（R11） | 侧边栏按项目合并；左侧竖栏分内置／插件两段、设置在底；顶部固定标签栏，对话与页面都以标签打开；通知在右上；mi 图标 | 2026-10-15～18 用户确认，[MC-ADR-0004](adr/mc-0004-app-rail-and-title-tabs.md) |
 
-当前架构决定：[MC-ADR-0002](adr/mc-0002-fork-pi-desktop.md)；项目结构：[MC-ADR-0003](adr/mc-0003-equal-workspaces-and-project-home.md)。
+当前架构决定：[MC-ADR-0002](adr/mc-0002-fork-pi-desktop.md)；项目结构：[MC-ADR-0003](adr/mc-0003-equal-workspaces-and-project-home.md)；界面外壳：[MC-ADR-0004](adr/mc-0004-app-rail-and-title-tabs.md)。
 [MC-ADR-0001](adr/mc-0001-chatgpt-architecture-pi-kernel.md) 保留历史正文，其自建底座、协议、目录与依赖约束已由 MC-ADR-0002 替代。
 
 ## 2 决策清单
