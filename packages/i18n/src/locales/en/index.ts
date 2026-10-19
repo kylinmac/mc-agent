@@ -3010,6 +3010,17 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     sessionTabsLabel: "Open conversations",
     sessionTabClose: "Close {{title}}",
     appRailHome: "Conversations",
+    kindLabel: "Create",
+    kindChat: "Chat",
+    kindChatHint: "A conversation outside any project",
+    kindSimple: "Simple project",
+    kindSimpleHint: "Folders only, like before",
+    kindManaged: "Managed project",
+    kindManagedHint: "Resource folder, documents and tasks",
+    kindManagedRemote: "Remote projects cannot have a resource folder",
+    convertToManaged: "Make it a managed project",
+    detachResources: "Detach resource folder",
+    detachConfirm: "Detach the resource folder? The project becomes a simple project; the folder and its files stay on disk, and sessions started there keep their place.",
   },
   // mc-agent:end
 } as const;

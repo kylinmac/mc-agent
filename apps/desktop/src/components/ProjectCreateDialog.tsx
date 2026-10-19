@@ -21,7 +21,7 @@ import {
   IconFolder,
   IconMonitor,
 } from "./icons";
-import { TemplatePicker } from "../features/project-workbench/TemplatePicker";
+import { ProjectKindPicker, type ProjectKind } from "../features/project-workbench/ProjectKindPicker";
 
 /** One project entry point for local folders, git checkouts and remote hosts. */
 type ProjectSource = "local" | "git" | "remote";
@@ -57,12 +57,21 @@ function ProjectCreateDialogContent({ initialRemoteHostKey }: { initialRemoteHos
   const { t } = useTranslation();
   const close = useAppStore((state) => state.closeProjectDialog);
   const createProject = useAppStore((state) => state.createProjectFromFolders);
-  // mc-agent: resource-folder template for the new project (R1.4).
+  // mc-agent: simple (folders only) or managed (resource folder from a
+  // template, R1.4); "chat" in the picker leaves the dialog instead.
+  const [kind, setKind] = useState<ProjectKind>("simple");
   const [template, setTemplate] = useState("software");
   const createProjectFromGit = useAppStore(
     (state) => state.createProjectFromGit,
   );
   const showToast = useAppStore((state) => state.showToast);
+  const newSession = useAppStore((state) => state.newSession);
+  const startChat = () => {
+    close();
+    void newSession({ projectPath: null }).catch((error: unknown) =>
+      showToast(error instanceof Error ? error.message : String(error), { variant: "error" }),
+    );
+  };
   const [source, setSource] = useState<ProjectSource>(initialRemoteHostKey ? "remote" : "local");
   const createProjectFromRemote = useAppStore((state) => state.createProjectFromRemote);
   const [remoteBrowseOpen, setRemoteBrowseOpen] = useState(false);
@@ -203,14 +212,14 @@ function ProjectCreateDialogContent({ initialRemoteHostKey }: { initialRemoteHos
           name: projectName,
           url: cloneTarget.url,
           parentPath: cloneParent,
-          template,
+          template: kind === "managed" ? template : undefined,
         });
       } else {
         await createProject({
           name: projectName,
           folders,
           primaryPath: folders[0],
-          template,
+          template: kind === "managed" ? template : undefined,
         });
       }
     } catch (error) {
@@ -301,9 +310,15 @@ function ProjectCreateDialogContent({ initialRemoteHostKey }: { initialRemoteHos
               />
             </section>
 
-            {source !== "remote" ? (
-              <TemplatePicker value={template} onChange={setTemplate} disabled={busy} />
-            ) : null}
+            <ProjectKindPicker
+              kind={source === "remote" ? "simple" : kind}
+              onKindChange={setKind}
+              template={template}
+              onTemplateChange={setTemplate}
+              onStartChat={startChat}
+              remote={source === "remote"}
+              disabled={busy}
+            />
 
             <section
               className="project-create-dialog-section project-create-dialog-source-section"

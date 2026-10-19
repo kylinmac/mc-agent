@@ -2944,6 +2944,17 @@ sklm: {
     sessionTabsLabel: "已打开的对话",
     sessionTabClose: "关闭 {{title}}",
     appRailHome: "会话",
+    kindLabel: "新建",
+    kindChat: "对话",
+    kindChatHint: "不属于任何项目的对话",
+    kindSimple: "简单项目",
+    kindSimpleHint: "只有文件夹，和原来一样",
+    kindManaged: "管理项目",
+    kindManagedHint: "资料目录、文档与任务",
+    kindManagedRemote: "远程项目不能有资料目录",
+    convertToManaged: "转为管理项目",
+    detachResources: "解除资料目录",
+    detachConfirm: "解除资料目录？项目会变回简单项目；资料目录和里面的文件保留在磁盘上，在那里开过的会话也不受影响。",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

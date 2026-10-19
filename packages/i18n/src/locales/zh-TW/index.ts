@@ -2894,6 +2894,17 @@ sklm: {
     sessionTabsLabel: "已開啟的對話",
     sessionTabClose: "關閉 {{title}}",
     appRailHome: "會話",
+    kindLabel: "新建",
+    kindChat: "對話",
+    kindChatHint: "不屬於任何專案的對話",
+    kindSimple: "簡單專案",
+    kindSimpleHint: "只有資料夾，和原來一樣",
+    kindManaged: "管理專案",
+    kindManagedHint: "資料目錄、文件與任務",
+    kindManagedRemote: "遠端專案不能有資料目錄",
+    convertToManaged: "轉為管理專案",
+    detachResources: "解除資料目錄",
+    detachConfirm: "解除資料目錄？專案會變回簡單專案；資料目錄和裡面的檔案保留在磁碟上，在那裡開過的會話也不受影響。",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

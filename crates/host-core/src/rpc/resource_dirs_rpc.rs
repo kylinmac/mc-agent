@@ -162,6 +162,13 @@ pub fn home(state: &mut AppState, method: &str, params: &Value) -> Result<Value,
                 .map_err(invalid)?;
             Ok(json!({ "group": group }))
         }
+        "project.resources.home.detach" => {
+            let group = state
+                .db
+                .detach_project_resource_root(&group.id)
+                .map_err(invalid)?;
+            Ok(json!({ "group": group }))
+        }
         "project.resources.home.relocate" => {
             let moved =
                 resource_dirs::relocate_into_home(&state.db, &home, &group.id).map_err(invalid)?;

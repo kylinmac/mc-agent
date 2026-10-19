@@ -362,6 +362,15 @@ export function registerProjectResourcesIpc({
       return result;
     },
   );
+
+  registrar.handle(IPC.invoke.projectResourcesDetach, async (input: { groupId?: unknown } = {}) => {
+    const groupId = groupIdOf(input);
+    const host = getHost();
+    if (!host) throw new Error("host unavailable");
+    const result = await host.call("project.resources.home.detach", { groupId });
+    void refreshProjectGroups(host);
+    return result;
+  });
 }
 
 const TASK_OPERATIONS = new Set([

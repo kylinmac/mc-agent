@@ -8,6 +8,7 @@ import { shortenPath, type ProjectIndexItem } from "../../lib/project-archive";
 import { chooseStartFolder, rememberedStartFolder, rememberStartFolder } from "./start-folder";
 import { ProjectOverview } from "./ProjectOverview";
 import { ResourceCatalog } from "./ResourceCatalog";
+import { ConvertToManaged } from "./ConvertToManaged";
 import { TemplateEditor } from "./TemplateEditor";
 import { TemplateMigration } from "./TemplateMigration";
 import { TaskBoard } from "./TaskBoard";
@@ -40,10 +41,6 @@ export function ProjectWorkbench({
     () => project.roots.filter((root) => root.kind !== "resources"),
     [project.roots],
   );
-  const [preparing, setPreparing] = useState(false);
-  const rootsKey = project.roots.map((root) => root.path).join("\n");
-  // Every folder of the project is gone (e.g. a stale record): no backfill.
-  const [foldersMissing, setFoldersMissing] = useState(false);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [listing, setListing] = useState<ResourceListing | null>(null);
@@ -54,45 +51,24 @@ export function ProjectWorkbench({
     chooseStartFolder(project.roots, project.path, rememberedStartFolder(project.groupId)),
   );
   const remote = project.path.startsWith("remote-project:");
-  // Callers pass inline handlers; refs keep the backfill effect from
-  // restarting (and dropping its result) on every parent render.
+  // Callers pass inline handlers; refs keep async results from calling a
+  // stale handler.
   const onProjectChangedRef = useRef(onProjectChanged);
   const onErrorRef = useRef(onError);
   onProjectChangedRef.current = onProjectChanged;
   onErrorRef.current = onError;
 
-  // Backfill: an existing local project gets an empty resource folder once.
-  useEffect(() => {
-    if (resources || remote || !project.groupId || project.archived) return;
-    let canceled = false;
-    setPreparing(true);
-    const trim = (path: string) => path.replace(/[\\/]+$/, "");
-    void api
-      .missingProjectFolders()
-      .then(({ folders }) => {
-        const missing = new Set(folders.map(trim));
-        return project.roots.length > 0 && project.roots.every((root) => missing.has(trim(root.path)));
-      })
-      .catch(() => false)
-      .then((gone) => {
-        if (canceled) return null;
-        setFoldersMissing(gone);
-        return gone ? null : api.ensureProjectResources(project.groupId);
-      })
-      .then((result) => {
-        if (!canceled && result) onProjectChangedRef.current(result.group.primaryPath);
-      })
-      .catch((error: unknown) => {
-        if (!canceled) onErrorRef.current(t("mcProject.resourcesError", { message: messageOf(error) }));
-      })
-      .finally(() => {
-        if (!canceled) setPreparing(false);
-      });
-    return () => {
-      canceled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- rootsKey names project.roots, a new array each render
-  }, [resources, remote, project.groupId, project.archived, rootsKey, t]);
+  // A project without a resource folder is a simple project; it becomes a
+  // managed one only through ConvertToManaged (MC-ADR-0003 decision 12).
+  const detach = async () => {
+    if (!window.confirm(t("mcProject.detachConfirm"))) return;
+    try {
+      const { group } = await api.detachProjectResources(project.groupId);
+      onProjectChangedRef.current(group.primaryPath);
+    } catch (error) {
+      onError(messageOf(error));
+    }
+  };
 
   const loadNotes = useCallback(() => {
     if (!resources) return () => {};
@@ -198,11 +174,16 @@ export function ProjectWorkbench({
             >
               {t("mcProject.reveal")}
             </Button>
+            <Button size="sm" variant="ghost" onClick={() => void detach()}>
+              {t("mcProject.detachResources")}
+            </Button>
           </>
         ) : (
-          <span className="mc-workbench-muted">
-            {foldersMissing ? t("mcProject.foldersMissing") : preparing ? t("mcProject.resourcesPreparing") : ""}
-          </span>
+          <ConvertToManaged
+            groupId={project.groupId}
+            onConverted={(primaryPath) => onProjectChangedRef.current(primaryPath)}
+            onError={onError}
+          />
         )}
       </div>
 
@@ -215,6 +196,7 @@ export function ProjectWorkbench({
               <span className="mc-workbench-path" title={root.path}>
                 <IconFolder size={12} aria-hidden />
                 <span>{name}</span>
+                {resources ? (<>
                 <span className={`mc-workbench-tag is-${root.kind ?? "workspace"}`}>
                   {root.kind === "reference" ? t("mcProject.kindReference") : t("mcProject.kindWorkspace")}
                 </span>
@@ -236,7 +218,9 @@ export function ProjectWorkbench({
                 >
                   {root.kind === "reference" ? t("mcProject.setAsWorkspace") : t("mcProject.setAsReference")}
                 </Button>
+                </>) : null}
               </span>
+              {resources ? (
               <input
                 className="mc-workbench-description"
                 aria-label={t("mcProject.workspaceDescriptionLabel", { name })}
@@ -252,6 +236,7 @@ export function ProjectWorkbench({
                   if (event.key === "Enter") event.currentTarget.blur();
                 }}
               />
+              ) : null}
             </li>
           );
         })}
@@ -301,7 +286,9 @@ export function ProjectWorkbench({
           onError={onError}
         />
       ) : null}
-      <TemplateEditor onChanged={() => setTemplatesRevision((value) => value + 1)} onError={onError} />
+      {resources ? (
+        <TemplateEditor onChanged={() => setTemplatesRevision((value) => value + 1)} onError={onError} />
+      ) : null}
 
       <div className="mc-workbench-row">
         <label className="mc-workbench-label" htmlFor={`mc-start-${project.groupId}`}>

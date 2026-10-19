@@ -126,6 +126,32 @@ impl Database {
         transaction.commit()?;
         Ok(group)
     }
+
+    /// Turn a managed project back into a simple one (MC-ADR-0003 decision
+    /// 12): drop the resource root from the group and make the next folder
+    /// primary. The folder and its files stay on disk; sessions started there
+    /// keep their path. A project must keep at least one workspace.
+    pub fn detach_project_resource_root(&self, id: &str) -> Result<ProjectGroupRecord> {
+        let Some(mut group) = self.group_by_id(id.trim())? else {
+            return Err(anyhow!("project group not found"));
+        };
+        if group.resource_root().is_none() {
+            return Err(anyhow!("project has no resource folder"));
+        }
+        if group.roots.len() < 2 {
+            return Err(anyhow!(
+                "add a workspace before detaching the resource folder"
+            ));
+        }
+        group.roots.remove(0);
+        for (position, root) in group.roots.iter_mut().enumerate() {
+            root.position = position as i64;
+        }
+        group.primary_path = group.roots[0].path.clone();
+        group.updated_at = crate::db::now_ms();
+        self.store_project_group(&group)?;
+        Ok(group)
+    }
 }
 
 #[cfg(test)]
@@ -365,6 +391,57 @@ mod tests {
         assert!(serde_json::to_value(&back).unwrap()["roots"][2]
             .get("kind")
             .is_none());
+    }
+
+    #[test]
+    fn detaching_returns_a_simple_project_and_keeps_the_folder() {
+        let f = fixture();
+        let group =
+            f.db.create_project_group("Split", &[f.web.clone(), f.server.clone()])
+                .unwrap();
+        assert!(f.db.detach_project_resource_root(&group.id).is_err());
+        f.db.attach_project_resource_root(&group.id, &f.resources)
+            .unwrap();
+
+        let simple = f.db.detach_project_resource_root(&group.id).unwrap();
+        assert!(simple.resource_root().is_none());
+        assert_eq!(simple.primary_path, f.web);
+        assert_eq!(
+            simple
+                .roots
+                .iter()
+                .map(|root| root.path.as_str())
+                .collect::<Vec<_>>(),
+            [f.web.as_str(), f.server.as_str()]
+        );
+        assert_eq!(
+            simple
+                .roots
+                .iter()
+                .map(|root| root.position)
+                .collect::<Vec<_>>(),
+            [0, 1]
+        );
+        assert!(std::path::Path::new(&f.resources).is_dir());
+        let stored = f.db.project_group(&group.id).unwrap().unwrap();
+        assert_eq!(stored.primary_path, simple.primary_path);
+        assert!(stored.resource_root().is_none());
+
+        // Attaching again works: simple and managed are reversible.
+        f.db.attach_project_resource_root(&group.id, &f.resources)
+            .unwrap();
+    }
+
+    #[test]
+    fn a_resource_folder_alone_cannot_be_detached() {
+        let f = fixture();
+        let group =
+            f.db.create_project_group("Solo", std::slice::from_ref(&f.web))
+                .unwrap();
+        f.db.attach_project_resource_root(&group.id, &f.resources)
+            .unwrap();
+        f.db.remove_project_from_group(&group.id, &f.web).unwrap();
+        assert!(f.db.detach_project_resource_root(&group.id).is_err());
     }
 
     #[test]

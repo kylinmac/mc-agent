@@ -895,6 +895,9 @@ export const api = {
     ),
   /** Local project folders on record that no longer exist (mc-agent). */
   missingProjectFolders: () => invoke<{ folders: string[] }>(IPC.invoke.projectFoldersMissing),
+  /** Turn a managed project back into a simple one; the folder stays on disk. */
+  detachProjectResources: (groupId: string) =>
+    invoke<{ group: ProjectGroupRecord }>(IPC.invoke.projectResourcesDetach, { groupId }),
   saveResourceTemplate: (template: ResourceTemplateDraft) =>
     invoke<{ home: string; templates: ResourceTemplateSummary[] }>(
       IPC.invoke.projectResourcesTemplateSave,

@@ -217,6 +217,7 @@ export const IPC = {
     projectResourcesAdoptTemplate: "pi-desktop/project-resources/home/adopt-template",
     projectResourcesRelocate: "pi-desktop/project-resources/home/relocate",
     projectRootKindSet: "pi-desktop/project-resources/home/set-root-kind",
+    projectResourcesDetach: "pi-desktop/project-resources/home/detach",
     projectWorkspaceNoteSet: "pi-desktop/project-resources/workspace-note/set",
     projectGroupMemoryGet: "pi-desktop/project-group/memory/get",
     projectGroupMemorySave: "pi-desktop/project-group/memory/save",

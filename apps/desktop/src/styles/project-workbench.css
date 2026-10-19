@@ -240,3 +240,53 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Create dialog: chat / simple project / managed project. */
+.mc-kind-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mc-kind-option {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--ds-text-secondary);
+  text-align: left;
+  transition: background var(--motion-duration-fast) var(--motion-ease-out),
+    border-color var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.mc-kind-option:hover:not(:disabled) {
+  background: var(--ds-bg-hover);
+}
+
+.mc-kind-option.is-active {
+  border-color: var(--ds-text-primary);
+  color: var(--ds-text-primary);
+}
+
+.mc-kind-option:disabled {
+  opacity: 0.5;
+}
+
+.mc-kind-option-label {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.mc-kind-option-hint {
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+}
+
+.mc-kind-picker .mc-template-picker {
+  margin-top: 10px;
+}

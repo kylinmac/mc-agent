@@ -648,5 +648,60 @@
     "en": "Conversations",
     "zh-CN": "会话",
     "zh-TW": "會話"
+  },
+  "kindLabel": {
+    "en": "Create",
+    "zh-CN": "新建",
+    "zh-TW": "新建"
+  },
+  "kindChat": {
+    "en": "Chat",
+    "zh-CN": "对话",
+    "zh-TW": "對話"
+  },
+  "kindChatHint": {
+    "en": "A conversation outside any project",
+    "zh-CN": "不属于任何项目的对话",
+    "zh-TW": "不屬於任何專案的對話"
+  },
+  "kindSimple": {
+    "en": "Simple project",
+    "zh-CN": "简单项目",
+    "zh-TW": "簡單專案"
+  },
+  "kindSimpleHint": {
+    "en": "Folders only, like before",
+    "zh-CN": "只有文件夹，和原来一样",
+    "zh-TW": "只有資料夾，和原來一樣"
+  },
+  "kindManaged": {
+    "en": "Managed project",
+    "zh-CN": "管理项目",
+    "zh-TW": "管理專案"
+  },
+  "kindManagedHint": {
+    "en": "Resource folder, documents and tasks",
+    "zh-CN": "资料目录、文档与任务",
+    "zh-TW": "資料目錄、文件與任務"
+  },
+  "kindManagedRemote": {
+    "en": "Remote projects cannot have a resource folder",
+    "zh-CN": "远程项目不能有资料目录",
+    "zh-TW": "遠端專案不能有資料目錄"
+  },
+  "convertToManaged": {
+    "en": "Make it a managed project",
+    "zh-CN": "转为管理项目",
+    "zh-TW": "轉為管理專案"
+  },
+  "detachResources": {
+    "en": "Detach resource folder",
+    "zh-CN": "解除资料目录",
+    "zh-TW": "解除資料目錄"
+  },
+  "detachConfirm": {
+    "en": "Detach the resource folder? The project becomes a simple project; the folder and its files stay on disk, and sessions started there keep their place.",
+    "zh-CN": "解除资料目录？项目会变回简单项目；资料目录和里面的文件保留在磁盘上，在那里开过的会话也不受影响。",
+    "zh-TW": "解除資料目錄？專案會變回簡單專案；資料目錄和裡面的檔案保留在磁碟上，在那裡開過的會話也不受影響。"
   }
 }

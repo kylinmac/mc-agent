@@ -120,15 +120,17 @@ async function createNamedProjectGroup(
   }
   const created = await api.createProjectGroup(normalizedName, orderedFolders);
   if (!runtime.navigationIntentIsCurrent(intent)) return;
-  // mc-agent (MC-ADR-0003): every new project gets its resource folder from the
-  // chosen template and opens there. A failure keeps the project; the project
-  // workbench retries the backfill when the project is opened.
-  const withResources = await api
-    .ensureProjectResources(created.group.id, template)
-    .catch((error: unknown) => {
-      get().showToast(error instanceof Error ? error.message : String(error), { variant: "error" });
-      return null;
-    });
+  // mc-agent (MC-ADR-0003): a managed project (a template was chosen) gets
+  // its resource folder and opens there; a simple project stays folders-only.
+  // A failure keeps the project, which the workbench can still convert.
+  const withResources = template
+    ? await api
+        .ensureProjectResources(created.group.id, template)
+        .catch((error: unknown) => {
+          get().showToast(error instanceof Error ? error.message : String(error), { variant: "error" });
+          return null;
+        })
+    : null;
   if (!runtime.navigationIntentIsCurrent(intent)) return;
   const groupPrimary = withResources?.group.primaryPath || created.group.primaryPath || primary;
   const workspace = await get().activateProject(groupPrimary, {

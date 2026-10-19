@@ -193,6 +193,18 @@ pub fn ensure_project_resources(
     }
     let projects = home.join(PROJECTS_DIR);
     fs::create_dir_all(&projects)?;
+    // A project that was detached (MC-ADR-0003 decision 12) and is converted
+    // back gets its old folder again, with its indexes and notes, as long as
+    // no other project has claimed it meanwhile.
+    let previous = projects.join(directory_name(&group.name));
+    if crate::resource_templates::read_project_meta(&previous)
+        .ok()
+        .flatten()
+        .is_some()
+        && !folder_in_any_group(db, &previous)?
+    {
+        return db.attach_project_resource_root(&group.id, &previous.to_string_lossy());
+    }
     let target = create_unique_dir(&projects, &directory_name(&group.name))?;
     let attached = copy_template(&source, &target)
         .and_then(|()| {
@@ -209,6 +221,19 @@ pub fn ensure_project_resources(
             Err(error)
         }
     }
+}
+
+fn folder_in_any_group(db: &Database, folder: &Path) -> Result<bool> {
+    let wanted = crate::db::canonical_project_path(&folder.to_string_lossy());
+    // Legacy entries are only folders someone opened once (a detached
+    // resource folder keeps one); they do not claim it.
+    Ok(db.list_project_groups()?.iter().any(|group| {
+        !group.legacy
+            && group
+                .roots
+                .iter()
+                .any(|root| Some(&root.path) == wanted.as_ref())
+    }))
 }
 
 /// Where a renamed project's resource folder moved (R1.3).
@@ -616,6 +641,28 @@ mod tests {
             .unwrap();
         assert_eq!(meta.template, "blank");
         assert_eq!(fs::read_dir(f.home.join("projects")).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn converting_back_reattaches_the_detached_folder() {
+        let f = fixture();
+        let group =
+            f.db.create_project_group("App", std::slice::from_ref(&f.web))
+                .unwrap();
+        let managed = ensure_project_resources(&f.db, &f.home, &group.id, "software").unwrap();
+        let folder = managed.resource_root().unwrap().path.clone();
+        fs::write(
+            Path::new(&folder).join("requirements/INDEX.md"),
+            "# Index\n",
+        )
+        .unwrap();
+
+        f.db.detach_project_resource_root(&group.id).unwrap();
+
+        let again = ensure_project_resources(&f.db, &f.home, &group.id, "blank").unwrap();
+        assert_eq!(again.resource_root().unwrap().path, folder);
+        assert!(Path::new(&folder).join("requirements/INDEX.md").is_file());
+        assert!(!f.home.join("projects/App-2").exists());
     }
 
     #[test]
