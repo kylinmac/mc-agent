@@ -2902,6 +2902,7 @@ importConfirm: "İçe aktarılan uzantılar ajan sürecinde, ajanın kendi araç
     appRailLabel: "App",
     sessionTabsLabel: "Open conversations",
     sessionTabClose: "Close {{title}}",
+    appRailHome: "Conversations",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

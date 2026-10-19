@@ -2893,6 +2893,7 @@ sklm: {
     appRailLabel: "應用",
     sessionTabsLabel: "已開啟的對話",
     sessionTabClose: "關閉 {{title}}",
+    appRailHome: "會話",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

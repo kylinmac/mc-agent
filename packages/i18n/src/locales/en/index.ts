@@ -3009,6 +3009,7 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     appRailLabel: "App",
     sessionTabsLabel: "Open conversations",
     sessionTabClose: "Close {{title}}",
+    appRailHome: "Conversations",
   },
   // mc-agent:end
 } as const;

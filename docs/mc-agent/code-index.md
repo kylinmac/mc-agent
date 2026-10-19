@@ -144,7 +144,7 @@ host-core 也可作为内部工具子进程启动（`tools::INTERNAL_TOOL_RUNNER
 |---|---|
 | 左侧竖栏 | `apps/desktop/src/features/app-rail/AppRail.tsx`；样式 `apps/desktop/src/styles/app-rail.css`（含三层配色、标签栏样式） |
 | 顶部标签栏 | `apps/desktop/src/features/session-tabs/`（`tab-list.ts` 纯逻辑，`SessionTabs.tsx` 组件）；挂在 `ConversationTopbar.tsx` 与 `AppShell.tsx` 的 `main-titlebar` |
-| 设置以标签打开 | `apps/desktop/src/features/app/AppShell.tsx`（`mc-settings-tab`） |
+| 设置以标签打开 | `apps/desktop/src/features/app/AppShell.tsx`（`mc-settings-tab`）；设置导航进侧边栏 `features/sidebar-slot/SidebarSlot.tsx` |
 | 侧边栏按项目合并 | `apps/desktop/src/features/project-sidebar/`；host 侧失效目录查询 `project.folders.missing`（`rpc/resource_dirs_rpc.rs`） |
 | 提示显示在右侧 | `apps/desktop/src/components/ui.tsx` 的 `tooltipSide` |
 | 图标源文件 | `apps/desktop/build/icon.svg`、`tray-icon.svg`、`logo-dark.svg` |

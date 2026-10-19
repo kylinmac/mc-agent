@@ -1,14 +1,16 @@
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../../stores/app-store";
 import { TooltipButton } from "../../components/ui";
-import { IconClock, IconPlug, IconSettings } from "../../components/icons";
+import { IconClock, IconHome, IconPlug, IconSettings } from "../../components/icons";
 
 /*
   mc-agent: a narrow rail at the window's left edge holding the app-level
   destinations that used to sit in the sidebar footer (plugins, scheduled
   tasks, settings; notifications moved to the title bar's right end). Each
   opens as a tab in the title bar. It stays visible while the sidebar is
-  collapsed. Two stacked sections: the built-in destinations on top, then,
+  collapsed. Home on top returns to the conversations (and the sidebar's
+  conversation list, which settings replaces with its own nav). Two stacked
+  sections: the built-in destinations on top, then,
   below a divider, a slot reserved for plugin-contributed entries (empty
   until plugins can register rail items). Settings alone sits at the bottom,
   like an account slot.
@@ -24,6 +26,18 @@ export function AppRail() {
     <nav className="app-rail" aria-label={t("mcProject.appRailLabel")}>
       <div className="app-rail-drag" aria-hidden />
       <div className="footer-actions app-rail-actions no-drag">
+        <TooltipButton
+          type="button"
+          tooltipSide="right"
+          className={`footer-action ${page !== "settings" ? "active" : ""}`}
+          data-nav="rail-home"
+          tooltip={t("mcProject.appRailHome")}
+          ariaLabel={t("mcProject.appRailHome")}
+          onClick={() => setPage("chat")}
+          aria-pressed={page !== "settings"}
+        >
+          <IconHome size={16} aria-hidden />
+        </TooltipButton>
         <TooltipButton
           type="button"
           tooltipSide="right"

@@ -73,6 +73,7 @@ import {
   sidebarResetWidth,
 } from "../lib/sidebar-resize";
 import { BrandLogo } from "./BrandLogo";
+import { SidebarSlotHost } from "../features/sidebar-slot/SidebarSlot";
 import { ProjectEditDialog } from "./ProjectEditDialog";
 import {
   WorktreeBadge,
@@ -2624,6 +2625,8 @@ export function Sidebar({
           </TooltipButton>
         </div>
       </div>
+      {/* mc-agent: pages such as settings put their navigation here. */}
+      <SidebarSlotHost />
       {renderFloatingMenu()}
       {sessionHoverCard ? (
         <SessionHoverCard

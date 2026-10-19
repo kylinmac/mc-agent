@@ -2908,6 +2908,7 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
     appRailLabel: "App",
     sessionTabsLabel: "Open conversations",
     sessionTabClose: "Close {{title}}",
+    appRailHome: "Conversations",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

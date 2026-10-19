@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { IntoSidebarSlot } from "../sidebar-slot/SidebarSlot";
 import { useTranslation } from "react-i18next";
 import type {
   AppSettings,
@@ -287,6 +288,8 @@ export function SettingsPage() {
   return (
     <div className="settings-shell settings-shell-full">
       <div className="settings-titlebar" aria-hidden="true" />
+      {/* mc-agent: the nav takes the sidebar's place while settings is a tab. */}
+      <IntoSidebarSlot>
       <aside className="settings-nav sidebar-surface" aria-label={t("settings.title")}>
         <div className="settings-nav-top drag">
           <div className="settings-search-wrap no-drag">
@@ -373,6 +376,7 @@ export function SettingsPage() {
           </button>
         </div>
       </aside>
+      </IntoSidebarSlot>
 
       <div className="settings-content" ref={contentRef}>
         <div className="settings-content-inner">

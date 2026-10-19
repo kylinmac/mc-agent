@@ -23,7 +23,7 @@ test("the macOS traffic lights have one geometry owner across processes", () => 
   assert.doesNotMatch(windowSource, /trafficLightPosition:\s*\{\s*x:/);
   assert.match(
     sharedSource,
-    /export const MAC_TRAFFIC_LIGHT_POSITION = \{ x: 16, y: 16 \}/,
+    /export const MAC_TRAFFIC_LIGHT_POSITION = \{ x: 16, y: 12 \}/,
   );
   // The footprint the renderer reserves is derived from the position the main
   // process applies, so moving the buttons moves the reserve with them.

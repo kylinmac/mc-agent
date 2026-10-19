@@ -643,5 +643,10 @@
     "en": "Close {{title}}",
     "zh-CN": "关闭 {{title}}",
     "zh-TW": "關閉 {{title}}"
+  },
+  "appRailHome": {
+    "en": "Conversations",
+    "zh-CN": "会话",
+    "zh-TW": "會話"
   }
 }

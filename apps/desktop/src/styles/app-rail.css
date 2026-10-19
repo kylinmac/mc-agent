@@ -8,6 +8,22 @@
    apply. */
 :root {
   --mc-app-rail-width: 52px;
+}
+
+/* A slimmer title bar than upstream's 46px, for the main window only: plugin
+   panel windows keep their own 46px drag-band contract. The traffic lights
+   move up to match (MAC_TRAFFIC_LIGHT_POSITION in @pi-desktop/shared). */
+.app-shell {
+  --ds-toolbar-height: 38px;
+}
+
+/* Upstream pins the work-panel toggle at 9px, the centre of a 46px bar;
+   centre it on whatever the title bar's height is. */
+.app-shell .app-work-panel-toggle {
+  top: calc((var(--ds-toolbar-height) - var(--ds-work-panel-toggle-size)) / 2);
+}
+
+:root {
   --mc-chrome-bg: color-mix(in oklab, var(--ds-bg-primary) 92%, #000);
   --mc-card-bg: color-mix(in oklab, var(--ds-bg-primary) 97%, #000);
   --mc-card-border: color-mix(in oklab, var(--ds-text-primary) 7%, transparent);
@@ -255,4 +271,56 @@
   height: 24px;
   flex-basis: 24px;
   margin-left: 4px;
+}
+
+/* Settings tab: settings' own nav takes the sidebar's place (features/
+   sidebar-slot); the rail's home button brings the conversation list back. */
+.mc-sidebar-slot {
+  display: none;
+}
+
+.app-shell:has(.mc-settings-tab) .sidebar .sidebar-body {
+  display: none;
+}
+
+.app-shell:has(.mc-settings-tab) .sidebar .mc-sidebar-slot {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-rail ~ .sidebar .mc-sidebar-slot {
+  border-top: 1px solid var(--mc-card-border);
+  border-left: 1px solid var(--mc-card-border);
+  border-top-left-radius: 12px;
+  background: var(--mc-card-bg);
+}
+
+.mc-sidebar-slot .settings-nav {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+  background: none;
+}
+
+.mc-sidebar-slot .settings-nav-top {
+  padding: 8px 8px 6px;
+}
+
+.mc-sidebar-slot .settings-nav-footer {
+  display: none;
+}
+
+/* Settings content: no page heading, ordinary spacing under the title bar. */
+.mc-settings-tab .settings-section-title {
+  display: none;
+}
+
+.mc-settings-tab .settings-content {
+  padding-top: calc(var(--ds-toolbar-height) + 20px);
 }

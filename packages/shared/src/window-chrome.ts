@@ -15,7 +15,8 @@
  * Position handed to Electron's `trafficLightPosition`. The first button's
  * left edge lands on `x`; `y` is measured from the window's top edge.
  */
-export const MAC_TRAFFIC_LIGHT_POSITION = { x: 16, y: 16 } as const;
+// mc-agent: y 12 centres the 14 DIP buttons on the 38px title bar (MC-ADR-0004).
+export const MAC_TRAFFIC_LIGHT_POSITION = { x: 16, y: 12 } as const;
 
 /**
  * Width of the three-button cluster: first button's left edge to last

@@ -103,6 +103,7 @@ import {
   X,
   type LucideIcon,
   type LucideProps,
+  House,
 } from "lucide-react";
 
 export type IconProps = LucideProps & SVGProps<SVGSVGElement>;
@@ -147,6 +148,8 @@ function icon(Lucide: LucideIcon) {
 }
 
 export const IconPlus = icon(Plus);
+// mc-agent: app rail "home" (back to the conversation list).
+export const IconHome = icon(House);
 export const IconPower = icon(Power);
 export const IconPlay = icon(Play);
 export const IconBookOpen = icon(BookOpen);

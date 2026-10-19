@@ -2943,6 +2943,7 @@ sklm: {
     appRailLabel: "应用",
     sessionTabsLabel: "已打开的对话",
     sessionTabClose: "关闭 {{title}}",
+    appRailHome: "会话",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

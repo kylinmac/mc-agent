@@ -15,10 +15,11 @@
 1. **左侧竖栏。** 新组件 `features/app-rail/AppRail.tsx` 挂在 `AppShell` 的聊天外壳最前面，侧边栏收起时仍在。上段为内置入口（扩展、定时任务），分隔线下为插件预留区（`data-slot="app-rail-plugins"`，目前为空，留给插件注册入口），设置单独在底部。按钮提示显示在右侧（`TooltipButton` 新增可选 `tooltipSide`）。
 2. **三层配色。** 竖栏与标题栏用最深的 chrome 色，侧边栏主体是带圆角的卡片，主区域不变。颜色由主题原有颜色混合得出，第三方主题仍生效；macOS 侧边栏不再使用毛玻璃。
 3. **顶部标签栏。** `features/session-tabs/` 提供一条标签栏，同时挂在对话页顶栏（`ConversationTopbar`）和其他页面的 `main-titlebar`。标签是会话 ID 或 `page:<页面>`（扩展、定时任务、设置），按打开先后排列，最多 20 个，存在本机浏览器存储；被删除的会话自动去掉。原标题代码保留，有标签栏时用样式隐藏，减少上游改动。
-4. **设置以标签打开。** 设置页改为在主区域的路由面板里渲染（`mc-settings-tab`），聊天外壳不再隐藏；设置自己的标题带和“返回应用”按钮在标签模式下隐藏。
+4. **设置以标签打开。** 设置页改为在主区域的路由面板里渲染（`mc-settings-tab`），聊天外壳不再隐藏；设置自己的标题带、页面大标题和“返回应用”按钮在标签模式下隐藏。设置导航通过 `features/sidebar-slot/` 渲染进侧边栏的插槽，替换会话列表；侧边栏收起时留在设置页内。竖栏顶部新增“会话”（主页）图标，切回会话列表。
 5. **通知在右上。** 通知按钮放在标签栏右端；位于窗口上半部且靠右时，弹层在按钮下方右对齐。
 6. **侧边栏按项目合并。** `features/project-sidebar/` 把同一项目组各目录的条目合成一个，会话前标起始目录；目录已不存在且没有会话的条目隐藏。是否存在由 host 的 `project.folders.missing` 判断，只查已登记的项目目录，不接受渲染进程传入路径。
-7. **品牌。** 应用图标、菜单栏图标和应用内 logo 换成 mi 字形（源文件 `apps/desktop/build/*.svg`），外壳名称 `app.shellName` 改为 mc-agent。其余文案中的 PI-Desktop 暂不改。
+7. **标题栏高度。** 主窗口标题栏从上游的 46px 收窄到 38px（只在 `.app-shell` 内覆盖 `--ds-toolbar-height`，插件面板窗口保留 46px 拖拽区约定）；macOS 红绿灯位置相应从 y 16 上移到 y 12（`MAC_TRAFFIC_LIGHT_POSITION`）。
+8. **品牌。** 应用图标、菜单栏图标和应用内 logo 换成 mi 字形（源文件 `apps/desktop/build/*.svg`），外壳名称 `app.shellName` 改为 mc-agent。其余文案中的 PI-Desktop 暂不改。
 
 ## 备选与代价
 

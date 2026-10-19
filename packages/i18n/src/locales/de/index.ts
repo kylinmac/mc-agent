@@ -2869,6 +2869,7 @@ sklm: {
     appRailLabel: "App",
     sessionTabsLabel: "Open conversations",
     sessionTabClose: "Close {{title}}",
+    appRailHome: "Conversations",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;
