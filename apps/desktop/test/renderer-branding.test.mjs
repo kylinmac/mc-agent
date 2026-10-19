@@ -32,9 +32,10 @@ const [
     read("../src/lib/renderer-language.ts"),
   ]);
 
-test("renderer surfaces the PI-Desktop brand instead of the Codex shell brand", () => {
-  assert.match(english, /shellName:\s*"PI-Desktop"/);
-  assert.match(chinese, /shellName:\s*"PI-Desktop"/);
+// mc-agent: the shell name is the fork's own; other copy still says PI-Desktop.
+test("renderer surfaces the mc-agent brand instead of the Codex shell brand", () => {
+  assert.match(english, /shellName:\s*"mc-agent"/);
+  assert.match(chinese, /shellName:\s*"mc-agent"/);
   assert.match(english, /placeholder:\s*"Ask PI-Desktop to help with anything"/);
   assert.match(chinese, /placeholder:\s*"让 PI-Desktop 帮你做任何事"/);
   assert.doesNotMatch(english, /shellName:\s*"Codex"/);

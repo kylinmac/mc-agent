@@ -618,5 +618,30 @@
     "en": "Categories are the template's first-level folders; a category is removed only while its folder is empty. Edit starter files such as AGENTS.md in Finder. Projects created from a changed template show it as changed.",
     "zh-CN": "分类就是模板的一级文件夹，只有文件夹为空时才能删除。AGENTS.md 等起始文件在 Finder 中编辑。模板改动后，用它创建的项目会提示模板已更新。",
     "zh-TW": "分類就是範本的一級資料夾，只有資料夾為空時才能刪除。AGENTS.md 等起始檔案在 Finder 中編輯。範本變更後，用它建立的專案會提示範本已更新。"
+  },
+  "sidebarResourcesTag": {
+    "en": "Resources",
+    "zh-CN": "资料",
+    "zh-TW": "資料"
+  },
+  "foldersMissing": {
+    "en": "This project's folders no longer exist, so no resource folder is created. Remove the project or point it at existing folders.",
+    "zh-CN": "这个项目的目录都已不存在，不会补建资料目录。可以删除该项目，或改成现有目录。",
+    "zh-TW": "這個專案的目錄都已不存在，不會補建資料目錄。可以刪除該專案，或改成現有目錄。"
+  },
+  "appRailLabel": {
+    "en": "App",
+    "zh-CN": "应用",
+    "zh-TW": "應用"
+  },
+  "sessionTabsLabel": {
+    "en": "Open conversations",
+    "zh-CN": "已打开的对话",
+    "zh-TW": "已開啟的對話"
+  },
+  "sessionTabClose": {
+    "en": "Close {{title}}",
+    "zh-CN": "关闭 {{title}}",
+    "zh-TW": "關閉 {{title}}"
   }
 }

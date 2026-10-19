@@ -80,7 +80,7 @@ export const zhTW = {
     },
   },
   app: {
-    shellName: "PI-Desktop",
+    shellName: "mc-agent",
     tagline: "本地 AI 程式設計助手",
     starting: "正在啟動 PI-Desktop…",
     loadingView: "正在載入頁面…",
@@ -2888,6 +2888,11 @@ sklm: {
     templateDeleteConfirm: "刪除範本 {{name}}？範本資料夾會移到 templates/.trash，用它建立的專案不受影響。",
     templateDeleted: "已刪除 {{name}}",
     templateEditorHint: "分類就是範本的一級資料夾，只有資料夾為空時才能刪除。AGENTS.md 等起始檔案在 Finder 中編輯。範本變更後，用它建立的專案會提示範本已更新。",
+    sidebarResourcesTag: "資料",
+    foldersMissing: "這個專案的目錄都已不存在，不會補建資料目錄。可以刪除該專案，或改成現有目錄。",
+    appRailLabel: "應用",
+    sessionTabsLabel: "已開啟的對話",
+    sessionTabClose: "關閉 {{title}}",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

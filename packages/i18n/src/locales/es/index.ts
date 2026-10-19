@@ -2862,6 +2862,11 @@ sklm: {
     templateDeleteConfirm: "Delete template {{name}}? Its folder moves to templates/.trash; projects created from it keep their files.",
     templateDeleted: "Deleted {{name}}",
     templateEditorHint: "Categories are the template's first-level folders; a category is removed only while its folder is empty. Edit starter files such as AGENTS.md in Finder. Projects created from a changed template show it as changed.",
+    sidebarResourcesTag: "Resources",
+    foldersMissing: "This project's folders no longer exist, so no resource folder is created. Remove the project or point it at existing folders.",
+    appRailLabel: "App",
+    sessionTabsLabel: "Open conversations",
+    sessionTabClose: "Close {{title}}",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

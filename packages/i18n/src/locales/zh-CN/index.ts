@@ -80,7 +80,7 @@ export const zhCN = {
     },
   },
   app: {
-    shellName: "PI-Desktop",
+    shellName: "mc-agent",
     tagline: "本地 AI 编程助手",
     starting: "正在启动 PI-Desktop…",
     loadingView: "正在加载页面…",
@@ -2938,6 +2938,11 @@ sklm: {
     templateDeleteConfirm: "删除模板 {{name}}？模板文件夹会移到 templates/.trash，用它创建的项目不受影响。",
     templateDeleted: "已删除 {{name}}",
     templateEditorHint: "分类就是模板的一级文件夹，只有文件夹为空时才能删除。AGENTS.md 等起始文件在 Finder 中编辑。模板改动后，用它创建的项目会提示模板已更新。",
+    sidebarResourcesTag: "资料",
+    foldersMissing: "这个项目的目录都已不存在，不会补建资料目录。可以删除该项目，或改成现有目录。",
+    appRailLabel: "应用",
+    sessionTabsLabel: "已打开的对话",
+    sessionTabClose: "关闭 {{title}}",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;
