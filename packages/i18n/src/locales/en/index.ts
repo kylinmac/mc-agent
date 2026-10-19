@@ -3091,6 +3091,14 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     backgroundRunningCount: "{{count}} background commands running",
     backgroundEmpty: "No background tasks. When the agent runs a dev server, watcher or long build in the background, it shows up here with its output.",
     sessionInfoNoBackground: "No background commands",
+    splitLabel: "Conversations side by side",
+    splitOpenRight: "Open to the right",
+    splitCloseColumn: "Close column",
+    splitClose: "Close column {{title}}",
+    splitResize: "Resize columns",
+    splitDockResize: "Resize tools",
+    splitResume: "Click to continue in this conversation…",
+    splitTools: "Open tools",
   },
   // mc-agent:end
 } as const;

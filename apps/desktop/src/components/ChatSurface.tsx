@@ -15,6 +15,8 @@ import { ConversationWidthHandles } from "./ConversationWidthHandles";
 import { useAppStore } from "../stores/app-store";
 import { headPermission } from "../lib/pending-permissions";
 import { headAsk } from "../lib/pending-asks";
+import { useSplitView } from "../lib/mc-split-view";
+import { SplitColumns } from "../features/split-view/SplitColumns";
 
 import { isRemoteSession } from "../lib/remote-session-safety";
 const StableComposer = memo(Composer);
@@ -51,6 +53,9 @@ export const ChatSurface = memo(function ChatSurface({
   visible?: boolean;
 }) {
   const { t } = useTranslation();
+  // mc-agent (MC-ADR-0007): conversations side by side.
+  const split = useSplitView((state) => state.columns.length > 1);
+  const splitDropHint = useSplitView((state) => state.dropHint);
   const activeSessionId = useAppStore((state) => state.activeSessionId);
   const selectingSessionId = useAppStore((state) => state.selectingSessionId);
   const retainedSessionIds = useAppStore((state) => state.retainedSessionIds);
@@ -150,7 +155,7 @@ export const ChatSurface = memo(function ChatSurface({
       : null;
   return (
     <div
-      className={`chat-surface route-surface${sessionSwitching ? " session-switching" : ""}`}
+      className={`chat-surface route-surface${sessionSwitching ? " session-switching" : ""}${split ? " is-split" : ""}`}
       aria-busy={sessionSwitching}
     >
       {sessionSwitching ? (
@@ -158,8 +163,13 @@ export const ChatSurface = memo(function ChatSurface({
           <span />
         </div>
       ) : null}
-      <ConversationWidthHandles />
-      {showEmptyState ? (
+      {split ? null : <ConversationWidthHandles />}
+      {split ? (
+        <SplitColumns
+          visible={visible}
+          renderComposer={(variant) => <StableComposer variant={variant} />}
+        />
+      ) : showEmptyState ? (
         <div
           className="home-main-content"
           data-testid="home-empty"
@@ -212,6 +222,11 @@ export const ChatSurface = memo(function ChatSurface({
           <StableComposer variant="docked" />
         </>
       )}
+      {splitDropHint && !split ? (
+        <div className="mc-split-drop-hint" aria-hidden>
+          <span>{t("mcProject.splitOpenRight")}</span>
+        </div>
+      ) : null}
 
       {noticeError ? (
         <div className="chat-error-layer">

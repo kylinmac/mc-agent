@@ -24,6 +24,7 @@ import {
 import type { ComposerDraftSnapshot } from "../../lib/composer-smart-stop";
 import { formatToolValue } from "../../lib/tool-display";
 import { recordPaneTranscript } from "../../lib/session-panes";
+import { isSplitColumn } from "../../lib/mc-split-view";
 import type { AppState, SessionHistoryWindow } from "../app-state";
 import type { StoreAccess } from "../slices/types";
 
@@ -371,6 +372,13 @@ export function createSessionRuntime({ get, set }: StoreAccess): SessionRuntime 
       next,
       sessionHistoryCache.get(sessionId) ?? state.sessionHistory[sessionId],
     );
+    // mc-agent (MC-ADR-0007): a split-view column shows this session beside
+    // the active one, so its pane streams too.
+    if (isSplitColumn(sessionId)) {
+      set((latest) =>
+        latest.activeSessionId === sessionId ? {} : recordPaneTranscript(latest, sessionId, next),
+      );
+    }
   }
 
   function queueWorkspaceAlignment<T>(task: () => Promise<T>): Promise<T> {

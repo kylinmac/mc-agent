@@ -20,11 +20,11 @@ const [card, shell, ipc] = await Promise.all([
 ]);
 
 test("the session info panel lives in the conversation and gathers existing data", () => {
-  assert.match(shell, /page === "chat" \? <SessionInfo \/> : null/);
+  assert.match(shell, /page === "chat" && !split \? <SessionInfo \/> : null/);
   assert.match(card, /latestTurnContextInspector\(messages, providerModels, providers, compactions\)/);
   assert.match(card, /summarizeReviewChanges\(reviewChangesFromMessages\(messages\)\)/);
-  assert.match(card, /api\s*\.sessionContextBreakdown\(activeSessionId\)/);
-  assert.match(card, /api\s*\.getSessionCollaboration\(activeSessionId\)/);
+  assert.match(card, /api\s*\.sessionContextBreakdown\(sessionId\)/);
+  assert.match(card, /api\s*\.getSessionCollaboration\(sessionId\)/);
   assert.match(card, /api\s*\.listMcpServers\(\)/);
   assert.match(ipc, /sidecar\.call\("agent\.contextBreakdown", \{ sessionId \}\)/);
 });
@@ -33,7 +33,8 @@ test("one button opens and closes it, docked or floating", () => {
   // No close button and no outside-click close: the toggle is the only control.
   assert.doesNotMatch(card, /sessionInfoClose/);
   assert.doesNotMatch(card, /open: false \}\)\)/);
-  assert.match(card, /open: !current\.open/);
+  // Open or closed per conversation (MC-ADR-0007).
+  assert.match(card, /setOpen\(!open\)/);
   assert.equal(panelMode(PANEL_DEFAULT_WIDTH + 560), "docked");
   assert.equal(panelMode(PANEL_DEFAULT_WIDTH + 559), "overlay");
   // A wider panel needs a wider pane before it docks.

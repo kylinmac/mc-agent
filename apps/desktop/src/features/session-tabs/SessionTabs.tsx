@@ -4,6 +4,9 @@ import { create } from "zustand";
 import { useAppStore } from "../../stores/app-store";
 import { IconClock, IconClose, IconPlug, IconPlus, IconSettings } from "../../components/icons";
 import { NotificationCenter } from "../../components/NotificationCenter";
+import { ContextMenu, useContextMenu } from "../../components/ContextMenu";
+import { setSplitDropHint, useSplitView } from "../../lib/mc-split-view";
+import { closeSplitColumn, openSessionRight } from "../split-view/split-actions";
 import {
   activeTabKey,
   closeTab,
@@ -48,8 +51,18 @@ const PAGE_ICONS: Record<PageTab, ReactNode> = {
   closing one shows its neighbour (or a new task when it was the last), "+"
   starts a new task, and the notification bell sits at the bar's right end.
   Tabs reorder by dragging (past a few pixels, so a click still switches) or
-  with Alt+Left / Alt+Right.
+  with Alt+Left / Alt+Right. A conversation tab dragged down onto the
+  conversation, or "Open to the right" from its menu, opens it in a column
+  beside the current one (MC-ADR-0007).
 */
+
+/** The pointer is over the conversation area, well below the tab strip. */
+function overConversation(x: number, y: number, strip: HTMLElement | null): boolean {
+  const surface = document.querySelector<HTMLElement>(".chat-surface");
+  if (!surface || !strip) return false;
+  const rect = surface.getBoundingClientRect();
+  return y > strip.getBoundingClientRect().bottom + 24 && y >= rect.top && y <= rect.bottom && x >= rect.left && x <= rect.right;
+}
 
 const DRAG_THRESHOLD = 5;
 export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
@@ -68,6 +81,30 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
   const suppressClick = useRef(false);
   const [dragging, setDragging] = useState<string | null>(null);
   const [drop, setDrop] = useState<{ key: string; after: boolean } | null>(null);
+  const splitColumns = useSplitView((s) => s.columns);
+  const splitHint = useSplitView((s) => s.dropHint);
+  const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
+  /*
+    The conversation to put on the left when the one on screen opens to the
+    right: the last other conversation visited, else the nearest tab.
+  */
+  const companionOf = (key: string): string | undefined => {
+    const sessionTabs = tabs.filter((tab) => !tabPage(tab) && tab !== key);
+    const visited = [...useAppStore.getState().navStack]
+      .reverse()
+      .find((entry) => entry.page === "chat" && entry.sessionId && sessionTabs.includes(entry.sessionId));
+    if (visited?.sessionId) return visited.sessionId;
+    const index = tabs.indexOf(key);
+    const before = tabs.slice(0, index).reverse().find((tab) => sessionTabs.includes(tab));
+    return before ?? tabs.slice(index + 1).find((tab) => sessionTabs.includes(tab));
+  };
+  // A conversation can open beside the one on screen unless it is already
+  // there; the one on screen alone needs another to sit beside.
+  const canOpenRight = (key: string) =>
+    !tabPage(key) &&
+    !splitColumns.includes(key) &&
+    (splitColumns.length > 0 || key !== activeSessionId || companionOf(key) !== undefined);
+  const openRight = (key: string) => openSessionRight(key, companionOf(key));
 
   const onTabPointerDown = (event: PointerEvent<HTMLDivElement>, key: string) => {
     if (event.button !== 0 || (event.target as Element).closest("button")) return;
@@ -82,6 +119,12 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
       current.armed = true;
       setDragging(current.key);
     }
+    if (canOpenRight(current.key) && overConversation(event.clientX, event.clientY, stripRef.current)) {
+      setSplitDropHint(true);
+      setDrop(null);
+      return;
+    }
+    setSplitDropHint(false);
     const rects = [...(stripRef.current?.querySelectorAll<HTMLElement>("[data-tab-key]") ?? [])]
       .filter((element) => element.dataset.tabKey !== current.key)
       .map((element) => {
@@ -97,8 +140,10 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
     if (current.armed) {
       // The click that follows a drag must not also switch tabs.
       suppressClick.current = true;
-      if (drop) setTabs((tabs) => moveTab(tabs, current.key, drop.key, drop.after));
+      if (splitHint) openRight(current.key);
+      else if (drop) setTabs((tabs) => moveTab(tabs, current.key, drop.key, drop.after));
     }
+    setSplitDropHint(false);
     setDragging(null);
     setDrop(null);
   };
@@ -143,6 +188,11 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
     event?.stopPropagation();
     const result = closeTab(tabs, key, activeKey);
     setTabs(() => result.tabs);
+    // A conversation in a split column leaves the split; the split decides focus.
+    if (splitColumns.includes(key)) {
+      closeSplitColumn(key);
+      return;
+    }
     if (!result.closedActive) return;
     if (result.next) show(result.next);
     else onNewTask();
@@ -166,6 +216,7 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
               className={[
                 "mc-session-tab",
                 active && "active",
+                splitColumns.includes(key) && "in-split",
                 dragging === key && "is-dragging",
                 drop?.key === key && (drop.after ? "is-drop-after" : "is-drop-before"),
               ]
@@ -185,6 +236,29 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
               }}
               onAuxClick={(event) => {
                 if (event.button === 1) close(key, event);
+              }}
+              onContextMenu={(event) => {
+                if (target) return;
+                openContextMenu(event, {
+                  label: title,
+                  items: [
+                    {
+                      id: "open-right",
+                      label: t("mcProject.splitOpenRight"),
+                      disabled: !canOpenRight(key),
+                      onSelect: () => openRight(key),
+                    },
+                    ...(splitColumns.includes(key)
+                      ? [{ id: "close-column", label: t("mcProject.splitCloseColumn"), onSelect: () => closeSplitColumn(key) }]
+                      : []),
+                    {
+                      id: "close-tab",
+                      label: t("mcProject.sessionTabClose", { title }),
+                      separatorBefore: true,
+                      onSelect: () => close(key),
+                    },
+                  ],
+                });
               }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
@@ -230,6 +304,7 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
       <div className="mc-titlebar-end">
         <NotificationCenter />
       </div>
+      <ContextMenu state={contextMenu} onClose={closeContextMenu} />
     </div>
   );
 }

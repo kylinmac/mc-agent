@@ -3,6 +3,8 @@ import { ConversationTopbar } from "../../components/ConversationTopbar";
 import { AppRail } from "../app-rail/AppRail";
 import { SessionTabs } from "../session-tabs/SessionTabs";
 import { SessionInfo } from "../session-info/SessionInfo";
+import { useSplitSync } from "../split-view/split-actions";
+import { useSplitView } from "../../lib/mc-split-view";
 import { ExtensionPromptHost } from "../../components/ExtensionPromptDialog";
 import { PluginRendererHost } from "../../plugins/renderer-host/PluginRendererHost";
 import {
@@ -97,6 +99,11 @@ export function AppShell() {
     workPanelWidth,
   } = useAppShellRuntime();
   useCopyTex();
+  // mc-agent (MC-ADR-0007): in a split view the work panel docks under the
+  // focused column, so the right-hand panel is not shown.
+  useSplitSync();
+  const split = useSplitView((state) => state.columns.length > 1);
+  const sideWorkPanelOpen = presentedWorkPanelOpen && !split;
 
   useEffect(() => {
     void loadChatSurface().catch((error: unknown) => {
@@ -193,7 +200,7 @@ export function AppShell() {
                 {page === "chat" ? (
                   <ConversationTopbar
                     sidebarCollapsed={sidebarCollapsed}
-                    workPanelOpen={presentedWorkPanelOpen}
+                    workPanelOpen={sideWorkPanelOpen}
                     onToggleSidebar={toggleSidebar}
                     onNewTask={() => void runMenuCommand("newTask")}
                     onOpenSearch={() => setSearchOpen(true)}
@@ -202,7 +209,7 @@ export function AppShell() {
                   <div
                     className={cx(
                       "main-titlebar",
-                      presentedWorkPanelOpen && "work-panel-open",
+                      sideWorkPanelOpen && "work-panel-open",
                     )}
                   >
                     {sidebarCollapsed && (
@@ -220,7 +227,8 @@ export function AppShell() {
                 )}
                 <UpdateBanner />
                 {/* mc-agent: session information card in the conversation's left margin. */}
-                {page === "chat" ? <SessionInfo /> : null}
+                {/* In a split view each column has its own (MC-ADR-0007). */}
+                {page === "chat" && !split ? <SessionInfo /> : null}
 
                 {backendDown && (
                   <div
@@ -298,7 +306,7 @@ export function AppShell() {
               </section>
             )}
 
-            {(presentedWorkPanelOpen || workPanelExiting) && (
+            {!split && (presentedWorkPanelOpen || workPanelExiting) && (
               <Suspense
                 fallback={
                   <aside

@@ -417,6 +417,11 @@
   padding-left: var(--mc-info-offset, 0px);
 }
 
+/* Undocked, the conversation still keeps to the right of the info button. */
+.main-pane:has(> .mc-session-info:not(.is-docked)) .chat-surface {
+  padding-left: var(--mc-info-gutter, 0px);
+}
+
 /* The floating composer dock spans its container's edges, not its padding,
    and is 100% wide: give it the remaining width instead. */
 .main-pane:has(.mc-session-info.is-docked) .composer-dock-docked {
@@ -1322,4 +1327,12 @@
   margin-top: 4px;
   color: var(--ds-error);
   font-size: var(--text-2xs);
+}
+
+/* While a context menu is open nothing drags the window, so a press anywhere,
+   the title bar included, reaches the page and closes the menu. */
+:root[data-context-menu-open="true"] *,
+:root[data-context-menu-open="true"] *::before,
+:root[data-context-menu-open="true"] *::after {
+  -webkit-app-region: no-drag !important;
 }

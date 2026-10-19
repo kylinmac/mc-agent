@@ -209,7 +209,8 @@ test("work panel uses the fixed-window internal dock", () => {
   // before unmounting, so MainChat reflows continuously in both directions.
   assert.match(
     appSource,
-    /<\/section>\s*\)\}\s*\{\(presentedWorkPanelOpen \|\| workPanelExiting\) && \(?\s*<Suspense[\s\S]*?<WorkPanel/,
+    // mc-agent (MC-ADR-0007): a split view docks the panel under its column instead.
+    /<\/section>\s*\)\}\s*\{(?:!split && )?\(presentedWorkPanelOpen \|\| workPanelExiting\) && \(?\s*<Suspense[\s\S]*?<WorkPanel/,
   );
   assert.doesNotMatch(
     appSource,

@@ -2975,6 +2975,14 @@ sklm: {
     backgroundRunningCount: "{{count}} 個背景命令執行中",
     backgroundEmpty: "沒有背景任務。Agent 以背景方式執行開發伺服器、監聽或長時間建置時，會顯示在這裡，並可查看輸出、停止。",
     sessionInfoNoBackground: "沒有背景命令",
+    splitLabel: "並列的對話",
+    splitOpenRight: "在右側開啟",
+    splitCloseColumn: "關閉分欄",
+    splitClose: "關閉分欄 {{title}}",
+    splitResize: "調整分欄寬度",
+    splitDockResize: "調整工具區高度",
+    splitResume: "點擊在此對話中繼續…",
+    splitTools: "已開啟的工具",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

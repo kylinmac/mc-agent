@@ -1,0 +1,287 @@
+/*
+  mc-agent split view (MC-ADR-0007): conversations side by side. Each column
+  has a slim header, the conversation, and (focused column only) the work
+  panel docked underneath.
+*/
+
+.chat-surface.is-split {
+  min-width: 0;
+}
+
+/* The title bar floats over the chat surface; the column headers sit below it. */
+.mc-split {
+  position: relative;
+  display: flex;
+  padding-top: var(--ds-toolbar-height);
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: row;
+}
+
+.mc-split[data-resizing="true"] {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.mc-split-col {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 0;
+  flex-direction: column;
+}
+
+.mc-split-col {
+  --mc-split-head-height: 32px;
+}
+
+.mc-split-col-head {
+  display: flex;
+  height: var(--mc-split-head-height);
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px 0 calc(12px + var(--mc-info-toggle, 0px) + 8px);
+  border-bottom: 1px solid var(--ds-border-subtle);
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+}
+
+/* Focus shows in the title-bar tab; the column only lifts its title a little. */
+.mc-split-col[data-focused="true"] .mc-split-col-head {
+  color: var(--ds-text-secondary);
+}
+
+.mc-split-col-title {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mc-split-col-close {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.mc-split-col-close:hover {
+  background: var(--ds-bg-hover);
+  opacity: 1;
+}
+
+.mc-split-col-body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+/* The conversation: the composer docks to its bottom edge, as in one column. */
+.mc-split-chat {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1 1 0;
+  flex-direction: column;
+}
+
+/* Each column's info panel docks in that column's own margin
+   (--mc-info-offset is set on .mc-split-chat); the composer spans the rest. */
+.mc-split .composer-dock-docked,
+.main-pane:has(.mc-session-info.is-docked) .mc-split .composer-dock-docked {
+  left: var(--mc-info-offset, 0px);
+  width: auto;
+  padding-inline: 12px;
+}
+
+.mc-split-chat:has(> .mc-session-info.is-docked) > .session-panes {
+  padding-left: var(--mc-info-offset, 0px);
+}
+
+/* Undocked, the column's conversation keeps to the right of its info button. */
+/* A column's info button sits in the column header (left of the title), so
+   closed or floating it never covers the conversation or moves it; only a
+   docked panel takes room beside the conversation. */
+.mc-split-chat > .mc-session-info {
+  top: calc(3px - var(--mc-split-head-height));
+  left: 8px;
+  z-index: 12;
+}
+
+/* An unfocused column's input box: the composer's shape and height, so
+   focusing the column swaps it for the live composer without a jump. */
+/* Wrappers that only carry behaviour: the composer inside still docks to the
+   column's bottom edge. */
+.mc-split-composer-slot,
+.mc-split-frozen,
+.mc-split-frozen-host {
+  display: contents;
+}
+
+.mc-split-frozen .composer-input {
+  cursor: text;
+}
+
+.mc-split-ghost {
+  display: flex;
+  height: 110px;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 0;
+  color: var(--ds-text-muted);
+  font: inherit;
+  font-size: var(--text-base);
+  text-align: left;
+  cursor: text;
+}
+
+.mc-split-ghost-model {
+  align-self: flex-end;
+  font-size: var(--text-xs);
+}
+
+.mc-split-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.mc-split-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--ds-bg-elevated);
+  color: var(--ds-text-secondary);
+  font-size: var(--text-2xs);
+  cursor: pointer;
+}
+
+.mc-split-tool:hover {
+  color: var(--ds-text-primary);
+}
+
+.mc-split-tool-count {
+  color: var(--ds-text-muted);
+}
+
+.mc-split-new .empty-hero h1 {
+  font-size: var(--text-lg);
+}
+
+.mc-split-divider {
+  position: relative;
+  flex: 0 0 1px;
+  background: var(--ds-border-subtle);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.mc-split-divider::before {
+  content: "";
+  position: absolute;
+  inset: 0 -4px;
+}
+
+.mc-split-divider:hover,
+.mc-split[data-resizing="true"] .mc-split-divider {
+  background: var(--ds-accent);
+}
+
+/* The work panel under the focused conversation. */
+.mc-split-dock-divider {
+  position: relative;
+  flex: 0 0 1px;
+  background: var(--ds-border-subtle);
+  cursor: row-resize;
+  touch-action: none;
+}
+
+.mc-split-dock-divider::before {
+  content: "";
+  position: absolute;
+  inset: -4px 0;
+}
+
+.mc-split-dock-divider:hover {
+  background: var(--ds-accent);
+}
+
+.mc-split-dock {
+  display: flex;
+  min-height: 120px;
+  flex: 0 0 45%;
+  flex-direction: column;
+}
+
+.work-panel.is-bottom-dock {
+  flex: 1 1 auto;
+  width: auto;
+  height: auto;
+  animation: none;
+}
+
+.work-panel.is-bottom-dock .work-panel-header {
+  height: 32px;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+}
+
+/* A title-bar tab dragged over the conversation: drop to open it on the right. */
+.mc-split-drop-hint {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 40;
+  display: flex;
+  width: min(45%, 420px);
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--ds-accent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklab, var(--ds-accent) 10%, transparent);
+  color: var(--ds-text-primary);
+  font-size: var(--text-sm);
+  pointer-events: none;
+}
+
+.mc-session-tab.in-split .mc-session-tab-dot {
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--ds-accent) 35%, transparent);
+}
+
+.mc-split-chat > .mc-session-info.is-open.is-docked {
+  top: calc(3px - var(--mc-split-head-height));
+  left: 0;
+  padding-left: 8px;
+  padding-top: 0;
+}
+
+/* An unfocused column's tool area: what it has open, until it takes focus. */
+.mc-split-dock-frozen {
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--ds-bg-dock);
+}
+
+.mc-split-dock-hint {
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+}

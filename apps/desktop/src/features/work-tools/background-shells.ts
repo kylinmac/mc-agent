@@ -3,25 +3,26 @@ import type { BackgroundShell } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 
 /*
-  mc-agent background commands (MC-ADR-0006): one shared poller per window
-  for the active session's list, read by the header icon (running count) and
-  the background pane. host-core owns the processes; this only mirrors them.
-  It polls every 2 seconds while anything subscribes, so a command the agent
-  starts or a process that exits shows up without a reload.
+  mc-agent background commands (MC-ADR-0006): one shared poller per window,
+  read by the header icon (running count), the background pane and the
+  session info panels. With conversations side by side (MC-ADR-0007) several
+  sessions are watched at once, so the poller keeps one list per session.
+  host-core owns the processes; this only mirrors them. It polls every 2
+  seconds while anything subscribes, so a command the agent starts or a
+  process that exits shows up without a reload.
 */
 
 const POLL_MS = 2000;
+const EMPTY: BackgroundShell[] = [];
 
-type Snapshot = { sessionId: string | null; shells: BackgroundShell[] };
-
-let snapshot: Snapshot = { sessionId: null, shells: [] };
+let lists: Record<string, BackgroundShell[]> = {};
 const listeners = new Set<() => void>();
-let subscribers = 0;
+/** How many mounted readers want each session. */
+const wanted = new Map<string, number>();
 let timer: ReturnType<typeof setInterval> | null = null;
-let wanted: string | null = null;
 
-function publish(next: Snapshot) {
-  snapshot = next;
+function publish(sessionId: string, shells: BackgroundShell[]) {
+  lists = { ...lists, [sessionId]: shells };
   for (const listener of listeners) listener();
 }
 
@@ -50,22 +51,18 @@ export function useBackgroundFocus(): { id: string; seq: number } | null {
   );
 }
 
-export async function refreshBackgroundShells(): Promise<void> {
-  const sessionId = wanted;
-  if (!sessionId) {
-    if (snapshot.sessionId !== null || snapshot.shells.length) publish({ sessionId: null, shells: [] });
-    return;
-  }
+async function refreshSession(sessionId: string): Promise<void> {
   try {
     const { shells } = await api.backgroundShellsList(sessionId);
-    if (wanted !== sessionId) return;
-    const same =
-      snapshot.sessionId === sessionId &&
-      JSON.stringify(snapshot.shells) === JSON.stringify(shells);
-    if (!same) publish({ sessionId, shells });
+    if (!wanted.has(sessionId)) return;
+    if (JSON.stringify(lists[sessionId] ?? null) !== JSON.stringify(shells)) publish(sessionId, shells);
   } catch {
-    if (wanted === sessionId && snapshot.sessionId !== sessionId) publish({ sessionId, shells: [] });
+    if (wanted.has(sessionId) && !lists[sessionId]) publish(sessionId, EMPTY);
   }
+}
+
+export async function refreshBackgroundShells(): Promise<void> {
+  await Promise.all([...wanted.keys()].map(refreshSession));
 }
 
 function subscribe(listener: () => void): () => void {
@@ -75,23 +72,27 @@ function subscribe(listener: () => void): () => void {
   };
 }
 
-/** The active session's background commands, kept fresh while mounted. */
+/** A session's background commands, kept fresh while mounted. */
 export function useBackgroundShells(sessionId: string | null | undefined): BackgroundShell[] {
   useEffect(() => {
-    subscribers += 1;
+    if (!sessionId) return;
+    wanted.set(sessionId, (wanted.get(sessionId) ?? 0) + 1);
     if (!timer) timer = setInterval(() => void refreshBackgroundShells(), POLL_MS);
+    void refreshSession(sessionId);
     return () => {
-      subscribers -= 1;
-      if (subscribers === 0 && timer) {
+      const count = (wanted.get(sessionId) ?? 1) - 1;
+      if (count > 0) wanted.set(sessionId, count);
+      else {
+        wanted.delete(sessionId);
+        const { [sessionId]: _dropped, ...rest } = lists;
+        lists = rest;
+      }
+      if (wanted.size === 0 && timer) {
         clearInterval(timer);
         timer = null;
       }
     };
-  }, []);
-  useEffect(() => {
-    wanted = sessionId ?? null;
-    void refreshBackgroundShells();
   }, [sessionId]);
-  const current = useSyncExternalStore(subscribe, () => snapshot, () => snapshot);
-  return current.sessionId === (sessionId ?? null) ? current.shells : [];
+  const current = useSyncExternalStore(subscribe, () => lists, () => lists);
+  return sessionId ? (current[sessionId] ?? EMPTY) : EMPTY;
 }

@@ -154,6 +154,18 @@ export function WorkPanel(props: Parameters<typeof LocalWorkPanel>[0]) {
   return <LocalWorkPanel {...props} />;
 }
 
+/**
+ * mc-agent (MC-ADR-0007): in a split view the work panel sits under the
+ * focused column instead of at the window's right edge. Remote sessions keep
+ * their own workspace view, which has no bottom form.
+ */
+export function WorkPanelBottomDock() {
+  const session = useAppStore((state) => state.sessions.find((item) => item.id === state.activeSessionId));
+  const sessionId = useAppStore((state) => state.activeSessionId);
+  if ((session && isRemoteSession(session)) || sessionId?.startsWith("remote:")) return null;
+  return <LocalWorkPanel dock="bottom" />;
+}
+
 function LocalWorkPanel({
   panelBlocked = false,
   exiting = false,
@@ -165,6 +177,7 @@ function LocalWorkPanel({
   onAutoCollapseSidebar,
   maximized = false,
   onToggleMaximize,
+  dock = "side",
 }: {
   /**
    * Hides every native surface in the panel. Both the preview browser and a
@@ -188,6 +201,8 @@ function LocalWorkPanel({
   maximized?: boolean;
   /** Toggles the preview mode from the panel header. */
   onToggleMaximize?: () => void;
+  /** mc-agent: "bottom" fills its split-view column slot; no width, no maximize. */
+  dock?: "side" | "bottom";
 }) {
   const { t } = useTranslation();
   const blockingOverlayActive = useBlockingOverlayActive();
@@ -247,8 +262,8 @@ function LocalWorkPanel({
   const isResizing = panelDragWidth !== null;
 
   useLayoutEffect(() => {
-    if (!exiting && layout.shouldCollapseSidebar) onAutoCollapseSidebar?.();
-  }, [exiting, layout.shouldCollapseSidebar, onAutoCollapseSidebar]);
+    if (dock === "side" && !exiting && layout.shouldCollapseSidebar) onAutoCollapseSidebar?.();
+  }, [dock, exiting, layout.shouldCollapseSidebar, onAutoCollapseSidebar]);
 
   useEffect(() => {
     if (isResizing) {
@@ -517,6 +532,60 @@ function LocalWorkPanel({
     "--work-panel-width": `${renderPanelWidth}px`,
   } as CSSProperties;
 
+  const main = (
+    <div className="work-panel-main">
+      <header className="work-panel-header">
+        {/* mc-agent: the tools sit where the tab strip was; tabs live in
+            each tool's pane (MC-ADR-0005). */}
+        <div className="work-panel-tab-strip-wrap">
+          <WorkPanelQuickTools />
+        </div>
+        {dock === "side" ? (
+          <div className="work-panel-actions no-drag">
+            <TooltipButton
+              type="button"
+              className="work-panel-maximize"
+              tooltip={t(maximized ? "panel.restore" : "panel.maximize")}
+              ariaLabel={t(maximized ? "panel.restore" : "panel.maximize")}
+              aria-pressed={maximized}
+              onClick={() => onToggleMaximize?.()}
+            >
+              {maximized ? (
+                <IconPanelRestore size={15} />
+              ) : (
+                <IconPanelMaximize size={15} />
+              )}
+            </TooltipButton>
+          </div>
+        ) : null}
+      </header>
+      <div className="work-panel-body">
+        {tabs.length > 0 ? (
+          <WorkPanes
+            tabs={tabs}
+            activeTabId={activeTabId}
+            terminalCwd={terminalCwd}
+            labelFor={labelFor}
+            iconFor={iconFor}
+            renderSurface={renderSurface}
+          />
+        ) : (
+          <div className="work-panel-tabpane mc-panes-empty" data-testid="work-panel-empty">
+            {t("mcProject.panesEmpty")}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  if (dock === "bottom") {
+    return (
+      <section className="work-panel is-bottom-dock" data-testid="work-panel">
+        {main}
+      </section>
+    );
+  }
+
   return (
     <aside
       className={cx(
@@ -561,47 +630,7 @@ function LocalWorkPanel({
         onKeyDown={onPanelResizeKeyDown}
         onDoubleClick={onPanelResizeReset}
       />
-      <div className="work-panel-main">
-        <header className="work-panel-header">
-          {/* mc-agent: the tools sit where the tab strip was; tabs live in
-              each tool's pane (MC-ADR-0005). */}
-          <div className="work-panel-tab-strip-wrap">
-            <WorkPanelQuickTools />
-          </div>
-          <div className="work-panel-actions no-drag">
-            <TooltipButton
-              type="button"
-              className="work-panel-maximize"
-              tooltip={t(maximized ? "panel.restore" : "panel.maximize")}
-              ariaLabel={t(maximized ? "panel.restore" : "panel.maximize")}
-              aria-pressed={maximized}
-              onClick={() => onToggleMaximize?.()}
-            >
-              {maximized ? (
-                <IconPanelRestore size={15} />
-              ) : (
-                <IconPanelMaximize size={15} />
-              )}
-            </TooltipButton>
-          </div>
-        </header>
-        <div className="work-panel-body">
-          {tabs.length > 0 ? (
-            <WorkPanes
-              tabs={tabs}
-              activeTabId={activeTabId}
-              terminalCwd={terminalCwd}
-              labelFor={labelFor}
-              iconFor={iconFor}
-              renderSurface={renderSurface}
-            />
-          ) : (
-            <div className="work-panel-tabpane mc-panes-empty" data-testid="work-panel-empty">
-              {t("mcProject.panesEmpty")}
-            </div>
-          )}
-        </div>
-      </div>
+      {main}
     </aside>
   );
 }

@@ -1053,5 +1053,45 @@
     "en": "No background commands",
     "zh-CN": "没有后台命令",
     "zh-TW": "沒有背景命令"
+  },
+  "splitLabel": {
+    "en": "Conversations side by side",
+    "zh-CN": "并列的对话",
+    "zh-TW": "並列的對話"
+  },
+  "splitOpenRight": {
+    "en": "Open to the right",
+    "zh-CN": "在右侧打开",
+    "zh-TW": "在右側開啟"
+  },
+  "splitCloseColumn": {
+    "en": "Close column",
+    "zh-CN": "关闭分栏",
+    "zh-TW": "關閉分欄"
+  },
+  "splitClose": {
+    "en": "Close column {{title}}",
+    "zh-CN": "关闭分栏 {{title}}",
+    "zh-TW": "關閉分欄 {{title}}"
+  },
+  "splitResize": {
+    "en": "Resize columns",
+    "zh-CN": "调整分栏宽度",
+    "zh-TW": "調整分欄寬度"
+  },
+  "splitDockResize": {
+    "en": "Resize tools",
+    "zh-CN": "调整工具区高度",
+    "zh-TW": "調整工具區高度"
+  },
+  "splitResume": {
+    "en": "Click to continue in this conversation…",
+    "zh-CN": "点击在此对话中继续…",
+    "zh-TW": "點擊在此對話中繼續…"
+  },
+  "splitTools": {
+    "en": "Open tools",
+    "zh-CN": "已打开的工具",
+    "zh-TW": "已開啟的工具"
   }
 }

@@ -23,6 +23,7 @@
 | [M1 基线记录](m1-baseline.md) | 构建、冒烟和 B1–B8 实测结果 |
 | [MC-ADR-0005](adr/mc-0005-work-panel-terminal-and-tools.md) | 工作面板终端与工具栏 |
 | [MC-ADR-0006](adr/mc-0006-background-commands.md) | 后台命令与后台任务面板 |
+| [MC-ADR-0007](adr/mc-0007-split-view.md) | 并列对话（分栏） |
 | [MC-ADR-0004](adr/mc-0004-app-rail-and-title-tabs.md) | 左侧竖栏、顶部标签栏与设置标签 |
 | [MC-ADR-0003](adr/mc-0003-equal-workspaces-and-project-home.md) | 多工作区平等与项目资料目录 |
 | [MC-ADR-0002](adr/mc-0002-fork-pi-desktop.md) | 当前 Fork 架构决定 |

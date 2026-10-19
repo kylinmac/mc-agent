@@ -41,7 +41,7 @@ import { browserTab, terminalTab } from "./tool-tabs";
   pointer, so they are hidden while a pane is being dragged or resized.
 */
 
-const PANE_ICONS: Record<PaneId, ComponentType<IconProps>> = {
+export const PANE_ICONS: Record<PaneId, ComponentType<IconProps>> = {
   terminal: IconTerminal,
   background: IconActivity,
   browser: IconGlobe,

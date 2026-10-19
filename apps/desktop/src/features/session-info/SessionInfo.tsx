@@ -57,7 +57,41 @@ const EXPANDABLE: Partial<Record<BreakdownRowKey, keyof SessionContextBreakdown>
   in this browser profile. The context section splits usage by kind
   (estimated by the agent runtime) and offers a manual compaction.
 */
-export function SessionInfo() {
+const OPEN_KEY = "mc.sessionInfoOpen";
+/** The button's left inset plus the space kept after it, less the dock gap the offset adds. */
+const BUTTON_GAP = 12 + 8 - 16;
+const OPEN_KEEP = 200;
+const EMPTY_MESSAGES: never[] = [];
+
+/** Whether the panel is open, per conversation; the last choice is the default for others. */
+function readOpenMap(): Record<string, boolean> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(OPEN_KEY) ?? "{}") as unknown;
+    if (!raw || typeof raw !== "object") return {};
+    return Object.fromEntries(Object.entries(raw).filter((entry): entry is [string, boolean] => typeof entry[1] === "boolean"));
+  } catch {
+    return {};
+  }
+}
+
+function saveOpenMap(map: Record<string, boolean>): void {
+  try {
+    localStorage.setItem(OPEN_KEY, JSON.stringify(Object.fromEntries(Object.entries(map).slice(-OPEN_KEEP))));
+  } catch {
+    // best-effort persistence
+  }
+}
+
+/*
+  Each conversation has its own panel (MC-ADR-0007): in a split view every
+  column renders one for its session (`scope="column"`), and docked or
+  floating follows that column's width. Actions that work on the active
+  session (compaction, opening a tool) focus the column first.
+*/
+export function SessionInfo({
+  sessionId: sessionProp,
+  scope = "pane",
+}: { sessionId?: string; scope?: "pane" | "column" } = {}) {
   const { t } = useTranslation();
   const [prefs, setPrefsState] = useState<PanelPrefs>(readPrefs);
   const [paneWidth, setPaneWidth] = useState(0);
@@ -67,20 +101,59 @@ export function SessionInfo() {
   const [expanded, setExpanded] = useState<BreakdownRowKey | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const activeSessionId = useAppStore((s) => s.activeSessionId);
+  const sessionId = sessionProp ?? activeSessionId;
+  const focused = sessionId === activeSessionId;
+  const container = scope === "column" ? ".mc-split-chat" : ".main-pane";
   const sessions = useAppStore((s) => s.sessions);
-  const workspace = useAppStore((s) => s.workspace);
-  const messages = useAppStore((s) => s.messages);
-  const isRunning = useAppStore((s) => s.isRunning);
+  const activeWorkspace = useAppStore((s) => s.workspace);
+  const messages = useAppStore((s) =>
+    s.activeSessionId === sessionId
+      ? s.messages
+      : ((sessionId ? s.retainedTranscripts[sessionId] : undefined) ?? EMPTY_MESSAGES),
+  );
+  const isRunning = useAppStore((s) =>
+    s.activeSessionId === sessionId ? s.isRunning : Boolean(sessionId && s.runningSessions[sessionId]),
+  );
   const providers = useAppStore((s) => s.providers);
   const providerModels = useAppStore((s) => s.providerModels);
-  const compactions = useAppStore((s) => (s.activeSessionId ? s.sessionCompactions[s.activeSessionId] : undefined));
+  const compactions = useAppStore((s) => (sessionId ? s.sessionCompactions[sessionId] : undefined));
   const openWorkPanelTab = useAppStore((s) => s.openWorkPanelTab);
   const selectSession = useAppStore((s) => s.selectSession);
   const openSubagentTab = useAppStore((s) => s.openSubagentTab);
   const compactContext = useAppStore((s) => s.compactContext);
-  const session = sessions.find((candidate) => candidate.id === activeSessionId);
-  const open = prefs.open;
-  const { index } = useProjectFolderIndex(open ? `info:${activeSessionId ?? ""}` : "closed");
+  const session = sessions.find((candidate) => candidate.id === sessionId);
+  // The active workspace describes the active session, and any other in the
+  // same folder.
+  const workspace =
+    focused ||
+    (session?.projectPath &&
+      normalizeProjectPath(session.projectPath) === normalizeProjectPath(activeWorkspace?.path))
+      ? activeWorkspace
+      : null;
+  const [openMap, setOpenMap] = useState(readOpenMap);
+  const open = sessionId !== undefined && openMap[sessionId] !== undefined ? openMap[sessionId] : prefs.open;
+  const setOpen = (value: boolean) => {
+    if (sessionId) {
+      setOpenMap((current) => {
+        const { [sessionId]: _previous, ...rest } = current;
+        const next = { ...rest, [sessionId]: value };
+        saveOpenMap(next);
+        return next;
+      });
+    }
+    setPrefs((current) => ({ ...current, open: value }));
+  };
+  // Work on the active session's state: focus this conversation first.
+  const withFocus = (action: () => void) => {
+    if (!sessionId || focused) {
+      action();
+      return;
+    }
+    void selectSession(sessionId).then(() => {
+      if (useAppStore.getState().activeSessionId === sessionId) action();
+    });
+  };
+  const { index } = useProjectFolderIndex(open ? `info:${sessionId ?? ""}` : "closed");
   const mode = panelMode(paneWidth, prefs.width);
 
   const setPrefs = (update: (current: PanelPrefs) => PanelPrefs) =>
@@ -92,16 +165,16 @@ export function SessionInfo() {
 
   // Docked or floating follows the main pane's width. The root only exists
   // once a session is selected, so observe again when that changes.
-  const mounted = Boolean(activeSessionId);
+  const mounted = Boolean(sessionId);
   useEffect(() => {
     if (!mounted) return;
-    const pane = rootRef.current?.closest<HTMLElement>(".main-pane");
+    const pane = rootRef.current?.closest<HTMLElement>(container);
     if (!pane) return;
     setPaneWidth(pane.getBoundingClientRect().width);
     const observer = new ResizeObserver(([entry]) => setPaneWidth(entry.contentRect.width));
     observer.observe(pane);
     return () => observer.disconnect();
-  }, [mounted]);
+  }, [mounted, container]);
 
   // The conversation band's preferred width (its edge handles set it on the
   // chat surface), so the docked panel can sit in the margin beside it.
@@ -118,21 +191,57 @@ export function SessionInfo() {
     const observer = new MutationObserver(read);
     observer.observe(surface, { attributes: true, attributeFilter: ["style"] });
     return () => observer.disconnect();
-  }, [mounted, activeSessionId]);
+  }, [mounted, sessionId]);
 
   // Docked: the conversation moves aside only by what the panel overlaps
   // (CSS reads this variable).
   const docked = mounted && open && mode === "docked";
   const offset = conversationOffset(paneWidth, prefs.width, contentWidth);
   useEffect(() => {
-    const pane = rootRef.current?.closest<HTMLElement>(".main-pane");
+    const pane = rootRef.current?.closest<HTMLElement>(container);
     if (!pane) return;
     if (docked) pane.style.setProperty("--mc-info-offset", `${offset}px`);
     else pane.style.removeProperty("--mc-info-offset");
     return () => {
       pane.style.removeProperty("--mc-info-offset");
     };
-  }, [docked, offset]);
+  }, [docked, offset, container]);
+
+  // The conversation never runs under the button either: it keeps to the
+  // button's right where the button would overlap it (CSS takes the larger
+  // of this and the docked offset).
+  const toggleRef = useRef<HTMLDivElement>(null);
+  const [toggleWidth, setToggleWidth] = useState(0);
+  useEffect(() => {
+    const row = toggleRef.current;
+    if (!row || typeof ResizeObserver === "undefined") return;
+    // The buttons' extent, not the row's: the open row spans the panel.
+    const measure = () => {
+      const left = row.getBoundingClientRect().left;
+      const right = Math.max(left, ...[...row.querySelectorAll(":scope > button")].map((button) => button.getBoundingClientRect().right));
+      setToggleWidth(Math.round(right - left));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, [mounted, open]);
+  // In a split column the button sits in the column's header instead, so the
+  // conversation keeps its full width; the header makes room for it.
+  const gutter =
+    scope === "pane" && toggleWidth > 0 ? conversationOffset(paneWidth, toggleWidth + BUTTON_GAP, contentWidth) : 0;
+  useEffect(() => {
+    const pane = rootRef.current?.closest<HTMLElement>(container);
+    if (!pane) return;
+    pane.style.setProperty("--mc-info-gutter", `${gutter}px`);
+    const column = scope === "column" ? rootRef.current?.closest<HTMLElement>(".mc-split-col") : null;
+    // Docked, the panel's top runs through the header, so the title starts past it.
+    column?.style.setProperty("--mc-info-toggle", `${docked ? prefs.width - 12 : toggleWidth}px`);
+    return () => {
+      pane.style.removeProperty("--mc-info-gutter");
+      column?.style.removeProperty("--mc-info-toggle");
+    };
+  }, [gutter, container, scope, toggleWidth, docked, prefs.width]);
 
   const context = useMemo(() => {
     const inspector = latestTurnContextInspector(messages, providerModels, providers, compactions);
@@ -144,7 +253,7 @@ export function SessionInfo() {
   const subagents = useMemo(() => sessionSubagents(messages, { turnLive: isRunning }), [messages, isRunning]);
   // The poller is shared with the work panel header, which follows the
   // active session too, so both always ask for the same list.
-  const shells = useBackgroundShells(activeSessionId);
+  const shells = useBackgroundShells(sessionId);
   const anyRunning =
     subagents.some((item) => item.status === "running" || item.status === "creating") ||
     shells.some((shell) => shell.status === "running");
@@ -161,10 +270,10 @@ export function SessionInfo() {
   // Refresh when the panel opens, the session changes, or a turn ends.
   const settledMessages = isRunning ? -1 : messages.length;
   useEffect(() => {
-    if (!open || !activeSessionId || settledMessages < 0) return;
+    if (!open || !sessionId || settledMessages < 0) return;
     let canceled = false;
     void api
-      .sessionContextBreakdown(activeSessionId)
+      .sessionContextBreakdown(sessionId)
       .then(({ breakdown: loaded }) => {
         if (!canceled) setBreakdown(loaded);
       })
@@ -172,7 +281,7 @@ export function SessionInfo() {
         if (!canceled) setBreakdown(null);
       });
     void api
-      .getSessionCollaboration(activeSessionId)
+      .getSessionCollaboration(sessionId)
       .then((summary) => {
         if (!canceled) setCollaboration(summary);
       })
@@ -193,7 +302,7 @@ export function SessionInfo() {
     return () => {
       canceled = true;
     };
-  }, [open, activeSessionId, settledMessages]);
+  }, [open, sessionId, settledMessages]);
 
   // The panel opens and closes only through its button. The layout menu
   // closes on an outside click or Escape.
@@ -239,7 +348,7 @@ export function SessionInfo() {
     window.addEventListener("pointerup", onUp);
   };
 
-  if (!activeSessionId) return null;
+  if (!sessionId) return null;
 
   const folder = sessionFolderLabel(session?.projectPath, index, normalizeProjectPath);
   const projectKey = normalizeProjectPath(session?.projectPath);
@@ -393,7 +502,7 @@ export function SessionInfo() {
             type="button"
             className="mc-session-info-button"
             disabled={isRunning}
-            onClick={() => void compactContext()}
+            onClick={() => withFocus(() => void compactContext())}
           >
             {t("mcProject.sessionInfoCompact")}
           </button>
@@ -410,7 +519,7 @@ export function SessionInfo() {
           <button
             type="button"
             className="mc-session-info-link"
-            onClick={() => openWorkPanelTab(toolWorkPanelTab("review"))}
+            onClick={() => withFocus(() => openWorkPanelTab(toolWorkPanelTab("review")))}
           >
             {t("mcProject.sessionInfoReview", { count: changes.changeCount })}
           </button>
@@ -436,7 +545,7 @@ export function SessionInfo() {
                       data-status={item.status}
                       disabled={Boolean(session && isRemoteSession(session))}
                       title={[item.agentName, label, elapsed].filter(Boolean).join(" · ")}
-                      onClick={() => openSubagentTab(item.delegationId, item.agentName || undefined)}
+                      onClick={() => withFocus(() => openSubagentTab(item.delegationId, item.agentName || undefined))}
                     >
                       <span className="mc-session-info-subtask-dot" aria-hidden />
                       <span className="mc-session-info-subtask-name">{item.agentName || t("panel.tabs.subagent")}</span>
@@ -502,11 +611,13 @@ export function SessionInfo() {
                   className="mc-session-info-subtask"
                   data-status={shell.status}
                   title={`${shell.command}\n${shell.cwd}`}
-                  onClick={() => {
-                    openWorkPanelTab(backgroundTab());
-                    expandPane("background");
-                    focusBackgroundShell(shell.id);
-                  }}
+                  onClick={() =>
+                    withFocus(() => {
+                      openWorkPanelTab(backgroundTab());
+                      expandPane("background");
+                      focusBackgroundShell(shell.id);
+                    })
+                  }
                 >
                   <span className="mc-session-info-subtask-dot" aria-hidden />
                   <span className="mc-session-info-subtask-name mc-session-info-command">{shell.command}</span>
@@ -530,7 +641,7 @@ export function SessionInfo() {
 
 
   const toggleRow = (
-    <div className="mc-session-info-toggle-row">
+    <div className="mc-session-info-toggle-row" ref={toggleRef}>
       <button
         type="button"
         className={`mc-session-info-trigger${open ? " active" : ""}`}
@@ -539,7 +650,7 @@ export function SessionInfo() {
         title={t("mcProject.sessionInfoTitle")}
         onClick={() => {
           setMenuOpen(false);
-          setPrefs((current) => ({ ...current, open: !current.open }));
+          setOpen(!open);
         }}
       >
         <IconInfo size={13} aria-hidden />

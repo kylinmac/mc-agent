@@ -267,6 +267,10 @@ export function ContextMenu({
       event.stopPropagation();
       onClose();
     };
+    // mc-agent: window-drag regions (the title bar) swallow presses before the
+    // page sees them, so a press there could not close the menu. They stop
+    // dragging while a menu is open (CSS reads this attribute).
+    document.documentElement.setAttribute("data-context-menu-open", "true");
     window.addEventListener("pointerdown", onOutside, true);
     window.addEventListener("contextmenu", onOutside, true);
     window.addEventListener("scroll", onOutside, true);
@@ -274,6 +278,7 @@ export function ContextMenu({
     window.addEventListener("blur", onClose);
     window.addEventListener("keydown", onKeyDown, true);
     return () => {
+      document.documentElement.removeAttribute("data-context-menu-open");
       window.removeEventListener("pointerdown", onOutside, true);
       window.removeEventListener("contextmenu", onOutside, true);
       window.removeEventListener("scroll", onOutside, true);
