@@ -237,8 +237,12 @@ export function registerPluginUiIpc({
 
   handle(
     IPC.invoke.pluginViewSetBounds,
-    async (payload: { x: number; y: number; width: number; height: number }) => {
-      pluginViews.setBounds(payload ?? { x: 0, y: 0, width: 0, height: 0 });
+    async (payload: { x: number; y: number; width: number; height: number; pluginId?: string; viewId?: string }) => {
+      // mc-agent (MC-ADR-0005): stacked panes place each view separately.
+      const key = typeof payload?.pluginId === "string" && typeof payload?.viewId === "string"
+        ? pluginViewKey(payload.pluginId, payload.viewId)
+        : undefined;
+      pluginViews.setBounds(payload ?? { x: 0, y: 0, width: 0, height: 0 }, key);
       return { ok: true };
     },
   );

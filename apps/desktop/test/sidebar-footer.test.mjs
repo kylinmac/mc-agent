@@ -60,8 +60,10 @@ test("app rail exposes plugins, scheduled tasks and settings; notifications sit 
   const actions = railSource
     .split("<TooltipButton")
     .filter((chunk) => /className=(?:"footer-action"|\{`footer-action )/.test(chunk));
-  // mc-agent: home, plugins, scheduled and settings.
-  assert.equal(actions.length, 4);
+  // mc-agent: home, plugins, scheduled and settings, plus the template for
+  // plugin views in the extension slot (MC-ADR-0005).
+  assert.equal(actions.length, 5);
+  assert.match(railSource, /data-nav=\{`rail-view:\$\{view\.ref\}`\}/);
   for (const action of actions) {
     const attrs = action.slice(0, action.indexOf(">"));
     assert.match(attrs, /tooltip=/);

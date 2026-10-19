@@ -22,7 +22,7 @@
 | 工作区说明（R10） | 资料目录根下 `workspaces.md`，每工作区一节；界面显示并注入会话的工作区列表；归首版 | 2026-10-15 用户确认 |
 | 外部资料目录 | 目录可标为 `reference`，权限与工作区相同，只做标识 | 2026-10-15 用户确认 |
 | Session Orchestrator | 插件源码放本仓库 `plugins/session-orchestrator/`（MIT，0.7.1+mc.1），只加 `workspace` 参数；从文件夹安装 | 2026-10-15 用户确认 |
-| 工作面板终端（R11.7） | 恢复终端（node-pty + xterm.js），按标签开 shell，默认会话起始目录；工具图标一键打开；浏览器可多开 | 2026-10-19 用户确认方案 A，[MC-ADR-0005](adr/mc-0005-work-panel-terminal-and-tools.md) |
+| 工作面板终端（R11.7） | 恢复终端（node-pty + xterm.js），按标签开 shell，默认会话起始目录；工具图标一键打开；浏览器可多开；面板按工具分区上下排列，去掉“+” | 2026-10-19 用户确认方案 A，[MC-ADR-0005](adr/mc-0005-work-panel-terminal-and-tools.md) |
 | 界面外壳（R11） | 侧边栏按项目合并；左侧竖栏分内置／插件两段、设置在底；顶部固定标签栏，对话与页面都以标签打开；通知在右上；mi 图标 | 2026-10-15～18 用户确认，[MC-ADR-0004](adr/mc-0004-app-rail-and-title-tabs.md) |
 
 当前架构决定：[MC-ADR-0002](adr/mc-0002-fork-pi-desktop.md)；项目结构：[MC-ADR-0003](adr/mc-0003-equal-workspaces-and-project-home.md)；界面外壳：[MC-ADR-0004](adr/mc-0004-app-rail-and-title-tabs.md)。

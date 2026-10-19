@@ -1491,6 +1491,9 @@ export const api = {
     y: number;
     width: number;
     height: number;
+    /** mc-agent (MC-ADR-0005): which view, when several are on screen. */
+    pluginId?: string;
+    viewId?: string;
   }) => invoke(IPC.invoke.pluginViewSetBounds, bounds),
   pluginViewSetVisible: (
     pluginId: string,

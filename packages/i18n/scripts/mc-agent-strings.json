@@ -933,5 +933,60 @@
     "en": "Could not start the terminal",
     "zh-CN": "无法启动终端",
     "zh-TW": "無法啟動終端"
+  },
+  "paneTerminal": {
+    "en": "Terminal",
+    "zh-CN": "终端",
+    "zh-TW": "終端"
+  },
+  "paneBrowser": {
+    "en": "Browser",
+    "zh-CN": "浏览器",
+    "zh-TW": "瀏覽器"
+  },
+  "paneFiles": {
+    "en": "Files",
+    "zh-CN": "文件",
+    "zh-TW": "檔案"
+  },
+  "paneReview": {
+    "en": "Changes",
+    "zh-CN": "变更",
+    "zh-TW": "變更"
+  },
+  "paneOther": {
+    "en": "Other",
+    "zh-CN": "其他",
+    "zh-TW": "其他"
+  },
+  "paneNewTab": {
+    "en": "New tab",
+    "zh-CN": "新建标签",
+    "zh-TW": "新增分頁"
+  },
+  "paneClose": {
+    "en": "Close this pane and its tabs",
+    "zh-CN": "关闭此区域及其标签",
+    "zh-TW": "關閉此區域及其分頁"
+  },
+  "paneResize": {
+    "en": "Resize panes",
+    "zh-CN": "调整区域高度",
+    "zh-TW": "調整區域高度"
+  },
+  "paneDragHint": {
+    "en": "Drag to move this pane",
+    "zh-CN": "拖动可调整区域上下位置",
+    "zh-TW": "拖動可調整區域上下位置"
+  },
+  "panesEmpty": {
+    "en": "Open a terminal, browser, files or changes from the icons above",
+    "zh-CN": "从上方图标打开终端、浏览器、文件或变更",
+    "zh-TW": "從上方圖示開啟終端、瀏覽器、檔案或變更"
+  },
+  "appRailViewNeedsSession": {
+    "en": "{{name}} — open a conversation first",
+    "zh-CN": "{{name}}：请先打开一个会话",
+    "zh-TW": "{{name}}：請先開啟一個會話"
   }
 }

@@ -72,10 +72,11 @@ test("the work panel renders the delegation tab like every other resource", () =
   assert.match(workPanelSource, /if \(tab\.kind === "subagent"\) return tab\.label \?\? t\("panel\.tabs\.subagent"\);/);
   assert.match(workPanelSource, /const subagentTabsInOrder = tabs\.filter\(\(tab\) => tab\.kind === "subagent"\)/);
   assert.match(workPanelSource, /subagentTabDisplayLabels\(/);
-  assert.match(workPanelSource, /\{activeTab\?\.kind === "subagent" && \(/);
+  // mc-agent (MC-ADR-0005): each pane renders its own tab's surface.
+  assert.match(workPanelSource, /if \(tab\.kind === "subagent"\) \{/);
   assert.match(
     workPanelSource,
-    /<SubagentTranscriptTab delegationId=\{activeTab\.resource \?\? ""\} \/>/,
+    /<SubagentTranscriptTab delegationId=\{tab\.resource \?\? ""\} \/>/,
   );
   // The tab strip is never replaced by a dock heading or a back control.
   assert.doesNotMatch(workPanelSource, /work-panel-subagent-heading|work-panel-subagent-back/);

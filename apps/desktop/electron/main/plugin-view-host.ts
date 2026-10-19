@@ -50,6 +50,8 @@ export { PLUGIN_VIEW_LOCATION_EVENT, PLUGIN_VIEW_LOCATION_PARAM, viewEntryUrl };
 
 /** Live views kept warm; the least recently shown one is evicted past this. */
 const MAX_LIVE_VIEWS = 4;
+/** The browser view: its guest page follows this view's rect. */
+const SURFACE_PREFERRED_KEY = "pi.browser/browser";
 
 export type PluginViewOpenRequest = {
   pluginId: string;
@@ -104,11 +106,14 @@ export function pluginViewKey(pluginId: string, viewId: string): string {
 export class PluginViewHost {
   private views = new Map<string, LiveView>();
   private window: BrowserWindow | null = null;
-  /** The one view currently attached to the window, if any. */
-  private visibleKey: string | null = null;
-  private bounds: PluginViewBounds = { x: 0, y: 0, width: 0, height: 0 };
-  /** Last CSS-pixel rect from the renderer, so zoom changes can rescale. */
-  private lastCssBounds: PluginViewBounds | null = null;
+  /**
+   * Views currently attached to the window. mc-agent (MC-ADR-0005): the work
+   * panel stacks one pane per tool, so several views can be on screen at once,
+   * each at its own rect.
+   */
+  private visibleKeys = new Set<string>();
+  /** Last CSS-pixel rect per view, so zoom changes can rescale. */
+  private cssBounds = new Map<string, PluginViewBounds>();
   private clock = 0;
   private onBlockedRequest?: PluginPanelBlockedRequest;
   /**
@@ -156,7 +161,7 @@ export class PluginViewHost {
 
   setWindow(window: BrowserWindow | null): void {
     if (this.window === window) return;
-    this.detachVisible();
+    this.detachAll();
     this.unbindZoom();
     this.window = window;
     this.bindZoom();
@@ -168,11 +173,7 @@ export class PluginViewHost {
     const contents = this.window && !this.window.isDestroyed() ? this.window.webContents : null;
     if (!contents || contents.isDestroyed()) return;
     const onChange = () => {
-      if (this.lastCssBounds) {
-        this.bounds = scaleBoundsToDip(this.lastCssBounds, this.currentZoomFactor());
-      }
-      const visible = this.visibleKey ? this.views.get(this.visibleKey) : null;
-      visible?.view.setBounds(this.bounds);
+      for (const key of this.visibleKeys) this.views.get(key)?.view.setBounds(this.boundsFor(key));
       this.emitSurface();
     };
     try {
@@ -284,18 +285,29 @@ export class PluginViewHost {
       });
   }
 
-  setBounds(bounds: PluginViewBounds): void {
+  /**
+   * Place one view. Without a key (an older caller) the rect applies to every
+   * view on screen, which is the single-view behavior.
+   */
+  setBounds(bounds: PluginViewBounds, key?: string): void {
     // Renderer measures CSS pixels; WebContentsView.setBounds wants DIPs.
-    this.lastCssBounds = {
+    const css = {
       x: Number(bounds.x) || 0,
       y: Number(bounds.y) || 0,
       width: Number(bounds.width) || 0,
       height: Number(bounds.height) || 0,
     };
-    this.bounds = scaleBoundsToDip(this.lastCssBounds, this.currentZoomFactor());
-    const visible = this.visibleKey ? this.views.get(this.visibleKey) : null;
-    visible?.view.setBounds(this.bounds);
+    const keys = key ? [key] : [...this.visibleKeys];
+    for (const target of keys) {
+      this.cssBounds.set(target, css);
+      if (this.visibleKeys.has(target)) this.views.get(target)?.view.setBounds(this.boundsFor(target));
+    }
     this.emitSurface();
+  }
+
+  private boundsFor(key: string): PluginViewBounds {
+    const css = this.cssBounds.get(key) ?? { x: 0, y: 0, width: 0, height: 0 };
+    return scaleBoundsToDip(css, this.currentZoomFactor());
   }
 
   private currentZoomFactor(): number {
@@ -306,29 +318,26 @@ export class PluginViewHost {
   }
 
   /**
-   * Show exactly one view, or none.
-   *
-   * Only one work panel surface is on screen at a time, so showing a view
-   * implicitly detaches whichever was attached before. That keeps a stale view
-   * from lingering above the renderer when the user switches tabs quickly.
+   * Show or hide one view. mc-agent (MC-ADR-0005): views in different work
+   * panel panes are on screen together, so showing one no longer detaches the
+   * others; the renderer hides a view when its tab leaves the screen.
    */
   setVisible(pluginId: string, viewId: string, visible: boolean): void {
     const key = pluginViewKey(pluginId, viewId);
     if (!visible) {
-      if (this.visibleKey === key) this.detachVisible();
+      if (this.visibleKeys.has(key)) this.detach(key);
       return;
     }
     const entry = this.views.get(key);
     if (!entry) return;
-    if (this.visibleKey && this.visibleKey !== key) this.detachVisible();
     entry.usedAt = ++this.clock;
     if (!this.window || this.window.isDestroyed()) return;
     const children = this.window.contentView.children;
     if (!children.includes(entry.view)) {
       this.window.contentView.addChildView(entry.view);
     }
-    entry.view.setBounds(this.bounds);
-    this.visibleKey = key;
+    entry.view.setBounds(this.boundsFor(key));
+    this.visibleKeys.add(key);
     this.emitSurface();
   }
 
@@ -362,14 +371,19 @@ export class PluginViewHost {
   private destroy(key: string): void {
     const entry = this.views.get(key);
     if (!entry) return;
-    if (this.visibleKey === key) this.detachVisible();
+    if (this.visibleKeys.has(key)) this.detach(key);
     this.views.delete(key);
+    this.cssBounds.delete(key);
     if (!entry.view.webContents.isDestroyed()) entry.view.webContents.close();
   }
 
-  private detachVisible(): void {
-    const entry = this.visibleKey ? this.views.get(this.visibleKey) : null;
-    this.visibleKey = null;
+  private detachAll(): void {
+    for (const key of [...this.visibleKeys]) this.detach(key);
+  }
+
+  private detach(key: string): void {
+    const entry = this.views.get(key);
+    this.visibleKeys.delete(key);
     if (entry && this.window && !this.window.isDestroyed()) {
       const children = this.window.contentView.children;
       if (children.includes(entry.view)) {
@@ -379,22 +393,25 @@ export class PluginViewHost {
     this.emitSurface();
   }
 
+  /**
+   * Report the surface the browser guest clamps to. With several views on
+   * screen the browser view wins, since it is the only view the guest
+   * follows; otherwise the latest attached view is reported.
+   */
   private emitSurface(): void {
     if (!this.onSurface) return;
-    if (!this.visibleKey) {
-      this.onSurface(null);
-      return;
-    }
-    const separator = this.visibleKey.indexOf("/");
-    if (separator <= 0) {
+    const visible = [...this.visibleKeys];
+    const key = visible.find((candidate) => candidate === SURFACE_PREFERRED_KEY) ?? visible.at(-1);
+    const separator = key ? key.indexOf("/") : -1;
+    if (!key || separator <= 0) {
       this.onSurface(null);
       return;
     }
     this.onSurface({
-      pluginId: this.visibleKey.slice(0, separator),
-      viewId: this.visibleKey.slice(separator + 1),
+      pluginId: key.slice(0, separator),
+      viewId: key.slice(separator + 1),
       visible: true,
-      bounds: this.bounds,
+      bounds: this.boundsFor(key),
     });
   }
 
@@ -402,7 +419,7 @@ export class PluginViewHost {
   private evictBeyondLimit(): void {
     while (this.views.size > MAX_LIVE_VIEWS) {
       const candidates = [...this.views.values()]
-        .filter((entry) => entry.key !== this.visibleKey)
+        .filter((entry) => !this.visibleKeys.has(entry.key))
         .sort((a, b) => a.usedAt - b.usedAt);
       const oldest = candidates[0];
       if (!oldest) return;

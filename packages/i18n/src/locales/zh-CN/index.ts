@@ -3001,6 +3001,17 @@ sklm: {
     terminalExited: "Shell 已退出",
     terminalRestart: "重新启动",
     terminalStartFailed: "无法启动终端",
+    paneTerminal: "终端",
+    paneBrowser: "浏览器",
+    paneFiles: "文件",
+    paneReview: "变更",
+    paneOther: "其他",
+    paneNewTab: "新建标签",
+    paneClose: "关闭此区域及其标签",
+    paneResize: "调整区域高度",
+    paneDragHint: "拖动可调整区域上下位置",
+    panesEmpty: "从上方图标打开终端、浏览器、文件或变更",
+    appRailViewNeedsSession: "{{name}}：请先打开一个会话",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

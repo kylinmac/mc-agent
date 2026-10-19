@@ -3067,6 +3067,17 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     terminalExited: "Shell exited",
     terminalRestart: "Restart",
     terminalStartFailed: "Could not start the terminal",
+    paneTerminal: "Terminal",
+    paneBrowser: "Browser",
+    paneFiles: "Files",
+    paneReview: "Changes",
+    paneOther: "Other",
+    paneNewTab: "New tab",
+    paneClose: "Close this pane and its tabs",
+    paneResize: "Resize panes",
+    paneDragHint: "Drag to move this pane",
+    panesEmpty: "Open a terminal, browser, files or changes from the icons above",
+    appRailViewNeedsSession: "{{name}} — open a conversation first",
   },
   // mc-agent:end
 } as const;

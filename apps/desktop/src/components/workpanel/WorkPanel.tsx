@@ -13,11 +13,6 @@ import {
 import { useTranslation } from "react-i18next";
 import { useBlockingOverlayActive } from "../../lib/blocking-overlay";
 import {
-  workPanelTabReorderScrollDelta,
-  workPanelTabReorderInsertAfter,
-  workPanelTabReorderShouldArm,
-} from "../../lib/work-panel-tab-reorder";
-import {
   isKnownWorkPanelTab,
   parsePluginViewRef,
   pluginWorkPanelTab,
@@ -47,7 +42,8 @@ import { FilesTab } from "./FilesTab";
 import { PluginViewTab } from "./PluginViewTab";
 import { SubagentTranscriptTab } from "./SubagentTranscriptTab";
 import { TerminalTab } from "../../features/work-tools/TerminalTab";
-import { WorkPanelQuickTools } from "../../features/work-tools/WorkPanelQuickTools";
+import { useTerminalCwd, WorkPanelQuickTools } from "../../features/work-tools/WorkPanelQuickTools";
+import { WorkPanes } from "../../features/work-tools/WorkPanes";
 import {
   MAIN_PANE_MIN_WIDTH,
   WORK_PANEL_COMPACT_MIN_WIDTH,
@@ -74,25 +70,6 @@ type WorkPanelResizeState = {
   minimumWidth: number;
   currentWidth: number;
   frame: number;
-};
-
-type WorkPanelTabReorderState = {
-  pointerId: number;
-  sourceTabId: string;
-  activeSessionId: string | undefined;
-  activeTabId: string | null;
-  tabSignature: string;
-  startClientX: number;
-  startClientY: number;
-  lastClientX: number;
-  lastClientY: number;
-  targetTabId: string | null;
-  insertAfter: boolean;
-  armed: boolean;
-  autoScrollFrame: number | null;
-  onMove: (event: PointerEvent) => void;
-  onUp: (event: PointerEvent) => void;
-  onCancel: (event: PointerEvent) => void;
 };
 
 type WorkPanelTool = {
@@ -217,17 +194,11 @@ function LocalWorkPanel({
   const pluginViews = useAppStore((s) => s.pluginViews);
   const width = useAppStore((s) => s.workPanelWidth);
   const activateTab = useAppStore((s) => s.activateWorkPanelTab);
-  const reorderTabs = useAppStore((s) => s.reorderWorkPanelTabs);
-  const closeTab = useAppStore((s) => s.closeWorkPanelTab);
   const openWorkPanelTab = useAppStore((s) => s.openWorkPanelTab);
-  const openNewWorkPanelTab = useAppStore((s) => s.openNewWorkPanelTab);
   const replaceWorkPanelTab = useAppStore((s) => s.replaceWorkPanelTab);
   const setWidth = useAppStore((s) => s.setWorkPanelWidth);
-  const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
+  const terminalCwd = useTerminalCwd();
   const tools = workPanelTools(t, pluginViews);
-  const tabSignature = JSON.stringify(
-    tabs.map(({ id, kind, resource, location }) => [id, kind, resource, location]),
-  );
   // Subagent tabs may share an agent name; repeats gain a 1-based `#n`
   // suffix in strip order so the row stays unambiguous. The base label
   // already falls back to panel.tabs.subagent when no name was captured.
@@ -243,16 +214,6 @@ function LocalWorkPanel({
 
   const [panelDragWidth, setPanelDragWidth] = useState<number | null>(null);
   const panelResizeState = useRef<WorkPanelResizeState | null>(null);
-  const tabReorderState = useRef<WorkPanelTabReorderState | null>(null);
-  const tabStripRef = useRef<HTMLDivElement | null>(null);
-  const suppressedTabClickPointerIdsRef = useRef<Set<number>>(new Set());
-  const tabButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const newTabButtonRef = useRef<HTMLButtonElement | null>(null);
-  const [draggingTabId, setDraggingTabId] = useState<string | null>(null);
-  const [dropIndicator, setDropIndicator] = useState<{
-    tabId: string;
-    insertAfter: boolean;
-  } | null>(null);
   const [nativeSurfaceReadyForExit, setNativeSurfaceReadyForExit] =
     useState(false);
 
@@ -306,270 +267,6 @@ function LocalWorkPanel({
     setNativeSurfaceReadyForExit(true);
   }, [exiting]);
 
-  useLayoutEffect(() => {
-    if (!activeTabId) return;
-    tabButtonRefs.current[activeTabId]?.scrollIntoView({
-      block: "nearest",
-      inline: "nearest",
-    });
-  }, [activeTabId, tabs.length]);
-
-  const finishTabReorder = useCallback(() => {
-    const state = tabReorderState.current;
-    if (state) {
-      window.removeEventListener("pointermove", state.onMove, true);
-      window.removeEventListener("pointerup", state.onUp, true);
-      window.removeEventListener("pointercancel", state.onCancel, true);
-      if (state.autoScrollFrame !== null) {
-        cancelAnimationFrame(state.autoScrollFrame);
-        state.autoScrollFrame = null;
-      }
-      tabReorderState.current = null;
-    }
-    setDraggingTabId(null);
-    setDropIndicator(null);
-    document.documentElement.removeAttribute("data-work-panel-tab-reordering");
-  }, []);
-
-  useLayoutEffect(() => {
-    const state = tabReorderState.current;
-    if (
-      state &&
-      (state.activeSessionId !== activeSessionId ||
-        state.activeTabId !== activeTabId ||
-        state.tabSignature !== tabSignature)
-    ) {
-      suppressedTabClickPointerIdsRef.current.add(state.pointerId);
-      finishTabReorder();
-    }
-  }, [activeSessionId, activeTabId, finishTabReorder, tabSignature]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const state = tabReorderState.current;
-      if (event.key !== "Escape" || !state) return;
-      event.preventDefault();
-      suppressedTabClickPointerIdsRef.current.add(state.pointerId);
-      finishTabReorder();
-    };
-    const onWindowBlur = () => {
-      const state = tabReorderState.current;
-      if (state) suppressedTabClickPointerIdsRef.current.add(state.pointerId);
-      finishTabReorder();
-    };
-    const onPointerDown = (event: PointerEvent) => {
-      // A reused pointer id starts a new gesture; unrelated pointers do not
-      // clear a canceled gesture's pending click suppression.
-      suppressedTabClickPointerIdsRef.current.delete(event.pointerId);
-    };
-    const onClick = (event: MouseEvent) => {
-      if (
-        event.detail === 0 ||
-        !("pointerId" in event) ||
-        typeof event.pointerId !== "number" ||
-        !suppressedTabClickPointerIdsRef.current.has(event.pointerId)
-      ) {
-        return;
-      }
-      suppressedTabClickPointerIdsRef.current.delete(event.pointerId);
-      if (
-        !(event.target instanceof Element) ||
-        !event.target.closest('[role="tab"]')
-      ) {
-        return;
-      }
-      event.preventDefault();
-      event.stopImmediatePropagation();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("blur", onWindowBlur);
-    window.addEventListener("pointerdown", onPointerDown, true);
-    window.addEventListener("click", onClick, true);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("blur", onWindowBlur);
-      window.removeEventListener("pointerdown", onPointerDown, true);
-      window.removeEventListener("click", onClick, true);
-      suppressedTabClickPointerIdsRef.current.clear();
-      finishTabReorder();
-    };
-  }, [finishTabReorder]);
-
-  const reorderTab = useCallback(
-    (sourceTabId: string, targetTabId: string, insertAfter: boolean) => {
-      if (sourceTabId === targetTabId) return;
-      reorderTabs(sourceTabId, targetTabId, insertAfter);
-      requestAnimationFrame(() => {
-        tabButtonRefs.current[sourceTabId]?.focus({ preventScroll: true });
-      });
-    },
-    [reorderTabs],
-  );
-
-  const beginTabReorder = useCallback(
-    (event: React.PointerEvent<HTMLButtonElement>, sourceTabId: string) => {
-      if (
-        event.button !== 0 ||
-        event.pointerType === "touch" ||
-        tabReorderState.current
-      ) {
-        return;
-      }
-      // Pointer click suppression is armed only when this drag completes.
-
-      const updateDropTarget = (state: WorkPanelTabReorderState) => {
-        const strip = tabStripRef.current;
-        const target = strip
-          ? document
-              .elementFromPoint(state.lastClientX, state.lastClientY)
-              ?.closest<HTMLElement>("[data-work-panel-tab-id]")
-          : null;
-        if (!target || !strip?.contains(target)) {
-          state.targetTabId = null;
-          setDropIndicator(null);
-          return;
-        }
-
-        const targetTabId = target.dataset.workPanelTabId;
-        if (!targetTabId || targetTabId === state.sourceTabId) {
-          state.targetTabId = null;
-          setDropIndicator(null);
-          return;
-        }
-        const rect = target.getBoundingClientRect();
-        const insertAfter = workPanelTabReorderInsertAfter(
-          state.lastClientX,
-          rect.left,
-          rect.width,
-        );
-        state.targetTabId = targetTabId;
-        state.insertAfter = insertAfter;
-        setDropIndicator({ tabId: targetTabId, insertAfter });
-      };
-
-      const startAutoScroll = (state: WorkPanelTabReorderState) => {
-        if (state.autoScrollFrame !== null) return;
-
-        const tick = () => {
-          const current = tabReorderState.current;
-          const strip = tabStripRef.current;
-          if (!current || current !== state || !current.armed || !strip) {
-            state.autoScrollFrame = null;
-            return;
-          }
-
-          const stripRect = strip.getBoundingClientRect();
-          if (
-            current.lastClientY < stripRect.top ||
-            current.lastClientY > stripRect.bottom ||
-            strip.scrollWidth <= strip.clientWidth
-          ) {
-            current.autoScrollFrame = null;
-            return;
-          }
-
-          const delta = workPanelTabReorderScrollDelta(
-            current.lastClientX,
-            stripRect.left,
-            stripRect.right,
-          );
-          if (!delta) {
-            current.autoScrollFrame = null;
-            return;
-          }
-
-          const maxScrollLeft = strip.scrollWidth - strip.clientWidth;
-          const nextScrollLeft = Math.min(
-            maxScrollLeft,
-            Math.max(0, strip.scrollLeft + delta),
-          );
-          if (nextScrollLeft === strip.scrollLeft) {
-            current.autoScrollFrame = null;
-            return;
-          }
-
-          strip.scrollLeft = nextScrollLeft;
-          updateDropTarget(current);
-          current.autoScrollFrame = requestAnimationFrame(tick);
-        };
-
-        state.autoScrollFrame = requestAnimationFrame(tick);
-      };
-
-      const onMove = (moveEvent: PointerEvent) => {
-        const state = tabReorderState.current;
-        if (!state || state.pointerId !== moveEvent.pointerId) return;
-        state.lastClientX = moveEvent.clientX;
-        state.lastClientY = moveEvent.clientY;
-        if (!state.armed) {
-          if (
-            !workPanelTabReorderShouldArm(
-              moveEvent.clientX - state.startClientX,
-              moveEvent.clientY - state.startClientY,
-            )
-          ) {
-            return;
-          }
-          state.armed = true;
-          document.documentElement.setAttribute(
-            "data-work-panel-tab-reordering",
-            "true",
-          );
-          setDraggingTabId(state.sourceTabId);
-        }
-
-        moveEvent.preventDefault();
-        updateDropTarget(state);
-        startAutoScroll(state);
-      };
-
-      const onUp = (upEvent: PointerEvent) => {
-        const state = tabReorderState.current;
-        if (!state || state.pointerId !== upEvent.pointerId) return;
-        if (state.armed) {
-          upEvent.preventDefault();
-          if (state.targetTabId) {
-            reorderTab(state.sourceTabId, state.targetTabId, state.insertAfter);
-          }
-          finishTabReorder();
-          suppressedTabClickPointerIdsRef.current.add(state.pointerId);
-          return;
-        }
-        finishTabReorder();
-      };
-
-      const onCancel = (cancelEvent: PointerEvent) => {
-        if (tabReorderState.current?.pointerId !== cancelEvent.pointerId) return;
-        suppressedTabClickPointerIdsRef.current.delete(cancelEvent.pointerId);
-        finishTabReorder();
-      };
-
-      const state: WorkPanelTabReorderState = {
-        pointerId: event.pointerId,
-        sourceTabId,
-        activeSessionId,
-        activeTabId,
-        tabSignature,
-        startClientX: event.clientX,
-        startClientY: event.clientY,
-        lastClientX: event.clientX,
-        lastClientY: event.clientY,
-        targetTabId: null,
-        insertAfter: false,
-        armed: false,
-        autoScrollFrame: null,
-        onMove,
-        onUp,
-        onCancel,
-      };
-      tabReorderState.current = state;
-      window.addEventListener("pointermove", onMove, true);
-      window.addEventListener("pointerup", onUp, true);
-      window.addEventListener("pointercancel", onCancel, true);
-    },
-    [activeSessionId, activeTabId, finishTabReorder, reorderTab, tabSignature],
-  );
-
   const selectTool = useCallback(
     (item: WorkPanelTool, sourceTabId?: string) => {
       if (sourceTabId) {
@@ -582,60 +279,6 @@ function LocalWorkPanel({
     },
     [activateTab, openWorkPanelTab, replaceWorkPanelTab, tabs],
   );
-
-  const closeTabAndFocus = useCallback(
-    (tabId: string) => {
-      const index = tabs.findIndex((tab) => tab.id === tabId);
-      const nextTab = index >= 0 ? tabs[index + 1] ?? tabs[index - 1] : undefined;
-      closeTab(tabId);
-      requestAnimationFrame(() => {
-        if (nextTab) tabButtonRefs.current[nextTab.id]?.focus();
-        else newTabButtonRef.current?.focus();
-      });
-    },
-    [closeTab, tabs],
-  );
-  const onTabKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLButtonElement>, tabId: string) => {
-      const index = tabs.findIndex((tab) => tab.id === tabId);
-      if (index < 0) return;
-      if (event.key === "Delete" || event.key === "Backspace") {
-        event.preventDefault();
-        closeTabAndFocus(tabId);
-        return;
-      }
-      if (event.altKey && ["ArrowLeft", "ArrowRight"].includes(event.key)) {
-        event.preventDefault();
-        const target = tabs[index + (event.key === "ArrowLeft" ? -1 : 1)];
-        if (!target) return;
-        reorderTab(tabId, target.id, event.key === "ArrowRight");
-        return;
-      }
-      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-      event.preventDefault();
-      const nextIndex =
-        event.key === "Home"
-          ? 0
-          : event.key === "End"
-            ? tabs.length - 1
-            : event.key === "ArrowLeft"
-              ? (index - 1 + tabs.length) % tabs.length
-              : (index + 1) % tabs.length;
-      const nextTab = tabs[nextIndex];
-      if (!nextTab) return;
-      activateTab(nextTab.id);
-      requestAnimationFrame(() => tabButtonRefs.current[nextTab.id]?.focus());
-    },
-    [activateTab, closeTabAndFocus, reorderTab, tabs],
-  );
-
-  const onTabStripWheel = (event: React.WheelEvent<HTMLDivElement>) => {
-    const strip = event.currentTarget;
-    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-    if (strip.scrollWidth <= strip.clientWidth) return;
-    strip.scrollLeft += event.deltaY;
-    event.preventDefault();
-  };
 
   const finishPanelResize = useCallback(
     (target: HTMLDivElement, pointerId: number, cancelled: boolean) => {
@@ -760,13 +403,102 @@ function LocalWorkPanel({
     [finishPanelResize, layout.maxPanelWidth, maximized, panelMinimum, setWidth],
   );
 
-  const activePluginView =
-    activeTab?.kind === "plugin"
-      ? pluginViews.find((view) => view.ref === activeTab.resource)
-      : undefined;
-  const activeLabel = activeTab
-    ? tabLabel(activeTab, t, pluginViews)
-    : t("panel.title");
+  // Terminals in the same folder share a name; number repeats the same way.
+  const terminalTabsInOrder = tabs.filter((tab) => tab.kind === "terminal");
+  const terminalDisplayLabels = subagentTabDisplayLabels(
+    terminalTabsInOrder.map((tab) => tabLabel(tab, t, pluginViews)),
+  );
+  const terminalLabelById = new Map(
+    terminalTabsInOrder.map((tab, index) => [tab.id, terminalDisplayLabels[index]] as const),
+  );
+  const labelFor = (tab: WorkPanelTab) =>
+    tab.kind === "subagent"
+      ? (subagentLabelById.get(tab.id) ?? t("panel.tabs.subagent"))
+      : (terminalLabelById.get(tab.id) ?? tabLabel(tab, t, pluginViews));
+  const iconFor = (tab: WorkPanelTab) =>
+    tab.kind === "plugin"
+      ? pluginViewIcon(pluginViews.find((view) => view.ref === tab.resource)?.icon) ?? TAB_ICONS.plugin
+      : TAB_ICONS[tab.kind];
+
+  // mc-agent (MC-ADR-0005): each pane renders the tab it shows; several
+  // panes, and so several surfaces, are on screen at once.
+  const renderSurface = (tab: WorkPanelTab, { blocked }: { blocked: boolean }) => {
+    const surfaceProps = {
+      id: `work-panel-surface-${tab.id}`,
+      className: "work-panel-tabpane",
+      role: "tabpanel",
+    };
+    if (tab.kind === "subagent") {
+      return (
+        <div key={tab.id} {...surfaceProps}>
+          <SubagentTranscriptTab delegationId={tab.resource ?? ""} />
+        </div>
+      );
+    }
+    if (tab.kind === "terminal") {
+      return tab.resource ? (
+        <div key={tab.id} {...surfaceProps}>
+          <TerminalTab tabId={tab.id} cwd={tab.resource} active={tab.id === activeTabId} />
+        </div>
+      ) : null;
+    }
+    if (tab.kind === "review") {
+      return (
+        <div key={tab.id} {...surfaceProps}>
+          <ReviewTab />
+        </div>
+      );
+    }
+    if (tab.kind === "file") {
+      return (
+        <div key={tab.id} {...surfaceProps}>
+          <FilesTab />
+        </div>
+      );
+    }
+    if (tab.kind === "plugin") {
+      const ref = parsePluginViewRef(tab.resource);
+      if (!ref) return null;
+      return (
+        <div key={tab.id} {...surfaceProps}>
+          <PluginViewTab
+            pluginId={ref.pluginId}
+            viewId={ref.viewId}
+            title={labelFor(tab)}
+            icon={pluginViews.find((view) => view.ref === tab.resource)?.icon}
+            sessionId={activeSessionId ?? undefined}
+            location={tab.location}
+            tabId={tab.id}
+            // Native WebContentsViews composite above renderer content.
+            blocked={blocked || exiting || panelBlocked || blockingOverlayActive}
+          />
+        </div>
+      );
+    }
+    return (
+      <div key={tab.id} {...surfaceProps} data-testid="work-panel-empty">
+        <div className="work-panel-launcher">
+          <div className="work-panel-launcher-title">{t("panel.new.title")}</div>
+          <div className="work-panel-launcher-list" role="group" aria-label={t("panel.toolsAndPanels")}>
+            {tools.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="work-panel-launcher-row"
+                data-work-panel-launcher-item={item.id}
+                onClick={() => selectTool(item, tab.id)}
+              >
+                <span className="work-panel-launcher-icon" aria-hidden>
+                  <ToolIcon item={item} />
+                </span>
+                <span className="work-panel-launcher-label">{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
   const exitAnimationReady = exiting && nativeSurfaceReadyForExit;
   const panelStyle = {
     width: renderPanelWidth,
@@ -820,93 +552,12 @@ function LocalWorkPanel({
       />
       <div className="work-panel-main">
         <header className="work-panel-header">
+          {/* mc-agent: the tools sit where the tab strip was; tabs live in
+              each tool's pane (MC-ADR-0005). */}
           <div className="work-panel-tab-strip-wrap">
-              <div
-                ref={tabStripRef}
-                className="work-panel-tab-strip no-drag"
-                role="tablist"
-                aria-label={t("panel.tabsLabel")}
-                onWheel={onTabStripWheel}
-              >
-                {tabs.map((tab) => {
-                  const label =
-                    tab.kind === "subagent"
-                      ? (subagentLabelById.get(tab.id) ?? t("panel.tabs.subagent"))
-                      : tabLabel(tab, t, pluginViews);
-                  const selected = tab.id === activeTabId;
-                  const Icon =
-                    tab.kind === "plugin"
-                      ? pluginViewIcon(
-                          pluginViews.find((view) => view.ref === tab.resource)?.icon,
-                        ) ?? TAB_ICONS.plugin
-                      : TAB_ICONS[tab.kind];
-                  return (
-                    <div
-                      className={cx(
-                        "work-panel-tab",
-                        selected && "active",
-                        draggingTabId === tab.id && "is-dragging",
-                        dropIndicator?.tabId === tab.id &&
-                          (dropIndicator.insertAfter ? "is-drop-after" : "is-drop-before"),
-                      )}
-                      data-work-panel-tab-id={tab.id}
-                      key={tab.id}
-                    >
-                      <button
-                        ref={(node) => {
-                          tabButtonRefs.current[tab.id] = node;
-                        }}
-                        type="button"
-                        role="tab"
-                        id={`work-panel-tab-${tab.id}`}
-                        aria-selected={selected}
-                        aria-controls={`work-panel-surface-${tab.id}`}
-                        tabIndex={selected ? 0 : -1}
-                        aria-grabbed={draggingTabId === tab.id}
-                        aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight"
-                        className="work-panel-tab-button"
-                        title={tab.kind === "subagent" ? label : tab.resource ?? label}
-                        onPointerDown={(event) => beginTabReorder(event, tab.id)}
-                        onDragStart={(event) => event.preventDefault()}
-                        onClick={() => activateTab(tab.id)}
-                        onAuxClick={(event) => {
-                          if (event.button !== 1) return;
-                          event.preventDefault();
-                          closeTabAndFocus(tab.id);
-                        }}
-                        onKeyDown={(event) => onTabKeyDown(event, tab.id)}
-                      >
-                        <Icon size={14} />
-                        <span className="work-panel-tab-label">{label}</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="work-panel-tab-close"
-                        aria-label={t("panel.closeTab", { name: label })}
-                        title={t("panel.closeTab", { name: label })}
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={() => closeTabAndFocus(tab.id)}
-                      >
-                        <IconClose size={12} />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
+            <WorkPanelQuickTools />
           </div>
           <div className="work-panel-actions no-drag">
-              {/* mc-agent: one-click tools (MC-ADR-0005). */}
-              <WorkPanelQuickTools />
-              <TooltipButton
-                ref={newTabButtonRef}
-                type="button"
-                className="work-panel-new-tab"
-                tooltip={t("panel.new.open")}
-                ariaLabel={t("panel.new.open")}
-                onClick={openNewWorkPanelTab}
-              >
-                <IconPlus size={16} />
-              </TooltipButton>
             <TooltipButton
               type="button"
               className="work-panel-maximize"
@@ -924,114 +575,18 @@ function LocalWorkPanel({
           </div>
         </header>
         <div className="work-panel-body">
-          {activeTab?.kind === "subagent" && (
-            <div
-              key={activeTab.id}
-              id={`work-panel-surface-${activeTab.id}`}
-              className="work-panel-tabpane"
-              role="tabpanel"
-              aria-labelledby={`work-panel-tab-${activeTab.id}`}
-            >
-              <SubagentTranscriptTab delegationId={activeTab.resource ?? ""} />
-            </div>
-          )}
-          {activeTab?.kind === "terminal" && activeTab.resource && (
-            <div
-              key={activeTab.id}
-              id={`work-panel-surface-${activeTab.id}`}
-              className="work-panel-tabpane"
-              role="tabpanel"
-              aria-labelledby={`work-panel-tab-${activeTab.id}`}
-            >
-              <TerminalTab tabId={activeTab.id} cwd={activeTab.resource} active />
-            </div>
-          )}
-          {activeTab?.kind === "review" && (
-            <div
-              id={`work-panel-surface-${activeTab.id}`}
-              className="work-panel-tabpane"
-              role="tabpanel"
-              aria-labelledby={`work-panel-tab-${activeTab.id}`}
-            >
-              <ReviewTab />
-            </div>
-          )}
-          {activeTab?.kind === "file" && (
-            <div
-              key={activeTab.id}
-              id={`work-panel-surface-${activeTab.id}`}
-              className="work-panel-tabpane"
-              role="tabpanel"
-              aria-labelledby={`work-panel-tab-${activeTab.id}`}
-            >
-              <FilesTab />
-            </div>
-          )}
-          {activeTab?.kind === "plugin" &&
-            (() => {
-              const ref = parsePluginViewRef(activeTab.resource);
-              if (!ref) return null;
-              return (
-                <div
-                  key={activeTab.id}
-                  id={`work-panel-surface-${activeTab.id}`}
-                  className="work-panel-tabpane"
-                  role="tabpanel"
-                  aria-labelledby={`work-panel-tab-${activeTab.id}`}
-                >
-                  <PluginViewTab
-                    pluginId={ref.pluginId}
-                    viewId={ref.viewId}
-                    title={activeLabel}
-                    icon={activePluginView?.icon}
-                    sessionId={activeSessionId ?? undefined}
-                    location={activeTab.location}
-                    tabId={activeTab.id}
-                    // Native WebContentsViews composite above renderer content.
-                    blocked={exiting || panelBlocked || blockingOverlayActive}
-                  />
-                </div>
-              );
-            })()}
-          {(!activeTab || activeTab.kind === "new") && (
-            <div
-              className="work-panel-tabpane"
-              data-testid="work-panel-empty"
-              id={activeTab ? `work-panel-surface-${activeTab.id}` : undefined}
-              role={activeTab ? "tabpanel" : undefined}
-              aria-labelledby={
-                activeTab ? `work-panel-tab-${activeTab.id}` : undefined
-              }
-            >
-              <div className="work-panel-launcher">
-                <div className="work-panel-launcher-title">{t("panel.new.title")}</div>
-                <div
-                  className="work-panel-launcher-list"
-                  role="group"
-                  aria-label={t("panel.toolsAndPanels")}
-                >
-                  {tools.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className="work-panel-launcher-row"
-                      data-work-panel-launcher-item={item.id}
-                      onClick={() =>
-                        selectTool(
-                          item,
-                          activeTab?.kind === "new" ? activeTab.id : undefined,
-                        )
-                      }
-                    >
-                      <span className="work-panel-launcher-icon" aria-hidden>
-                        <ToolIcon item={item} />
-                      </span>
-                      <span className="work-panel-launcher-label">{item.label}</span>
-                      {item.shortcut ? <kbd>{item.shortcut}</kbd> : null}
-                    </button>
-                  ))}
-                </div>
-              </div>
+          {tabs.length > 0 ? (
+            <WorkPanes
+              tabs={tabs}
+              activeTabId={activeTabId}
+              terminalCwd={terminalCwd}
+              labelFor={labelFor}
+              iconFor={iconFor}
+              renderSurface={renderSurface}
+            />
+          ) : (
+            <div className="work-panel-tabpane mc-panes-empty" data-testid="work-panel-empty">
+              {t("mcProject.panesEmpty")}
             </div>
           )}
         </div>

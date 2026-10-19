@@ -2951,6 +2951,17 @@ sklm: {
     terminalExited: "Shell 已結束",
     terminalRestart: "重新啟動",
     terminalStartFailed: "無法啟動終端",
+    paneTerminal: "終端",
+    paneBrowser: "瀏覽器",
+    paneFiles: "檔案",
+    paneReview: "變更",
+    paneOther: "其他",
+    paneNewTab: "新增分頁",
+    paneClose: "關閉此區域及其分頁",
+    paneResize: "調整區域高度",
+    paneDragHint: "拖動可調整區域上下位置",
+    panesEmpty: "從上方圖示開啟終端、瀏覽器、檔案或變更",
+    appRailViewNeedsSession: "{{name}}：請先開啟一個會話",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

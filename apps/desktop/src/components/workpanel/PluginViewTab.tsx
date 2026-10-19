@@ -55,9 +55,12 @@ export function PluginViewTab({
         y: rect.y,
         width: rect.width,
         height: rect.height,
+        // mc-agent (MC-ADR-0005): views in different panes share the screen.
+        pluginId,
+        viewId,
       });
     });
-  }, [failed]);
+  }, [failed, pluginId, viewId]);
 
   // ResizeObserver does not cover position-only movement caused by an ancestor
   // layout or transform. Every React layout commit supplies the final rect.

@@ -86,18 +86,20 @@ test("the blank page launcher renders plugin views from the data-driven list", (
 });
 
 test("plugin views reach the panel body and the empty state", () => {
-  assert.match(panelSource, /activeTab\?\.kind === "plugin"/);
+  // mc-agent (MC-ADR-0005): each pane renders its own tab's surface.
+  assert.match(panelSource, /tab\.kind === "plugin"/);
   assert.match(panelSource, /<PluginViewTab/);
   // The revealed-but-empty panel and an explicit New tab list the same
   // entries, so a user who has only plugin views installed is not shown a
   // dead end.
   assert.match(panelSource, /tools\.map[\s\S]*work-panel-launcher-row/);
-  assert.match(panelSource, /activeTab\?\.kind === "new"/);
+  assert.match(panelSource, /data-testid="work-panel-empty"/);
   assert.doesNotMatch(panelSource, /openPluginView\(view\)/);
 });
 
 test("the native surface keeps its full and current bounds while the launcher is active", () => {
-  assert.match(panelSource, /blocked=\{\s*exiting \|\| panelBlocked \|\| blockingOverlayActive\s*\}/s);
+  // mc-agent (MC-ADR-0005): a pane drag or resize also hides native views.
+  assert.match(panelSource, /blocked=\{\s*blocked \|\| exiting \|\| panelBlocked \|\| blockingOverlayActive\s*\}/s);
   assert.doesNotMatch(panelSource, /avoid: pluginSurface/);
   assert.doesNotMatch(panelSource, /menuOpen|work-panel-new-menu|placeWorkPanelMenu/);
   assert.doesNotMatch(viewTabSource, /occludedById/);
@@ -214,17 +216,17 @@ test("an embedded view drops the window-control chrome", () => {
   assert.match(preloadSource, /contextBridge\.exposeInMainWorld\("pluginBridge", bridge\)/);
 });
 
-test("only one view is attached at a time and the cache is bounded", () => {
+// mc-agent (MC-ADR-0005): stacked work-panel panes put several views on
+// screen at once, each at its own rect; hiding is the renderer's job.
+test("views in different panes are attached together and the cache is bounded", () => {
   assert.match(viewHostSource, /const MAX_LIVE_VIEWS = \d+/);
   assert.match(viewHostSource, /private evictBeyondLimit\(\)/);
   // Never evict what is on screen.
-  assert.match(viewHostSource, /\.filter\(\(entry\) => entry\.key !== this\.visibleKey\)/);
-  // Showing one view detaches the previous, so a stale surface cannot linger
-  // above the renderer during a fast tab switch.
-  assert.match(
-    viewHostSource,
-    /if \(this\.visibleKey && this\.visibleKey !== key\) this\.detachVisible\(\)/,
-  );
+  assert.match(viewHostSource, /\.filter\(\(entry\) => !this\.visibleKeys\.has\(entry\.key\)\)/);
+  assert.match(viewHostSource, /setBounds\(bounds: PluginViewBounds, key\?: string\)/);
+  assert.match(viewTabSource, /pluginId,\s*viewId,\s*\}\);/);
+  // The browser guest still follows the browser view's rect.
+  assert.match(viewHostSource, /SURFACE_PREFERRED_KEY = "pi\.browser\/browser"/);
 });
 
 test("views are dropped when the plugin behind them goes away", () => {

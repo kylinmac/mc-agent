@@ -28,18 +28,23 @@ const panelSource = await readFile(
 const transcriptSource = await readTranscriptSource();
 const storeSource = await readStoreSource();
 const globalStyles = await loadStyles();
-test("only the visible tab viewport excludes native window dragging", () => {
+const panesSource = await readFile(
+  new URL("../src/features/work-tools/WorkPanes.tsx", import.meta.url),
+  "utf8",
+);
+const quickToolsSource = await readFile(
+  new URL("../src/features/work-tools/WorkPanelQuickTools.tsx", import.meta.url),
+  "utf8",
+);
+// mc-agent (MC-ADR-0005): the header holds the tool icons; tabs live in
+// each tool's pane below it, so the header keeps only controls out of the
+// native drag region.
+test("the work panel header holds the tools and leaves the rest draggable", () => {
   assert.match(panelSource, /className="work-panel-tab-strip-wrap"/);
-  assert.match(panelSource, /className="work-panel-tab-strip no-drag"/);
-  assert.doesNotMatch(panelSource, /work-panel-tab no-drag/);
+  assert.match(panelSource, /<WorkPanelQuickTools \/>/);
+  assert.match(quickToolsSource, /className="mc-quick-tools no-drag"/);
   assert.doesNotMatch(panelSource, /work-panel-tab-strip-wrap no-drag/);
-  assert.match(globalStyles, /\.work-panel-tab-strip \{[^}]*width:\s*max-content;[^}]*flex:\s*0 1 auto;/s);
-});
-
-test("closing a tab restores focus to its neighbor or the new-tab action", () => {
-  assert.match(panelSource, /const closeTabAndFocus = useCallback/);
-  assert.match(panelSource, /tabButtonRefs\.current\[nextTab\.id\]\?\.focus/);
-  assert.match(panelSource, /else newTabButtonRef\.current\?\.focus\(\)/);
+  assert.doesNotMatch(panelSource, /onClick=\{openNewWorkPanelTab\}/);
 });
 
 test("work panel replaces the context panel overlay", async () => {
@@ -217,7 +222,7 @@ test("work panel uses the fixed-window internal dock", () => {
   // guest clamped to the plugin view is gone before the dock CSS animation.
   assert.match(
     panelSource,
-    /blocked=\{\s*exiting \|\| panelBlocked \|\| blockingOverlayActive\s*\}/,
+    /blocked=\{\s*blocked \|\| exiting \|\| panelBlocked \|\| blockingOverlayActive\s*\}/,
   );
   assert.match(panelSource, /nativeSurfaceReadyForExit/);
   assert.match(panelSource, /is-exit-pending/);
@@ -246,98 +251,46 @@ test("work panel uses the fixed-window internal dock", () => {
   );
 });
 
-test("work panel header exposes a scrollable tab strip and direct new-page action", () => {
+test("work panel panes group tabs by tool, each with its own tabs", () => {
   const headerIndex = panelSource.indexOf('className="work-panel-header"');
-  const stripIndex = panelSource.indexOf('className="work-panel-tab-strip no-drag"');
   const actionsIndex = panelSource.indexOf('className="work-panel-actions no-drag"');
   const bodyIndex = panelSource.indexOf('<div className="work-panel-body">');
-
-  assert.ok(stripIndex > headerIndex);
-  assert.ok(actionsIndex > stripIndex && bodyIndex > actionsIndex);
-  assert.match(panelSource, /role="tablist"/);
-  assert.match(panelSource, /role="tab"/);
-  assert.match(panelSource, /aria-selected=\{selected\}/);
-  assert.match(panelSource, /aria-controls=\{`work-panel-surface-\$\{tab\.id\}`\}/);
-  assert.match(panelSource, /className="work-panel-tab-close"/);
-  assert.match(panelSource, /event\.button !== 1/);
-  assert.match(panelSource, /workPanelTools\(t, pluginViews\)/);
-  assert.match(panelSource, /toolWorkPanelTab\("review"\)/);
-  assert.match(panelSource, /pluginViews\.map\(\(view\) =>/);
-  assert.doesNotMatch(panelSource, /HEADER_TOOLS|headerToolTab|HeaderToolKind/);
-  // Launchable tools are plugin views (`pi.file-manager`, `pi.browser`, …). The
-  // `file` *kind* remains: a `file:<path>` tab is a transcript artifact.
-  assert.doesNotMatch(panelSource, /\{ kind: "file", Icon/);
-  assert.match(panelSource, /onClick=\{openNewWorkPanelTab\}/);
-  assert.match(panelSource, /data-work-panel-launcher-item=\{item\.id\}/);
-  assert.doesNotMatch(panelSource, /aria-haspopup|work-panel-new-menu|role="menuitemradio"/);
-  assert.match(panelSource, /role="tabpanel"/);
-  // Subagent details are tabs, not a dock takeover: the bot icon labels the
-  // tab kind and no separate back control exists.
+  assert.ok(actionsIndex > headerIndex && bodyIndex > actionsIndex);
+  assert.match(panelSource, /<WorkPanes/);
+  assert.match(panelSource, /renderSurface=\{renderSurface\}/);
+  assert.match(panesSource, /role="tablist"/);
+  assert.match(panesSource, /role="tab"/);
+  assert.match(panesSource, /aria-selected=\{selected\}/);
+  assert.match(panesSource, /event\.button !== 1/);
+  assert.match(panesSource, /reorderWorkPanelTabs/);
+  // Collapse, header drag and divider drag, with native views hidden while
+  // the pointer moves over them.
+  assert.match(panesSource, /aria-expanded=\{!collapsed\}/);
+  assert.match(panesSource, /movePane\(/);
+  assert.match(panesSource, /resizePanePair\(/);
+  assert.match(panesSource, /renderSurface\(shown, \{ blocked: interacting \}\)/);
+  assert.match(panelSource, /role: "tabpanel"/);
   assert.match(panelSource, /subagent: IconBot/);
-  assert.doesNotMatch(panelSource, /work-panel-subagent-back|IconChevronLeft/);
-  // Reopening an already-open plugin view must reuse its tab so the browser
-  // keeps its location instead of being replaced by a blank singleton.
-  assert.match(
-    panelSource,
-    /const existing = tabs\.find\(\(tab\) => tab\.id === item\.tab\.id\)/,
-  );
-  assert.match(panelSource, /if \(existing\) activateTab\(existing\.id\)/);
-  assert.doesNotMatch(panelSource, /collapsePanel/);
-  assert.doesNotMatch(panelSource, /work-panel-collapse/);
-  assert.doesNotMatch(panelSource, /onCollapse/);
-  assert.doesNotMatch(panelSource, /work-panel-toolbar-collapse/);
   assert.match(panelSource, /panel\.tabs\.file/);
-  // Every native surface in the panel — the preview browser and each plugin
-  // view — composites above the renderer. Exit and panel-wide overlays hide
-  // it; the launcher is rendered in the panel body and needs no floating layer.
   const pluginSurfaceStart = panelSource.indexOf("<PluginViewTab");
   const pluginSurfaceEnd = panelSource.indexOf("/>", pluginSurfaceStart);
-  const pluginSurface = panelSource.slice(pluginSurfaceStart, pluginSurfaceEnd);
   assert.match(
-    pluginSurface,
-    /blocked=\{\s*exiting \|\| panelBlocked \|\| blockingOverlayActive\s*\}/s,
+    panelSource.slice(pluginSurfaceStart, pluginSurfaceEnd),
+    /blocked=\{\s*blocked \|\| exiting \|\| panelBlocked \|\| blockingOverlayActive\s*\}/s,
   );
-  assert.doesNotMatch(pluginSurface, /isResizing/);
   assert.doesNotMatch(panelSource, /createPortal|newTabMenuRef|menuOpen/);
-  assert.doesNotMatch(panelSource, /onContextMenu|work-panel-context-menu/);
-  assert.doesNotMatch(globalStyles, /work-panel-new-menu|work-panel-menu-item|work-panel-open-dot/);
-  assert.match(globalStyles, /\.work-panel-tab-strip \{[^}]*overflow-x:\s*auto;/s);
-  assert.match(globalStyles, /\.work-panel-tab-strip \{[^}]*gap:\s*6px;/s);
-  assert.match(
-    globalStyles,
-    /\.work-panel-tab \{[^}]*min-width:\s*92px;[^}]*flex:\s*0 0 auto;/s,
-  );
-  assert.doesNotMatch(globalStyles, /\.work-panel-actions \{[^}]*margin-left:\s*auto;/s);
-  assert.doesNotMatch(
-    globalStyles,
-    /\.work-panel-create-item|\.work-panel-switcher-(?:row|item|close|list|title)/,
-  );
+  assert.match(globalStyles, /\.mc-pane\.is-collapsed \{[^}]*flex:\s*0 0 auto;/s);
+  assert.match(globalStyles, /\.mc-pane-divider \{[^}]*cursor:\s*row-resize;/s);
 });
 
-test("plus creates a blank page and launcher rows open tools in that page", () => {
-  assert.match(panelSource, /openNewWorkPanelTab/);
-  assert.match(panelSource, /activeTab\?\.kind === "new"/);
+test("a launcher tab from the store still opens tools in place", () => {
+  // The header has no "+" any more; a `new` tab (capture rig, older state)
+  // still renders the launcher and replaces itself with the chosen tool.
+  assert.doesNotMatch(panelSource, /openNewWorkPanelTab/);
+  assert.match(panelSource, /selectTool\(item, tab\.id\)/);
   assert.match(panelSource, /replaceWorkPanelTab/);
   assert.match(storeSource, /openNewWorkPanelTab: \(\) =>/);
-  assert.match(storeSource, /replaceWorkPanelTab: \(sourceTabId, tab\) =>/);
   assert.match(storeSource, /replaceWorkPanelTabState/);
-  assert.doesNotMatch(panelSource, /setMenuOpen|menuOpen|newTabMenuRef|createPortal/);
-});
-
-test("work panel tabs support pointer and keyboard reordering", () => {
-  assert.match(panelSource, /beginTabReorder/);
-  assert.match(panelSource, /data-work-panel-tab-id/);
-  assert.match(panelSource, /workPanelTabReorderShouldArm/);
-  assert.match(panelSource, /workPanelTabReorderInsertAfter/);
-  assert.match(panelSource, /workPanelTabReorderScrollDelta/);
-  assert.match(panelSource, /autoScrollFrame/);
-  assert.match(panelSource, /requestAnimationFrame\(tick\)/);
-  assert.match(panelSource, /data-work-panel-tab-reordering/);
-  assert.match(panelSource, /event\.altKey/);
-  assert.match(panelSource, /reorderWorkPanelTabs/);
-  assert.match(storeSource, /reorderWorkPanelTabs: \(sourceTabId, targetTabId, insertAfter\)/);
-  assert.match(storeSource, /reorderWorkPanelTabsState/);
-  assert.match(globalStyles, /\.work-panel-tab\.is-drop-before::before/);
 });
 
 test("work panel starts closed with no tabs and persists width only", () => {
@@ -496,11 +449,12 @@ test("Electron enforces the responsive shell minimum", () => {
 // mc-agent (MC-ADR-0005) brings the terminal back as one tab kind among the
 // others; upstream's old always-mounted terminal surface stays gone.
 test("the terminal is an ordinary tab while the work panel keeps its other surfaces", () => {
-  assert.match(panelSource, /activeTab\?\.kind === "terminal" && activeTab\.resource/);
-  assert.doesNotMatch(panelSource, /terminalOpen|work-panel-surface-terminal|activeTab\?\.kind !== "terminal"/);
-  assert.match(panelSource, /activeTab\?\.kind === "review"/);
-  assert.match(panelSource, /activeTab\?\.kind === "plugin"/);
-  assert.match(panelSource, /activeTab\?\.kind === "file"/);
+  assert.match(panelSource, /if \(tab\.kind === "terminal"\) \{/);
+  assert.match(panelSource, /<TerminalTab tabId=\{tab\.id\} cwd=\{tab\.resource\}/);
+  assert.doesNotMatch(panelSource, /terminalOpen|work-panel-surface-terminal/);
+  assert.match(panelSource, /tab\.kind === "review"/);
+  assert.match(panelSource, /tab\.kind === "plugin"/);
+  assert.match(panelSource, /tab\.kind === "file"/);
   assert.match(transcriptSource, /action === "run"/);
   assert.doesNotMatch(transcriptSource, /openTerminal|terminalArtifact|chat\.openTerminal/);
 });
@@ -587,30 +541,18 @@ test("deleting a session also removes its retained work panel context", () => {
   assert.match(deleteBlock, /clearLocalSessionState\(/);
 });
 
-test("the panel and a new tab share the same launcher rows", async () => {
+test("an empty panel points at the tools and a launcher tab lists them", async () => {
   const emptySource = await readFile(
     new URL("../src/components/workpanel/WorkTabEmpty.tsx", import.meta.url),
     "utf8",
   );
-  // `Cmd/Ctrl+J` reveals the panel without creating a tab, while `+` creates
-  // an explicit launcher tab. Both states offer the same tool rows.
-  assert.match(panelSource, /\(\!activeTab \|\| activeTab\.kind === "new"\)/);
   assert.match(panelSource, /data-testid="work-panel-empty"/);
+  assert.match(panelSource, /mcProject\.panesEmpty/);
   assert.match(panelSource, /panel\.new\.title/);
   assert.match(panelSource, /panel\.toolsAndPanels/);
-  assert.match(panelSource, /className="work-panel-launcher"/);
   assert.match(panelSource, /className="work-panel-launcher-row"/);
   assert.match(panelSource, /tools\.map\(\(item\) =>/);
-  assert.doesNotMatch(panelSource, /panel\.empty\.title|panel\.empty\.body/);
-  assert.doesNotMatch(panelSource, /work-panel-empty-tools|openPluginView\(view\)/);
-  // The explicit New tab gets a labelled tabpanel; the legacy no-tab reveal
-  // remains a plain body with a labelled launcher group.
-  assert.match(panelSource, /role=\{activeTab \? "tabpanel" : undefined\}/);
-  assert.match(panelSource, /role="group"/);
-  // Tab empty states share one component so they keep one visual treatment.
-  assert.match(emptySource, /work-tab-empty-icon/);
   assert.match(emptySource, /work-tab-empty-title/);
-  assert.match(emptySource, /work-tab-empty-body/);
 });
 
 test("work panel empty states match the app's other empty-state proportions", () => {

@@ -98,8 +98,9 @@ test("the host no longer offers Files or Browser as built-in tools", () => {
   assert.doesNotMatch(panelSource, /kind: "browser"/);
   assert.doesNotMatch(panelSource, /kind: "terminal"/);
   // Review and file remain artifact/resource surfaces the conversation opens.
-  assert.match(panelSource, /activeTab\?\.kind === "file"/);
-  assert.match(panelSource, /activeTab\?\.kind === "review"/);
+  // mc-agent (MC-ADR-0005): each pane renders its own tab's surface.
+  assert.match(panelSource, /tab\.kind === "file"/);
+  assert.match(panelSource, /tab\.kind === "review"/);
 });
 
 test("Review opens only from an explicit user action", () => {
