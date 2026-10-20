@@ -3118,6 +3118,28 @@ async fn handle_request(
             Ok(json!({ "ok": true, "imported": imported, "skipped": !imported }))
         }
 
+        // mc-agent (MC-ADR-0010): system prompt templates and their rules.
+        "mcPrompts.get" => {
+            let st = state.lock().await;
+            let config = crate::mc_prompts::get(&st.db).map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
+            Ok(json!({ "config": config }))
+        }
+        "mcPrompts.set" => {
+            let value = params
+                .get("config")
+                .cloned()
+                .ok_or_else(|| rpc_err(1002, "config required", "INVALID_PARAMS"))?;
+            let st = state.lock().await;
+            let config = crate::mc_prompts::set(&st.db, value).map_err(|e| {
+                let message = e.to_string();
+                if message.starts_with("INVALID_PARAMS") {
+                    rpc_err(1002, message, "INVALID_PARAMS")
+                } else {
+                    rpc_err(1000, message, "INTERNAL")
+                }
+            })?;
+            Ok(json!({ "config": config }))
+        }
         // mc-agent (MC-ADR-0009): conversations from an installed PI-Desktop,
         // whose directory Electron main supplies; the source is only read.
         "mcImport.piDesktopScan" => {

@@ -198,6 +198,9 @@ export const IPC = {
     // mc-agent resource directories (MC-ADR-0003).
     projectResourcesTemplates: "pi-desktop/project-resources/templates",
     sessionContextBreakdown: "pi-desktop/session-info/context-breakdown",
+    sessionSystemPrompt: "pi-desktop/session-info/system-prompt",
+    mcPromptsGet: "pi-desktop/mc-prompts/get",
+    mcPromptsSet: "pi-desktop/mc-prompts/set",
     // mc-agent work-panel terminal (MC-ADR-0005).
     terminalCreate: "pi-desktop/mc-terminal/create",
     terminalWrite: "pi-desktop/mc-terminal/write",

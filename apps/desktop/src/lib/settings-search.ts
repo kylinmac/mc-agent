@@ -14,6 +14,7 @@ export type SettingsTabId =
   | "skills"
   | "mcp"
   | "subagents"
+  | "systemPrompts"
   | "projects"
   | "sync"
   | "remoteHosts"
@@ -228,6 +229,14 @@ export const SETTINGS_NAV: SettingsNavEntry[] = [
       "extensions.mcp.test",
       "extensions.mcp.remove",
     ],
+  },
+  {
+    // mc-agent (MC-ADR-0010): system prompt templates.
+    id: "systemPrompts",
+    labelKey: "mcProject.promptNav",
+    titleKey: "mcProject.promptPageTitle",
+    group: "agent",
+    keywordKeys: ["mcProject.promptTemplates", "mcProject.promptByModel", "mcProject.promptByProject"],
   },
   {
     id: "subagents",

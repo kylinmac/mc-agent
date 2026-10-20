@@ -11,6 +11,8 @@ import type { ProjectGroupRecord } from "@pi-desktop/shared";
 export type ProjectFolderInfo = {
   groupId: string;
   groupName: string;
+  /** A single-folder project shown as a group (its instructions are the folder's AGENTS.md). */
+  legacy?: boolean;
   /** Normalized key of the group's first root (its resource folder when it has one). */
   primaryKey: string;
   /** Every root of the group, normalized. */
@@ -40,6 +42,7 @@ export function buildProjectFolderIndex(
       index.set(key, {
         groupId: group.id,
         groupName: group.name,
+        ...(group.legacy ? { legacy: true } : {}),
         primaryKey: memberKeys[0],
         memberKeys,
         label:

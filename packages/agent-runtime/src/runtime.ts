@@ -9155,6 +9155,26 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     return { requested: true };
   }
 
+  /**
+   * mc-agent: the system prompt this session sends, by section, for the
+   * session info panel's viewer, and whether SYSTEM.md / APPEND_SYSTEM.md
+   * customize it.
+   */
+  systemPromptView(): {
+    sections: Array<{ key: string; text: string }>;
+    customPersona: boolean;
+    customAppend: boolean;
+  } {
+    if (!Object.keys(this.composedSections).length) this.composeSystemPrompt();
+    return {
+      sections: Object.entries(this.composedSections)
+        .filter(([, text]) => Boolean(text?.trim()))
+        .map(([key, text]) => ({ key, text })),
+      customPersona: Boolean(this.customSystemPrompt?.replace),
+      customAppend: Boolean(this.customSystemPrompt?.append),
+    };
+  }
+
   /** mc-agent: estimated context use by kind, for the session info panel. */
   contextBreakdown(): ContextBreakdown {
     return contextBreakdown({

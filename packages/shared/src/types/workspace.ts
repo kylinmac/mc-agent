@@ -214,6 +214,30 @@ export type BackgroundShell = {
   tail?: string;
 };
 
+/** mc-agent: system prompt templates and the rules that apply them (MC-ADR-0010). */
+export type SystemPromptTemplate = { id: string; name: string; persona: string; append: string };
+export type SystemPromptConfig = {
+  templates: SystemPromptTemplate[];
+  globalTemplateId?: string | null;
+  modelRules: Array<{ pattern: string; templateId: string }>;
+  projectRules: Array<{ path: string; templateId: string }>;
+  updatedAt?: number;
+};
+
+/** mc-agent: the system prompt a session sends, by section. */
+export type SessionSystemPrompt = {
+  sections: Array<{ key: string; text: string }>;
+  /** SYSTEM.md replaces the persona. */
+  customPersona: boolean;
+  /** APPEND_SYSTEM.md is appended. */
+  customAppend: boolean;
+  /** The template the conversation's launch applied, if any (MC-ADR-0010). */
+  template?: {
+    templateName: string;
+    match: { kind: "project"; path: string } | { kind: "model"; pattern: string } | { kind: "global" };
+  } | null;
+};
+
 export type SessionContextBreakdown = {
   contextWindow: number;
   autoCompactAt: number;

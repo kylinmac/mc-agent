@@ -1,6 +1,7 @@
 import { ErrorCodes, IPC } from "@pi-desktop/shared";
 import type { HostProcess } from "../host-process";
 import type { IpcRegistrar } from "./types";
+import { promptMatchFor } from "../mc-system-prompts.ts";
 
 /**
  * mc-agent resource directories (MC-ADR-0003). host-core owns the directory
@@ -102,6 +103,42 @@ export function registerProjectResourcesIpc({
     } catch {
       return loaded;
     }
+  });
+
+  // mc-agent (MC-ADR-0010): system prompt templates, stored by host-core.
+  registrar.handle(IPC.invoke.mcPromptsGet, async () => {
+    const host = getHost();
+    if (!host) throw new Error("host unavailable");
+    return host.call("mcPrompts.get", {});
+  });
+  registrar.handle(IPC.invoke.mcPromptsSet, async (input: { config?: unknown } = {}) => {
+    const host = getHost();
+    if (!host) throw new Error("host unavailable");
+    if (!input?.config || typeof input.config !== "object") throw invalid("config required");
+    return host.call("mcPrompts.set", { config: input.config });
+  });
+
+  // mc-agent: the composed system prompt of one session, for the viewer.
+  registrar.handle(IPC.invoke.sessionSystemPrompt, async (input: { sessionId?: unknown } = {}) => {
+    const sessionId = typeof input?.sessionId === "string" ? input.sessionId.trim() : "";
+    if (!sessionId || sessionId.length > MAX_GROUP_ID_LENGTH) throw invalid("session id required");
+    const sidecar = getSidecar?.();
+    if (!sidecar) return { prompt: null };
+    // Re-run the launch first: it picks up template, SYSTEM.md, instruction and
+    // memory changes (retiring a runtime they no longer match), so the viewer
+    // shows what the next message will send. A running turn skips it.
+    if (prepareRuntime) {
+      try {
+        await prepareRuntime(sessionId);
+      } catch {
+        // Show what there is.
+      }
+    }
+    const loaded = (await sidecar.call("agent.systemPrompt", { sessionId })) as { prompt: unknown };
+    // Which template the launch applied (MC-ADR-0010).
+    return loaded?.prompt && typeof loaded.prompt === "object"
+      ? { prompt: { ...(loaded.prompt as object), template: promptMatchFor(sessionId) } }
+      : loaded;
   });
 
   registrar.handle(IPC.invoke.projectResourcesTemplates, async () => {

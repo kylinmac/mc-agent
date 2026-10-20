@@ -1198,5 +1198,380 @@
     "en": "Imported {{imported}}, skipped {{skipped}}, failed {{failed}}",
     "zh-CN": "已导入 {{imported}} 个，跳过 {{skipped}} 个，失败 {{failed}} 个",
     "zh-TW": "已匯入 {{imported}} 個，略過 {{skipped}} 個，失敗 {{failed}} 個"
+  },
+  "capabilityOpen": {
+    "en": "Open {{name}}",
+    "zh-CN": "查看{{name}}",
+    "zh-TW": "查看{{name}}"
+  },
+  "capabilityShowNames": {
+    "en": "List {{name}}",
+    "zh-CN": "展开{{name}}列表",
+    "zh-TW": "展開{{name}}列表"
+  },
+  "capabilityMcpTitle": {
+    "en": "MCP servers",
+    "zh-CN": "MCP 服务器",
+    "zh-TW": "MCP 伺服器"
+  },
+  "capabilitySkillsTitle": {
+    "en": "Skills",
+    "zh-CN": "技能",
+    "zh-TW": "技能"
+  },
+  "capabilityToolsTitle": {
+    "en": "Built-in tools",
+    "zh-CN": "内置工具",
+    "zh-TW": "內建工具"
+  },
+  "capabilityServer": {
+    "en": "Server",
+    "zh-CN": "服务器",
+    "zh-TW": "伺服器"
+  },
+  "capabilityName": {
+    "en": "Name",
+    "zh-CN": "名称",
+    "zh-TW": "名稱"
+  },
+  "capabilityType": {
+    "en": "Type",
+    "zh-CN": "类型",
+    "zh-TW": "類型"
+  },
+  "capabilityStatus": {
+    "en": "Status",
+    "zh-CN": "状态",
+    "zh-TW": "狀態"
+  },
+  "capabilityUser": {
+    "en": "User",
+    "zh-CN": "用户",
+    "zh-TW": "使用者"
+  },
+  "capabilityProject": {
+    "en": "Project",
+    "zh-CN": "项目",
+    "zh-TW": "專案"
+  },
+  "capabilityBuiltin": {
+    "en": "Built-in",
+    "zh-CN": "内置",
+    "zh-TW": "內建"
+  },
+  "capabilityPlugin": {
+    "en": "Plugin",
+    "zh-CN": "插件",
+    "zh-TW": "外掛"
+  },
+  "capabilityReady": {
+    "en": "Connected",
+    "zh-CN": "已连接",
+    "zh-TW": "已連線"
+  },
+  "capabilityConnecting": {
+    "en": "Connecting",
+    "zh-CN": "连接中",
+    "zh-TW": "連線中"
+  },
+  "capabilityFailed": {
+    "en": "Failed",
+    "zh-CN": "连接失败",
+    "zh-TW": "連線失敗"
+  },
+  "capabilityDisabled": {
+    "en": "Off",
+    "zh-CN": "已停用",
+    "zh-TW": "已停用"
+  },
+  "capabilityNoMcp": {
+    "en": "No MCP servers yet.",
+    "zh-CN": "还没有 MCP 服务器。",
+    "zh-TW": "還沒有 MCP 伺服器。"
+  },
+  "capabilityNone": {
+    "en": "Nothing here.",
+    "zh-CN": "没有内容。",
+    "zh-TW": "沒有內容。"
+  },
+  "capabilityManageMcp": {
+    "en": "Manage connectors",
+    "zh-CN": "管理连接器",
+    "zh-TW": "管理連接器"
+  },
+  "capabilityManageSkills": {
+    "en": "Manage skills",
+    "zh-CN": "管理技能",
+    "zh-TW": "管理技能"
+  },
+  "capabilityDone": {
+    "en": "Done",
+    "zh-CN": "完成",
+    "zh-TW": "完成"
+  },
+  "systemPromptTitle": {
+    "en": "System prompt",
+    "zh-CN": "系统提示词",
+    "zh-TW": "系統提示詞"
+  },
+  "systemPromptRuntime": {
+    "en": "Base prompt (persona and runtime rules)",
+    "zh-CN": "基础提示（身份与运行规则）",
+    "zh-TW": "基礎提示（身分與執行規則）"
+  },
+  "systemPromptTools": {
+    "en": "Active tools",
+    "zh-CN": "已激活的工具",
+    "zh-TW": "已啟用的工具"
+  },
+  "systemPromptSkills": {
+    "en": "Plugin skills",
+    "zh-CN": "插件技能",
+    "zh-TW": "外掛技能"
+  },
+  "systemPromptContext": {
+    "en": "Mode and project context (mode rules, appended prompt, instructions, memory)",
+    "zh-CN": "模式与项目上下文（模式规则、附加提示、项目指令、记忆）",
+    "zh-TW": "模式與專案上下文（模式規則、附加提示、專案指令、記憶）"
+  },
+  "systemPromptSize": {
+    "en": "{{chars}} characters",
+    "zh-CN": "{{chars}} 字符",
+    "zh-TW": "{{chars}} 字元"
+  },
+  "systemPromptCustomPersona": {
+    "en": "persona from SYSTEM.md",
+    "zh-CN": "身份来自 SYSTEM.md",
+    "zh-TW": "身分來自 SYSTEM.md"
+  },
+  "systemPromptCustomAppend": {
+    "en": "APPEND_SYSTEM.md added",
+    "zh-CN": "附加了 APPEND_SYSTEM.md",
+    "zh-TW": "附加了 APPEND_SYSTEM.md"
+  },
+  "systemPromptUnavailable": {
+    "en": "The system prompt is not available for this conversation.",
+    "zh-CN": "这个对话暂时无法读取系统提示词。",
+    "zh-TW": "這個對話暫時無法讀取系統提示詞。"
+  },
+  "systemPromptCopy": {
+    "en": "Copy all",
+    "zh-CN": "全部复制",
+    "zh-TW": "全部複製"
+  },
+  "systemPromptCopied": {
+    "en": "Copied",
+    "zh-CN": "已复制",
+    "zh-TW": "已複製"
+  },
+  "promptNav": {
+    "en": "System prompts",
+    "zh-CN": "系统提示词",
+    "zh-TW": "系統提示詞"
+  },
+  "promptPageTitle": {
+    "en": "System prompts",
+    "zh-CN": "系统提示词",
+    "zh-TW": "系統提示詞"
+  },
+  "promptTemplates": {
+    "en": "Templates",
+    "zh-CN": "模板",
+    "zh-TW": "範本"
+  },
+  "promptTemplatesDesc": {
+    "en": "A template has a persona (replaces the default persona; leave empty to keep it) and rules appended after the base prompt. Runtime rules, the project's AGENTS.md and memory always stay.",
+    "zh-CN": "每个模板包含身份（替换默认身份，留空则保留）和附加规则（追加在基础提示之后）。运行规则、项目 AGENTS.md 和项目记忆始终保留。",
+    "zh-TW": "每個範本包含身分（取代預設身分，留空則保留）和附加規則（附加在基礎提示之後）。執行規則、專案 AGENTS.md 和專案記憶始終保留。"
+  },
+  "promptAddTemplate": {
+    "en": "New template",
+    "zh-CN": "新建模板",
+    "zh-TW": "新增範本"
+  },
+  "promptNoTemplates": {
+    "en": "No templates yet.",
+    "zh-CN": "还没有模板。",
+    "zh-TW": "還沒有範本。"
+  },
+  "promptUntitled": {
+    "en": "Untitled template",
+    "zh-CN": "未命名模板",
+    "zh-TW": "未命名範本"
+  },
+  "promptNewName": {
+    "en": "Template {{n}}",
+    "zh-CN": "模板 {{n}}",
+    "zh-TW": "範本 {{n}}"
+  },
+  "promptHasPersona": {
+    "en": "custom persona",
+    "zh-CN": "替换身份",
+    "zh-TW": "取代身分"
+  },
+  "promptDefaultPersona": {
+    "en": "default persona",
+    "zh-CN": "默认身份",
+    "zh-TW": "預設身分"
+  },
+  "promptHasAppend": {
+    "en": "{{chars}} characters of rules",
+    "zh-CN": "附加规则 {{chars}} 字",
+    "zh-TW": "附加規則 {{chars}} 字"
+  },
+  "promptRemoveTemplate": {
+    "en": "Remove template {{name}}",
+    "zh-CN": "删除模板 {{name}}",
+    "zh-TW": "刪除範本 {{name}}"
+  },
+  "promptName": {
+    "en": "Name",
+    "zh-CN": "名称",
+    "zh-TW": "名稱"
+  },
+  "promptPersona": {
+    "en": "Persona",
+    "zh-CN": "身份",
+    "zh-TW": "身分"
+  },
+  "promptPersonaPlaceholder": {
+    "en": "Leave empty to keep the default persona. For example: You are a senior frontend engineer…",
+    "zh-CN": "留空则使用默认身份。例如：You are a senior frontend engineer…",
+    "zh-TW": "留空則使用預設身分。例如：You are a senior frontend engineer…"
+  },
+  "promptAppend": {
+    "en": "Rules",
+    "zh-CN": "附加规则",
+    "zh-TW": "附加規則"
+  },
+  "promptAppendPlaceholder": {
+    "en": "Rules added after the base prompt, such as answer style or output format.",
+    "zh-CN": "追加在基础提示之后的规则，例如回答风格、输出格式。",
+    "zh-TW": "附加在基礎提示之後的規則，例如回答風格、輸出格式。"
+  },
+  "promptRules": {
+    "en": "Where templates apply",
+    "zh-CN": "适用规则",
+    "zh-TW": "適用規則"
+  },
+  "promptRulesDesc": {
+    "en": "A conversation uses one template: its project's, else its model's, else the global default. With none, SYSTEM.md files or the built-in prompt apply.",
+    "zh-CN": "一个对话只用一个模板：先看项目，再看模型，最后全局默认；都不匹配时使用 SYSTEM.md 文件或内置提示。",
+    "zh-TW": "一個對話只用一個範本：先看專案，再看模型，最後全域預設；都不符合時使用 SYSTEM.md 檔案或內建提示。"
+  },
+  "promptByProject": {
+    "en": "By project",
+    "zh-CN": "按项目",
+    "zh-TW": "依專案"
+  },
+  "promptByModel": {
+    "en": "By model",
+    "zh-CN": "按模型",
+    "zh-TW": "依模型"
+  },
+  "promptGlobal": {
+    "en": "Global default",
+    "zh-CN": "全局默认",
+    "zh-TW": "全域預設"
+  },
+  "promptProject": {
+    "en": "Project",
+    "zh-CN": "项目",
+    "zh-TW": "專案"
+  },
+  "promptTemplate": {
+    "en": "Template",
+    "zh-CN": "模板",
+    "zh-TW": "範本"
+  },
+  "promptModelPattern": {
+    "en": "Model",
+    "zh-CN": "模型",
+    "zh-TW": "模型"
+  },
+  "promptModelHint": {
+    "en": "Model name; * matches anything, e.g. claude-* or gpt-5*. An exact model wins over a pattern.",
+    "zh-CN": "填模型名，* 匹配任意字符，如 claude-*、gpt-5*；具体型号优先于通配。",
+    "zh-TW": "填模型名，* 符合任意字元，如 claude-*、gpt-5*；具體型號優先於萬用字元。"
+  },
+  "promptAddProjectRule": {
+    "en": "Add project rule",
+    "zh-CN": "添加项目规则",
+    "zh-TW": "新增專案規則"
+  },
+  "promptAddModelRule": {
+    "en": "Add model rule",
+    "zh-CN": "添加模型规则",
+    "zh-TW": "新增模型規則"
+  },
+  "promptRemoveRule": {
+    "en": "Remove rule",
+    "zh-CN": "删除规则",
+    "zh-TW": "刪除規則"
+  },
+  "promptNone": {
+    "en": "None",
+    "zh-CN": "不使用",
+    "zh-TW": "不使用"
+  },
+  "promptDiscard": {
+    "en": "Discard changes",
+    "zh-CN": "放弃修改",
+    "zh-TW": "放棄修改"
+  },
+  "promptSave": {
+    "en": "Save",
+    "zh-CN": "保存",
+    "zh-TW": "儲存"
+  },
+  "promptSaved": {
+    "en": "System prompts saved; they apply from the next message.",
+    "zh-CN": "系统提示词已保存，下一条消息生效。",
+    "zh-TW": "系統提示詞已儲存，下一則訊息生效。"
+  },
+  "promptAppliedProject": {
+    "en": "template “{{name}}” · project rule",
+    "zh-CN": "模板「{{name}}」· 项目规则",
+    "zh-TW": "範本「{{name}}」· 專案規則"
+  },
+  "promptAppliedModel": {
+    "en": "template “{{name}}” · model rule {{pattern}}",
+    "zh-CN": "模板「{{name}}」· 模型规则 {{pattern}}",
+    "zh-TW": "範本「{{name}}」· 模型規則 {{pattern}}"
+  },
+  "promptAppliedGlobal": {
+    "en": "template “{{name}}” · global default",
+    "zh-CN": "模板「{{name}}」· 全局默认",
+    "zh-TW": "範本「{{name}}」· 全域預設"
+  },
+  "promptEdit": {
+    "en": "Edit",
+    "zh-CN": "编辑",
+    "zh-TW": "編輯"
+  },
+  "promptCollapse": {
+    "en": "Done",
+    "zh-CN": "收起",
+    "zh-TW": "收起"
+  },
+  "promptNoProjectRules": {
+    "en": "No project rules. Add one to give a project its own template.",
+    "zh-CN": "还没有项目规则。添加后，该项目的对话使用指定模板。",
+    "zh-TW": "還沒有專案規則。新增後，該專案的對話使用指定範本。"
+  },
+  "promptNoModelRules": {
+    "en": "No model rules. Add one to give a model or model family its own template.",
+    "zh-CN": "还没有模型规则。添加后，该模型或系列的对话使用指定模板。",
+    "zh-TW": "還沒有模型規則。新增後，該模型或系列的對話使用指定範本。"
+  },
+  "promptNeedTemplate": {
+    "en": "Create a template first.",
+    "zh-CN": "请先新建一个模板。",
+    "zh-TW": "請先新增一個範本。"
+  },
+  "promptGlobalDesc": {
+    "en": "Used when no project or model rule matches. Without it, SYSTEM.md files or the built-in prompt apply.",
+    "zh-CN": "没有匹配的项目、模型规则时使用；不设置则使用 SYSTEM.md 文件或内置提示。",
+    "zh-TW": "沒有符合的專案、模型規則時使用；不設定則使用 SYSTEM.md 檔案或內建提示。"
   }
 }

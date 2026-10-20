@@ -27,6 +27,7 @@
 | 并列对话（R11.9） | 最多 3 列，焦点列即活动会话（输入框、工作面板、信息栏跟随），其他列实时显示、点击聚焦；分栏时工作面板停靠在焦点列下方，非焦点列列出已开的工具 | 2026-10-19 用户确认方案，[MC-ADR-0007](adr/mc-0007-split-view.md) |
 | 安装版身份 | 安装版为独立应用 mc-agent（`com.kylinmac.mc-agent`、数据目录 `~/.mc-agent`），与已装的 PI-Desktop 并存、数据不共用；首次为空 | 2026-10-19 用户选择，[MC-ADR-0008](adr/mc-0008-installed-identity.md) |
 | 从其他智能体导入（R1.8） | 复用上游导入后端，加选择界面；来源 Claude Code、Codex、PI-Desktop；导入的对话可继续（不带对方模型），PI-Desktop 由 host-core 无损复制 | 2026-10-20 用户选“项目 + 历史对话（可继续）”，[MC-ADR-0009](adr/mc-0009-import-from-other-agents.md) |
+| 系统提示词模板（R11.10） | 可查看实际系统提示词；模板 = 身份 + 附加规则，按项目、模型、全局默认匹配，只用最具体的一个（覆盖不叠加），存数据库 | 2026-10-20 用户确认“按推荐来”，[MC-ADR-0010](adr/mc-0010-system-prompt-templates.md) |
 | 界面外壳（R11） | 侧边栏按项目合并；左侧竖栏分内置／插件两段、设置在底；顶部固定标签栏，对话与页面都以标签打开；通知在右上；mi 图标 | 2026-10-15～18 用户确认，[MC-ADR-0004](adr/mc-0004-app-rail-and-title-tabs.md) |
 
 当前架构决定：[MC-ADR-0002](adr/mc-0002-fork-pi-desktop.md)；项目结构：[MC-ADR-0003](adr/mc-0003-equal-workspaces-and-project-home.md)；界面外壳：[MC-ADR-0004](adr/mc-0004-app-rail-and-title-tabs.md)。

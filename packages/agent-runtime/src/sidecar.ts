@@ -610,6 +610,13 @@ async function handle(method: string, params: any): Promise<unknown> {
       if (sessionId.startsWith(NATIVE_PI_SESSION_PREFIX)) return { breakdown: null };
       return { breakdown: runtimes.get(sessionId)?.contextBreakdown() ?? null };
     }
+    // mc-agent: the composed system prompt by section; null until the session
+    // has a runtime here.
+    case "agent.systemPrompt": {
+      const sessionId = String(params.sessionId);
+      if (sessionId.startsWith(NATIVE_PI_SESSION_PREFIX)) return { prompt: null };
+      return { prompt: runtimes.get(sessionId)?.systemPromptView() ?? null };
+    }
     // mc-agent: load a session's runtime without prompting, so the session
     // info panel can show its context breakdown right after the app starts
     // (MC-ADR-0005 follow-up). Same launch path as a manual compaction.

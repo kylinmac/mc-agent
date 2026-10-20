@@ -243,3 +243,12 @@
   color: var(--ds-text-muted);
   font-size: var(--text-xs);
 }
+
+/* The projects header has two buttons (new, import): keep both at the right. */
+.sidebar-list-toolbar[data-sidebar-section="projects"] .sidebar-list-label {
+  margin-right: auto;
+}
+
+.sidebar-list-toolbar[data-sidebar-section="projects"] {
+  gap: 2px;
+}

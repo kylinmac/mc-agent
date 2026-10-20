@@ -77,6 +77,8 @@ import type {
   ProjectGroupRecord,
   ResourceTemplateDraft,
   SessionContextBreakdown,
+  SessionSystemPrompt,
+  SystemPromptConfig,
   ResourceTemplateSummary,
   ResourceListing,
   ProjectTask,
@@ -899,6 +901,11 @@ export const api = {
   /** Local project folders on record that no longer exist (mc-agent). */
   missingProjectFolders: () => invoke<{ folders: string[] }>(IPC.invoke.projectFoldersMissing),
   /** mc-agent: estimated context use by kind; null until the session has run. */
+  getSystemPromptConfig: () => invoke<{ config: SystemPromptConfig }>(IPC.invoke.mcPromptsGet),
+  setSystemPromptConfig: (config: SystemPromptConfig) =>
+    invoke<{ config: SystemPromptConfig }>(IPC.invoke.mcPromptsSet, { config }),
+  sessionSystemPrompt: (sessionId: string) =>
+    invoke<{ prompt: SessionSystemPrompt | null }>(IPC.invoke.sessionSystemPrompt, { sessionId }),
   sessionContextBreakdown: (sessionId: string) =>
     invoke<{ breakdown: SessionContextBreakdown | null }>(IPC.invoke.sessionContextBreakdown, { sessionId }),
   /** Turn a managed project back into a simple one; the folder stays on disk. */

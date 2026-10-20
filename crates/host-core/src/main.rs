@@ -7,6 +7,7 @@ mod data_relocation;
 mod db;
 mod keyboard;
 mod mc_import;
+mod mc_prompts;
 mod mcp_servers;
 mod network_policy;
 mod network_proxy;

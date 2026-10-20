@@ -46,6 +46,7 @@ import type { RuntimeProvider } from "./provider-catalog";
 import type { LoadedSkillDocument } from "../skill-document";
 import { getActiveRemoteHostsBoot } from "../bootstrap/remote-hosts";
 import { loadRemoteWorkspaceInstructions } from "../remote/remote-workspace-instructions.js";
+import { rememberPromptMatch, resolvePromptTemplate, templatePrompt, type PromptConfig } from "../mc-system-prompts";
 
 const ErrorCodes = {
   ...SharedErrorCodes,
@@ -441,8 +442,11 @@ export function createSessionLaunchRuntime({
     }
     // pi-compatible SYSTEM.md / APPEND_SYSTEM.md (issue #542): resolved once
     // per launch; a change retires the runtime through the reuse match.
-    const customSystemPrompt = await loadCustomSystemPrompt(localInstructionRoot);
+    let customSystemPrompt = await loadCustomSystemPrompt(localInstructionRoot);
     let projectMemory: string | undefined;
+    // mc-agent (MC-ADR-0010): the conversation's folder and its project's
+    // other folders, for project-bound system prompt templates.
+    const projectRoots: string[] = projectPath ? [projectPath] : [];
     if (projectPath) {
       try {
         const result = await runtimeState.host!.call<{
@@ -454,6 +458,7 @@ export function createSessionLaunchRuntime({
           } | null;
         }>("project.group.context", { path: projectPath });
         const groupRoots = result.context?.roots ?? [];
+        projectRoots.push(...groupRoots.map((root) => root.path).filter((path): path is string => Boolean(path)));
         // An isolated session's root is its worktree; the group's other roots
         // are outside it and are not advertised (ADR 0329).
         const groupRootGuide = workspaceRoot
@@ -498,6 +503,16 @@ export function createSessionLaunchRuntime({
           // Legacy memory is also best effort.
         }
       }
+    }
+    // mc-agent (MC-ADR-0010): a matching template (project, else model, else
+    // global) applies whole, in place of SYSTEM.md / APPEND_SYSTEM.md.
+    try {
+      const { config } = await runtimeState.host!.call<{ config: PromptConfig }>("mcPrompts.get", {});
+      const resolved = resolvePromptTemplate(config, { projectPaths: projectRoots, modelId });
+      rememberPromptMatch(sessionId, resolved);
+      if (resolved) customSystemPrompt = templatePrompt(resolved.template);
+    } catch {
+      // Templates are best effort; the files and defaults still apply.
     }
     sessionProjects.set(sessionId, projectPath ?? null);
     // Everything below is filtered by activation scope: a plugin, MCP server or

@@ -7,7 +7,7 @@ mc-agent 是 kylinmac 个人维护的 PI-Desktop Fork。本文件统一规定所
 ## 当前阶段
 
 - **开发阶段。** 已确认的需求 R1–R11 已实现并合入 `main`；新需求先在文档里确认编号（R 已确认、X 待评审），再动代码。
-- 规划文档入口：[`docs/mc-agent/README.md`](docs/mc-agent/README.md)。架构决定：[MC-ADR-0002](docs/mc-agent/adr/mc-0002-fork-pi-desktop.md)（Fork）、[MC-ADR-0003](docs/mc-agent/adr/mc-0003-equal-workspaces-and-project-home.md)（项目结构）、[MC-ADR-0004](docs/mc-agent/adr/mc-0004-app-rail-and-title-tabs.md)（界面外壳）、[MC-ADR-0005](docs/mc-agent/adr/mc-0005-work-panel-terminal-and-tools.md)（工作面板终端）、[MC-ADR-0006](docs/mc-agent/adr/mc-0006-background-commands.md)（后台命令）、[MC-ADR-0007](docs/mc-agent/adr/mc-0007-split-view.md)（并列对话）、[MC-ADR-0008](docs/mc-agent/adr/mc-0008-installed-identity.md)（安装版身份）、[MC-ADR-0009](docs/mc-agent/adr/mc-0009-import-from-other-agents.md)（导入）。
+- 规划文档入口：[`docs/mc-agent/README.md`](docs/mc-agent/README.md)。架构决定：[MC-ADR-0002](docs/mc-agent/adr/mc-0002-fork-pi-desktop.md)（Fork）、[MC-ADR-0003](docs/mc-agent/adr/mc-0003-equal-workspaces-and-project-home.md)（项目结构）、[MC-ADR-0004](docs/mc-agent/adr/mc-0004-app-rail-and-title-tabs.md)（界面外壳）、[MC-ADR-0005](docs/mc-agent/adr/mc-0005-work-panel-terminal-and-tools.md)（工作面板终端）、[MC-ADR-0006](docs/mc-agent/adr/mc-0006-background-commands.md)（后台命令）、[MC-ADR-0007](docs/mc-agent/adr/mc-0007-split-view.md)（并列对话）、[MC-ADR-0008](docs/mc-agent/adr/mc-0008-installed-identity.md)（安装版身份）、[MC-ADR-0009](docs/mc-agent/adr/mc-0009-import-from-other-agents.md)（导入）、[MC-ADR-0010](docs/mc-agent/adr/mc-0010-system-prompt-templates.md)（系统提示词）。
 - 验证状态见 [`docs/mc-agent/validation-plan.md`](docs/mc-agent/validation-plan.md) 第 2.1 节；开发版实例可随时停，不碰已安装的 PI-Desktop（`~/.pi-desktop`）；mc-agent 安装版用 `~/.mc-agent`。
 
 ## 沟通

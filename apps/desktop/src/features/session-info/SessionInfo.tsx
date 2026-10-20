@@ -9,6 +9,11 @@ import { reviewChangesFromMessages, summarizeReviewChanges } from "../../lib/wor
 import { toolWorkPanelTab } from "../../lib/work-panel-tabs";
 import { normalizeProjectPath } from "../../lib/sidebar-session-groups";
 import { isRemoteSession } from "../../lib/remote-session-safety";
+import type { SettingsTabId } from "../../lib/settings-search";
+import { CapabilityDialog, type CapabilityKind } from "./CapabilityDialog";
+import { ProjectMemoryDialog } from "../../components/ProjectMemoryDialog";
+import { ProjectInstructionsDialog } from "../../components/ProjectInstructionsDialog";
+import { SystemPromptDialog } from "./SystemPromptDialog";
 import { formatElapsed, sessionSubagents } from "./session-subagents";
 import { focusBackgroundShell, useBackgroundShells } from "../work-tools/background-shells";
 import { backgroundTab } from "../work-tools/tool-tabs";
@@ -41,6 +46,24 @@ function compact(tokens: number): string {
 function folderName(path?: string | null): string {
   return (path ?? "").split(/[\\/]/).filter(Boolean).at(-1) ?? "";
 }
+
+/** What a context category opens: a capability dialog or a settings page. */
+const ROW_ACTIONS: Partial<
+  Record<
+    BreakdownRowKey,
+    { dialog?: CapabilityKind; settings?: SettingsTabId; project?: "memory" | "instructions"; systemPrompt?: true }
+  >
+> = {
+  systemPrompt: { systemPrompt: true },
+  tools: { dialog: "tools" },
+  mcpTools: { dialog: "mcp" },
+  skills: { dialog: "skills" },
+  // The project's own editors, the ones the projects page opens.
+  projectInstructions: { project: "instructions" },
+  memory: { project: "memory" },
+};
+
+const EMPTY_NAMES: string[] = [];
 
 const EXPANDABLE: Partial<Record<BreakdownRowKey, keyof SessionContextBreakdown>> = {
   tools: "toolNames",
@@ -99,6 +122,9 @@ export function SessionInfo({
   const [dragging, setDragging] = useState<SectionId | null>(null);
   const [dropTarget, setDropTarget] = useState<SectionId | null>(null);
   const [expanded, setExpanded] = useState<BreakdownRowKey | null>(null);
+  const [capability, setCapability] = useState<CapabilityKind | null>(null);
+  const [promptOpen, setPromptOpen] = useState(false);
+  const [projectEditor, setProjectEditor] = useState<"memory" | "instructions" | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const activeSessionId = useAppStore((s) => s.activeSessionId);
   const sessionId = sessionProp ?? activeSessionId;
@@ -446,34 +472,54 @@ export function SessionInfo({
                 const names = namesKey ? (breakdown[namesKey] as string[]) : [];
                 const canExpand = names.length > 0;
                 const isExpanded = expanded === row.key;
-                const line = (
-                  <>
-                    <span className={`mc-session-info-swatch is-${row.key}`} aria-hidden />
-                    <span className="mc-session-info-breakdown-label">
-                      {t(`mcProject.sessionInfoKind_${row.key}`)}
-                      {row.count !== undefined ? <span className="mc-session-info-muted"> · {row.count}</span> : null}
-                      {canExpand ? (
-                        isExpanded ? <IconChevronDown size={11} aria-hidden /> : <IconChevronRight size={11} aria-hidden />
-                      ) : null}
-                    </span>
-                    <span className="mc-session-info-muted">{compact(row.tokens)}</span>
-                    <span className="mc-session-info-breakdown-percent">{row.percent.toFixed(1)}%</span>
-                  </>
-                );
+                // mc-agent: a category with something to manage opens it (a
+                // dialog, or its settings page); the chevron still lists names.
+                // Memory and instructions belong to a project; a conversation
+                // outside one has none to edit.
+                const rowAction = ROW_ACTIONS[row.key];
+                const action = rowAction?.project && !session?.projectPath ? undefined : rowAction;
+                const label = t(`mcProject.sessionInfoKind_${row.key}`);
                 return (
                   <li key={row.key}>
-                    {canExpand ? (
-                      <button
-                        type="button"
-                        className="mc-session-info-breakdown-line is-expandable"
-                        aria-expanded={isExpanded}
-                        onClick={() => setExpanded(isExpanded ? null : row.key)}
-                      >
-                        {line}
-                      </button>
-                    ) : (
-                      <div className="mc-session-info-breakdown-line">{line}</div>
-                    )}
+                    <div className="mc-session-info-breakdown-line">
+                      <span className={`mc-session-info-swatch is-${row.key}`} aria-hidden />
+                      <span className="mc-session-info-breakdown-label">
+                        {action ? (
+                          <button
+                            type="button"
+                            className="mc-session-info-kind-link"
+                            title={t("mcProject.capabilityOpen", { name: label })}
+                            onClick={() =>
+                              action.systemPrompt
+                                ? setPromptOpen(true)
+                                : action.project
+                                  ? setProjectEditor(action.project)
+                                : action.dialog
+                                  ? setCapability(action.dialog)
+                                  : openSettings(action.settings as SettingsTabId)
+                            }
+                          >
+                            {label}
+                          </button>
+                        ) : (
+                          label
+                        )}
+                        {row.count !== undefined ? <span className="mc-session-info-muted"> · {row.count}</span> : null}
+                        {canExpand ? (
+                          <button
+                            type="button"
+                            className="mc-session-info-expand"
+                            aria-expanded={isExpanded}
+                            aria-label={t("mcProject.capabilityShowNames", { name: label })}
+                            onClick={() => setExpanded(isExpanded ? null : row.key)}
+                          >
+                            {isExpanded ? <IconChevronDown size={11} aria-hidden /> : <IconChevronRight size={11} aria-hidden />}
+                          </button>
+                        ) : null}
+                      </span>
+                      <span className="mc-session-info-muted">{compact(row.tokens)}</span>
+                      <span className="mc-session-info-breakdown-percent">{row.percent.toFixed(1)}%</span>
+                    </div>
                     {isExpanded ? (
                       <ul className="mc-session-info-names">
                         {names.map((name) => (
@@ -631,11 +677,11 @@ export function SessionInfo({
         <div className="mc-session-info-muted">{t("mcProject.sessionInfoNoBackground")}</div>
       ),
     connectors: (
-      <div className="mc-session-info-muted">
+      <button type="button" className="mc-session-info-link" onClick={() => setCapability("mcp")}>
         {connectors
           ? t("mcProject.sessionInfoConnectorsCount", { ready: connectors.ready, total: connectors.total })
-          : "—"}
-      </div>
+          : t("mcProject.capabilityMcpTitle")}
+      </button>
     ),
   };
 
@@ -651,6 +697,55 @@ export function SessionInfo({
     if (!open) setOpen(true);
     setMenuOpen(true);
   };
+
+  const openSettings = (tab: SettingsTabId) => {
+    const store = useAppStore.getState();
+    store.setSettingsTab(tab);
+    store.setPage("settings");
+  };
+  const capabilityDialog = capability ? (
+    <CapabilityDialog
+      kind={capability}
+      names={
+        capability === "skills"
+          ? (breakdown?.skillNames ?? EMPTY_NAMES)
+          : capability === "tools"
+            ? (breakdown?.toolNames ?? EMPTY_NAMES)
+            : EMPTY_NAMES
+      }
+      projectPath={session?.projectPath ?? null}
+      onClose={() => setCapability(null)}
+    />
+  ) : null;
+
+  // The project's memory and instructions editors, as the projects page opens them.
+  const memoryProject = (() => {
+    const path = session?.projectPath;
+    if (!path) return null;
+    const group = projectKey ? index.get(projectKey) : undefined;
+    return group
+      ? // A plain folder project edits its own AGENTS.md and path memory, as on
+        // the projects page; a multi-folder project edits the group's.
+        { name: group.groupName, path: group.path, groupId: group.groupId, legacy: group.legacy }
+      : { name: projectName || folderName(path), path };
+  })();
+  const showError = (error: unknown) =>
+    useAppStore.getState().showToast(error instanceof Error ? error.message : String(error), { variant: "error" });
+  const memoryDialog = !memoryProject ? null : projectEditor === "memory" ? (
+    <ProjectMemoryDialog
+      project={memoryProject}
+      onClose={() => setProjectEditor(null)}
+      onSaved={() => useAppStore.getState().showToast(t("project.memorySaved"), { variant: "success" })}
+      onError={showError}
+    />
+  ) : projectEditor === "instructions" ? (
+    <ProjectInstructionsDialog
+      project={memoryProject}
+      onClose={() => setProjectEditor(null)}
+      onSaved={() => useAppStore.getState().showToast(t("project.instructionsSaved"), { variant: "success" })}
+      onError={showError}
+    />
+  ) : null;
 
   const toggleRow = (
     <div className="mc-session-info-toggle-row" ref={toggleRef}>
@@ -764,6 +859,9 @@ export function SessionInfo({
             );
           })}
       </aside>
+      {capabilityDialog}
+      {memoryDialog}
+      {promptOpen && sessionId ? <SystemPromptDialog sessionId={sessionId} onClose={() => setPromptOpen(false)} /> : null}
       {mode === "docked" ? (
         <div
           className="mc-session-info-resize"
