@@ -134,6 +134,11 @@ export function TerminalTab({ tabId, cwd, active }: { tabId: string; cwd: string
       entry.creating = true;
       try {
         const created = await api.terminalCreate({ tabId, cwd, cols: entry.term.cols, rows: entry.term.rows });
+        if (termCache.get(tabId) !== entry) {
+          // Closed while the shell was starting: do not keep it.
+          void api.terminalDispose(tabId).catch(() => undefined);
+          return;
+        }
         entry.termId = created.termId;
         entry.exited = false;
         if (created.replay) entry.term.write(created.replay);

@@ -61,19 +61,25 @@ export function registerMcTerminalIpc({
     async (input: { tabId?: unknown; cwd?: unknown; cols?: unknown; rows?: unknown } = {}) => {
       const tabId = text(input?.tabId, "tab id", MAX_ID_LENGTH);
       const cwd = resolve(text(input?.cwd, "folder", MAX_PATH_LENGTH));
-      const host = getHost();
-      if (!host) throw new Error("host unavailable");
-      if (!(await knownProjectFolders(host)).has(cwd)) {
-        throw Object.assign(new Error("terminal folder is not a project folder"), {
-          errorCode: ErrorCodes.NOT_FOUND,
-        });
-      }
-      if (!statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) throw invalid("terminal folder does not exist");
       return manager.create({
         tabId,
         cwd,
         cols: typeof input?.cols === "number" ? input.cols : undefined,
         rows: typeof input?.rows === "number" ? input.rows : undefined,
+        // Validated inside the manager's start, so closing the tab while the
+        // host answers still cancels it.
+        check: async () => {
+          const host = getHost();
+          if (!host) throw new Error("host unavailable");
+          if (!(await knownProjectFolders(host)).has(cwd)) {
+            throw Object.assign(new Error("terminal folder is not a project folder"), {
+              errorCode: ErrorCodes.NOT_FOUND,
+            });
+          }
+          if (!statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {
+            throw invalid("terminal folder does not exist");
+          }
+        },
       });
     },
   );

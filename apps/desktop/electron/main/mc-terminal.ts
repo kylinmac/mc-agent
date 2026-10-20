@@ -84,8 +84,18 @@ export class TerminalManager {
     this.loadSpawn = loadSpawn;
   }
 
-  /** Start the tab's shell in `cwd`, or reattach to the one already running. */
-  async create(input: { tabId: string; cwd: string; cols?: number; rows?: number }): Promise<{
+  /**
+   * Start the tab's shell in `cwd`, or reattach to the one already running.
+   * `check` (the caller's folder validation) runs inside the cancellable
+   * start, so a tab closed while it runs never gets a shell.
+   */
+  async create(input: {
+    tabId: string;
+    cwd: string;
+    cols?: number;
+    rows?: number;
+    check?: () => Promise<void>;
+  }): Promise<{
     termId: string;
     replay: string;
   }> {
@@ -107,9 +117,11 @@ export class TerminalManager {
   }
 
   private async spawnFor(
-    input: { tabId: string; cwd: string; cols?: number; rows?: number },
+    input: { tabId: string; cwd: string; cols?: number; rows?: number; check?: () => Promise<void> },
     pending: PendingCreate,
   ): Promise<{ termId: string; replay: string }> {
+    await input.check?.();
+    if (pending.cancelled) throw new Error("terminal closed");
     const spawn = await this.loadSpawn();
     // The tab was closed (or the app is quitting) while the module loaded:
     // starting the shell now would leave one nobody can see or close.

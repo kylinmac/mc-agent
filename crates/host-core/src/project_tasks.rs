@@ -22,8 +22,10 @@ const MAX_TITLE_CHARS: usize = 200;
 const MAX_TEXT_CHARS: usize = 8_000;
 const MAX_RESOURCES: usize = 50;
 /// A run whose session has not begun a turn this long after the start never
-/// started (the first message failed, or the app quit in between).
-const START_GRACE_MS: i64 = 2 * 60_000;
+/// started (the first message failed, or the app quit in between). Well above
+/// what a first message can wait for the session's MCP servers to connect
+/// (connect and tool discovery are bounded at 10 s and 30 s per server).
+const START_GRACE_MS: i64 = 10 * 60_000;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -185,23 +187,15 @@ pub fn cancel(
     revision: u64,
 ) -> Result<ProjectTask> {
     mutate(db, group, task_id, revision, |task| {
+        // A run with no turn yet may still be starting: its first message can
+        // be waiting on the session (MCP servers connecting) and would begin
+        // the agent after a cancel. It settles by itself (`reconcile` fails it
+        // after the start grace, or the start reports its failure), and the
+        // blocked task can then be cancelled.
         if task.status == TaskStatus::InProgress {
-            // Only a turn that is actually running holds the task; a run
-            // whose first message never went out can be cancelled.
-            let run = task.runs.last_mut();
-            match run {
-                Some(run) if run.outcome == RunOutcome::Running => {
-                    if latest_turn_status(db, run)?.is_some() {
-                        return Err(anyhow!(
-                            "CONFLICT: stop the running session before cancelling"
-                        ));
-                    }
-                    run.outcome = RunOutcome::Stopped;
-                    run.ended_at = Some(now_ms());
-                    run.note = Some("cancelled before the run started".to_string());
-                }
-                _ => {}
-            }
+            return Err(anyhow!(
+                "CONFLICT: the task is running or still starting; stop its session, or wait for the start to settle, before cancelling"
+            ));
         }
         task.status = TaskStatus::Cancelled;
         Ok(())
@@ -678,27 +672,19 @@ mod tests {
     }
 
     #[test]
-    fn an_in_progress_task_cancels_unless_a_turn_is_running() {
+    fn a_starting_task_cannot_be_cancelled_until_its_run_settles() {
         let f = fixture();
         let task = create(&f.db, &f.group, input(&[])).unwrap();
         let session = session_in(&f.db, &f.web);
         let started =
             start_run(&f.db, &f.group, &task.id, task.revision, &session, &f.web).unwrap();
-        let cancelled = cancel(&f.db, &f.group, &task.id, started.revision).unwrap();
-        assert_eq!(cancelled.status, TaskStatus::Cancelled);
-        assert_eq!(cancelled.runs[0].outcome, RunOutcome::Stopped);
-
-        let task = create(&f.db, &f.group, input(&[])).unwrap();
-        let session = session_in(&f.db, &f.web);
-        let started =
-            start_run(&f.db, &f.group, &task.id, task.revision, &session, &f.web).unwrap();
-        f.db.conn()
-            .execute(
-                "INSERT INTO turns (id, session_id, status, started_at) VALUES (?1, ?2, 'running', ?3)",
-                params![uuid::Uuid::new_v4().to_string(), session, now_ms()],
-            )
-            .unwrap();
+        // No turn yet: the first message may still be waiting to start.
         assert!(cancel(&f.db, &f.group, &task.id, started.revision).is_err());
+
+        let run = started.runs[0].id.clone();
+        let settled = abandon_run(&f.db, &f.group, &task.id, &run, "not sent").unwrap();
+        let cancelled = cancel(&f.db, &f.group, &task.id, settled.revision).unwrap();
+        assert_eq!(cancelled.status, TaskStatus::Cancelled);
     }
 
     #[test]

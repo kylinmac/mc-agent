@@ -246,9 +246,7 @@ export function TaskBoard({
                       </Button>
                     </>
                   ) : null}
-                  {/* An in-progress task can be cancelled too; the host refuses
-                      while its session still has a running turn. */}
-                  {task.status === "todo" || task.status === "inProgress" ? (
+                  {task.status === "todo" ? (
                     <Button
                       size="sm"
                       variant="ghost"

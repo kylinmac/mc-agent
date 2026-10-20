@@ -131,3 +131,27 @@ test("the IPC only opens shells in folders host-core has on record", async () =>
   quits[0]();
   assert.equal(spawned[0].killed, true);
 });
+
+test("a tab closed while its folder is being checked never gets a shell", async () => {
+  const folder = mkdtempSync(join(tmpdir(), "mc-term-"));
+  const handlers = new Map();
+  const { spawned, load } = fakePty();
+  let release;
+  const gate = new Promise((resolve) => (release = resolve));
+  registerMcTerminalIpc({
+    registrar: { handle: (channel, handler) => handlers.set(channel, handler) },
+    getHost: () => ({
+      call: async (method) => {
+        await gate;
+        return method === "projects.list" ? { projects: [{ path: folder }] } : { groups: [] };
+      },
+    }),
+    onQuit: () => undefined,
+    manager: new TerminalManager({ onData: () => undefined, onExit: () => undefined }, load),
+  });
+  const creating = handlers.get(IPC.invoke.terminalCreate)({ tabId: "t1", cwd: folder });
+  await handlers.get(IPC.invoke.terminalDispose)({ tabId: "t1" });
+  release();
+  await assert.rejects(creating, /terminal closed/);
+  assert.equal(spawned.length, 0);
+});
