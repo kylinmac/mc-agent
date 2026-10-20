@@ -2959,6 +2959,7 @@ sklm: {
     splitDockResize: "Resize tools",
     splitResume: "Click to continue in this conversation…",
     splitTools: "Open tools",
+    sessionInfoCustomizeHint: "Right-click to choose what it shows",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

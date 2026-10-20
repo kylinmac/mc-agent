@@ -83,16 +83,16 @@
     "zustand": "^5.0.15"
   },
   "build": {
-    "appId": "net.aiuo.pi-desktop",
-    "productName": "PI-Desktop",
+    "appId": "com.kylinmac.mc-agent",
+    "productName": "mc-agent",
     "directories": {
       "output": "release"
     },
     "publish": [
       {
         "provider": "github",
-        "owner": "vastsa",
-        "repo": "PI-Desktop"
+        "owner": "kylinmac",
+        "repo": "mc-agent"
       }
     ],
     "extraMetadata": {
@@ -146,7 +146,7 @@
       }
     ],
     "mac": {
-      "artifactName": "PI-Desktop-${version}-${arch}-mac.${ext}",
+      "artifactName": "mc-agent-${version}-${arch}-mac.${ext}",
       "target": [
         {
           "target": "dmg"
@@ -181,7 +181,7 @@
       ]
     },
     "dmg": {
-      "artifactName": "PI-Desktop-${version}-${arch}.${ext}",
+      "artifactName": "mc-agent-${version}-${arch}.${ext}",
       "background": "build/dmg-background.png",
       "icon": "build/icon.icns",
       "window": {

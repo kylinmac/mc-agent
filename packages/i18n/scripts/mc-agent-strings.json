@@ -1093,5 +1093,10 @@
     "en": "Open tools",
     "zh-CN": "已打开的工具",
     "zh-TW": "已開啟的工具"
+  },
+  "sessionInfoCustomizeHint": {
+    "en": "Right-click to choose what it shows",
+    "zh-CN": "右键可选择显示哪些内容",
+    "zh-TW": "右鍵可選擇顯示哪些內容"
   }
 }

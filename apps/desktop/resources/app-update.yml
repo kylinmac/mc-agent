@@ -1,4 +1,4 @@
 provider: github
-owner: vastsa
-repo: PI-Desktop
+owner: kylinmac
+repo: mc-agent
 updaterCacheDirName: '@pi-desktopdesktop-updater'

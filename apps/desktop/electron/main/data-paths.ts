@@ -25,8 +25,16 @@ import { APP_NAME } from "@pi-desktop/shared";
 /** `userData` directory of a development installation, beside the shipped one. */
 export const DEVELOPMENT_INSTALLATION_NAME = `${APP_NAME} Dev`;
 
+/**
+ * mc-agent (MC-ADR-0008): a shipped mc-agent is its own installation beside
+ * an installed PI-Desktop. Its name sets Electron's `userData` (single-instance
+ * lock, renderer storage) and the safeStorage keychain entry; its data
+ * directory holds host-core's database. Neither touches PI-Desktop's.
+ */
+export const MC_INSTALLATION_NAME = "mc-agent";
+
 /** Data directory of a shipped installation, below the user's home. */
-export const INSTALLATION_DATA_DIR_NAME = ".pi-desktop";
+export const INSTALLATION_DATA_DIR_NAME = ".mc-agent";
 
 /** Data directory of a development installation, below the user's home. */
 export const DEVELOPMENT_DATA_DIR_NAME = ".pi-desktop-dev";

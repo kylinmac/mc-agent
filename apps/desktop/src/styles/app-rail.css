@@ -393,7 +393,7 @@
   bottom: 0;
   left: 0;
   padding: 10px 0 0 12px;
-  border-right: 1px solid var(--ds-border-subtle);
+  /* No rule beside it: the cards sit on the page itself. */
   background: var(--ds-bg-primary);
 }
 
@@ -451,6 +451,10 @@
 
 .mc-session-info-trigger {
   display: inline-flex;
+  /* A fixed footprint: what keeps clear of the button never moves when the
+     panel opens or the percentage changes. */
+  min-width: 64px;
+  justify-content: center;
   height: 26px;
   align-items: center;
   gap: 5px;

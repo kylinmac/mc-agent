@@ -2983,6 +2983,7 @@ sklm: {
     splitDockResize: "調整工具區高度",
     splitResume: "點擊在此對話中繼續…",
     splitTools: "已開啟的工具",
+    sessionInfoCustomizeHint: "右鍵可選擇顯示哪些內容",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

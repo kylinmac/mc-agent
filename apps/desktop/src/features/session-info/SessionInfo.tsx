@@ -13,7 +13,7 @@ import { formatElapsed, sessionSubagents } from "./session-subagents";
 import { focusBackgroundShell, useBackgroundShells } from "../work-tools/background-shells";
 import { backgroundTab } from "../work-tools/tool-tabs";
 import { expandPane } from "../work-tools/pane-layout";
-import { IconChevronDown, IconChevronRight, IconFolder, IconInfo, IconMore } from "../../components/icons";
+import { IconChevronDown, IconChevronRight, IconFolder, IconInfo } from "../../components/icons";
 import { useProjectFolderIndex } from "../project-sidebar/useProjectFolderIndex";
 import { sessionFolderLabel } from "../project-sidebar/project-merge";
 import {
@@ -640,6 +640,18 @@ export function SessionInfo({
   };
 
 
+  /*
+    The layout menu opens from a right-click on the button or a section title.
+    A separate "…" button would widen the button row as the panel opens, and
+    the conversation, which keeps clear of that row, would shift with it.
+  */
+  const openCustomize = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!open) setOpen(true);
+    setMenuOpen(true);
+  };
+
   const toggleRow = (
     <div className="mc-session-info-toggle-row" ref={toggleRef}>
       <button
@@ -647,27 +659,16 @@ export function SessionInfo({
         className={`mc-session-info-trigger${open ? " active" : ""}`}
         aria-expanded={open}
         aria-label={t("mcProject.sessionInfoTitle")}
-        title={t("mcProject.sessionInfoTitle")}
+        title={`${t("mcProject.sessionInfoTitle")}\n${t("mcProject.sessionInfoCustomizeHint")}`}
         onClick={() => {
           setMenuOpen(false);
           setOpen(!open);
         }}
+        onContextMenu={openCustomize}
       >
         <IconInfo size={13} aria-hidden />
         {context ? <span className={`mc-session-info-percent${usedTone}`}>{context.usedPercent}%</span> : null}
       </button>
-      {open ? (
-        <button
-          type="button"
-          className="mc-session-info-close mc-session-info-menu-button"
-          aria-label={t("mcProject.sessionInfoCustomize")}
-          title={t("mcProject.sessionInfoCustomize")}
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((value) => !value)}
-        >
-          <IconMore size={13} aria-hidden />
-        </button>
-      ) : null}
       {open && menuOpen ? (
         <div className="mc-session-info-menu" role="menu">
           {SECTION_IDS.map((id) => (
@@ -740,6 +741,7 @@ export function SessionInfo({
                 <button
                   type="button"
                   className="mc-session-info-section-head"
+                  onContextMenu={openCustomize}
                   draggable
                   aria-expanded={!collapsed}
                   title={t("mcProject.sessionInfoSectionHint")}

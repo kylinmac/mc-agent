@@ -257,8 +257,9 @@ test("packaging publishes an electron-updater feed for GitHub Releases", async (
   const pkg = JSON.parse(pkgSource);
   assert.ok(pkg.dependencies["electron-updater"], "electron-updater dependency");
   assert.equal(pkg.build.publish[0].provider, "github");
-  assert.equal(pkg.build.publish[0].owner, "vastsa");
-  assert.equal(pkg.build.publish[0].repo, "PI-Desktop");
+  // mc-agent (MC-ADR-0008): releases come from the fork.
+  assert.equal(pkg.build.publish[0].owner, "kylinmac");
+  assert.equal(pkg.build.publish[0].repo, "mc-agent");
   const windowsUpdateConfigResource = pkg.build.win.extraResources.find(
     ({ from }) => from === "resources/app-update.yml",
   );

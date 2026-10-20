@@ -25,6 +25,7 @@
 | 工作面板终端（R11.7） | 恢复终端（node-pty + xterm.js），按标签开 shell，默认会话起始目录；工具图标一键打开；浏览器可多开；面板按工具分区上下排列，去掉“+” | 2026-10-19 用户确认方案 A，[MC-ADR-0005](adr/mc-0005-work-panel-terminal-and-tools.md) |
 | 后台命令（R11.8） | Bash 可后台运行，Agent 用 BashOutput 读输出、KillBash 停止；进程由 host-core 持有，跨轮次运行，会话删除或应用退出时结束；工作面板“后台任务”分区列出并可停止 | 2026-10-19 用户选方案 B，[MC-ADR-0006](adr/mc-0006-background-commands.md) |
 | 并列对话（R11.9） | 最多 3 列，焦点列即活动会话（输入框、工作面板、信息栏跟随），其他列实时显示、点击聚焦；分栏时工作面板停靠在焦点列下方，非焦点列列出已开的工具 | 2026-10-19 用户确认方案，[MC-ADR-0007](adr/mc-0007-split-view.md) |
+| 安装版身份 | 安装版为独立应用 mc-agent（`com.kylinmac.mc-agent`、数据目录 `~/.mc-agent`），与已装的 PI-Desktop 并存、数据不共用；首次为空 | 2026-10-19 用户选择，[MC-ADR-0008](adr/mc-0008-installed-identity.md) |
 | 界面外壳（R11） | 侧边栏按项目合并；左侧竖栏分内置／插件两段、设置在底；顶部固定标签栏，对话与页面都以标签打开；通知在右上；mi 图标 | 2026-10-15～18 用户确认，[MC-ADR-0004](adr/mc-0004-app-rail-and-title-tabs.md) |
 
 当前架构决定：[MC-ADR-0002](adr/mc-0002-fork-pi-desktop.md)；项目结构：[MC-ADR-0003](adr/mc-0003-equal-workspaces-and-project-home.md)；界面外壳：[MC-ADR-0004](adr/mc-0004-app-rail-and-title-tabs.md)。

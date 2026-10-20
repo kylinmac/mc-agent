@@ -3033,6 +3033,7 @@ sklm: {
     splitDockResize: "调整工具区高度",
     splitResume: "点击在此对话中继续…",
     splitTools: "已打开的工具",
+    sessionInfoCustomizeHint: "右键可选择显示哪些内容",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

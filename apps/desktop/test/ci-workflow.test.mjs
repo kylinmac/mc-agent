@@ -230,12 +230,12 @@ test("release matrix packages both native macOS architectures", () => {
   );
   assert.equal(
     JSON.parse(desktopPackageSource).build.mac.artifactName,
-    "PI-Desktop-${version}-${arch}-mac.${ext}",
+    "mc-agent-${version}-${arch}-mac.${ext}",
     "macOS ZIP names include the target architecture",
   );
   assert.equal(
     JSON.parse(desktopPackageSource).build.dmg.artifactName,
-    "PI-Desktop-${version}-${arch}.${ext}",
+    "mc-agent-${version}-${arch}.${ext}",
     "macOS DMG names include the target architecture",
   );
   assert.match(

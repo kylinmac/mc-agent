@@ -2998,6 +2998,7 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
     splitDockResize: "Resize tools",
     splitResume: "Click to continue in this conversation…",
     splitTools: "Open tools",
+    sessionInfoCustomizeHint: "Right-click to choose what it shows",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

@@ -3099,6 +3099,7 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     splitDockResize: "Resize tools",
     splitResume: "Click to continue in this conversation…",
     splitTools: "Open tools",
+    sessionInfoCustomizeHint: "Right-click to choose what it shows",
   },
   // mc-agent:end
 } as const;
