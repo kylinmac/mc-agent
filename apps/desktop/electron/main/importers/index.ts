@@ -11,6 +11,7 @@ import type {
 
 export type { ExternalSessionSummary, ExternalSource, ImportedSession } from "./types";
 export { scanModelConfigs } from "./model-config";
+export { importPiDesktop, scanPiDesktop } from "./pi-desktop";
 
 const importers: SessionImporter[] = [
   claudeImporter,

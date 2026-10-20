@@ -173,7 +173,8 @@ import {
   JEV_API_KEY_SECRET_REF,
 } from "@pi-desktop/shared";
 
-export type ImportSource = "claude-code" | "opencode" | "codex" | "pi";
+// mc-agent (MC-ADR-0009): "pi-desktop" is an installed PI-Desktop.
+export type ImportSource = "claude-code" | "opencode" | "codex" | "pi" | "pi-desktop";
 // One definition, owned by the shared package (the host and sidecar use the
 // same shape); re-exported so existing renderer imports keep working.
 import type {

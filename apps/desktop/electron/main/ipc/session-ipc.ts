@@ -15,8 +15,10 @@ import {
 } from "@pi-desktop/shared";
 import {
   convertSession,
+  importPiDesktop,
   scanAllSources,
   scanModelConfigs,
+  scanPiDesktop,
   type ExternalSessionSummary,
   type ExternalSource,
 } from "../importers";
@@ -47,6 +49,7 @@ const IMPORT_SOURCES = new Set<ExternalSource>([
   "opencode",
   "codex",
   "pi",
+  "pi-desktop",
 ]);
 
 function importSelectionKey(value: unknown): string | null {
@@ -582,7 +585,18 @@ export function registerSessionIpc({
   );
 
   handle(IPC.invoke.sessionImportScan, async () => {
-    const { sessions, truncated } = await scanAllSources();
+    const scanned = await scanAllSources();
+    const { truncated } = scanned;
+    // mc-agent (MC-ADR-0009): an installed PI-Desktop, copied by host-core.
+    let piDesktop: ExternalSessionSummary[] = [];
+    if (host) {
+      try {
+        piDesktop = await scanPiDesktop(host);
+      } catch (error) {
+        logger.app("session", "warn", "pi-desktop import scan failed", { data: { error: String(error) } });
+      }
+    }
+    const sessions = [...scanned.sessions, ...piDesktop].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
     scannedImportSessions = new Map(
       sessions.map((session) => [`${session.source}:${session.externalId}`, session]),
     );
@@ -600,9 +614,14 @@ export function registerSessionIpc({
       let skipped = 0;
       let failed = 0;
       const items = Array.isArray(selections) ? selections : [];
+      const piDesktopIds: string[] = [];
       for (const selection of items) {
         const key = importSelectionKey(selection);
         const item = key ? scannedImportSessions.get(key) : undefined;
+        if (item?.source === "pi-desktop") {
+          piDesktopIds.push(item.externalId);
+          continue;
+        }
         if (!item) {
           failed += 1;
           logger.app("session", "warn", "session import selection rejected", {
@@ -613,7 +632,9 @@ export function registerSessionIpc({
         try {
           const converted = await convertSession(item);
           const res = await host.call<{ imported?: boolean }>("session.import", {
-            session: converted.session,
+            // mc-agent (MC-ADR-0009): another agent's model is not configured
+            // here; the conversation continues on this app's default model.
+            session: { ...converted.session, modelId: null, providerId: null },
             messages: converted.messages,
           });
           if (res.imported) imported += 1;
@@ -623,6 +644,17 @@ export function registerSessionIpc({
           logger.app("session", "warn", "session import failed", {
             data: { source: item?.source, externalId: item?.externalId, error: String(e) },
           });
+        }
+      }
+      if (piDesktopIds.length) {
+        try {
+          const outcome = await importPiDesktop(host, piDesktopIds);
+          imported += outcome.imported;
+          skipped += outcome.skipped;
+          failed += outcome.failed;
+        } catch (e) {
+          failed += piDesktopIds.length;
+          logger.app("session", "warn", "pi-desktop import failed", { data: { error: String(e) } });
         }
       }
       logger.app("session", "info", "session import finished", {

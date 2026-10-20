@@ -3118,6 +3118,31 @@ async fn handle_request(
             Ok(json!({ "ok": true, "imported": imported, "skipped": !imported }))
         }
 
+        // mc-agent (MC-ADR-0009): conversations from an installed PI-Desktop,
+        // whose directory Electron main supplies; the source is only read.
+        "mcImport.piDesktopScan" => {
+            let source = params
+                .get("sourceDir")
+                .and_then(Value::as_str)
+                .ok_or_else(|| rpc_err(1002, "sourceDir required", "INVALID_PARAMS"))?;
+            let st = state.lock().await;
+            let sessions = crate::mc_import::scan_pi_desktop(&st.db, std::path::Path::new(source))
+                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
+            Ok(json!({ "sessions": sessions }))
+        }
+        "mcImport.piDesktopRun" => {
+            let source = params
+                .get("sourceDir")
+                .and_then(Value::as_str)
+                .ok_or_else(|| rpc_err(1002, "sourceDir required", "INVALID_PARAMS"))?;
+            let ids: Vec<String> = serde_json::from_value(params.get("ids").cloned().unwrap_or(Value::Null))
+                .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
+            let st = state.lock().await;
+            let outcome = crate::mc_import::import_pi_desktop(&st.db, std::path::Path::new(source), &ids)
+                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
+            Ok(json!(outcome))
+        }
+
         // Plugin sessions are a separate host-owned domain. Electron main is
         // the only caller that can supply pluginId; the plugin process never
         // receives a generic host RPC handle or SQLite access.

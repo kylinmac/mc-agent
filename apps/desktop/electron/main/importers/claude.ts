@@ -60,7 +60,8 @@ function blockText(content: string | Array<Record<string, any>> | undefined): st
 // Claude Code injects synthetic user lines (command caveats, system reminders,
 // slash-command transcripts) that all start with an XML-ish tag.
 function isSyntheticUserText(text: string): boolean {
-  return text.startsWith("<");
+  // mc-agent (MC-ADR-0009): also the "[Request interrupted by user…]" markers.
+  return text.startsWith("<") || text.startsWith("[Request interrupted by user");
 }
 
 export const claudeImporter: SessionImporter = {

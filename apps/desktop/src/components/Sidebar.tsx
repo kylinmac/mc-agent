@@ -86,6 +86,7 @@ import { WorktreeBehindWatcher } from "../features/worktree/WorktreeBehind";
 import { useArmedDelete } from "../hooks/use-armed-delete";
 import { ProjectDeleteDialog } from "./ProjectDeleteDialog";
 import { SessionRenameDialog } from "./SessionRenameDialog";
+import { openProjectImportDialog } from "../features/project-import/ProjectImportDialog";
 import { useUpdateState } from "../hooks/use-update-state";
 import {
   IconArchive,
@@ -100,6 +101,7 @@ import {
   IconFolder,
   IconMore,
   IconNewProject,
+  IconDownload,
   IconPin,
   IconPencil,
   IconSidebar,
@@ -2557,6 +2559,17 @@ export function Sidebar({
             onClick={() => void openProjectPicker()}
           >
             <IconNewProject size={14} />
+          </TooltipButton>
+          {/* mc-agent (MC-ADR-0009): projects and conversations from other agents. */}
+          <TooltipButton
+            type="button"
+            className="sidebar-toolbar-button"
+            data-action="import-projects"
+            tooltip={t("mcProject.importOpen")}
+            ariaLabel={t("mcProject.importOpen")}
+            onClick={openProjectImportDialog}
+          >
+            <IconDownload size={14} />
           </TooltipButton>
         </div>
 

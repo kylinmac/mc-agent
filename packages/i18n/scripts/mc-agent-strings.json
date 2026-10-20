@@ -1098,5 +1098,105 @@
     "en": "Right-click to choose what it shows",
     "zh-CN": "右键可选择显示哪些内容",
     "zh-TW": "右鍵可選擇顯示哪些內容"
+  },
+  "importOpen": {
+    "en": "Import projects from other agents…",
+    "zh-CN": "从其他智能体导入项目…",
+    "zh-TW": "從其他智能體匯入專案…"
+  },
+  "importTitle": {
+    "en": "Import from other agents",
+    "zh-CN": "从其他智能体导入",
+    "zh-TW": "從其他智能體匯入"
+  },
+  "importSources": {
+    "en": "Sources",
+    "zh-CN": "来源",
+    "zh-TW": "來源"
+  },
+  "importAll": {
+    "en": "All",
+    "zh-CN": "全部",
+    "zh-TW": "全部"
+  },
+  "importSearch": {
+    "en": "Search titles or folders",
+    "zh-CN": "搜索标题或目录",
+    "zh-TW": "搜尋標題或目錄"
+  },
+  "importSelectAll": {
+    "en": "Select all",
+    "zh-CN": "全选",
+    "zh-TW": "全選"
+  },
+  "importSelected": {
+    "en": "{{sessions}} conversations in {{projects}} projects selected",
+    "zh-CN": "已选 {{sessions}} 个对话，涉及 {{projects}} 个项目",
+    "zh-TW": "已選 {{sessions}} 個對話，涉及 {{projects}} 個專案"
+  },
+  "importScanning": {
+    "en": "Looking for conversations…",
+    "zh-CN": "正在查找可导入的对话…",
+    "zh-TW": "正在尋找可匯入的對話…"
+  },
+  "importScanFailed": {
+    "en": "Could not look for conversations: {{message}}",
+    "zh-CN": "查找失败：{{message}}",
+    "zh-TW": "尋找失敗：{{message}}"
+  },
+  "importEmpty": {
+    "en": "No conversations from Claude Code, Codex or PI-Desktop were found.",
+    "zh-CN": "没有找到 Claude Code、Codex 或 PI-Desktop 的对话。",
+    "zh-TW": "沒有找到 Claude Code、Codex 或 PI-Desktop 的對話。"
+  },
+  "importNoMatch": {
+    "en": "Nothing matches.",
+    "zh-CN": "没有匹配的对话。",
+    "zh-TW": "沒有符合的對話。"
+  },
+  "importNoProject": {
+    "en": "Not in a project",
+    "zh-CN": "不在项目中",
+    "zh-TW": "不在專案中"
+  },
+  "importSessionCount": {
+    "en": "{{count}} conversations",
+    "zh-CN": "{{count}} 个对话",
+    "zh-TW": "{{count}} 個對話"
+  },
+  "importMessageCount": {
+    "en": "{{count}} messages",
+    "zh-CN": "{{count}} 条消息",
+    "zh-TW": "{{count}} 則訊息"
+  },
+  "importAlready": {
+    "en": "Imported",
+    "zh-CN": "已导入",
+    "zh-TW": "已匯入"
+  },
+  "importNote": {
+    "en": "Imported conversations can be continued here. The other agents' data is only read.",
+    "zh-CN": "导入的对话可以在这里接着聊；其他智能体的数据只读取、不修改。",
+    "zh-TW": "匯入的對話可以在這裡接著聊；其他智能體的資料只讀取、不修改。"
+  },
+  "importCancel": {
+    "en": "Cancel",
+    "zh-CN": "取消",
+    "zh-TW": "取消"
+  },
+  "importRun": {
+    "en": "Import {{count}}",
+    "zh-CN": "导入 {{count}} 个",
+    "zh-TW": "匯入 {{count}} 個"
+  },
+  "importRunning": {
+    "en": "Importing…",
+    "zh-CN": "正在导入…",
+    "zh-TW": "正在匯入…"
+  },
+  "importDone": {
+    "en": "Imported {{imported}}, skipped {{skipped}}, failed {{failed}}",
+    "zh-CN": "已导入 {{imported}} 个，跳过 {{skipped}} 个，失败 {{failed}} 个",
+    "zh-TW": "已匯入 {{imported}} 個，略過 {{skipped}} 個，失敗 {{failed}} 個"
   }
 }

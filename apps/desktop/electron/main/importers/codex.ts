@@ -50,7 +50,23 @@ interface CodexItem {
   name?: string;
   arguments?: string;
   call_id?: string;
-  output?: string;
+  output?: string | Array<Record<string, any>>;
+  /** Freeform tool input (`custom_tool_call`: exec, apply_patch). */
+  input?: string;
+}
+
+/**
+ * mc-agent (MC-ADR-0009): newer Codex builds record shell and patch tools as
+ * `custom_tool_call` with a freeform input, and their outputs as a list of
+ * content parts rather than a string.
+ */
+function outputText(output: CodexItem["output"]): string {
+  if (typeof output === "string") return output;
+  if (!Array.isArray(output)) return output === undefined ? "" : JSON.stringify(output);
+  return output
+    .map((part) => (typeof part.text === "string" ? part.text : ""))
+    .filter(Boolean)
+    .join("\n");
 }
 
 interface ParsedCodexFile {
@@ -465,6 +481,9 @@ export const codexImporter: SessionImporter = {
     for (const { item, timestamp } of parsed?.items ?? []) {
       const createdAt = toIso(timestamp, summary.createdAt);
       if (item.type === "message") {
+        // mc-agent (MC-ADR-0009): developer/system messages are Codex's own
+        // injected instructions, not the conversation.
+        if (item.role !== "user" && item.role !== "assistant") continue;
         const text = itemText(item);
         if (!text || (item.role === "user" && isSyntheticUserText(text))) continue;
         messages.push({
@@ -482,10 +501,15 @@ export const codexImporter: SessionImporter = {
           // keep raw string
         }
         pendingCalls.set(item.call_id, { name: item.name ?? "tool", args });
-      } else if (item.type === "function_call_output" && item.call_id) {
+      } else if (item.type === "custom_tool_call" && item.call_id) {
+        pendingCalls.set(item.call_id, { name: item.name ?? "tool", args: { input: item.input ?? "" } });
+      } else if (
+        (item.type === "function_call_output" || item.type === "custom_tool_call_output") &&
+        item.call_id
+      ) {
         const pending = pendingCalls.get(item.call_id);
         pendingCalls.delete(item.call_id);
-        const output = typeof item.output === "string" ? item.output : JSON.stringify(item.output);
+        const output = outputText(item.output);
         messages.push({
           id: crypto.randomUUID(),
           role: "tool",

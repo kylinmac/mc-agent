@@ -1,0 +1,245 @@
+/*
+  mc-agent: import projects and conversations from other agents
+  (MC-ADR-0009). Same dialog surface as the new-project dialog, wider for
+  the list.
+*/
+
+.mc-import-overlay {
+  padding: 24px;
+}
+
+.mc-import-dialog {
+  display: flex;
+  width: min(100%, 760px);
+  height: min(680px, calc(100vh - 48px));
+  flex-direction: column;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-lg-plus);
+  background: var(--ds-bg-elevated-opaque);
+  box-shadow: var(--ds-shadow-dialog);
+  padding: 0;
+}
+
+.mc-import-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 18px 10px;
+}
+
+.mc-import-head h2 {
+  margin: 0;
+  color: var(--ds-text-primary);
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-strong);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-heading);
+}
+
+.mc-import-close {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--ds-text-muted);
+}
+
+.mc-import-close:hover:not(:disabled) {
+  background: var(--ds-tile-hover);
+  color: var(--ds-text-primary);
+}
+
+.mc-import-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 0 18px 10px;
+}
+
+.mc-import-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.mc-import-filter {
+  display: inline-flex;
+  height: 26px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-full);
+  color: var(--ds-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.mc-import-filter[aria-pressed="true"] {
+  border-color: var(--ds-text-primary);
+  color: var(--ds-text-primary);
+}
+
+.mc-import-filter-count {
+  color: var(--ds-text-muted);
+}
+
+.mc-import-search {
+  min-width: 160px;
+  height: 28px;
+  flex: 1;
+  padding: 0 10px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--ds-bg-primary);
+  color: var(--ds-text-primary);
+  font-size: var(--text-xs);
+}
+
+.mc-import-selectall {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 18px;
+  border-top: 1px solid var(--ds-border-subtle);
+  border-bottom: 1px solid var(--ds-border-subtle);
+  font-size: var(--text-sm);
+}
+
+.mc-import-body {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  padding: 6px 10px;
+}
+
+.mc-import-state {
+  padding: 40px 12px;
+  color: var(--ds-text-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.mc-import-groups,
+.mc-import-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mc-import-group-row,
+.mc-import-item {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+}
+
+.mc-import-group-row:hover,
+.mc-import-item:hover {
+  background: var(--ds-bg-hover);
+}
+
+.mc-import-items {
+  padding-left: 30px;
+}
+
+.mc-import-expand {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--ds-text-muted);
+}
+
+.mc-import-check {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.mc-import-group-name {
+  display: inline-block;
+  max-width: 240px;
+  overflow: hidden;
+  color: var(--ds-text-primary);
+  font-weight: var(--font-weight-strong);
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+.mc-import-title {
+  display: inline-block;
+  max-width: 360px;
+  overflow: hidden;
+  color: var(--ds-text-primary);
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+.mc-import-path {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+
+.mc-import-item .mc-import-check {
+  flex: 1 1 auto;
+}
+
+.mc-import-sources {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.mc-import-source {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: var(--ds-bg-hover);
+  color: var(--ds-text-secondary);
+  font-size: var(--text-2xs);
+}
+
+.mc-import-meta {
+  flex: 0 0 auto;
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+}
+
+.mc-import-item[data-imported="true"] .mc-import-title {
+  color: var(--ds-text-muted);
+}
+
+.mc-import-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--ds-border-subtle);
+}
+
+.mc-import-note {
+  min-width: 0;
+  flex: 1;
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+}

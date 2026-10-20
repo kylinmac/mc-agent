@@ -13,6 +13,7 @@ import {
   IconPanelOpen,
 } from "../../components/icons";
 import { ProjectCreateDialog } from "../../components/ProjectCreateDialog";
+import { ProjectImportDialog } from "../project-import/ProjectImportDialog";
 import { SearchDialog } from "../../components/SearchDialog";
 import { Sidebar } from "../../components/Sidebar";
 import { StartupRecovery } from "../../components/StartupRecovery";
@@ -388,6 +389,8 @@ export function AppShell() {
         <WindowControls />
       ) : null}
       <ProjectCreateDialog />
+      {/* mc-agent (MC-ADR-0009): import projects from other agents. */}
+      <ProjectImportDialog />
       {splash}
       {startupRecovery}
     </div>

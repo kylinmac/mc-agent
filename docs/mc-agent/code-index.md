@@ -59,6 +59,7 @@ mc-agent 新增功能（R1–R10）的代码见文末“mc-agent 项目管理”
 | 密钥 | `crates/host-core/src/secrets.rs` |
 | 传输重试、代理 | `packages/agent-runtime/src/provider-retry.ts`、`packages/agent-runtime/src/provider-transport-recovery.ts`、`packages/agent-runtime/src/socks5.ts`、`packages/agent-runtime/src/system-proxy-relay.ts` |
 | 从 Claude / Codex / OpenCode / Pi 导入 | `apps/desktop/electron/main/importers/` |
+| 导入项目与对话（mc） | 界面 `apps/desktop/src/features/project-import/`（`ProjectImportDialog.tsx`、`import-model.ts`），入口在 `components/Sidebar.tsx`；PI-Desktop 来源 `electron/main/importers/pi-desktop.ts` → host-core `src/mc_import.rs`（`mcImport.*`）；通道 `ipc/session-ipc.ts` 的 `sessionImportScan/Run` |
 
 ## 工具、权限、工作区
 
