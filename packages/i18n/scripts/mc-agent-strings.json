@@ -1723,5 +1723,170 @@
     "en": "Other models",
     "zh-CN": "其他模型",
     "zh-TW": "其他模型"
+  },
+  "pluginsUpdateReady": {
+    "en": "Update available",
+    "zh-CN": "有更新",
+    "zh-TW": "有更新"
+  },
+  "pluginsAutoUpdate": {
+    "en": "Auto-update",
+    "zh-CN": "自动更新",
+    "zh-TW": "自動更新"
+  },
+  "pluginsNotInMarket": {
+    "en": "This plugin isn't in the marketplace, so there is nothing more to show.",
+    "zh-CN": "这个插件不在插件市场里，没有更多信息。",
+    "zh-TW": "這個外掛不在外掛市集裡，沒有更多資訊。"
+  },
+  "schedNavOverview": {
+    "en": "Overview & templates",
+    "zh-CN": "概览与模板",
+    "zh-TW": "概覽與範本"
+  },
+  "schedNavNew": {
+    "en": "New task",
+    "zh-CN": "新建任务",
+    "zh-TW": "新增任務"
+  },
+  "schedNavYours": {
+    "en": "Your tasks",
+    "zh-CN": "我的任务",
+    "zh-TW": "我的任務"
+  },
+  "schedSearch": {
+    "en": "Search tasks",
+    "zh-CN": "搜索任务",
+    "zh-TW": "搜尋任務"
+  },
+  "schedNoMatches": {
+    "en": "No matching tasks",
+    "zh-CN": "没有匹配的任务",
+    "zh-TW": "沒有符合的任務"
+  },
+  "schedEmpty": {
+    "en": "No scheduled tasks yet.",
+    "zh-CN": "还没有定时任务。",
+    "zh-TW": "還沒有排程任務。"
+  },
+  "schedSetUpManually": {
+    "en": "Set up manually",
+    "zh-CN": "手动创建",
+    "zh-TW": "手動建立"
+  },
+  "schedTemplates": {
+    "en": "Start from a template",
+    "zh-CN": "从模板开始",
+    "zh-TW": "從範本開始"
+  },
+  "schedTemplatesHint": {
+    "en": "A template fills in the form; pick the project and model, then save.",
+    "zh-CN": "模板只预填表单，选好项目和模型后保存才会生效。",
+    "zh-TW": "範本只預填表單，選好專案和模型後儲存才會生效。"
+  },
+  "schedWhenWeekdays": {
+    "en": "Weekdays at {{time}}",
+    "zh-CN": "工作日 {{time}}",
+    "zh-TW": "工作日 {{time}}"
+  },
+  "schedWhenWeekly": {
+    "en": "Every {{day}} at {{time}}",
+    "zh-CN": "每{{day}} {{time}}",
+    "zh-TW": "每{{day}} {{time}}"
+  },
+  "schedWhenDaily": {
+    "en": "Daily at {{time}}",
+    "zh-CN": "每天 {{time}}",
+    "zh-TW": "每天 {{time}}"
+  },
+  "schedTplDigestTitle": {
+    "en": "Daily change digest",
+    "zh-CN": "每日变更摘要",
+    "zh-TW": "每日變更摘要"
+  },
+  "schedTplDigestDesc": {
+    "en": "What changed in the project since yesterday, and what to watch.",
+    "zh-CN": "汇总项目昨天以来的提交和改动，以及需要留意的风险。",
+    "zh-TW": "彙整專案昨天以來的提交和改動，以及需要留意的風險。"
+  },
+  "schedTplDigestPrompt": {
+    "en": "Summarize what changed in this project over the last day: commits (git log --since=yesterday) and uncommitted changes. Group the points by module, and call out anything risky or unfinished. Do not modify any files.",
+    "zh-CN": "汇总这个项目过去一天的变化：提交记录（git log --since=yesterday）和尚未提交的改动。按模块分组列出要点，并指出有风险或没做完的地方。不要修改任何文件。",
+    "zh-TW": "彙整這個專案過去一天的變化：提交紀錄（git log --since=yesterday）和尚未提交的改動。按模組分組列出要點，並指出有風險或沒做完的地方。不要修改任何檔案。"
+  },
+  "schedTplTestsTitle": {
+    "en": "Test health check",
+    "zh-CN": "测试巡检",
+    "zh-TW": "測試巡檢"
+  },
+  "schedTplTestsDesc": {
+    "en": "Run the test suite and report failures with likely causes.",
+    "zh-CN": "运行测试，报告失败用例和可能的原因。",
+    "zh-TW": "執行測試，回報失敗案例和可能的原因。"
+  },
+  "schedTplTestsPrompt": {
+    "en": "Run this project's test suite (find the command in package.json, Makefile, Cargo.toml or the README). Report the failing tests, the relevant error output, and the most likely cause of each. Do not change code or commit anything.",
+    "zh-CN": "运行这个项目的测试（从 package.json、Makefile、Cargo.toml 或 README 里找命令）。列出失败的用例、相关报错和各自最可能的原因。不要修改代码，也不要提交。",
+    "zh-TW": "執行這個專案的測試（從 package.json、Makefile、Cargo.toml 或 README 裡找指令）。列出失敗的案例、相關錯誤輸出和各自最可能的原因。不要修改程式碼，也不要提交。"
+  },
+  "schedTplDepsTitle": {
+    "en": "Dependency check",
+    "zh-CN": "依赖检查",
+    "zh-TW": "相依套件檢查"
+  },
+  "schedTplDepsDesc": {
+    "en": "Outdated packages and known vulnerabilities, with upgrade advice.",
+    "zh-CN": "检查过期依赖和已知漏洞，给出升级建议。",
+    "zh-TW": "檢查過期套件和已知漏洞，給出升級建議。"
+  },
+  "schedTplDepsPrompt": {
+    "en": "Check this project's dependencies for outdated versions and known security advisories (for example npm/pnpm outdated and audit, cargo outdated/audit, pip list --outdated). List what should be upgraded, why, and the risk of each upgrade. Do not upgrade anything.",
+    "zh-CN": "检查这个项目的依赖有没有过期版本和已知安全公告（例如 npm/pnpm outdated 与 audit、cargo outdated/audit、pip list --outdated）。列出建议升级的依赖、原因和每项升级的风险。不要直接升级。",
+    "zh-TW": "檢查這個專案的相依套件有沒有過期版本和已知安全公告（例如 npm/pnpm outdated 與 audit、cargo outdated/audit、pip list --outdated）。列出建議升級的套件、原因和每項升級的風險。不要直接升級。"
+  },
+  "schedTplReviewTitle": {
+    "en": "Weekly review",
+    "zh-CN": "每周回顾",
+    "zh-TW": "每週回顧"
+  },
+  "schedTplReviewDesc": {
+    "en": "A Friday summary of this week's work in the project.",
+    "zh-CN": "周五汇总本周在这个项目里做了什么。",
+    "zh-TW": "週五彙整本週在這個專案裡做了什麼。"
+  },
+  "schedTplReviewPrompt": {
+    "en": "Write a short weekly review of this project from this week's commits and open changes: what was finished, what is still in progress, and suggestions for next week. Do not modify any files.",
+    "zh-CN": "根据本周的提交和未完成的改动，写一份这个项目的简短周报：完成了什么、还在进行的、下周的建议。不要修改任何文件。",
+    "zh-TW": "根據本週的提交和未完成的改動，寫一份這個專案的簡短週報：完成了什麼、還在進行的、下週的建議。不要修改任何檔案。"
+  },
+  "schedTplTodoTitle": {
+    "en": "TODO sweep",
+    "zh-CN": "TODO 整理",
+    "zh-TW": "TODO 整理"
+  },
+  "schedTplTodoDesc": {
+    "en": "Collect TODO, FIXME and HACK notes, grouped by area and urgency.",
+    "zh-CN": "收集代码里的 TODO、FIXME、HACK，按模块和紧急程度分组。",
+    "zh-TW": "收集程式碼裡的 TODO、FIXME、HACK，按模組和緊急程度分組。"
+  },
+  "schedTplTodoPrompt": {
+    "en": "Find every TODO, FIXME and HACK comment in this project's source (skip dependencies and build output). Group them by module, mark the ones that look urgent, and note any that are already done. Do not modify any files.",
+    "zh-CN": "找出这个项目源码里所有 TODO、FIXME、HACK 注释（跳过依赖和构建产物）。按模块分组，标出看起来紧急的，并指出已经完成可以删掉的。不要修改任何文件。",
+    "zh-TW": "找出這個專案原始碼裡所有 TODO、FIXME、HACK 註解（略過相依套件和建置產物）。按模組分組，標出看起來緊急的，並指出已經完成可以刪掉的。不要修改任何檔案。"
+  },
+  "schedTplDocsTitle": {
+    "en": "Docs drift check",
+    "zh-CN": "文档同步检查",
+    "zh-TW": "文件同步檢查"
+  },
+  "schedTplDocsDesc": {
+    "en": "Find README and docs sections that no longer match the code.",
+    "zh-CN": "找出 README 和文档里与代码不一致的地方。",
+    "zh-TW": "找出 README 和文件裡與程式碼不一致的地方。"
+  },
+  "schedTplDocsPrompt": {
+    "en": "Compare this project's README and docs with the current code. List commands, options, paths or behavior that are out of date or missing, with the file and section for each. Do not modify any files.",
+    "zh-CN": "对比这个项目的 README、文档和当前代码，列出已经过时或缺失的命令、参数、路径或行为说明，并注明所在文件和章节。不要修改任何文件。",
+    "zh-TW": "對比這個專案的 README、文件和目前程式碼，列出已經過時或缺少的指令、參數、路徑或行為說明，並註明所在檔案和章節。不要修改任何檔案。"
   }
 }

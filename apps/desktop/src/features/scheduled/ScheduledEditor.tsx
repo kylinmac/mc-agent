@@ -29,6 +29,7 @@ export type ScheduledDraft = Pick<ScheduledTask, "title" | "prompt" | "cadence" 
 
 export function ScheduledEditor({
   task,
+  seed,
   projects,
   currentWorkspacePath,
   busy,
@@ -36,6 +37,8 @@ export function ScheduledEditor({
   cancel,
 }: {
   task?: ScheduledTask;
+  /** mc-agent: a template's title, prompt and schedule for a new task. */
+  seed?: Pick<ScheduledTask, "title" | "prompt" | "cadence" | "schedule">;
   projects: readonly ProjectRecord[];
   currentWorkspacePath: string;
   busy: boolean;
@@ -44,13 +47,14 @@ export function ScheduledEditor({
 }) {
   const { t } = useTranslation();
   const settings = useAppStore((state) => state.settings);
-  const [title, setTitle] = useState(task?.title ?? "");
-  const [prompt, setPrompt] = useState(task?.prompt ?? "");
-  const [cadence, setCadence] = useState<ScheduledTask["cadence"]>(task?.cadence ?? "manual");
-  const [hour, setHour] = useState(String(task?.schedule?.hour ?? 9).padStart(2, "0"));
-  const [minute, setMinute] = useState(String(task?.schedule?.minute ?? 0).padStart(2, "0"));
+  const initial = task ?? seed;
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [prompt, setPrompt] = useState(initial?.prompt ?? "");
+  const [cadence, setCadence] = useState<ScheduledTask["cadence"]>(initial?.cadence ?? "manual");
+  const [hour, setHour] = useState(String(initial?.schedule?.hour ?? 9).padStart(2, "0"));
+  const [minute, setMinute] = useState(String(initial?.schedule?.minute ?? 0).padStart(2, "0"));
   const [weekdays, setWeekdays] = useState<number[]>(
-    task?.schedule?.weekdays ?? [task?.schedule?.weekday ?? 0],
+    initial?.schedule?.weekdays ?? [initial?.schedule?.weekday ?? 0],
   );
   const [workspacePath, setWorkspacePath] = useState(
     task?.workspacePath || currentWorkspacePath || projects[0]?.path || "",
@@ -67,7 +71,7 @@ export function ScheduledEditor({
 
   // An interval is one number plus the unit it reads in. The stored value is
   // always minutes, which is what the host arms and what the rail reports.
-  const storedInterval = intervalAmount(task?.schedule?.intervalMinutes) ?? {
+  const storedInterval = intervalAmount(initial?.schedule?.intervalMinutes) ?? {
     unit: "minutes" as const,
     value: 30,
   };

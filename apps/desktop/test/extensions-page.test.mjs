@@ -107,9 +107,11 @@ test("the extensions page keeps only installed and market tabs", () => {
   }
 });
 
-test("the extensions page uses tabs instead of the removed capability overview", () => {
+// mc-agent: the marketplace and each installed plugin are picked in a sidebar
+// instead of tabs.
+test("the extensions page uses a sidebar instead of the removed capability overview", () => {
   assert.doesNotMatch(pageSrc, /plugins-hero|plugins-stat|const summary\s*=/);
-  assert.match(pageSrc, /className="plugins-segment"/);
+  assert.match(pageSrc, /className="settings-nav sidebar-surface mc-plugins-nav"/);
 });
 
 test("marketplace keeps refresh and install actions without source switching", () => {
