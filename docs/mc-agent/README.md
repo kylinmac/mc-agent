@@ -28,6 +28,7 @@
 | [MC-ADR-0009](adr/mc-0009-import-from-other-agents.md) | 从其他智能体导入项目和对话 |
 | [MC-ADR-0010](adr/mc-0010-system-prompt-templates.md) | 系统提示词查看与模板 |
 | [MC-ADR-0011](adr/mc-0011-usage-statistics.md) | 用量统计 |
+| [MC-ADR-0012](adr/mc-0012-releases-and-updates.md) | 发布到 GitHub Releases 与更新提醒 |
 | [MC-ADR-0004](adr/mc-0004-app-rail-and-title-tabs.md) | 左侧竖栏、顶部标签栏与设置标签 |
 | [MC-ADR-0003](adr/mc-0003-equal-workspaces-and-project-home.md) | 多工作区平等与项目资料目录 |
 | [MC-ADR-0002](adr/mc-0002-fork-pi-desktop.md) | 当前 Fork 架构决定 |

@@ -33,6 +33,9 @@ const { persistUpdatePreference } = settingsPreference;
 
  test("installed builds keep automatic by default while portable and ZIP builds default to manual", () => {
   assert.equal(resolveDefaultUpdatePreference("win32", true, {}, "installed"), "automatic");
+  // mc-agent: ad-hoc signed macOS builds only notify (MC-ADR-0012).
+  assert.equal(resolveDefaultUpdatePreference("darwin", true, {}), "automatic");
+  assert.equal(resolveDefaultUpdatePreference("darwin", true, { MC_UPDATE_NOTIFY_ONLY: "1" }), "manual");
   assert.equal(resolveDefaultUpdatePreference("win32", true, {}, "zip"), "manual");
   assert.equal(resolveDefaultUpdatePreference("win32", true, {}, "portable"), "manual");
   assert.equal(

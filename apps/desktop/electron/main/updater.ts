@@ -43,6 +43,7 @@ import {
   UPDATE_CHECK_TIMEOUT_CODE,
 } from "./update-timeout";
 import {
+  MC_NOTIFY_ONLY_ENV,
   resolveDefaultUpdatePreference,
   resolveEffectiveUpdatePreference,
   resolveStoredUpdatePreference,
@@ -72,7 +73,8 @@ function createRelocatedUpdater(
   return platform === "win32" ? new RelocatedNsisUpdater(baseCachePath) : null;
 }
 
-export const RELEASES_URL = "https://github.com/vastsa/PI-Desktop/releases/latest";
+// mc-agent: this fork's own releases (MC-ADR-0012).
+export const RELEASES_URL = "https://github.com/kylinmac/mc-agent/releases/latest";
 
 const AUTO_CHECK_INITIAL_DELAY_MS = 15_000;
 const AUTO_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -157,6 +159,19 @@ export class AppUpdaterController {
   private readonly autoUpdater: AppUpdater;
   private readonly cacheMaintenance: UpdateCacheMaintenance;
 
+  /** mc-agent: one field of the packaged package.json (build metadata). */
+  private readPackagedField(isPackaged: boolean, field: string): unknown {
+    if (!isPackaged) return undefined;
+    try {
+      const packageJson = JSON.parse(readFileSync(join(app.getAppPath(), "package.json"), "utf8")) as unknown;
+      return typeof packageJson === "object" && packageJson !== null
+        ? (packageJson as Record<string, unknown>)[field]
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   private readPackagedDistribution(
     isPackaged: boolean,
   ): WindowsDistribution | undefined {
@@ -197,7 +212,10 @@ export class AppUpdaterController {
         : undefined);
     this.platform = platform;
     this.isPackaged = isPackaged;
-    this.env = process.env;
+    this.env =
+      platform === "darwin" && this.readPackagedField(isPackaged, "mcUpdateDelivery") === "notify"
+        ? { ...process.env, [MC_NOTIFY_ONLY_ENV]: "1" }
+        : process.env;
     this.distribution = distribution;
     this.defaultPreference = resolveDefaultUpdatePreference(
       platform,

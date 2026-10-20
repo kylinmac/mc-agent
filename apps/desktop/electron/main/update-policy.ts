@@ -2,13 +2,20 @@ import type { UpdateMode, UpdatePreference } from "@pi-desktop/shared";
 
 export type WindowsDistribution = "installed" | "zip" | "portable";
 
+/** Set for builds whose package.json says `mcUpdateDelivery: "notify"`. */
+export const MC_NOTIFY_ONLY_ENV = "MC_UPDATE_NOTIFY_ONLY";
+
 export function supportsAutomaticUpdates(
   platform: NodeJS.Platform,
   isPackaged: boolean,
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
   if (!isPackaged) return false;
-  if (platform === "win32" || platform === "darwin") return true;
+  // mc-agent: an ad-hoc signed macOS build cannot replace itself (Squirrel.Mac
+  // requires the update to match the running app's signing identity), so it
+  // only notifies and links to the release (MC-ADR-0012).
+  if (platform === "darwin") return !env[MC_NOTIFY_ONLY_ENV];
+  if (platform === "win32") return true;
   return platform === "linux" && Boolean(env.APPIMAGE);
 }
 

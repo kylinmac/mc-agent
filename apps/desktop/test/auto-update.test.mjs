@@ -141,7 +141,8 @@ test("updater gates delivery mode by platform and delivery policy", () => {
   assert.match(updaterSource, /autoUpdater\.on\("error"/);
   assert.match(
     updaterSource,
-    /github\.com\/vastsa\/PI-Desktop\/releases/,
+    // mc-agent: this fork's own releases (MC-ADR-0012).
+    /github\.com\/kylinmac\/mc-agent\/releases/,
     "releases fallback URL",
   );
   assert.match(
