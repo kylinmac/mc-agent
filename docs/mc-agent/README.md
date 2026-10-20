@@ -20,6 +20,7 @@
 | [协议与数据](protocol-data.md) | 确认资料版本、项目身份、会话关联与恢复规则 |
 | [验收与开发计划](validation-plan.md) | 先验证继承能力，再验证新增闭环 |
 | [决策清单](decisions.md) | 集中处理待确认问题 |
+| [创作工作台方案](creative-studio.md) | 生图、生视频的入口、布局和分期（草稿，待确认） |
 | [M1 基线记录](m1-baseline.md) | 构建、冒烟和 B1–B8 实测结果 |
 | [MC-ADR-0005](adr/mc-0005-work-panel-terminal-and-tools.md) | 工作面板终端与工具栏 |
 | [MC-ADR-0006](adr/mc-0006-background-commands.md) | 后台命令与后台任务面板 |
