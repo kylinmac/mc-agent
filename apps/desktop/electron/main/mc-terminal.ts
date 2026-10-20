@@ -61,9 +61,16 @@ type SpawnPty = (shell: string, args: string[], options: {
   env: Record<string, string>;
 }) => IPty;
 
+type PendingCreate = {
+  promise: Promise<{ termId: string; replay: string }>;
+  cancelled: boolean;
+};
+
 export class TerminalManager {
   private readonly sessions = new Map<string, PtySession>();
   private readonly byTab = new Map<string, string>();
+  /** Tabs whose shell is still starting: one start per tab, cancellable. */
+  private readonly pending = new Map<string, PendingCreate>();
   private readonly events: TerminalEvents;
   private readonly loadSpawn: () => Promise<SpawnPty>;
 
@@ -85,9 +92,28 @@ export class TerminalManager {
     const existingId = this.byTab.get(input.tabId);
     const existing = existingId ? this.sessions.get(existingId) : undefined;
     if (existing) return { termId: existing.termId, replay: existing.replay };
-    if (this.sessions.size >= MAX_TERMINALS) throw new Error("too many open terminals");
+    // A second request while the first is still loading shares its shell
+    // instead of starting another one the tab would lose track of.
+    const inFlight = this.pending.get(input.tabId);
+    if (inFlight) return inFlight.promise;
+    if (this.sessions.size + this.pending.size >= MAX_TERMINALS) throw new Error("too many open terminals");
 
+    const pending: PendingCreate = { promise: Promise.resolve({ termId: "", replay: "" }), cancelled: false };
+    pending.promise = this.spawnFor(input, pending).finally(() => {
+      if (this.pending.get(input.tabId) === pending) this.pending.delete(input.tabId);
+    });
+    this.pending.set(input.tabId, pending);
+    return pending.promise;
+  }
+
+  private async spawnFor(
+    input: { tabId: string; cwd: string; cols?: number; rows?: number },
+    pending: PendingCreate,
+  ): Promise<{ termId: string; replay: string }> {
     const spawn = await this.loadSpawn();
+    // The tab was closed (or the app is quitting) while the module loaded:
+    // starting the shell now would leave one nobody can see or close.
+    if (pending.cancelled) throw new Error("terminal closed");
     const { shell, args } = resolveShell();
     const termId = randomUUID();
     const pty = spawn(shell, args, {
@@ -125,25 +151,36 @@ export class TerminalManager {
     }
   }
 
-  /** Kill the shell of a closed tab. */
+  /** Kill the shell of a closed tab, or stop the one still starting. */
   disposeTab(tabId: string): void {
+    const pending = this.pending.get(tabId);
+    if (pending) {
+      pending.cancelled = true;
+      this.pending.delete(tabId);
+    }
     const termId = this.byTab.get(tabId);
     const session = termId ? this.sessions.get(termId) : undefined;
-    if (!session) return;
+    if (session) this.kill(session);
+  }
+
+  /** Kill every shell by its own process, not through the tab index. */
+  disposeAll(): void {
+    for (const pending of this.pending.values()) pending.cancelled = true;
+    this.pending.clear();
+    for (const session of [...this.sessions.values()]) this.kill(session);
+  }
+
+  get size(): number {
+    return this.sessions.size;
+  }
+
+  private kill(session: PtySession): void {
     this.forget(session);
     try {
       session.pty.kill();
     } catch {
       // Already gone.
     }
-  }
-
-  disposeAll(): void {
-    for (const session of [...this.sessions.values()]) this.disposeTab(session.tabId);
-  }
-
-  get size(): number {
-    return this.sessions.size;
   }
 
   private forget(session: PtySession): void {

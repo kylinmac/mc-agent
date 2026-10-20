@@ -3258,6 +3258,7 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     schedTplDocsTitle: "Docs drift check",
     schedTplDocsDesc: "Find README and docs sections that no longer match the code.",
     schedTplDocsPrompt: "Compare this project's README and docs with the current code. List commands, options, paths or behavior that are out of date or missing, with the file and section for each. Do not modify any files.",
+    taskNotSent: "The task's first message was not sent, so the run was not started.",
   },
   // mc-agent:end
 } as const;

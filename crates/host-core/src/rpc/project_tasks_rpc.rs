@@ -51,6 +51,14 @@ pub fn handle(state: &AppState, method: &str, params: &Value) -> Result<Value, J
             required(params, "startFolder")?,
         )
         .map(|task| json!({ "task": task })),
+        "project.tasks.abandonRun" => project_tasks::abandon_run(
+            db,
+            &group,
+            required(params, "taskId")?,
+            required(params, "runId")?,
+            params.get("reason").and_then(Value::as_str).unwrap_or(""),
+        )
+        .map(|task| json!({ "task": task })),
         "project.tasks.review" => {
             let verdict: Verdict =
                 serde_json::from_value(params.get("verdict").cloned().unwrap_or(Value::Null))

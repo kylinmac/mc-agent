@@ -36,6 +36,11 @@ pub struct ProjectMeta {
     pub template_version: u32,
     pub template_fingerprint: String,
     pub recorded_at: i64,
+    /// mc-agent: the project group the folder was made for. A detached folder
+    /// is only ever reattached to this group, never to one that merely has the
+    /// same name. Absent on folders made before ownership was recorded.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
 }
 
 /// A project's template record compared with the template as it is now.
@@ -141,14 +146,37 @@ pub fn record_project_template(
         template_version: read_template_meta(template_dir)?.version,
         template_fingerprint: fingerprint(template_dir)?,
         recorded_at: crate::db::now_ms(),
+        // Adopting another template does not change whose folder it is.
+        owner: read_project_meta(resource_folder)
+            .ok()
+            .flatten()
+            .and_then(|previous| previous.owner),
     };
+    write_project_meta(resource_folder, &meta)?;
+    Ok(meta)
+}
+
+/// Record which project group `resource_folder` belongs to. A folder without
+/// a template record is left alone: it is not a managed resource folder.
+pub fn record_project_owner(resource_folder: &Path, group_id: &str) -> Result<()> {
+    let Some(mut meta) = read_project_meta(resource_folder)? else {
+        return Ok(());
+    };
+    if meta.owner.as_deref() == Some(group_id) {
+        return Ok(());
+    }
+    meta.owner = Some(group_id.to_string());
+    write_project_meta(resource_folder, &meta)
+}
+
+fn write_project_meta(resource_folder: &Path, meta: &ProjectMeta) -> Result<()> {
     let dir = resource_folder.join(PROJECT_META_DIR);
     fs::create_dir_all(&dir)?;
     fs::write(
         dir.join(PROJECT_META_FILE),
-        format!("{}\n", serde_json::to_string_pretty(&meta)?),
+        format!("{}\n", serde_json::to_string_pretty(meta)?),
     )?;
-    Ok(meta)
+    Ok(())
 }
 
 pub fn project_template_status(

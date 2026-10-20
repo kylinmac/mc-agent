@@ -21,6 +21,9 @@ const NAMESPACE: &str = "mcProjectTasks";
 const MAX_TITLE_CHARS: usize = 200;
 const MAX_TEXT_CHARS: usize = 8_000;
 const MAX_RESOURCES: usize = 50;
+/// A run whose session has not begun a turn this long after the start never
+/// started (the first message failed, or the app quit in between).
+const START_GRACE_MS: i64 = 2 * 60_000;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -183,13 +186,66 @@ pub fn cancel(
 ) -> Result<ProjectTask> {
     mutate(db, group, task_id, revision, |task| {
         if task.status == TaskStatus::InProgress {
-            return Err(anyhow!(
-                "CONFLICT: stop the running session before cancelling"
-            ));
+            // Only a turn that is actually running holds the task; a run
+            // whose first message never went out can be cancelled.
+            let run = task.runs.last_mut();
+            match run {
+                Some(run) if run.outcome == RunOutcome::Running => {
+                    if latest_turn_status(db, run)?.is_some() {
+                        return Err(anyhow!(
+                            "CONFLICT: stop the running session before cancelling"
+                        ));
+                    }
+                    run.outcome = RunOutcome::Stopped;
+                    run.ended_at = Some(now_ms());
+                    run.note = Some("cancelled before the run started".to_string());
+                }
+                _ => {}
+            }
         }
         task.status = TaskStatus::Cancelled;
         Ok(())
     })
+}
+
+/// Settle a run whose start failed after it was recorded (the first message
+/// could not be sent): it fails and the task is blocked, so it can be started
+/// again. A run that already has a turn is left to `reconcile`.
+pub fn abandon_run(
+    db: &Database,
+    group: &ProjectGroupRecord,
+    task_id: &str,
+    run_id: &str,
+    reason: &str,
+) -> Result<ProjectTask> {
+    let mut tasks = load(db, &group.id)?;
+    let task = tasks
+        .iter_mut()
+        .find(|task| task.id == task_id)
+        .ok_or_else(|| anyhow!("NOT_FOUND: task not found"))?;
+    reconcile(db, task)?;
+    let Some(run) = task.runs.last_mut() else {
+        return Ok(task.clone());
+    };
+    if run.id != run_id || run.outcome != RunOutcome::Running || latest_turn_status(db, run)?.is_some() {
+        return Ok(task.clone());
+    }
+    let reason: String = reason.trim().chars().take(500).collect();
+    run.outcome = RunOutcome::Failed;
+    run.ended_at = Some(now_ms());
+    run.note = Some(if reason.is_empty() {
+        "the run could not start".to_string()
+    } else {
+        format!("the run could not start: {reason}")
+    });
+    if task.status == TaskStatus::InProgress {
+        task.status = TaskStatus::Blocked;
+    }
+    task.revision += 1;
+    task.updated_at = now_ms();
+    let updated = task.clone();
+    save(db, &group.id, &tasks)?;
+    Ok(updated)
 }
 
 pub fn reopen(
@@ -334,17 +390,13 @@ fn reconcile(db: &Database, task: &mut ProjectTask) -> Result<bool> {
     let (outcome, note) = match session_project(db, &run.session_id)? {
         None => (RunOutcome::Failed, Some("session was deleted".to_string())),
         Some(_) => {
-            let turn: Option<(String, Option<i64>)> = db
-                .conn()
-                .query_row(
-                    "SELECT status, ended_at FROM turns
-                     WHERE session_id = ?1 AND started_at >= ?2
-                     ORDER BY started_at DESC LIMIT 1",
-                    params![run.session_id, run.started_at - 60_000],
-                    |row| Ok((row.get(0)?, row.get(1)?)),
-                )
-                .optional()?;
-            match turn.as_ref().map(|(status, _)| status.as_str()) {
+            let turn = latest_turn_status(db, run)?;
+            match turn.as_deref() {
+                // No turn yet: still starting, unless the start was cut off.
+                None if now_ms() - run.started_at > START_GRACE_MS => (
+                    RunOutcome::Failed,
+                    Some("the run never started".to_string()),
+                ),
                 None | Some("running") => return Ok(false),
                 Some("completed") => (RunOutcome::Finished, None),
                 Some("aborted") => (RunOutcome::Stopped, None),
@@ -364,6 +416,21 @@ fn reconcile(db: &Database, task: &mut ProjectTask) -> Result<bool> {
         task.updated_at = now_ms();
     }
     Ok(true)
+}
+
+/// The status of the newest turn the run's session began since the run
+/// started (a minute of slack for clocks and the order of the two writes).
+fn latest_turn_status(db: &Database, run: &TaskRun) -> Result<Option<String>> {
+    Ok(db
+        .conn()
+        .query_row(
+            "SELECT status FROM turns
+             WHERE session_id = ?1 AND started_at >= ?2
+             ORDER BY started_at DESC LIMIT 1",
+            params![run.session_id, run.started_at - 60_000],
+            |row| row.get(0),
+        )
+        .optional()?)
 }
 
 fn resource_preflight(
@@ -550,6 +617,68 @@ mod tests {
                 params![turn, session, status, now_ms()],
             )
             .unwrap();
+    }
+
+    #[test]
+    fn a_run_whose_first_message_failed_is_settled_and_can_start_again() {
+        let f = fixture();
+        let task = create(&f.db, &f.group, input(&[])).unwrap();
+        let session = session_in(&f.db, &f.web);
+        let started =
+            start_run(&f.db, &f.group, &task.id, task.revision, &session, &f.web).unwrap();
+        let run = started.runs[0].id.clone();
+        assert!(abandon_run(&f.db, &f.group, &task.id, "other-run", "x")
+            .unwrap()
+            .status
+            == TaskStatus::InProgress);
+
+        let settled = abandon_run(&f.db, &f.group, &task.id, &run, "network down").unwrap();
+        assert_eq!(settled.status, TaskStatus::Blocked);
+        assert_eq!(settled.runs[0].outcome, RunOutcome::Failed);
+        assert!(settled.runs[0].note.as_deref().unwrap().contains("network down"));
+        let session2 = session_in(&f.db, &f.web);
+        assert!(start_run(&f.db, &f.group, &task.id, settled.revision, &session2, &f.web).is_ok());
+    }
+
+    #[test]
+    fn a_run_that_never_began_a_turn_fails_after_the_grace_period() {
+        let f = fixture();
+        let task = create(&f.db, &f.group, input(&[])).unwrap();
+        let session = session_in(&f.db, &f.web);
+        start_run(&f.db, &f.group, &task.id, task.revision, &session, &f.web).unwrap();
+        assert_eq!(list(&f.db, &f.group).unwrap()[0].status, TaskStatus::InProgress);
+
+        // As after a restart that cut the start off long ago.
+        let mut tasks = load(&f.db, &f.group.id).unwrap();
+        tasks[0].runs[0].started_at = now_ms() - START_GRACE_MS - 1_000;
+        save(&f.db, &f.group.id, &tasks).unwrap();
+        let settled = list(&f.db, &f.group).unwrap().remove(0);
+        assert_eq!(settled.status, TaskStatus::Blocked);
+        assert_eq!(settled.runs[0].outcome, RunOutcome::Failed);
+    }
+
+    #[test]
+    fn an_in_progress_task_cancels_unless_a_turn_is_running() {
+        let f = fixture();
+        let task = create(&f.db, &f.group, input(&[])).unwrap();
+        let session = session_in(&f.db, &f.web);
+        let started =
+            start_run(&f.db, &f.group, &task.id, task.revision, &session, &f.web).unwrap();
+        let cancelled = cancel(&f.db, &f.group, &task.id, started.revision).unwrap();
+        assert_eq!(cancelled.status, TaskStatus::Cancelled);
+        assert_eq!(cancelled.runs[0].outcome, RunOutcome::Stopped);
+
+        let task = create(&f.db, &f.group, input(&[])).unwrap();
+        let session = session_in(&f.db, &f.web);
+        let started =
+            start_run(&f.db, &f.group, &task.id, task.revision, &session, &f.web).unwrap();
+        f.db.conn()
+            .execute(
+                "INSERT INTO turns (id, session_id, status, started_at) VALUES (?1, ?2, 'running', ?3)",
+                params![uuid::Uuid::new_v4().to_string(), session, now_ms()],
+            )
+            .unwrap();
+        assert!(cancel(&f.db, &f.group, &task.id, started.revision).is_err());
     }
 
     #[test]

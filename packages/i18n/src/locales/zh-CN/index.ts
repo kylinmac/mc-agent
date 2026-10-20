@@ -3192,6 +3192,7 @@ sklm: {
     schedTplDocsTitle: "文档同步检查",
     schedTplDocsDesc: "找出 README 和文档里与代码不一致的地方。",
     schedTplDocsPrompt: "对比这个项目的 README、文档和当前代码，列出已经过时或缺失的命令、参数、路径或行为说明，并注明所在文件和章节。不要修改任何文件。",
+    taskNotSent: "任务的首条消息没有发出，这次执行没有开始。",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

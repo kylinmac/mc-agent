@@ -3142,6 +3142,7 @@ sklm: {
     schedTplDocsTitle: "文件同步檢查",
     schedTplDocsDesc: "找出 README 和文件裡與程式碼不一致的地方。",
     schedTplDocsPrompt: "對比這個專案的 README、文件和目前程式碼，列出已經過時或缺少的指令、參數、路徑或行為說明，並註明所在檔案和章節。不要修改任何檔案。",
+    taskNotSent: "任務的第一則訊息沒有送出，這次執行沒有開始。",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

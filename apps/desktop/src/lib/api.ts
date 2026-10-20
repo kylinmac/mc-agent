@@ -995,6 +995,12 @@ export const api = {
         operation: "startRun",
         params: { taskId, revision, sessionId, startFolder },
       }),
+    abandonRun: (groupId: string, taskId: string, runId: string, reason: string) =>
+      invoke<{ task: ProjectTask }>(IPC.invoke.projectTasksCall, {
+        groupId,
+        operation: "abandonRun",
+        params: { taskId, runId, reason },
+      }),
     review: (groupId: string, taskId: string, revision: number, verdict: "accepted" | "rejected", note: string) =>
       invoke<{ task: ProjectTask }>(IPC.invoke.projectTasksCall, {
         groupId,

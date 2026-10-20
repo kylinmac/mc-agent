@@ -1888,5 +1888,10 @@
     "en": "Compare this project's README and docs with the current code. List commands, options, paths or behavior that are out of date or missing, with the file and section for each. Do not modify any files.",
     "zh-CN": "对比这个项目的 README、文档和当前代码，列出已经过时或缺失的命令、参数、路径或行为说明，并注明所在文件和章节。不要修改任何文件。",
     "zh-TW": "對比這個專案的 README、文件和目前程式碼，列出已經過時或缺少的指令、參數、路徑或行為說明，並註明所在檔案和章節。不要修改任何檔案。"
+  },
+  "taskNotSent": {
+    "en": "The task's first message was not sent, so the run was not started.",
+    "zh-CN": "任务的首条消息没有发出，这次执行没有开始。",
+    "zh-TW": "任務的第一則訊息沒有送出，這次執行沒有開始。"
   }
 }

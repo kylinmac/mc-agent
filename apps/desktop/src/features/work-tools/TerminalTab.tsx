@@ -104,7 +104,9 @@ function routeEvents(exitedText: () => string): void {
 export function TerminalTab({ tabId, cwd, active }: { tabId: string; cwd: string; active: boolean }) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [exited, setExited] = useState(false);
+  // A remounted tab (section collapsed and expanded) starts from the cached
+  // shell's state, so an exited shell keeps its restart button.
+  const [exited, setExited] = useState(() => Boolean(termCache.get(tabId)?.exited));
   const [attachTick, setAttachTick] = useState(0);
   routeEvents(() => t("mcProject.terminalExited"));
 
@@ -138,6 +140,8 @@ export function TerminalTab({ tabId, cwd, active }: { tabId: string; cwd: string
         setExited(false);
         fitAndReport(entry);
       } catch (error) {
+        // The tab was closed while its shell was starting.
+        if (termCache.get(tabId) !== entry) return;
         entry.term.writeln(
           `\r\n${t("mcProject.terminalStartFailed")}${error instanceof Error ? `: ${error.message}` : ""}`,
         );
@@ -154,6 +158,7 @@ export function TerminalTab({ tabId, cwd, active }: { tabId: string; cwd: string
     if (!container) return;
     const entry = ensureEntry(tabId);
     container.appendChild(entry.host);
+    setExited(entry.exited);
     if (!entry.exited) void startSession(entry);
     if (active) {
       fitAndReport(entry);

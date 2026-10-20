@@ -97,20 +97,32 @@ export function TaskBoard({
       await store.newSession({ projectPath: startFolder });
       const sessionId = useAppStore.getState().activeSessionId;
       if (!sessionId) throw new Error(t("mcProject.taskNoSession"));
-      await api.projectTasks.startRun(groupId, task.id, task.revision, sessionId, startFolder);
-      const lastRejection = [...task.reviews].reverse().find((review) => review.verdict === "rejected");
-      const prompt = taskPrompt({
-        title: task.title,
-        goal: task.goal,
-        acceptance: task.acceptance,
-        resources: check.resources.map((resource) => {
-          const item = listing?.items.find((candidate) => candidate.key === resource.key);
-          return { title: resource.title, path: item?.path, url: item?.url, status: resource.status };
-        }),
-        previousRejection: task.status === "todo" ? lastRejection?.note : undefined,
-      });
-      store.setPage("chat");
-      await useAppStore.getState().sendPrompt(prompt);
+      const started = await api.projectTasks.startRun(groupId, task.id, task.revision, sessionId, startFolder);
+      const runId = started.task.runs.at(-1)?.id;
+      try {
+        const lastRejection = [...task.reviews].reverse().find((review) => review.verdict === "rejected");
+        const prompt = taskPrompt({
+          title: task.title,
+          goal: task.goal,
+          acceptance: task.acceptance,
+          resources: check.resources.map((resource) => {
+            const item = listing?.items.find((candidate) => candidate.key === resource.key);
+            return { title: resource.title, path: item?.path, url: item?.url, status: resource.status };
+          }),
+          previousRejection: task.status === "todo" ? lastRejection?.note : undefined,
+        });
+        store.setPage("chat");
+        const accepted = await useAppStore.getState().sendPrompt(prompt, undefined, sessionId);
+        if (!accepted) throw new Error(t("mcProject.taskNotSent"));
+      } catch (error) {
+        // The run is recorded but its first message never went out: settle
+        // it now instead of leaving the task in progress.
+        if (runId) {
+          const reason = error instanceof Error ? error.message : String(error);
+          await api.projectTasks.abandonRun(groupId, task.id, runId, reason).catch(() => undefined);
+        }
+        throw error;
+      }
     });
 
   const openSession = async (sessionId: string) => {
@@ -234,7 +246,9 @@ export function TaskBoard({
                       </Button>
                     </>
                   ) : null}
-                  {task.status === "todo" ? (
+                  {/* An in-progress task can be cancelled too; the host refuses
+                      while its session still has a running turn. */}
+                  {task.status === "todo" || task.status === "inProgress" ? (
                     <Button
                       size="sm"
                       variant="ghost"

@@ -55,6 +55,52 @@ test("each tab owns one shell, reattaches with its replay, and is killed on clos
   assert.deepEqual(events.at(-1)[0], "exit");
 });
 
+test("a tab closed while its shell is starting never gets one", async () => {
+  const { spawned, load } = fakePty();
+  let release;
+  const gate = new Promise((resolve) => (release = resolve));
+  const manager = new TerminalManager(
+    { onData: () => undefined, onExit: () => undefined },
+    async () => {
+      await gate;
+      return load();
+    },
+  );
+  const creating = manager.create({ tabId: "t1", cwd: "/w" });
+  manager.disposeTab("t1");
+  release();
+  await assert.rejects(creating, /terminal closed/);
+  assert.equal(spawned.length, 0);
+  assert.equal(manager.size, 0);
+});
+
+test("concurrent starts for one tab share a shell, and quitting kills every shell", async () => {
+  const { spawned, load } = fakePty();
+  let release;
+  const gate = new Promise((resolve) => (release = resolve));
+  const manager = new TerminalManager(
+    { onData: () => undefined, onExit: () => undefined },
+    async () => {
+      await gate;
+      return load();
+    },
+  );
+  const first = manager.create({ tabId: "t1", cwd: "/w" });
+  const second = manager.create({ tabId: "t1", cwd: "/w" });
+  const other = manager.create({ tabId: "t2", cwd: "/w" });
+  release();
+  const [a, b] = await Promise.all([first, second, other]);
+  assert.equal(a.termId, b.termId);
+  assert.equal(spawned.length, 2);
+
+  const pendingQuit = manager.create({ tabId: "t3", cwd: "/w" });
+  manager.disposeAll();
+  await assert.rejects(pendingQuit, /terminal closed/);
+  assert.ok(spawned.every((pty) => pty.killed));
+  assert.equal(spawned.length, 2);
+  assert.equal(manager.size, 0);
+});
+
 test("the login shell comes from $SHELL", () => {
   assert.deepEqual(resolveShell({ SHELL: "/bin/zsh" }), { shell: "/bin/zsh", args: ["-l"] });
 });

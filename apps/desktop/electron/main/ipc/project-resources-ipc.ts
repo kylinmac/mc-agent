@@ -450,6 +450,17 @@ const TASK_OPERATIONS = new Set([
   "reopen",
   "preflight",
   "startRun",
+  "abandonRun",
   "review",
 ]);
-const TASK_PARAM_KEYS = ["taskId", "revision", "task", "sessionId", "startFolder", "verdict", "note"] as const;
+const TASK_PARAM_KEYS = [
+  "taskId",
+  "revision",
+  "task",
+  "sessionId",
+  "startFolder",
+  "verdict",
+  "note",
+  "runId",
+  "reason",
+] as const;

@@ -195,14 +195,10 @@ pub fn ensure_project_resources(
     fs::create_dir_all(&projects)?;
     // A project that was detached (MC-ADR-0003 decision 12) and is converted
     // back gets its old folder again, with its indexes and notes, as long as
-    // no other project has claimed it meanwhile.
-    let previous = projects.join(directory_name(&group.name));
-    if crate::resource_templates::read_project_meta(&previous)
-        .ok()
-        .flatten()
-        .is_some()
-        && !folder_in_any_group(db, &previous)?
-    {
+    // no other project has claimed it meanwhile. The folder is found by the
+    // owner it records, never by name: a new project that happens to share
+    // the name of a detached or deleted one starts from its own template.
+    if let Some(previous) = detached_folder_of(db, &projects, &group.id)? {
         return db.attach_project_resource_root(&group.id, &previous.to_string_lossy());
     }
     let target = create_unique_dir(&projects, &directory_name(&group.name))?;
@@ -211,6 +207,7 @@ pub fn ensure_project_resources(
             crate::resource_templates::record_project_template(&target, template, &source)
                 .map(|_| ())
         })
+        .and_then(|()| crate::resource_templates::record_project_owner(&target, &group.id))
         .and_then(|()| db.attach_project_resource_root(&group.id, &target.to_string_lossy()));
     match attached {
         Ok(group) => Ok(group),
@@ -221,6 +218,39 @@ pub fn ensure_project_resources(
             Err(error)
         }
     }
+}
+
+/// The unclaimed folder under `projects` that records `group_id` as its owner.
+fn detached_folder_of(db: &Database, projects: &Path, group_id: &str) -> Result<Option<PathBuf>> {
+    for entry in fs::read_dir(projects)? {
+        let path = entry?.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let owned = crate::resource_templates::read_project_meta(&path)
+            .ok()
+            .flatten()
+            .and_then(|meta| meta.owner)
+            .is_some_and(|owner| owner == group_id);
+        if owned && !folder_in_any_group(db, &path)? {
+            return Ok(Some(path));
+        }
+    }
+    Ok(None)
+}
+
+/// Detach a project's resource folder (MC-ADR-0003 decision 12), first
+/// recording the project as its owner so converting back finds it again.
+pub fn detach_project_resources(db: &Database, group_id: &str) -> Result<ProjectGroupRecord> {
+    let group = db
+        .project_group(group_id)?
+        .ok_or_else(|| anyhow!("project group not found"))?;
+    if let Some(resources) = group.resource_root() {
+        // Best effort: a folder that cannot record its owner is simply not
+        // offered back later, which is the safe direction.
+        let _ = crate::resource_templates::record_project_owner(Path::new(&resources.path), &group.id);
+    }
+    db.detach_project_resource_root(&group.id)
 }
 
 fn folder_in_any_group(db: &Database, folder: &Path) -> Result<bool> {
@@ -657,12 +687,69 @@ mod tests {
         )
         .unwrap();
 
-        f.db.detach_project_resource_root(&group.id).unwrap();
+        detach_project_resources(&f.db, &group.id).unwrap();
 
         let again = ensure_project_resources(&f.db, &f.home, &group.id, "blank").unwrap();
         assert_eq!(again.resource_root().unwrap().path, folder);
         assert!(Path::new(&folder).join("requirements/INDEX.md").is_file());
         assert!(!f.home.join("projects/App-2").exists());
+    }
+
+    #[test]
+    fn a_project_with_the_same_name_never_takes_a_detached_folder() {
+        let f = fixture();
+        let first =
+            f.db.create_project_group("App", std::slice::from_ref(&f.web))
+                .unwrap();
+        let managed = ensure_project_resources(&f.db, &f.home, &first.id, "software").unwrap();
+        let folder = managed.resource_root().unwrap().path.clone();
+        detach_project_resources(&f.db, &first.id).unwrap();
+
+        let other = f.dir.path().join("other");
+        fs::create_dir_all(&other).unwrap();
+        let other = canonical_project_path(&other.to_string_lossy()).unwrap();
+        let second =
+            f.db.create_project_group("App", std::slice::from_ref(&other))
+                .unwrap();
+        let attached = ensure_project_resources(&f.db, &f.home, &second.id, "blank").unwrap();
+        let path = attached.resource_root().unwrap().path.clone();
+        assert_ne!(path, folder);
+        assert!(path.ends_with("projects/App-2"));
+        let meta = crate::resource_templates::read_project_meta(Path::new(&path))
+            .unwrap()
+            .unwrap();
+        assert_eq!(meta.template, "blank");
+        assert_eq!(meta.owner.as_deref(), Some(second.id.as_str()));
+
+        // The first project still gets its own folder back.
+        let again = ensure_project_resources(&f.db, &f.home, &first.id, "blank").unwrap();
+        assert_eq!(again.resource_root().unwrap().path, folder);
+    }
+
+    #[test]
+    fn a_folder_without_an_owner_is_not_claimed_by_name() {
+        let f = fixture();
+        let first =
+            f.db.create_project_group("App", std::slice::from_ref(&f.web))
+                .unwrap();
+        let managed = ensure_project_resources(&f.db, &f.home, &first.id, "software").unwrap();
+        let folder = managed.resource_root().unwrap().path.clone();
+        // A folder made before owners were recorded, detached directly.
+        let meta_path = Path::new(&folder).join(".mc-agent/project.json");
+        let mut meta: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&meta_path).unwrap()).unwrap();
+        meta.as_object_mut().unwrap().remove("owner");
+        fs::write(&meta_path, meta.to_string()).unwrap();
+        f.db.detach_project_resource_root(&first.id).unwrap();
+
+        let other = f.dir.path().join("other");
+        fs::create_dir_all(&other).unwrap();
+        let other = canonical_project_path(&other.to_string_lossy()).unwrap();
+        let second =
+            f.db.create_project_group("App", std::slice::from_ref(&other))
+                .unwrap();
+        let attached = ensure_project_resources(&f.db, &f.home, &second.id, "blank").unwrap();
+        assert_ne!(attached.resource_root().unwrap().path, folder);
     }
 
     #[test]
