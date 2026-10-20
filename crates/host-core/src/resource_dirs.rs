@@ -248,7 +248,8 @@ pub fn detach_project_resources(db: &Database, group_id: &str) -> Result<Project
     if let Some(resources) = group.resource_root() {
         // Best effort: a folder that cannot record its owner is simply not
         // offered back later, which is the safe direction.
-        let _ = crate::resource_templates::record_project_owner(Path::new(&resources.path), &group.id);
+        let _ =
+            crate::resource_templates::record_project_owner(Path::new(&resources.path), &group.id);
     }
     db.detach_project_resource_root(&group.id)
 }

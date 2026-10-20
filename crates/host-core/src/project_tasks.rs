@@ -227,7 +227,10 @@ pub fn abandon_run(
     let Some(run) = task.runs.last_mut() else {
         return Ok(task.clone());
     };
-    if run.id != run_id || run.outcome != RunOutcome::Running || latest_turn_status(db, run)?.is_some() {
+    if run.id != run_id
+        || run.outcome != RunOutcome::Running
+        || latest_turn_status(db, run)?.is_some()
+    {
         return Ok(task.clone());
     }
     let reason: String = reason.trim().chars().take(500).collect();
@@ -627,17 +630,31 @@ mod tests {
         let started =
             start_run(&f.db, &f.group, &task.id, task.revision, &session, &f.web).unwrap();
         let run = started.runs[0].id.clone();
-        assert!(abandon_run(&f.db, &f.group, &task.id, "other-run", "x")
-            .unwrap()
-            .status
-            == TaskStatus::InProgress);
+        assert!(
+            abandon_run(&f.db, &f.group, &task.id, "other-run", "x")
+                .unwrap()
+                .status
+                == TaskStatus::InProgress
+        );
 
         let settled = abandon_run(&f.db, &f.group, &task.id, &run, "network down").unwrap();
         assert_eq!(settled.status, TaskStatus::Blocked);
         assert_eq!(settled.runs[0].outcome, RunOutcome::Failed);
-        assert!(settled.runs[0].note.as_deref().unwrap().contains("network down"));
+        assert!(settled.runs[0]
+            .note
+            .as_deref()
+            .unwrap()
+            .contains("network down"));
         let session2 = session_in(&f.db, &f.web);
-        assert!(start_run(&f.db, &f.group, &task.id, settled.revision, &session2, &f.web).is_ok());
+        assert!(start_run(
+            &f.db,
+            &f.group,
+            &task.id,
+            settled.revision,
+            &session2,
+            &f.web
+        )
+        .is_ok());
     }
 
     #[test]
@@ -646,7 +663,10 @@ mod tests {
         let task = create(&f.db, &f.group, input(&[])).unwrap();
         let session = session_in(&f.db, &f.web);
         start_run(&f.db, &f.group, &task.id, task.revision, &session, &f.web).unwrap();
-        assert_eq!(list(&f.db, &f.group).unwrap()[0].status, TaskStatus::InProgress);
+        assert_eq!(
+            list(&f.db, &f.group).unwrap()[0].status,
+            TaskStatus::InProgress
+        );
 
         // As after a restart that cut the start off long ago.
         let mut tasks = load(&f.db, &f.group.id).unwrap();
