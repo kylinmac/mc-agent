@@ -8,6 +8,7 @@ mod db;
 mod keyboard;
 mod mc_import;
 mod mc_prompts;
+mod mc_usage;
 mod mcp_servers;
 mod network_policy;
 mod network_proxy;

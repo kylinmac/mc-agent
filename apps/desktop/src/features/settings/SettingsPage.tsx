@@ -22,6 +22,7 @@ import {
   IconBot,
   IconChevronLeft,
   IconFileText,
+  IconActivity,
   IconGlobe,
   IconInfo,
   IconKeyboard,
@@ -63,6 +64,7 @@ import { PluginScenicThemesDestination } from "../../components/settings/PluginS
 import { ConfigSyncPage } from "../../components/settings/ConfigSyncPage";
 import { StorageSettingsSection } from "./StorageSettingsSection";
 import { SystemPromptsPage } from "./SystemPromptsPage";
+import { UsagePage } from "./UsagePage";
 
 type SettingsTab = ReturnType<typeof useAppStore.getState>["settingsTab"];
 
@@ -241,6 +243,7 @@ export function SettingsPage() {
       mcp: <IconServer size={14} />,
       subagents: <IconBot size={14} />,
       systemPrompts: <IconFileText size={14} />,
+      mcUsage: <IconActivity size={14} />,
       projects: <IconArchive size={14} />,
       sync: <IconCloudDown size={14} />,
       remoteHosts: <IconGlobe size={14} />,
@@ -571,6 +574,8 @@ export function SettingsPage() {
           {tab === "instructions" && <AgentInstructionsSection />}
 
           {tab === "systemPrompts" && <SystemPromptsPage />}
+
+          {tab === "mcUsage" && <UsagePage />}
 
 
           {tab === "projects" && <ProjectsPage />}

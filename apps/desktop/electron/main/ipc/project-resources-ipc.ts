@@ -105,6 +105,15 @@ export function registerProjectResourcesIpc({
     }
   });
 
+  // mc-agent (MC-ADR-0011): token usage by model, project, day and conversation.
+  registrar.handle(IPC.invoke.mcUsageSummary, async (input: { fromMs?: unknown; toMs?: unknown } = {}) => {
+    const host = getHost();
+    if (!host) throw new Error("host unavailable");
+    const fromMs = typeof input?.fromMs === "number" && Number.isFinite(input.fromMs) ? input.fromMs : 0;
+    const toMs = typeof input?.toMs === "number" && Number.isFinite(input.toMs) ? input.toMs : Date.now();
+    return host.call("mcUsage.summary", { fromMs, toMs });
+  });
+
   // mc-agent (MC-ADR-0010): system prompt templates, stored by host-core.
   registrar.handle(IPC.invoke.mcPromptsGet, async () => {
     const host = getHost();

@@ -201,6 +201,7 @@ export const IPC = {
     sessionSystemPrompt: "pi-desktop/session-info/system-prompt",
     mcPromptsGet: "pi-desktop/mc-prompts/get",
     mcPromptsSet: "pi-desktop/mc-prompts/set",
+    mcUsageSummary: "pi-desktop/mc-usage/summary",
     // mc-agent work-panel terminal (MC-ADR-0005).
     terminalCreate: "pi-desktop/mc-terminal/create",
     terminalWrite: "pi-desktop/mc-terminal/write",

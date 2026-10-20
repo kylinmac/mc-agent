@@ -214,6 +214,27 @@ export type BackgroundShell = {
   tail?: string;
 };
 
+/** mc-agent: token usage summary (MC-ADR-0011). */
+export type UsageCounts = {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  reasoningTokens: number;
+  totalTokens: number;
+  turns: number;
+};
+export type UsageSummary = {
+  fromMs: number;
+  toMs: number;
+  totals: UsageCounts;
+  byModel: Array<UsageCounts & { providerId: string | null; providerName: string | null; modelId: string | null }>;
+  byProject: Array<UsageCounts & { path: string | null }>;
+  byDay: Array<UsageCounts & { day: string }>;
+  byDayModel: Array<UsageCounts & { day: string; providerId: string | null; modelId: string | null }>;
+  topSessions: Array<UsageCounts & { sessionId: string; title: string; projectPath: string | null }>;
+};
+
 /** mc-agent: system prompt templates and the rules that apply them (MC-ADR-0010). */
 export type SystemPromptTemplate = { id: string; name: string; persona: string; append: string };
 export type SystemPromptConfig = {

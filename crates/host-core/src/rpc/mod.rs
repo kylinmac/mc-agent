@@ -3118,6 +3118,16 @@ async fn handle_request(
             Ok(json!({ "ok": true, "imported": imported, "skipped": !imported }))
         }
 
+        // mc-agent (MC-ADR-0011): token usage by model, project, day and conversation.
+        "mcUsage.summary" => {
+            let now = crate::db::now_ms();
+            let to_ms = params.get("toMs").and_then(Value::as_i64).unwrap_or(now);
+            let from_ms = params.get("fromMs").and_then(Value::as_i64).unwrap_or(0).min(to_ms);
+            let st = state.lock().await;
+            let summary = crate::mc_usage::summary(&st.db, from_ms, to_ms)
+                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
+            Ok(json!(summary))
+        }
         // mc-agent (MC-ADR-0010): system prompt templates and their rules.
         "mcPrompts.get" => {
             let st = state.lock().await;

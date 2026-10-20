@@ -1573,5 +1573,155 @@
     "en": "Used when no project or model rule matches. Without it, SYSTEM.md files or the built-in prompt apply.",
     "zh-CN": "没有匹配的项目、模型规则时使用；不设置则使用 SYSTEM.md 文件或内置提示。",
     "zh-TW": "沒有符合的專案、模型規則時使用；不設定則使用 SYSTEM.md 檔案或內建提示。"
+  },
+  "usageNav": {
+    "en": "Usage",
+    "zh-CN": "用量",
+    "zh-TW": "用量"
+  },
+  "usageTitle": {
+    "en": "Usage",
+    "zh-CN": "用量统计",
+    "zh-TW": "用量統計"
+  },
+  "usageIntro": {
+    "en": "Tokens used by this app's conversations, from the usage each turn reports. Stopped and failed turns count too.",
+    "zh-CN": "本应用对话消耗的 token，按每一轮上报的用量统计；中途停止或失败的轮次也计入。",
+    "zh-TW": "本應用對話消耗的 token，依每一輪回報的用量統計；中途停止或失敗的輪次也計入。"
+  },
+  "usageRange": {
+    "en": "Time range",
+    "zh-CN": "时间范围",
+    "zh-TW": "時間範圍"
+  },
+  "usageToday": {
+    "en": "Today",
+    "zh-CN": "今天",
+    "zh-TW": "今天"
+  },
+  "usageDays": {
+    "en": "{{count}} days",
+    "zh-CN": "{{count}} 天",
+    "zh-TW": "{{count}} 天"
+  },
+  "usageAll": {
+    "en": "All",
+    "zh-CN": "全部",
+    "zh-TW": "全部"
+  },
+  "usageTotal": {
+    "en": "Total",
+    "zh-CN": "总计",
+    "zh-TW": "總計"
+  },
+  "usageInput": {
+    "en": "Input",
+    "zh-CN": "输入",
+    "zh-TW": "輸入"
+  },
+  "usageOutput": {
+    "en": "Output",
+    "zh-CN": "输出",
+    "zh-TW": "輸出"
+  },
+  "usageCacheRead": {
+    "en": "Cache read",
+    "zh-CN": "缓存读取",
+    "zh-TW": "快取讀取"
+  },
+  "usageCacheWrite": {
+    "en": "Cache write",
+    "zh-CN": "缓存写入",
+    "zh-TW": "快取寫入"
+  },
+  "usageReasoning": {
+    "en": "incl. {{value}} reasoning",
+    "zh-CN": "含推理 {{value}}",
+    "zh-TW": "含推理 {{value}}"
+  },
+  "usageCacheHit": {
+    "en": "{{percent}}% of input from cache",
+    "zh-CN": "输入的 {{percent}}% 来自缓存",
+    "zh-TW": "輸入的 {{percent}}% 來自快取"
+  },
+  "usageTurns": {
+    "en": "{{count}} turns",
+    "zh-CN": "{{count}} 轮",
+    "zh-TW": "{{count}} 輪"
+  },
+  "usageTurnsHead": {
+    "en": "Turns",
+    "zh-CN": "轮次",
+    "zh-TW": "輪次"
+  },
+  "usageEmpty": {
+    "en": "No usage in this range.",
+    "zh-CN": "这段时间没有用量。",
+    "zh-TW": "這段時間沒有用量。"
+  },
+  "usageByDay": {
+    "en": "By day",
+    "zh-CN": "按天",
+    "zh-TW": "按天"
+  },
+  "usagePeak": {
+    "en": "peak {{value}}",
+    "zh-CN": "峰值 {{value}}",
+    "zh-TW": "峰值 {{value}}"
+  },
+  "usageByModel": {
+    "en": "By model",
+    "zh-CN": "按模型",
+    "zh-TW": "按模型"
+  },
+  "usageByProject": {
+    "en": "By project",
+    "zh-CN": "按项目",
+    "zh-TW": "按專案"
+  },
+  "usageTopSessions": {
+    "en": "Top conversations",
+    "zh-CN": "用量最多的对话",
+    "zh-TW": "用量最多的對話"
+  },
+  "usageModel": {
+    "en": "Model",
+    "zh-CN": "模型",
+    "zh-TW": "模型"
+  },
+  "usageShare": {
+    "en": "Share",
+    "zh-CN": "占比",
+    "zh-TW": "佔比"
+  },
+  "usageUnknownModel": {
+    "en": "Unknown model",
+    "zh-CN": "未知模型",
+    "zh-TW": "未知模型"
+  },
+  "usageOpenSession": {
+    "en": "Open conversation",
+    "zh-CN": "打开对话",
+    "zh-TW": "開啟對話"
+  },
+  "usageFresh": {
+    "en": "New tokens",
+    "zh-CN": "新消耗",
+    "zh-TW": "新消耗"
+  },
+  "usageChartModel": {
+    "en": "Model shown in the chart",
+    "zh-CN": "图表显示的模型",
+    "zh-TW": "圖表顯示的模型"
+  },
+  "usageAllModels": {
+    "en": "All models",
+    "zh-CN": "全部模型",
+    "zh-TW": "全部模型"
+  },
+  "usageOtherModels": {
+    "en": "Other models",
+    "zh-CN": "其他模型",
+    "zh-TW": "其他模型"
   }
 }

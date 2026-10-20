@@ -15,6 +15,7 @@ export type SettingsTabId =
   | "mcp"
   | "subagents"
   | "systemPrompts"
+  | "mcUsage"
   | "projects"
   | "sync"
   | "remoteHosts"
@@ -273,6 +274,14 @@ export const SETTINGS_NAV: SettingsNavEntry[] = [
       "project.restore",
       "project.delete",
     ],
+  },
+  {
+    // mc-agent (MC-ADR-0011): token usage by model, project and day.
+    id: "mcUsage",
+    labelKey: "mcProject.usageNav",
+    titleKey: "mcProject.usageTitle",
+    group: "system",
+    keywordKeys: ["mcProject.usageByModel", "mcProject.usageByProject", "mcProject.usageTotal"],
   },
   {
     id: "sync",

@@ -79,6 +79,7 @@ import type {
   SessionContextBreakdown,
   SessionSystemPrompt,
   SystemPromptConfig,
+  UsageSummary,
   ResourceTemplateSummary,
   ResourceListing,
   ProjectTask,
@@ -901,6 +902,8 @@ export const api = {
   /** Local project folders on record that no longer exist (mc-agent). */
   missingProjectFolders: () => invoke<{ folders: string[] }>(IPC.invoke.projectFoldersMissing),
   /** mc-agent: estimated context use by kind; null until the session has run. */
+  usageSummary: (fromMs: number, toMs: number) =>
+    invoke<UsageSummary>(IPC.invoke.mcUsageSummary, { fromMs, toMs }),
   getSystemPromptConfig: () => invoke<{ config: SystemPromptConfig }>(IPC.invoke.mcPromptsGet),
   setSystemPromptConfig: (config: SystemPromptConfig) =>
     invoke<{ config: SystemPromptConfig }>(IPC.invoke.mcPromptsSet, { config }),
