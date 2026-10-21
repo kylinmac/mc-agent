@@ -202,6 +202,15 @@ export const IPC = {
     mcPromptsGet: "pi-desktop/mc-prompts/get",
     mcPromptsSet: "pi-desktop/mc-prompts/set",
     mcUsageSummary: "pi-desktop/mc-usage/summary",
+    // mc-agent creative studio (docs/mc-agent/creative-studio.md).
+    creativeCall: "pi-desktop/mc-creative/call",
+    creativeGenerate: "pi-desktop/mc-creative/generate",
+    creativeCancel: "pi-desktop/mc-creative/cancel",
+    creativeImport: "pi-desktop/mc-creative/import",
+    creativePickAndImport: "pi-desktop/mc-creative/pick-and-import",
+    creativeReveal: "pi-desktop/mc-creative/reveal",
+    creativeCopyImage: "pi-desktop/mc-creative/copyImage",
+    creativeImage: "pi-desktop/mc-creative/image",
     // mc-agent work-panel terminal (MC-ADR-0005).
     terminalCreate: "pi-desktop/mc-terminal/create",
     terminalWrite: "pi-desktop/mc-terminal/write",
@@ -453,6 +462,8 @@ export const IPC = {
     // mc-agent work-panel terminal output and exit (MC-ADR-0005).
     terminalData: "pi-desktop/mc-terminal/event/data",
     terminalExit: "pi-desktop/mc-terminal/event/exit",
+    // mc-agent creative studio: a generation job changed.
+    creativeJob: "pi-desktop/mc-creative/event/job",
     /** Progress of an install or update, while it is still running. */
     pluginInstallProgress: "pi-desktop/plugin/event/installProgress",
     /** Host-originated app settings mutation (e.g. plugin `app.setTheme`). */

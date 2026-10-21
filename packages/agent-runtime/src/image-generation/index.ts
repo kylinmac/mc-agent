@@ -36,6 +36,10 @@ export async function generateImageBatch(options: {
   downloadOptions?: ImageDownloadOptions;
   loadImages?: (paths: string[]) => Promise<ImageEditInput[]>;
   onOperation?: (metadata: ImageOperationMetadata) => void;
+  /** mc-agent: the requested shape (`16:9`…); the endpoint's default when absent. */
+  aspectRatio?: string;
+  /** mc-agent: `1k` / `2k` / `4k`, where the model takes it. */
+  resolution?: string;
 }): Promise<GeneratedImageResult[]> {
   const prompts = imageGenerationItems(options.input);
   const binding = options.binding ?? (options.endpoint && createImageBinding(options.endpoint, options.downloadOptions));
@@ -67,6 +71,8 @@ export async function generateImageBatch(options: {
           }))],
         }, {
           signal, maxRetries: 0, timeoutMs: IMAGE_GENERATION_TIMEOUT_MS,
+          ...(options.aspectRatio ? { aspectRatio: options.aspectRatio } : {}),
+          ...(options.resolution ? { resolution: options.resolution } : {}),
           // Host request policy, not a competing implementation of the native wire protocol.
           fetch: async (url, init) => {
             try {

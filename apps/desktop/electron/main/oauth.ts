@@ -51,13 +51,15 @@ import {
 } from "@pi-desktop/agent-runtime";
 import {
   isConversationModelId,
+  parseCodexReasoningLevels,
   parseVendorModelIds,
   readVendorModelList,
   VendorModelListError,
   vendorModelListRequest,
   wireForLiveModel,
 } from "./vendor-live-models.ts";
-import type { ThinkingLevel } from "@pi-desktop/shared";
+import { readXaiImageModels } from "./creative/account-image-models.ts";
+import { THINKING_LEVELS, type ThinkingLevel } from "@pi-desktop/shared";
 import {
   OAUTH_AUTH_KIND,
   type OAuthLoginEvent,
@@ -107,6 +109,21 @@ function wireApiForStyle(style: string): Api {
 }
 
 /** Interpret an explicitly supplied wire map without borrowing another model's record. */
+/**
+ * mc-agent: a Codex account names the reasoning efforts each model accepts.
+ * Map exactly those; a model that cannot turn reasoning off (no `none`) maps
+ * `off` to null, so "off" omits the field and the model uses its default
+ * instead of the request being rejected.
+ */
+export function withAccountReasoningLevels(config: ModelConfig, efforts: readonly string[] | undefined): ModelConfig {
+  if (!efforts?.length) return config;
+  const map: Record<string, string | null> = { off: efforts.includes("none") ? "none" : null };
+  for (const level of THINKING_LEVELS) {
+    if (level !== "off" && efforts.includes(level)) map[level] = level;
+  }
+  return withMappedThinkingLevels({ ...config, thinkingLevelMap: { ...(config.thinkingLevelMap ?? {}), ...map } });
+}
+
 function withMappedThinkingLevels(config: ModelConfig): ModelConfig {
   if (!config.thinkingLevelMap) return config;
   const supportedThinkingLevels = Object.entries(config.thinkingLevelMap).flatMap(([level, value]) =>
@@ -382,7 +399,11 @@ export class VendorOAuth {
   private readonly accountModels = new Map<string, AccountModels>();
   /** Successful and failed account model lists, so launch does not refetch per model. */
   private readonly liveModelCache = new Map<string, { at: number; models: OAuthModelOption[] | null }>();
+  /** mc-agent: reasoning efforts per model, from the account's live list (Codex). */
+  private readonly accountReasoningLevels = new Map<string, Map<string, string[]>>();
   private readonly liveModelLoads = new Map<string, Promise<OAuthModelOption[] | undefined>>();
+  /** mc-agent: image models each account serves, as the account reported them. */
+  private readonly imageModelCache = new Map<string, { at: number; ids: string[] | null }>();
   /** Per-account write chain: `modify` must be a serialized read-modify-write. */
   private readonly chains = new Map<string, Promise<unknown>>();
   private catalogPromise?: Promise<MutableModels>;
@@ -765,6 +786,37 @@ export class VendorOAuth {
     });
   }
 
+  /**
+   * mc-agent: the image models a signed-in account serves, read from the
+   * account (xAI today); null when unknown, so callers keep their built-in
+   * fallback. Cached for ten minutes, a failure for one.
+   */
+  async accountImageModels(providerId: string): Promise<string[] | null> {
+    const cached = this.imageModelCache.get(providerId);
+    if (cached && Date.now() - cached.at < (cached.ids ? 10 * 60_000 : 60_000)) return cached.ids;
+    let ids: string[] | null = null;
+    try {
+      const row = (await this.rows()).find((candidate) => candidate.id === providerId);
+      if (row?.vendorKey === "xai" && row.authKind === OAUTH_AUTH_KIND && !row.ownerPluginId) {
+        const auth = await this.resolveAuth(providerId);
+        if (auth.apiKey) {
+          ids = await readXaiImageModels(
+            auth.baseUrl ?? row.baseUrl ?? "https://api.x.ai/v1",
+            auth.apiKey,
+            this.deps.fetch ?? globalThis.fetch,
+          );
+        }
+      }
+    } catch (error) {
+      this.log("warn", "vendor account image model list failed", {
+        providerId,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+    this.imageModelCache.set(providerId, { at: Date.now(), ids });
+    return ids;
+  }
+
   private optionFor(model: Model<Api>): OAuthModelOption {
     return {
       modelId: model.id,
@@ -893,6 +945,9 @@ export class VendorOAuth {
     try {
       const body = await readVendorModelList(request, this.deps.fetch ?? globalThis.fetch);
       const ids = parseVendorModelIds(account.vendorId, body, request.allowPolicyFallback);
+      if (account.vendorId === "openai-codex") {
+        this.accountReasoningLevels.set(account.providerId, parseCodexReasoningLevels(body));
+      }
       if (!ids || ids.length === 0) return this.rememberLiveModels(account, null);
       const pinned = account.pinnedProvider?.getModels() ?? await account.models.getAvailable(account.vendorId);
       const known = new Map(pinned.map((model) => [model.id, model]));
@@ -935,8 +990,9 @@ export class VendorOAuth {
       vendorKey: account.vendorId,
       option,
     }).catch(() => undefined);
-    const modelConfig = withMappedThinkingLevels(
-      published ?? genericModelConfig(option.modelId, option.baseUrl),
+    const modelConfig = withAccountReasoningLevels(
+      withMappedThinkingLevels(published ?? genericModelConfig(option.modelId, option.baseUrl)),
+      this.accountReasoningLevels.get(account.providerId)?.get(option.modelId),
     );
     const capabilities = capabilitiesFromModelConfig(modelConfig);
     return {
@@ -1431,11 +1487,12 @@ export class VendorOAuth {
           const live = await this.withRowHeaders(providerId, () => this.liveAccountModels(account));
           if (!live) return;
           const projected = await Promise.all(live.map(async option => {
-            const config = withMappedThinkingLevels(await this.deps.modelConfigFor?.({
+            const config = withAccountReasoningLevels(withMappedThinkingLevels(await this.deps.modelConfigFor?.({
               providerId,
               vendorKey: account.vendorId,
               option,
-            }).catch(() => undefined) ?? genericModelConfig(option.modelId, option.baseUrl));
+            }).catch(() => undefined) ?? genericModelConfig(option.modelId, option.baseUrl)),
+            this.accountReasoningLevels.get(providerId)?.get(option.modelId));
             return {
               ...config, id: option.modelId, provider: vendorId,
               api: wireApiForStyle(option.apiStyle), baseUrl: option.baseUrl,

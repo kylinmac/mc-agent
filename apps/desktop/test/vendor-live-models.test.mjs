@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   CODEX_MODELS_CLIENT_VERSION,
   VendorModelListError,
+  parseCodexReasoningLevels,
   parseVendorModelIds,
   pinnedSiblingId,
   readVendorModelList,
@@ -146,4 +147,18 @@ test("a failed model list with an empty body has no excerpt", async () => {
   assert.ok(error instanceof VendorModelListError);
   assert.equal(error.status, 503);
   assert.equal(error.responseExcerpt, undefined);
+});
+
+test("mc-agent: reads each Codex model's accepted reasoning efforts", () => {
+  const levels = parseCodexReasoningLevels({
+    models: [
+      { slug: "gpt-6.1-sol", supported_reasoning_levels: [{ effort: "low" }, { effort: "medium" }, { effort: "max" }, { effort: "ultra" }] },
+      { slug: "gpt-5.2", supported_reasoning_levels: [{ effort: "none" }, { effort: "low" }] },
+      { slug: "no-levels" },
+    ],
+  });
+  assert.deepEqual(levels.get("gpt-6.1-sol"), ["low", "medium", "max", "ultra"]);
+  assert.deepEqual(levels.get("gpt-5.2"), ["none", "low"]);
+  assert.equal(levels.has("no-levels"), false);
+  assert.equal(parseCodexReasoningLevels(null).size, 0);
 });

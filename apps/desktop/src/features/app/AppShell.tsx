@@ -39,6 +39,12 @@ const ScheduledPage = lazy(() =>
     default: module.ScheduledPage,
   })),
 );
+// mc-agent creative studio (docs/mc-agent/creative-studio.md).
+const CreativePage = lazy(() =>
+  import("../creative/CreativePage").then((module) => ({
+    default: module.CreativePage,
+  })),
+);
 const PluginsPage = lazy(() =>
   import("../../pages/PluginsPage").then((module) => ({
     default: module.PluginsPage,
@@ -290,6 +296,10 @@ export function AppShell() {
                   {page === "scheduled" ? (
                     <div className="route-surface route-page">
                       <ScheduledPage />
+                    </div>
+                  ) : page === "creative" ? (
+                    <div className="route-surface route-page">
+                      <CreativePage />
                     </div>
                   ) : page === "plugins" ? (
                     <div className="route-surface route-page">

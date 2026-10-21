@@ -165,10 +165,23 @@ export function splitActive(): boolean {
 }
 
 /** Sessions a split keeps on screen; their panes must not be evicted. */
+/**
+ * Other surfaces that show a background conversation live (the creative
+ * studio's chat panel): their panes are kept and stream like a split column.
+ */
+const extraPinned = new Set<string>();
+
+export function pinSessionPane(sessionId: string): () => void {
+  extraPinned.add(sessionId);
+  return () => {
+    extraPinned.delete(sessionId);
+  };
+}
+
 export function splitPinnedSessionIds(): readonly string[] {
-  return useSplitView.getState().columns.filter(Boolean);
+  return [...useSplitView.getState().columns.filter(Boolean), ...extraPinned];
 }
 
 export function isSplitColumn(sessionId: string): boolean {
-  return useSplitView.getState().columns.includes(sessionId);
+  return useSplitView.getState().columns.includes(sessionId) || extraPinned.has(sessionId);
 }

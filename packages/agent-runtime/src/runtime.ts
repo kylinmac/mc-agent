@@ -12,7 +12,12 @@ import { modeToolDenial, retainModeToolDeclaration, withModeExecutionGuard } fro
 import { restoreHostedSearchReplay } from "./hosted-search-replay.js";
 import { requestExtensionUi } from "./extensions/ui-request.js";
 import { readLocalRequestErrorDetails } from "./local-request-errors.js";
-import { imageGenerationDescription, imageGenerationParameters } from "./image-generation/tool.js";
+import {
+  imageGenerationDescription,
+  imageGenerationParameters,
+  saveCreativeAssetDescription,
+  saveCreativeAssetParameters,
+} from "./image-generation/tool.js";
 import { todoWriteDescription, todoWriteParameters } from "./todo-tool.js";
 import { createJevClassifierTool } from "./jev-classifier-tool.js";
 import { scheduledToolParameters, scheduledToolDescriptions } from "./scheduled-tools.js";
@@ -3241,6 +3246,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       " An explicit path outside the workspace and session scratch roots requires permission unless the effective mode is Auto.";
     const describe = (toolName: string): string => {
       if (toolName === "GenerateImages") return imageGenerationDescription;
+      // mc-agent creative studio (docs/mc-agent/creative-studio.md).
+      if (toolName === "SaveCreativeAsset") return saveCreativeAssetDescription;
       if (scheduledToolDescriptions[toolName]) return scheduledToolDescriptions[toolName];
       switch (toolName) {
         case "BrowserPreview":
@@ -3300,6 +3307,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     // stopped being readable.
     const parameters: Record<string, Parameters<typeof Type.Object>[0]> = {
       GenerateImages: imageGenerationParameters,
+      SaveCreativeAsset: saveCreativeAssetParameters,
       TodoWrite: todoWriteParameters,
       Read: {
         path: pathParam(
@@ -3879,7 +3887,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
           ]
         : ["Read", "Glob", "Grep", "BrowserPreview", "Bash", "Write", "Edit"];
     if (this.mode === "agent") {
-      tools.push("PluginScaffold", "PluginPack", "GenerateImages", ...Object.keys(scheduledToolParameters));
+      tools.push("PluginScaffold", "PluginPack", "GenerateImages", "SaveCreativeAsset", ...Object.keys(scheduledToolParameters));
     }
     const builtins = tools.map(exec);
     const jevTools: AgentTool[] =

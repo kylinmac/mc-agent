@@ -6,6 +6,7 @@ mod config_sync;
 mod data_relocation;
 mod db;
 mod keyboard;
+mod mc_creative;
 mod mc_import;
 mod mc_prompts;
 mod mc_usage;

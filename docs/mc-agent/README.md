@@ -20,7 +20,8 @@
 | [协议与数据](protocol-data.md) | 确认资料版本、项目身份、会话关联与恢复规则 |
 | [验收与开发计划](validation-plan.md) | 先验证继承能力，再验证新增闭环 |
 | [决策清单](decisions.md) | 集中处理待确认问题 |
-| [创作工作台方案](creative-studio.md) | 生图、生视频的入口、布局和分期（草稿，待确认） |
+| [创作工作台方案](creative-studio.md) | 生图、生视频的入口、布局和分期（一期已实现） |
+| [电脑操作方案](computer-use.md) | 内置 Computer Use 插件：macOS 实现、Windows 预留 |
 | [M1 基线记录](m1-baseline.md) | 构建、冒烟和 B1–B8 实测结果 |
 | [MC-ADR-0005](adr/mc-0005-work-panel-terminal-and-tools.md) | 工作面板终端与工具栏 |
 | [MC-ADR-0006](adr/mc-0006-background-commands.md) | 后台命令与后台任务面板 |
@@ -30,6 +31,8 @@
 | [MC-ADR-0010](adr/mc-0010-system-prompt-templates.md) | 系统提示词查看与模板 |
 | [MC-ADR-0011](adr/mc-0011-usage-statistics.md) | 用量统计 |
 | [MC-ADR-0012](adr/mc-0012-releases-and-updates.md) | 发布到 GitHub Releases 与更新提醒 |
+| [MC-ADR-0013](adr/mc-0013-creative-studio.md) | 创作工作台（一期：图片） |
+| [MC-ADR-0014](adr/mc-0014-computer-use.md) | 电脑操作（Computer Use）内置插件 |
 | [MC-ADR-0004](adr/mc-0004-app-rail-and-title-tabs.md) | 左侧竖栏、顶部标签栏与设置标签 |
 | [MC-ADR-0003](adr/mc-0003-equal-workspaces-and-project-home.md) | 多工作区平等与项目资料目录 |
 | [MC-ADR-0002](adr/mc-0002-fork-pi-desktop.md) | 当前 Fork 架构决定 |

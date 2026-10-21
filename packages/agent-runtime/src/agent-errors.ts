@@ -383,6 +383,10 @@ export function networkFailureDiagnostics(
   return { category: network.category, fields: networkDetailFields(network) };
 }
 
+/** mc-agent: wording of a rejected request parameter, with or without an HTTP status. */
+const INVALID_REQUEST_PATTERN =
+  /\binvalid_request_error\b|\bUnsupported (?:value|parameter)\b|\bis not supported with (?:the|this) [\w.' -]{1,80}model\b|\bInvalid value for\b/i;
+
 export function classifyAgentError(err: unknown): ClassifiedAgentError {
   const envelope = err !== null && typeof err === "object"
     ? err as Record<string, unknown> : undefined;
@@ -529,6 +533,12 @@ export function classifyAgentError(err: unknown): ClassifiedAgentError {
   }
   if (/model.{0,20}(not found|does not exist|unknown)|unknown model/i.test(rawMessage)) {
     return result("MODEL_NOT_CONFIGURED", false);
+  }
+  // mc-agent: a provider that reports a rejected parameter inside the stream
+  // (Codex: "Unsupported value: 'none' is not supported with the … model")
+  // carries no status, yet re-sending the same request fails the same way.
+  if (INVALID_REQUEST_PATTERN.test(rawMessage)) {
+    return result("PROVIDER_ERROR", false);
   }
   if (/timeout|timed out/i.test(rawMessage)) {
     return result("TIMEOUT", true);

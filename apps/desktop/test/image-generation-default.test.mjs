@@ -474,3 +474,29 @@ test("the settings row and the settings page compose one candidate list", async 
   assert.match(page, /imageGenerationPickerCandidates\(/);
   assert.match(page, /isImageGenerationPickerCandidate\(/);
 });
+
+test("mc-agent: a signed-in xAI account offers Grok Imagine and never its chat models", async () => {
+  const { vendorAccountImageCandidates } = await import("@pi-desktop/shared");
+  const xaiAccount = (over = {}) => provider("xai", [], {
+    vendorKey: "xai",
+    authKind: "oauth",
+    hasSecret: false,
+    hasOauth: true,
+    baseUrl: "https://api.x.ai/v1",
+    ...over,
+  });
+  assert.deepEqual(vendorAccountImageCandidates([xaiAccount()]), [
+    { providerId: "xai", modelId: "grok-imagine-image-2.0" },
+    { providerId: "xai", modelId: "grok-imagine-image-quality" },
+    { providerId: "xai", modelId: "grok-imagine-image" },
+  ]);
+  const signedIn = xaiAccount({ models: [{ id: "grok-4.7" }] });
+  assert.equal(imageGenerationBindingAvailable(signedIn, "grok-imagine-image"), true);
+  assert.equal(imageGenerationBindingAvailable(signedIn, "grok-4.7"), false);
+  assert.equal(imageGenerationBindingAvailable(xaiAccount({ hasOauth: false }), "grok-imagine-image"), false);
+  // An xAI API-key row offers only the models it configures.
+  assert.equal(
+    imageGenerationBindingAvailable(xaiAccount({ authKind: "api_key", hasOauth: false }), "grok-imagine-image"),
+    false,
+  );
+});

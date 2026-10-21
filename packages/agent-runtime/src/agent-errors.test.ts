@@ -625,4 +625,17 @@ describe("classifyAgentError", () => {
       details: { origin: "host" },
     });
   });
+
+  it("mc-agent: keeps a rejected parameter reported without a status terminal", () => {
+    for (const message of [
+      "Codex error: Unsupported value: 'none' is not supported with the 'gpt-6.1-sol' model. Supported values are: 'low', 'medium'.",
+      "Codex error: Unsupported parameter: 'temperature' is not supported with this model.",
+      "invalid_request_error: Invalid value for 'reasoning.effort'.",
+    ]) {
+      expect(classifyAgentError(new Error(message))).toMatchObject({ code: "PROVIDER_ERROR", retriable: false });
+    }
+    // A plain provider failure still claims the transient budget.
+    expect(classifyAgentError(new Error("Codex error: An error occurred while processing your request.")))
+      .toMatchObject({ code: "PROVIDER_ERROR", retriable: true });
+  });
 });

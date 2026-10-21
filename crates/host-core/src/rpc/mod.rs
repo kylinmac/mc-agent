@@ -1,4 +1,5 @@
 mod config_sync_rpc;
+mod mc_creative_rpc;
 mod project_tasks_rpc;
 mod remote_tools;
 mod resource_catalog_rpc;
@@ -2020,6 +2021,11 @@ async fn handle_request(
         method if method.starts_with("project.tasks.") => {
             let st = state.lock().await;
             project_tasks_rpc::handle(&st, method, &params)
+        }
+        // mc-agent: the creative studio's assets, generations and comparisons.
+        method if method.starts_with("creative.") => {
+            let st = state.lock().await;
+            mc_creative_rpc::handle(&st, method, &params)
         }
         method if method.starts_with("project.resources.catalog.") => {
             let st = state.lock().await;

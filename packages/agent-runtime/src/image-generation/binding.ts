@@ -1,7 +1,7 @@
 import type { ImageApi, ImageModel, Models } from "@earendil-works/pi-ai";
 import * as openrouterImages from "@earendil-works/pi-ai/api/openrouter-images";
 import { createAccountModels, type RuntimeProviderConfig } from "../provider-binding.js";
-import { CODEX_IMAGE_VENDOR_KEY } from "@pi-desktop/shared";
+import { CODEX_IMAGE_VENDOR_KEY, XAI_IMAGE_VENDOR_KEY } from "@pi-desktop/shared";
 import {
   OPENAI_IMAGES_API,
   codexImagesBaseUrl,
@@ -36,17 +36,25 @@ function isCodexImageEndpoint(endpoint: ImageEndpoint): boolean {
     endpoint.vendorKey?.trim() === CODEX_IMAGE_VENDOR_KEY;
 }
 
+/** mc-agent: a signed-in xAI account, served on `api.x.ai/v1/images/*`. */
+function isXaiImageEndpoint(endpoint: ImageEndpoint): boolean {
+  return endpoint.authKind === "oauth" &&
+    endpoint.vendorKey?.trim() === XAI_IMAGE_VENDOR_KEY;
+}
+
 /** An explicitly marked legacy image binding is an operation override, not chat capability inference. */
 export function createImageBinding(endpoint: ImageEndpoint, downloads: ImageDownloadOptions = {}): ImageBinding {
   const providerId = endpoint.vendorKey?.trim() || endpoint.providerId || "pi-desktop-images";
   const codexImages = isCodexImageEndpoint(endpoint);
-  const known = codexImages ? undefined : endpoint.nativeModel;
+  const xaiImages = isXaiImageEndpoint(endpoint);
+  const accountImages = codexImages || xaiImages;
+  const known = accountImages ? undefined : endpoint.nativeModel;
   if (known && (known.type !== "image" || known.id !== endpoint.modelId || known.api !== "openrouter-images" && known.api !== OPENAI_IMAGES_API))
     throw imageError("IMAGE_MODEL_UNAVAILABLE");
   const native = known?.api === "openrouter-images" || providerId === "openrouter";
   // OAuth must have an actual image operation, not an invented entitlement:
   // OpenRouter's native one, or the Codex routes behind the account's token.
-  const oauthImageApi = codexImages
+  const oauthImageApi = accountImages
     ? !!endpoint.resolveAuth
     : known?.api === "openrouter-images" && !!endpoint.resolveAuth;
   if (endpoint.authKind === "oauth" && !oauthImageApi)
@@ -72,7 +80,7 @@ export function createImageBinding(endpoint: ImageEndpoint, downloads: ImageDown
     images: {
       [model.api]: native
         ? openrouterImages
-        : openAIImagesAdapter(downloads, codexImages ? "codex-json" : "multipart"),
+        : openAIImagesAdapter(downloads, codexImages ? "codex-json" : xaiImages ? "xai-json" : "multipart"),
     },
   });
   return { models, model, accountId: endpoint.providerId };

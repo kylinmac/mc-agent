@@ -53,6 +53,10 @@ export function ImageGenerationModelRow({
   // app default, so the row can never claim a pairing the runtime rejects.
   const valid = !!activeCandidate &&
     imageGenerationBindingAvailable(provider, activeCandidate.modelId);
+  // mc-agent: one account often offers several image models whose names only
+  // differ at the end; with a single provider the menu shows the model alone
+  // so the entries are not cut to the same visible prefix.
+  const singleProvider = new Set(candidates.map((candidate) => candidate.providerId)).size === 1;
   const options = candidates.map((candidate) => {
     const candidateProvider = providers.find((entry) => entry.id === candidate.providerId);
     const available = imageGenerationBindingAvailable(
@@ -61,7 +65,9 @@ export function ImageGenerationModelRow({
     );
     return {
       id: imageModelOptionId(candidate),
-      label: `${candidateProvider?.name ?? candidate.providerId} · ${candidate.modelId}`,
+      label: singleProvider
+        ? candidate.modelId
+        : `${candidateProvider?.name ?? candidate.providerId} · ${candidate.modelId}`,
       disabled: !available,
     };
   });
@@ -91,6 +97,7 @@ export function ImageGenerationModelRow({
       {onChange && (options.filter((option) => !option.disabled).length > 1 || !checkedId) ? (
         <SettingsMenuSelect
           className="model-image-selector"
+          menuClassName="model-image-menu"
           label={t("settings.imageModel")}
           value={checkedId}
           options={options}

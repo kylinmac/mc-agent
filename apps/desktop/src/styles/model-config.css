@@ -1903,3 +1903,8 @@
 @media (prefers-reduced-motion: reduce) {
   .model-provider-row { transition: none; }
 }
+
+/* mc-agent: image model names are long ("xAI (Grok/X subscription) · grok-imagine-image-quality"); show them whole. */
+.settings-menu-select-menu.model-image-menu {
+  max-width: min(520px, calc(100vw - 48px));
+}

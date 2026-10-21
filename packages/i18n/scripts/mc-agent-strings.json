@@ -1893,5 +1893,1095 @@
     "en": "The task's first message was not sent, so the run was not started.",
     "zh-CN": "任务的首条消息没有发出，这次执行没有开始。",
     "zh-TW": "任務的第一則訊息沒有送出，這次執行沒有開始。"
+  },
+  "creativeTitle": {
+    "en": "Create",
+    "zh-CN": "创作",
+    "zh-TW": "創作"
+  },
+  "creativeProjects": {
+    "en": "Creative projects",
+    "zh-CN": "创作项目",
+    "zh-TW": "創作專案"
+  },
+  "creativeNewProject": {
+    "en": "New creative project",
+    "zh-CN": "新建创作项目",
+    "zh-TW": "新增創作專案"
+  },
+  "creativeNewProjectName": {
+    "en": "Project name (optional)",
+    "zh-CN": "项目名（可选）",
+    "zh-TW": "專案名稱（選填）"
+  },
+  "creativeSearch": {
+    "en": "Search assets",
+    "zh-CN": "搜索素材",
+    "zh-TW": "搜尋素材"
+  },
+  "creativeSectionAll": {
+    "en": "All results",
+    "zh-CN": "全部成果",
+    "zh-TW": "全部成果"
+  },
+  "creativeSectionReferences": {
+    "en": "References",
+    "zh-CN": "参考素材",
+    "zh-TW": "參考素材"
+  },
+  "creativeSectionCode": {
+    "en": "Code drawings",
+    "zh-CN": "代码绘制",
+    "zh-TW": "程式碼繪製"
+  },
+  "creativeSectionFavorites": {
+    "en": "Favorites",
+    "zh-CN": "收藏",
+    "zh-TW": "收藏"
+  },
+  "creativeSectionComparisons": {
+    "en": "Comparisons",
+    "zh-CN": "对比集",
+    "zh-TW": "比較集"
+  },
+  "creativeSection_all": {
+    "en": "All results",
+    "zh-CN": "全部成果",
+    "zh-TW": "全部成果"
+  },
+  "creativeSection_references": {
+    "en": "References",
+    "zh-CN": "参考素材",
+    "zh-TW": "參考素材"
+  },
+  "creativeSection_code": {
+    "en": "Code drawings",
+    "zh-CN": "代码绘制",
+    "zh-TW": "程式碼繪製"
+  },
+  "creativeSection_favorites": {
+    "en": "Favorites",
+    "zh-CN": "收藏",
+    "zh-TW": "收藏"
+  },
+  "creativeSection_comparisons": {
+    "en": "Comparisons",
+    "zh-CN": "对比集",
+    "zh-TW": "比較集"
+  },
+  "creativeEmptyTitle": {
+    "en": "Start a creative project",
+    "zh-CN": "开始一个创作项目",
+    "zh-TW": "開始一個創作專案"
+  },
+  "creativeEmptyBody": {
+    "en": "Images, references and comparisons are saved in the project's workspace (creative/ folder); pick your code folder to keep the art next to the code.",
+    "zh-CN": "图片、参考素材和对比保存在项目工作区的 creative/ 文件夹；选你的代码文件夹，美术资源就和代码放在一起。",
+    "zh-TW": "圖片、參考素材和比較儲存在專案工作區的 creative/ 資料夾；選你的程式碼資料夾，美術資源就和程式碼放在一起。"
+  },
+  "creativeNotCreative": {
+    "en": "This project isn't set up for creative work yet. Marking it keeps everything where it is; new images go to its workspace's creative/ folder (changeable).",
+    "zh-CN": "这个项目还没设为创作项目。设为创作项目不会移动任何文件，之后的图片存在工作区的 creative/ 下（可修改）。",
+    "zh-TW": "這個專案還沒設為創作專案。設為創作專案不會移動任何檔案，之後的圖片存在工作區的 creative/ 下（可修改）。"
+  },
+  "creativeMarkCreative": {
+    "en": "Use for creative work",
+    "zh-CN": "设为创作项目",
+    "zh-TW": "設為創作專案"
+  },
+  "creativeAsset": {
+    "en": "Asset",
+    "zh-CN": "素材",
+    "zh-TW": "素材"
+  },
+  "creativeSelect": {
+    "en": "Select",
+    "zh-CN": "选择",
+    "zh-TW": "選擇"
+  },
+  "creativeSelected": {
+    "en": "{{count}} selected",
+    "zh-CN": "已选 {{count}} 项",
+    "zh-TW": "已選 {{count}} 項"
+  },
+  "creativeCompare": {
+    "en": "Compare",
+    "zh-CN": "对比",
+    "zh-TW": "比較"
+  },
+  "creativeClearSelection": {
+    "en": "Clear",
+    "zh-CN": "清除选择",
+    "zh-TW": "清除選擇"
+  },
+  "creativeImport": {
+    "en": "Import images",
+    "zh-CN": "导入图片",
+    "zh-TW": "匯入圖片"
+  },
+  "creativeImported": {
+    "en": "Added {{count}} references to the project",
+    "zh-CN": "已复制 {{count}} 张参考图到项目",
+    "zh-TW": "已複製 {{count}} 張參考圖到專案"
+  },
+  "creativeClose": {
+    "en": "Close",
+    "zh-CN": "关闭",
+    "zh-TW": "關閉"
+  },
+  "creativeNoComparisons": {
+    "en": "No saved comparisons yet. Select 2–4 images and choose Compare.",
+    "zh-CN": "还没有保存的对比。选 2–4 张图后点“对比”。",
+    "zh-TW": "還沒有儲存的比較。選 2–4 張圖後點「比較」。"
+  },
+  "creativeCompareCount": {
+    "en": "{{count}} images",
+    "zh-CN": "{{count}} 张图",
+    "zh-TW": "{{count}} 張圖"
+  },
+  "creativeCodeDrawing": {
+    "en": "Code drawing",
+    "zh-CN": "代码绘制",
+    "zh-TW": "程式碼繪製"
+  },
+  "creativeUntitled": {
+    "en": "Untitled",
+    "zh-CN": "未命名",
+    "zh-TW": "未命名"
+  },
+  "creativeImagesCount": {
+    "en": "{{count}} images",
+    "zh-CN": "{{count}} 张",
+    "zh-TW": "{{count}} 張"
+  },
+  "creativeLooseAssets": {
+    "en": "Added files",
+    "zh-CN": "导入的文件",
+    "zh-TW": "匯入的檔案"
+  },
+  "creativeGenerating": {
+    "en": "Generating…",
+    "zh-CN": "生成中…",
+    "zh-TW": "生成中…"
+  },
+  "creativeNoResults": {
+    "en": "No results yet. Write a prompt on the right, or ask in a conversation.",
+    "zh-CN": "还没有成果。在右侧写提示词生成，或在对话里让 Agent 生成。",
+    "zh-TW": "還沒有成果。在右側寫提示詞生成，或在對話裡讓 Agent 生成。"
+  },
+  "creativeNothingHere": {
+    "en": "Nothing here yet.",
+    "zh-CN": "这里还没有内容。",
+    "zh-TW": "這裡還沒有內容。"
+  },
+  "creativeDropHint": {
+    "en": "Drop images here to add them to this category.",
+    "zh-CN": "把图片拖到这里即可加入当前分类。",
+    "zh-TW": "把圖片拖到這裡即可加入目前分類。"
+  },
+  "creativeQueue": {
+    "en": "Generation queue",
+    "zh-CN": "生成队列",
+    "zh-TW": "生成佇列"
+  },
+  "creativeCancel": {
+    "en": "Cancel",
+    "zh-CN": "取消",
+    "zh-TW": "取消"
+  },
+  "creativeRetry": {
+    "en": "Retry",
+    "zh-CN": "重试",
+    "zh-TW": "重試"
+  },
+  "creativeJob_pending": {
+    "en": "Waiting",
+    "zh-CN": "等待",
+    "zh-TW": "等待"
+  },
+  "creativeJob_running": {
+    "en": "Generating",
+    "zh-CN": "生成中",
+    "zh-TW": "生成中"
+  },
+  "creativeJob_saving": {
+    "en": "Saving",
+    "zh-CN": "保存中",
+    "zh-TW": "儲存中"
+  },
+  "creativeJob_done": {
+    "en": "Done",
+    "zh-CN": "完成",
+    "zh-TW": "完成"
+  },
+  "creativeJob_partial": {
+    "en": "Partly done",
+    "zh-CN": "部分完成",
+    "zh-TW": "部分完成"
+  },
+  "creativeJob_failed": {
+    "en": "Failed",
+    "zh-CN": "失败",
+    "zh-TW": "失敗"
+  },
+  "creativeJob_cancelled": {
+    "en": "Cancelled",
+    "zh-CN": "已取消",
+    "zh-TW": "已取消"
+  },
+  "creativeJob_interrupted": {
+    "en": "Interrupted",
+    "zh-CN": "已中断",
+    "zh-TW": "已中斷"
+  },
+  "creativeTabForm": {
+    "en": "Parameters",
+    "zh-CN": "参数",
+    "zh-TW": "參數"
+  },
+  "creativeTabChat": {
+    "en": "Chat",
+    "zh-CN": "对话",
+    "zh-TW": "對話"
+  },
+  "creativeImageModel": {
+    "en": "Image model",
+    "zh-CN": "生图模型",
+    "zh-TW": "生圖模型"
+  },
+  "creativeSetModel": {
+    "en": "Set one in Settings",
+    "zh-CN": "去设置里选择",
+    "zh-TW": "去設定裡選擇"
+  },
+  "creativePromptPlaceholder": {
+    "en": "Describe the image. ⌘↵ to generate",
+    "zh-CN": "描述想要的画面，⌘↵ 生成",
+    "zh-TW": "描述想要的畫面，⌘↵ 生成"
+  },
+  "creativeCount": {
+    "en": "Images",
+    "zh-CN": "张数",
+    "zh-TW": "張數"
+  },
+  "creativeReferencesCount": {
+    "en": "{{count}} reference images, sent in this order",
+    "zh-CN": "{{count}} 张参考图，按此顺序发送",
+    "zh-TW": "{{count}} 張參考圖，依此順序傳送"
+  },
+  "creativeReferencesEmpty": {
+    "en": "No reference images. Add them from the library.",
+    "zh-CN": "没有参考图，可从素材库里添加。",
+    "zh-TW": "沒有參考圖，可從素材庫裡新增。"
+  },
+  "creativeRole": {
+    "en": "Use as",
+    "zh-CN": "用途",
+    "zh-TW": "用途"
+  },
+  "creativeRoleReference": {
+    "en": "Reference",
+    "zh-CN": "参考",
+    "zh-TW": "參考"
+  },
+  "creativeRoleEdit": {
+    "en": "Edit this",
+    "zh-CN": "修改这张",
+    "zh-TW": "修改這張"
+  },
+  "creativeRoleStyle": {
+    "en": "Style",
+    "zh-CN": "风格参考",
+    "zh-TW": "風格參考"
+  },
+  "creativeRemoveReference": {
+    "en": "Remove reference",
+    "zh-CN": "移除参考图",
+    "zh-TW": "移除參考圖"
+  },
+  "creativeQueuing": {
+    "en": "Queuing…",
+    "zh-CN": "正在加入队列…",
+    "zh-TW": "正在加入佇列…"
+  },
+  "creativeGenerate": {
+    "en": "Generate",
+    "zh-CN": "生成",
+    "zh-TW": "生成"
+  },
+  "creativeFormHint": {
+    "en": "Each image may be charged by the provider. Results are saved in the chosen category folder.",
+    "zh-CN": "每张图可能由服务商计费。结果保存在所选分类的文件夹。",
+    "zh-TW": "每張圖可能由服務商計費。結果儲存在所選分類的資料夾。"
+  },
+  "creativeChatHint": {
+    "en": "Ask in your own words; the agent draws with code or calls the image model, and results land in the library.",
+    "zh-CN": "用自然语言提需求；Agent 会自己用代码画或调用生图模型，结果进素材库。",
+    "zh-TW": "用自然語言提需求；Agent 會自己用程式碼畫或呼叫生圖模型，結果進素材庫。"
+  },
+  "creativeChatStart": {
+    "en": "Start a conversation",
+    "zh-CN": "开始对话",
+    "zh-TW": "開始對話"
+  },
+  "creativeChatWithSelection": {
+    "en": "Chat about {{count}} selected images",
+    "zh-CN": "带上选中的 {{count}} 张图开始对话",
+    "zh-TW": "帶上選取的 {{count}} 張圖開始對話"
+  },
+  "creativeChatIntro": {
+    "en": "Images, in this order:",
+    "zh-CN": "参考这些图片（按顺序）：",
+    "zh-TW": "參考這些圖片（依順序）："
+  },
+  "creativeOriginReference": {
+    "en": "Reference",
+    "zh-CN": "参考素材",
+    "zh-TW": "參考素材"
+  },
+  "creativeOriginModel": {
+    "en": "Model generated",
+    "zh-CN": "模型生成",
+    "zh-TW": "模型生成"
+  },
+  "creativeOriginCode": {
+    "en": "Code drawing",
+    "zh-CN": "代码绘制",
+    "zh-TW": "程式碼繪製"
+  },
+  "creativeOriginImport": {
+    "en": "Imported",
+    "zh-CN": "导入",
+    "zh-TW": "匯入"
+  },
+  "creativePrompt": {
+    "en": "Prompt",
+    "zh-CN": "提示词",
+    "zh-TW": "提示詞"
+  },
+  "creativeModel": {
+    "en": "Model",
+    "zh-CN": "模型",
+    "zh-TW": "模型"
+  },
+  "creativeParams": {
+    "en": "Parameters",
+    "zh-CN": "参数",
+    "zh-TW": "參數"
+  },
+  "creativeCommand": {
+    "en": "Command",
+    "zh-CN": "命令",
+    "zh-TW": "命令"
+  },
+  "creativeScript": {
+    "en": "Script",
+    "zh-CN": "脚本",
+    "zh-TW": "腳本"
+  },
+  "creativeFile": {
+    "en": "File",
+    "zh-CN": "文件",
+    "zh-TW": "檔案"
+  },
+  "creativeSize": {
+    "en": "Size",
+    "zh-CN": "尺寸",
+    "zh-TW": "尺寸"
+  },
+  "creativeCreated": {
+    "en": "Created",
+    "zh-CN": "创建时间",
+    "zh-TW": "建立時間"
+  },
+  "creativeUses": {
+    "en": "Used these",
+    "zh-CN": "使用了",
+    "zh-TW": "使用了"
+  },
+  "creativeUsedBy": {
+    "en": "Used by",
+    "zh-CN": "被这些引用",
+    "zh-TW": "被這些引用"
+  },
+  "creativeFavorite": {
+    "en": "Favorite",
+    "zh-CN": "收藏",
+    "zh-TW": "收藏"
+  },
+  "creativeUnfavorite": {
+    "en": "Unfavorite",
+    "zh-CN": "取消收藏",
+    "zh-TW": "取消收藏"
+  },
+  "creativeUseAsReference": {
+    "en": "Use as reference",
+    "zh-CN": "用作参考",
+    "zh-TW": "用作參考"
+  },
+  "creativeRegenerate": {
+    "en": "Generate again",
+    "zh-CN": "再生成",
+    "zh-TW": "再生成"
+  },
+  "creativeRegenerateHint": {
+    "en": "Generate again reuses the same prompt, model and references; the result will differ.",
+    "zh-CN": "“再生成”复用同样的提示词、模型和参考图，结果不会完全一样。",
+    "zh-TW": "「再生成」沿用同樣的提示詞、模型和參考圖，結果不會完全一樣。"
+  },
+  "creativeAddToCompare": {
+    "en": "Add to comparison",
+    "zh-CN": "加入对比",
+    "zh-TW": "加入比較"
+  },
+  "creativeReveal": {
+    "en": "Show in Finder",
+    "zh-CN": "在访达中显示",
+    "zh-TW": "在 Finder 中顯示"
+  },
+  "creativeRemove": {
+    "en": "Remove from library",
+    "zh-CN": "从素材库移除",
+    "zh-TW": "從素材庫移除"
+  },
+  "creativeRestore": {
+    "en": "Put back in library",
+    "zh-CN": "恢复到素材库",
+    "zh-TW": "還原到素材庫"
+  },
+  "creativeDeleteFile": {
+    "en": "Delete file",
+    "zh-CN": "删除文件",
+    "zh-TW": "刪除檔案"
+  },
+  "creativeDeleteConfirm": {
+    "en": "Delete this image file from disk? Comparisons and generation records that used it keep their entry.",
+    "zh-CN": "确定从磁盘删除这个图片文件吗？用到它的对比和生成记录会保留条目。",
+    "zh-TW": "確定從磁碟刪除這個圖片檔案嗎？用到它的比較和生成紀錄會保留條目。"
+  },
+  "creativeFileMissing": {
+    "en": "File missing",
+    "zh-CN": "文件已不存在",
+    "zh-TW": "檔案已不存在"
+  },
+  "creativeChoose": {
+    "en": "Pick",
+    "zh-CN": "选这张",
+    "zh-TW": "選這張"
+  },
+  "creativeChosen": {
+    "en": "Picked",
+    "zh-CN": "已选定",
+    "zh-TW": "已選定"
+  },
+  "creativeRemoveFromCompare": {
+    "en": "Remove from comparison",
+    "zh-CN": "移出对比",
+    "zh-TW": "移出比較"
+  },
+  "creativeCompareSide": {
+    "en": "Side by side",
+    "zh-CN": "并排",
+    "zh-TW": "並排"
+  },
+  "creativeCompareSlider": {
+    "en": "Slider",
+    "zh-CN": "滑块",
+    "zh-TW": "滑桿"
+  },
+  "creativeCompareReset": {
+    "en": "Reset view",
+    "zh-CN": "复位",
+    "zh-TW": "復位"
+  },
+  "creativeCompareHint": {
+    "en": "Scroll to zoom, drag to pan; all images follow.",
+    "zh-CN": "滚轮缩放、拖动平移，所有图同步。",
+    "zh-TW": "滾輪縮放、拖曳平移，所有圖同步。"
+  },
+  "creativeCompareClose": {
+    "en": "Back to grid",
+    "zh-CN": "返回网格",
+    "zh-TW": "返回網格"
+  },
+  "creativeCompareTitle": {
+    "en": "Comparison title",
+    "zh-CN": "对比标题",
+    "zh-TW": "比較標題"
+  },
+  "creativeCompareNote": {
+    "en": "Notes (why this one)",
+    "zh-CN": "备注（为什么选它）",
+    "zh-TW": "備註（為什麼選它）"
+  },
+  "creativeCompareSave": {
+    "en": "Save comparison",
+    "zh-CN": "保存对比",
+    "zh-TW": "儲存比較"
+  },
+  "creativeCompareUpdate": {
+    "en": "Update comparison",
+    "zh-CN": "更新对比",
+    "zh-TW": "更新比較"
+  },
+  "creativeCompareSaved": {
+    "en": "Comparison saved",
+    "zh-CN": "对比已保存",
+    "zh-TW": "比較已儲存"
+  },
+  "creativeRemoveSelected": {
+    "en": "Remove from library",
+    "zh-CN": "移出素材库",
+    "zh-TW": "移出素材庫"
+  },
+  "creativeRemovedSelected": {
+    "en": "Removed {{count}} from the library; the files are still on disk.",
+    "zh-CN": "已从素材库移出 {{count}} 项，文件仍在磁盘上。",
+    "zh-TW": "已從素材庫移出 {{count}} 項，檔案仍在磁碟上。"
+  },
+  "creativeDeleteFilesConfirm": {
+    "en": "Delete {{count}} image files from disk? Generation records that used them keep their entry.",
+    "zh-CN": "确定从磁盘删除 {{count}} 个图片文件吗？用到它们的生成记录会保留条目。",
+    "zh-TW": "確定從磁碟刪除 {{count}} 個圖片檔案嗎？用到它們的生成紀錄會保留條目。"
+  },
+  "creativeDeletedFiles": {
+    "en": "Deleted {{count}} files.",
+    "zh-CN": "已删除 {{count}} 个文件。",
+    "zh-TW": "已刪除 {{count}} 個檔案。"
+  },
+  "creativeDeletedSomeFailed": {
+    "en": "Deleted {{count}} files; {{failed}} could not be deleted.",
+    "zh-CN": "已删除 {{count}} 个文件，{{failed}} 个删除失败。",
+    "zh-TW": "已刪除 {{count}} 個檔案，{{failed}} 個刪除失敗。"
+  },
+  "accountImageModelsHint": {
+    "en": "Image models of your signed-in subscriptions. Grey ones come from the account (or the app's list when the account cannot be asked); add a model id yourself to use one the app doesn't know yet.",
+    "zh-CN": "已登录订阅账号的生图模型。灰色的来自账号本身（问不到时用应用内置的列表）；新出的模型应用还不认识时，可以自己添加模型 ID。",
+    "zh-TW": "已登入訂閱帳號的生圖模型。灰色的來自帳號本身（問不到時用應用內建的清單）；新出的模型應用還不認識時，可以自己新增模型 ID。"
+  },
+  "accountImageModelsFromAccount": {
+    "en": "From the account",
+    "zh-CN": "来自账号",
+    "zh-TW": "來自帳號"
+  },
+  "accountImageModelsRemove": {
+    "en": "Remove {{id}}",
+    "zh-CN": "移除 {{id}}",
+    "zh-TW": "移除 {{id}}"
+  },
+  "accountImageModelsPlaceholder": {
+    "en": "Model id, e.g. gpt-image-3",
+    "zh-CN": "模型 ID，例如 gpt-image-3",
+    "zh-TW": "模型 ID，例如 gpt-image-3"
+  },
+  "accountImageModelsAdd": {
+    "en": "Add",
+    "zh-CN": "添加",
+    "zh-TW": "新增"
+  },
+  "creativeStorage": {
+    "en": "Saved in",
+    "zh-CN": "存放于",
+    "zh-TW": "存放於"
+  },
+  "creativeStorageResources": {
+    "en": "Resource folder",
+    "zh-CN": "资料目录",
+    "zh-TW": "資料目錄"
+  },
+  "creativeStorageMoved": {
+    "en": "New files go to {{path}}; files already saved stay where they are.",
+    "zh-CN": "新文件会存到 {{path}}，已保存的文件留在原处。",
+    "zh-TW": "新檔案會存到 {{path}}，已儲存的檔案留在原處。"
+  },
+  "creativeNewIntro": {
+    "en": "Creative work happens in a real folder of a project, so the images are where you will use them.",
+    "zh-CN": "创作总在某个项目的真实文件夹里进行，生成的图就放在要用它的地方。",
+    "zh-TW": "創作總在某個專案的真實資料夾裡進行，生成的圖就放在要用它的地方。"
+  },
+  "creativeNewFromFolder": {
+    "en": "Pick a folder",
+    "zh-CN": "选择文件夹",
+    "zh-TW": "選擇資料夾"
+  },
+  "creativeNewFromFolderHint": {
+    "en": "A new project is made with this folder as its workspace.",
+    "zh-CN": "用这个文件夹新建一个项目，作为它的工作区。",
+    "zh-TW": "用這個資料夾新增一個專案，作為它的工作區。"
+  },
+  "creativePickFolder": {
+    "en": "Choose folder…",
+    "zh-CN": "选择文件夹…",
+    "zh-TW": "選擇資料夾…"
+  },
+  "creativeUseProject": {
+    "en": "Use an existing project",
+    "zh-CN": "使用已有项目",
+    "zh-TW": "使用現有專案"
+  },
+  "creativeUseProjectHint": {
+    "en": "Store in one of its folders, or add a new folder to it as a workspace.",
+    "zh-CN": "存到它已有的某个文件夹，或给它加一个新文件夹作为工作区。",
+    "zh-TW": "存到它已有的某個資料夾，或給它加一個新資料夾作為工作區。"
+  },
+  "creativeProject": {
+    "en": "Project",
+    "zh-CN": "项目",
+    "zh-TW": "專案"
+  },
+  "creativeWorkspace": {
+    "en": "Workspace",
+    "zh-CN": "工作区",
+    "zh-TW": "工作區"
+  },
+  "creativeAddFolder": {
+    "en": "Add a folder…",
+    "zh-CN": "添加文件夹…",
+    "zh-TW": "新增資料夾…"
+  },
+  "creativeAddedFolder": {
+    "en": "Add {{name}}",
+    "zh-CN": "添加 {{name}}",
+    "zh-TW": "新增 {{name}}"
+  },
+  "creativeWillStore": {
+    "en": "Files will be saved in {{path}}",
+    "zh-CN": "文件将保存在 {{path}}",
+    "zh-TW": "檔案將儲存在 {{path}}"
+  },
+  "creativeCreate": {
+    "en": "Create",
+    "zh-CN": "创建",
+    "zh-TW": "建立"
+  },
+  "creativeTabDirect": {
+    "en": "Direct",
+    "zh-CN": "直出",
+    "zh-TW": "直出"
+  },
+  "creativeSaveTo": {
+    "en": "Save to",
+    "zh-CN": "存到",
+    "zh-TW": "存到"
+  },
+  "creativeAddReference": {
+    "en": "Add reference images",
+    "zh-CN": "添加参考图",
+    "zh-TW": "新增參考圖"
+  },
+  "creativeAddReferences": {
+    "en": "Add {{count}}",
+    "zh-CN": "添加 {{count}} 张",
+    "zh-TW": "新增 {{count}} 張"
+  },
+  "creativeAddedAsReference": {
+    "en": "Added as a reference image.",
+    "zh-CN": "已加入参考图。",
+    "zh-TW": "已加入參考圖。"
+  },
+  "creativeRoleReferenceHint": {
+    "en": "Use its content: subject, character, objects, composition.",
+    "zh-CN": "参考内容：主体、角色、物件、构图。",
+    "zh-TW": "參考內容：主體、角色、物件、構圖。"
+  },
+  "creativeRoleEditHint": {
+    "en": "Change this image itself as described, keep the rest.",
+    "zh-CN": "按描述修改这张图本身，其余保持不变。",
+    "zh-TW": "按描述修改這張圖本身，其餘保持不變。"
+  },
+  "creativeRoleStyleHint": {
+    "en": "Use only its look (art style, colours, line work), not its content.",
+    "zh-CN": "只参考画风（风格、配色、笔触），不参考内容。",
+    "zh-TW": "只參考畫風（風格、配色、筆觸），不參考內容。"
+  },
+  "creativeCategories": {
+    "en": "Categories",
+    "zh-CN": "分类",
+    "zh-TW": "分類"
+  },
+  "creativeCategoryAdd": {
+    "en": "New category",
+    "zh-CN": "新建分类",
+    "zh-TW": "新增分類"
+  },
+  "creativeCategoryAddChild": {
+    "en": "New sub-category",
+    "zh-CN": "新建子分类",
+    "zh-TW": "新增子分類"
+  },
+  "creativeCategoryRename": {
+    "en": "Rename",
+    "zh-CN": "重命名",
+    "zh-TW": "重新命名"
+  },
+  "creativeCategoryDelete": {
+    "en": "Delete category",
+    "zh-CN": "删除分类",
+    "zh-TW": "刪除分類"
+  },
+  "creativeCategoryDeleteConfirm": {
+    "en": "Delete the category {{name}}? Its images move up one level; nothing is deleted from disk.",
+    "zh-CN": "删除分类 {{name}}？其中的图片移到上一级，不会从磁盘删除。",
+    "zh-TW": "刪除分類 {{name}}？其中的圖片移到上一層，不會從磁碟刪除。"
+  },
+  "creativeCategoryName": {
+    "en": "Category name",
+    "zh-CN": "分类名称",
+    "zh-TW": "分類名稱"
+  },
+  "creativeCategoryNameHint": {
+    "en": "Name, or a path like 角色/角色A",
+    "zh-CN": "名称，或路径如 角色/角色A",
+    "zh-TW": "名稱，或路徑如 角色/角色A"
+  },
+  "creativeCategoriesEmpty": {
+    "en": "Make categories to organise images, then drag images onto them.",
+    "zh-CN": "新建分类来整理图片，把图片拖到分类上即可移动。",
+    "zh-TW": "新增分類來整理圖片，把圖片拖到分類上即可移動。"
+  },
+  "creativeUncategorized": {
+    "en": "Uncategorized",
+    "zh-CN": "未分类",
+    "zh-TW": "未分類"
+  },
+  "creativeViewAll": {
+    "en": "All",
+    "zh-CN": "全部",
+    "zh-TW": "全部"
+  },
+  "creativeCollapse": {
+    "en": "Collapse",
+    "zh-CN": "收起",
+    "zh-TW": "收合"
+  },
+  "creativeExpand": {
+    "en": "Expand",
+    "zh-CN": "展开",
+    "zh-TW": "展開"
+  },
+  "creativeMoveTo": {
+    "en": "Move to…",
+    "zh-CN": "移动到…",
+    "zh-TW": "移動到…"
+  },
+  "creativeMoved": {
+    "en": "Moved {{count}} to {{name}}.",
+    "zh-CN": "已把 {{count}} 张移到 {{name}}。",
+    "zh-TW": "已把 {{count}} 張移到 {{name}}。"
+  },
+  "creativeChatPlaceholder": {
+    "en": "Describe what to make, e.g. a pixel-art dragon into 角色/龙",
+    "zh-CN": "描述想要的图，比如：画一张像素风的小龙，放到 角色/龙 里",
+    "zh-TW": "描述想要的圖，例如：畫一張像素風的小龍，放到 角色/龍 裡"
+  },
+  "creativeAspect": {
+    "en": "Aspect",
+    "zh-CN": "比例",
+    "zh-TW": "比例"
+  },
+  "creativeAspectAuto": {
+    "en": "Auto",
+    "zh-CN": "自动",
+    "zh-TW": "自動"
+  },
+  "creativeAspectAutoHint": {
+    "en": "Let the model choose the size",
+    "zh-CN": "由模型决定尺寸",
+    "zh-TW": "由模型決定尺寸"
+  },
+  "creativeAspectSquare": {
+    "en": "Square",
+    "zh-CN": "方形",
+    "zh-TW": "方形"
+  },
+  "creativeAspectLandscape": {
+    "en": "Landscape",
+    "zh-CN": "横版",
+    "zh-TW": "橫版"
+  },
+  "creativeAspectPortrait": {
+    "en": "Portrait",
+    "zh-CN": "竖版",
+    "zh-TW": "直版"
+  },
+  "creativeAspectWide": {
+    "en": "Widescreen; models with three shapes use landscape",
+    "zh-CN": "宽屏；只有方/横/竖三种的模型按横版出",
+    "zh-TW": "寬螢幕；只有方/橫/直三種的模型按橫版出"
+  },
+  "creativeAspectTall": {
+    "en": "Tall; models with three shapes use portrait",
+    "zh-CN": "竖屏；只有方/横/竖三种的模型按竖版出",
+    "zh-TW": "直式螢幕；只有方/橫/直三種的模型按直版出"
+  },
+  "creativeParamCount": {
+    "en": "{{count}} images",
+    "zh-CN": "{{count}} 张",
+    "zh-TW": "{{count}} 張"
+  },
+  "creativeResolution": {
+    "en": "Resolution",
+    "zh-CN": "分辨率",
+    "zh-TW": "解析度"
+  },
+  "creativeResolution1k": {
+    "en": "Standard",
+    "zh-CN": "标准",
+    "zh-TW": "標準"
+  },
+  "creativeResolution2k": {
+    "en": "2K",
+    "zh-CN": "2K",
+    "zh-TW": "2K"
+  },
+  "creativeResolution4k": {
+    "en": "4K",
+    "zh-CN": "4K",
+    "zh-TW": "4K"
+  },
+  "creativeResolution1kHint": {
+    "en": "The model's standard size, about 1024 px",
+    "zh-CN": "模型的标准尺寸，约 1024 像素",
+    "zh-TW": "模型的標準尺寸，約 1024 像素"
+  },
+  "creativeResolution2kHint": {
+    "en": "About 2048 px on the long side; slower and may cost more",
+    "zh-CN": "长边约 2048 像素；更慢，可能更贵",
+    "zh-TW": "長邊約 2048 像素；較慢，可能較貴"
+  },
+  "creativeResolution4kHint": {
+    "en": "Up to 3840x2160; OpenAI marks this experimental, slower and costlier",
+    "zh-CN": "最高 3840x2160；OpenAI 标为实验性，更慢更贵",
+    "zh-TW": "最高 3840x2160；OpenAI 標為實驗性，較慢較貴"
+  },
+  "creativeStorageChange": {
+    "en": "Change",
+    "zh-CN": "更改",
+    "zh-TW": "更改"
+  },
+  "creativeStoragePick": {
+    "en": "Choose another folder…",
+    "zh-CN": "选择其他文件夹…",
+    "zh-TW": "選擇其他資料夾…"
+  },
+  "creativeStorageCurrent": {
+    "en": "current",
+    "zh-CN": "当前",
+    "zh-TW": "目前"
+  },
+  "creativeStorageReveal": {
+    "en": "Show in Finder: {{path}}",
+    "zh-CN": "在访达中显示：{{path}}",
+    "zh-TW": "在 Finder 中顯示：{{path}}"
+  },
+  "creativeOpen": {
+    "en": "Open",
+    "zh-CN": "打开",
+    "zh-TW": "打開"
+  },
+  "creativeCopyImage": {
+    "en": "Copy image",
+    "zh-CN": "拷贝图片",
+    "zh-TW": "拷貝圖片"
+  },
+  "creativeCopied": {
+    "en": "Image copied.",
+    "zh-CN": "已拷贝图片。",
+    "zh-TW": "已拷貝圖片。"
+  },
+  "creativeCopyFailed": {
+    "en": "This file could not be copied as an image.",
+    "zh-CN": "无法把这个文件作为图片拷贝。",
+    "zh-TW": "無法把這個檔案作為圖片拷貝。"
+  },
+  "creativeMoveToEllipsis": {
+    "en": "Move to…",
+    "zh-CN": "移动到…",
+    "zh-TW": "移動到…"
+  },
+  "creativeMoveCount": {
+    "en": "Move {{count}} images to",
+    "zh-CN": "把 {{count}} 张移动到",
+    "zh-TW": "把 {{count}} 張移動到"
+  },
+  "creativeDeleteFileEllipsis": {
+    "en": "Delete file…",
+    "zh-CN": "删除文件…",
+    "zh-TW": "刪除檔案…"
+  },
+  "creativeLibrary": {
+    "en": "Library",
+    "zh-CN": "素材库",
+    "zh-TW": "素材庫"
+  },
+  "creativeSelectAll": {
+    "en": "Select all",
+    "zh-CN": "全选",
+    "zh-TW": "全選"
+  },
+  "creativeRevealFolder": {
+    "en": "Show folder in Finder",
+    "zh-CN": "在访达中显示文件夹",
+    "zh-TW": "在 Finder 中顯示資料夾"
+  },
+  "creativeUndo": {
+    "en": "Undo",
+    "zh-CN": "撤销",
+    "zh-TW": "復原"
+  },
+  "creativeRestored": {
+    "en": "Put {{count}} back in the library.",
+    "zh-CN": "已恢复 {{count}} 张到素材库。",
+    "zh-TW": "已恢復 {{count}} 張到素材庫。"
+  },
+  "creativeDropHere": {
+    "en": "Move here",
+    "zh-CN": "移到这里",
+    "zh-TW": "移到這裡"
+  },
+  "creativeDragHint": {
+    "en": "Drop {{count}} images on a category to move them",
+    "zh-CN": "把 {{count}} 张拖到分类上即可移动",
+    "zh-TW": "把 {{count}} 張拖到分類上即可移動"
+  },
+  "creativeDragTip": {
+    "en": "Drag the selected images onto a category to move them",
+    "zh-CN": "可把选中的图片拖到下面的分类里",
+    "zh-TW": "可把選中的圖片拖到下面的分類裡"
+  },
+  "creativeMoveUndone": {
+    "en": "Moved {{count}} back.",
+    "zh-CN": "已把 {{count}} 张移回原处。",
+    "zh-TW": "已把 {{count}} 張移回原處。"
+  },
+  "creativeToday": {
+    "en": "Today",
+    "zh-CN": "今天",
+    "zh-TW": "今天"
+  },
+  "creativeYesterday": {
+    "en": "Yesterday",
+    "zh-CN": "昨天",
+    "zh-TW": "昨天"
+  },
+  "creativeCompareNew": {
+    "en": "New comparison",
+    "zh-CN": "新建对比",
+    "zh-TW": "新建對比"
+  },
+  "creativeCompareLayout": {
+    "en": "Layout",
+    "zh-CN": "布局",
+    "zh-TW": "版面"
+  },
+  "creativeCompareRow": {
+    "en": "Side by side",
+    "zh-CN": "横排",
+    "zh-TW": "橫排"
+  },
+  "creativeCompareColumn": {
+    "en": "Stacked",
+    "zh-CN": "竖排",
+    "zh-TW": "直排"
+  },
+  "creativeCompareGrid": {
+    "en": "Grid",
+    "zh-CN": "网格",
+    "zh-TW": "網格"
+  },
+  "creativeCompareColumns": {
+    "en": "Columns",
+    "zh-CN": "列数",
+    "zh-TW": "欄數"
+  },
+  "creativeCompareSliderHint": {
+    "en": "Overlay with a slider needs at least two images",
+    "zh-CN": "滑块叠加需要至少两张图",
+    "zh-TW": "滑桿疊加需要至少兩張圖"
+  },
+  "creativeCompareDropFirst": {
+    "en": "Drag images here from the strip below (or double-click one)",
+    "zh-CN": "从下方拖图片到这里（或双击图片）",
+    "zh-TW": "從下方拖圖片到這裡（或雙擊圖片）"
+  },
+  "creativeCompareDropMore": {
+    "en": "Drop here to add",
+    "zh-CN": "拖到这里添加",
+    "zh-TW": "拖到這裡加入"
+  },
+  "creativeCompareDragToSwap": {
+    "en": "Drag onto another panel to swap",
+    "zh-CN": "拖到另一张上交换位置",
+    "zh-TW": "拖到另一張上交換位置"
+  },
+  "creativeCompareStripHint": {
+    "en": "Drag up to compare: onto the empty slot to add, onto a panel to replace it",
+    "zh-CN": "往上拖来对比：拖到空位添加，拖到某一张上替换它",
+    "zh-TW": "往上拖來對比：拖到空位加入，拖到某一張上替換它"
+  },
+  "creativeCompareInUse": {
+    "en": "In the comparison",
+    "zh-CN": "已在对比中",
+    "zh-TW": "已在對比中"
+  },
+  "creativeChatCompareIntro": {
+    "en": "Images in the comparison, in panel order (left to right, top to bottom):",
+    "zh-CN": "对比区里的图片，按面板顺序（从左到右、从上到下）：",
+    "zh-TW": "對比區裡的圖片，按面板順序（從左到右、從上到下）："
+  },
+  "creativeChatWithCompare": {
+    "en": "Messages include the {{count}} images in the comparison",
+    "zh-CN": "发送时会附带对比区的 {{count}} 张图",
+    "zh-TW": "傳送時會附帶對比區的 {{count}} 張圖"
+  },
+  "creativeCompareAdd": {
+    "en": "Add",
+    "zh-CN": "添加",
+    "zh-TW": "加入"
+  },
+  "creativeCompareSliderLeft": {
+    "en": "Left",
+    "zh-CN": "左图",
+    "zh-TW": "左圖"
+  },
+  "creativeCompareSliderRight": {
+    "en": "Right",
+    "zh-CN": "右图",
+    "zh-TW": "右圖"
+  },
+  "creativeChatPickModel": {
+    "en": "Pick a chat model (image models are in Direct)",
+    "zh-CN": "请选择对话模型（生图模型在“直出”里用）",
+    "zh-TW": "請選擇對話模型（生圖模型在「直出」裡用）"
+  },
+  "creativeChatEmpty": {
+    "en": "Start a conversation about this project's images.",
+    "zh-CN": "开始一段关于这个项目图片的对话。",
+    "zh-TW": "開始一段關於這個專案圖片的對話。"
+  },
+  "creativeChatNew": {
+    "en": "New conversation",
+    "zh-CN": "新对话",
+    "zh-TW": "新對話"
+  },
+  "creativeChatOpenFull": {
+    "en": "Open in the main chat",
+    "zh-CN": "在主对话中打开",
+    "zh-TW": "在主對話中開啟"
+  },
+  "creativeChatStop": {
+    "en": "Stop",
+    "zh-CN": "停止",
+    "zh-TW": "停止"
+  },
+  "creativeChatSend": {
+    "en": "Send",
+    "zh-CN": "发送",
+    "zh-TW": "傳送"
+  },
+  "creativeChatNotSent": {
+    "en": "The message was not sent.",
+    "zh-CN": "消息没有发出。",
+    "zh-TW": "訊息沒有送出。"
   }
 }

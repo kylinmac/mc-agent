@@ -41,6 +41,7 @@ export function SettingsMenuSelect({
   fullWidth = false,
   className,
   triggerClassName,
+  menuClassName,
   leading,
 }: {
   value: string;
@@ -56,6 +57,8 @@ export function SettingsMenuSelect({
   className?: string;
   /** Optional surface-specific styling while retaining the shared menu behavior. */
   triggerClassName?: string;
+  /** mc-agent: extra class on the menu, e.g. a wider menu for long labels. */
+  menuClassName?: string;
   /** Optional icon or marker shown before the selected value. */
   leading?: ReactNode;
 }) {
@@ -102,7 +105,7 @@ export function SettingsMenuSelect({
       <AnchoredMenu
         open={open}
         onClose={close}
-        menuClassName="settings-menu-select-menu"
+        menuClassName={cx("settings-menu-select-menu", menuClassName)}
         label={label}
         align="end"
         onMenuKeyDown={onMenuKeyDown}
@@ -153,6 +156,7 @@ export function SettingsMenuSelect({
                       isCurrent && "is-current",
                       option.id === activeId && "is-active",
                     )}
+                    title={option.label}
                     onMouseEnter={() => setActiveId(option.id)}
                     onFocus={() => setActiveId(option.id)}
                     onClick={() => choose(option)}

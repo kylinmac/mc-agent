@@ -1,4 +1,5 @@
 import type { AssistantImages, ProviderImages } from "@earendil-works/pi-ai";
+import { imageResolution, imageResolutionsFor, type ImageResolution } from "@pi-desktop/shared";
 import {
   boundedBytes, downloadGeneratedImage, generatedImageType, imageError, MAX_IMAGE_BYTES,
   type ImageDownloadOptions,
@@ -31,8 +32,54 @@ export function codexImagesBaseUrl(baseUrl: string): string {
  *
  * `multipart` is the OpenAI Images API: a form for edits, JSON for generation.
  * `codex-json` is the Codex backend: JSON for both, input images as data URLs.
+ * `xai-json` is xAI Imagine: JSON for both (it rejects multipart edits), one
+ * input image as `image`, several as `images`, each `{ url }` with a data URL.
  */
-export type ImageRequestTransport = "multipart" | "codex-json";
+export type ImageRequestTransport = "multipart" | "codex-json" | "xai-json";
+
+/** xAI accepts at most this many source images in one edit. */
+export const XAI_MAX_INPUT_IMAGES = 5;
+
+/**
+ * mc-agent: the requested shape, provider-neutral. Each transport translates
+ * it into what its endpoint takes; absent means the endpoint's own default.
+ */
+export const IMAGE_ASPECT_RATIOS = ["1:1", "3:2", "2:3", "16:9", "9:16"] as const;
+export type ImageAspectRatio = (typeof IMAGE_ASPECT_RATIOS)[number];
+
+export function imageAspectRatio(value: unknown): ImageAspectRatio | undefined {
+  return IMAGE_ASPECT_RATIOS.find((ratio) => ratio === value);
+}
+
+/** GPT Image 2 takes any size (multiples of 16, ≤ 3840x2160); these are its sizes per shape and resolution. */
+const FLEXIBLE_SIZES: Record<ImageResolution, Record<ImageAspectRatio, string>> = {
+  "1k": { "1:1": "1024x1024", "3:2": "1536x1024", "2:3": "1024x1536", "16:9": "1536x864", "9:16": "864x1536" },
+  "2k": { "1:1": "2048x2048", "3:2": "2048x1360", "2:3": "1360x2048", "16:9": "2048x1152", "9:16": "1152x2048" },
+  "4k": { "1:1": "2880x2880", "3:2": "3520x2336", "2:3": "2336x3520", "16:9": "3840x2160", "9:16": "2160x3840" },
+};
+
+/**
+ * OpenAI-style `size` for a shape and resolution. GPT Image 2 (and the Codex
+ * models built on it) takes exact sizes; older GPT Image has square,
+ * landscape and portrait; DALL·E 3 its own three; DALL·E 2 is square only.
+ * A higher resolution without a shape is square. Other models on
+ * OpenAI-compatible endpoints get the GPT Image sizes.
+ */
+export function openAIImageSize(
+  modelId: string,
+  ratio: ImageAspectRatio | undefined,
+  resolution: ImageResolution | undefined,
+): string | undefined {
+  const high = resolution && resolution !== "1k" && imageResolutionsFor(undefined, modelId).includes(resolution);
+  if (!ratio && !high) return undefined;
+  if (/^gpt-image-2(?![0-9])/i.test(modelId)) return FLEXIBLE_SIZES[high ? resolution : "1k"][ratio ?? "1:1"];
+  const shape = !ratio || ratio === "1:1" ? "square" : ratio === "3:2" || ratio === "16:9" ? "landscape" : "portrait";
+  if (/^dall-e-2$/i.test(modelId)) return shape === "square" ? "1024x1024" : undefined;
+  if (/^dall-e-3$/i.test(modelId)) {
+    return shape === "square" ? "1024x1024" : shape === "landscape" ? "1792x1024" : "1024x1792";
+  }
+  return shape === "square" ? "1024x1024" : shape === "landscape" ? "1536x1024" : "1024x1536";
+}
 
 export function safeImageError(error: unknown): string {
   return error && typeof error === "object" && "errorCode" in error &&
@@ -63,6 +110,10 @@ export function openAIImagesAdapter(
         const prompt = context.input.filter(item => item.type === "text").map(item => item.text).join("\n");
         const images = context.input.filter(item => item.type === "image");
         const responseFormat = /^dall-e-[23]$/i.test(model.id) ? "b64_json" : undefined;
+        const extra = options as Record<string, unknown> | undefined;
+        const ratio = imageAspectRatio(extra?.aspectRatio);
+        const resolution = imageResolution(extra?.resolution);
+        const size = openAIImageSize(model.id, ratio, resolution);
         let body: BodyInit;
         if (transport === "codex-json") {
           // The shape the Codex client sends: one JSON body for generation and
@@ -72,16 +123,35 @@ export function openAIImagesAdapter(
           body = JSON.stringify({
             model: model.id,
             prompt,
-            size: "auto",
+            size: size ?? "auto",
             ...(images.length
               ? { images: images.map((image) => ({ image_url: inputImageDataUrl(image.data) })) }
               : {}),
+          });
+        } else if (transport === "xai-json") {
+          if (images.length > XAI_MAX_INPUT_IMAGES) throw imageError("IMAGE_TOO_MANY_INPUTS");
+          headers.set("Content-Type", "application/json");
+          const sources = images.map((image) => ({ url: inputImageDataUrl(image.data) }));
+          body = JSON.stringify({
+            model: model.id,
+            prompt,
+            n: 1,
+            ...(ratio ? { aspect_ratio: ratio } : {}),
+            ...(resolution === "2k" ? { resolution } : {}),
+            // Inline bytes: xAI's default URLs are temporary and off-host.
+            response_format: "b64_json",
+            ...(sources.length === 1
+              ? { image: { ...sources[0], type: "image_url" } }
+              : sources.length
+                ? { images: sources }
+                : {}),
           });
         } else if (images.length) {
           const form = new FormData();
           form.set("model", model.id);
           form.set("prompt", prompt);
           form.set("n", "1");
+          if (size) form.set("size", size);
           if (responseFormat) form.set("response_format", responseFormat);
           images.forEach((image, index) => {
             const bytes = decodeImageBase64(image.data);
@@ -94,6 +164,7 @@ export function openAIImagesAdapter(
         } else {
           headers.set("Content-Type", "application/json");
           body = JSON.stringify({ model: model.id, prompt, n: 1,
+            ...(size ? { size } : {}),
             ...(responseFormat ? { response_format: responseFormat } : {}) });
         }
         const response = await (options?.fetch ?? fetch)(imageGenerationUrl(model.baseUrl, images.length > 0), {

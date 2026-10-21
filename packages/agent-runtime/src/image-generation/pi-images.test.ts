@@ -150,3 +150,79 @@ it("keeps an already-prefixed Codex base URL and still requires the account toke
   expect(() => createImageBinding({ ...codexAccount, resolveAuth: undefined }))
     .toThrow("IMAGE_AUTH_UNSUPPORTED");
 });
+
+/** mc-agent: a signed-in xAI (Grok/X subscription) account. */
+const xaiAccount = {
+  baseUrl: "https://api.x.example/v1",
+  modelId: "grok-imagine-image-2.0",
+  vendorKey: "xai",
+  authKind: "oauth",
+  resolveAuth: async () => ({ apiKey: "xai-account-token" }),
+};
+
+it("serves a signed-in xAI account's Imagine model as JSON with inline results", async () => {
+  const transport = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ data: [{ b64_json: png }] }));
+  const results = await generateImageBatch({ endpoint: xaiAccount, input, signal: signal(), save, fetchImpl: transport });
+  expect(results.map(result => result.status)).toEqual(["succeeded"]);
+  const [url, init] = transport.mock.calls[0];
+  expect(String(url)).toBe("https://api.x.example/v1/images/generations");
+  expect(new Headers(init?.headers).get("authorization")).toBe("Bearer xai-account-token");
+  expect(JSON.parse(String(init?.body))).toEqual({
+    model: "grok-imagine-image-2.0", prompt: "draw", n: 1, response_format: "b64_json",
+  });
+});
+
+it("edits on xAI as JSON: one source as image, several as images", async () => {
+  const bytes = Buffer.from(png, "base64");
+  const edit = async (count: number) => {
+    const transport = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ data: [{ b64_json: png }] }));
+    const results = await generateImageBatch({
+      endpoint: xaiAccount,
+      input: { items: [{ prompt: "draw", images: Array.from({ length: count }, (_, index) => `${index}.png`) }] },
+      signal: signal(), save, fetchImpl: transport,
+      loadImages: async () => Array.from({ length: count }, () => ({ bytes, mimeType: "image/png", extension: "png" })),
+    });
+    expect(results.map(result => result.status)).toEqual(["succeeded"]);
+    const [url, init] = transport.mock.calls[0];
+    expect(String(url)).toBe("https://api.x.example/v1/images/edits");
+    expect(new Headers(init?.headers).get("content-type")).toBe("application/json");
+    return JSON.parse(String(init?.body));
+  };
+  const single = await edit(1);
+  expect(single.image).toEqual({ url: `data:image/png;base64,${png}`, type: "image_url" });
+  expect(single.images).toBeUndefined();
+  const several = await edit(3);
+  expect(several.images).toHaveLength(3);
+  expect(several.images[0]).toEqual({ url: `data:image/png;base64,${png}` });
+  expect(several.image).toBeUndefined();
+  expect(() => createImageBinding({ ...xaiAccount, resolveAuth: undefined })).toThrow("IMAGE_AUTH_UNSUPPORTED");
+});
+
+it("mc-agent: sends the requested shape in each endpoint's own terms", async () => {
+  const body = async (
+    target: typeof endpoint | typeof codexAccount | typeof xaiAccount,
+    aspectRatio?: string,
+    resolution?: string,
+  ) => {
+    const transport = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ data: [{ b64_json: png }] }));
+    await generateImageBatch({ endpoint: target, input, signal: signal(), save, fetchImpl: transport, aspectRatio, resolution });
+    return JSON.parse(String(transport.mock.calls[0][1]?.body));
+  };
+  expect((await body(xaiAccount, "16:9")).aspect_ratio).toBe("16:9");
+  expect((await body(xaiAccount)).aspect_ratio).toBeUndefined();
+  expect((await body(codexAccount, "2:3")).size).toBe("1024x1536");
+  expect((await body(codexAccount)).size).toBe("auto");
+  expect((await body(endpoint, "3:2")).size).toBe("1536x1024");
+  expect((await body(endpoint)).size).toBeUndefined();
+  // Anything else is not a shape and leaves the endpoint's default.
+  expect((await body(xaiAccount, "7:5")).aspect_ratio).toBeUndefined();
+  // Resolution: xAI takes 2k as a field; GPT Image 2 takes exact sizes;
+  // models without it keep their standard sizes.
+  expect((await body(xaiAccount, "16:9", "2k")).resolution).toBe("2k");
+  expect((await body(xaiAccount, "16:9", "1k")).resolution).toBeUndefined();
+  expect((await body(xaiAccount, "16:9", "4k")).resolution).toBeUndefined();
+  expect((await body(codexAccount, "16:9", "4k")).size).toBe("3840x2160");
+  expect((await body(codexAccount, undefined, "2k")).size).toBe("2048x2048");
+  expect((await body(codexAccount, "16:9")).size).toBe("1536x864");
+  expect((await body(endpoint, "16:9", "2k")).size).toBe("1536x1024");
+});

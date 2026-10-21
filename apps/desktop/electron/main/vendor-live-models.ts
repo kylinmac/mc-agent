@@ -230,6 +230,29 @@ function parseDataIds(body: unknown): string[] | null {
   );
 }
 
+/**
+ * mc-agent: the reasoning efforts each Codex model accepts, from the same
+ * `/codex/models` reply (`supported_reasoning_levels[].effort`). Models that
+ * omit it are left out; the caller keeps its defaults for them.
+ */
+export function parseCodexReasoningLevels(body: unknown): Map<string, string[]> {
+  const levels = new Map<string, string[]>();
+  const models = asRecord(body)?.models;
+  if (!Array.isArray(models)) return levels;
+  for (const entry of models) {
+    const item = asRecord(entry);
+    const slug = item?.slug ?? item?.id;
+    const supported = item?.supported_reasoning_levels;
+    if (typeof slug !== "string" || !Array.isArray(supported)) continue;
+    const efforts = supported.flatMap((level) => {
+      const effort = typeof level === "string" ? level : asRecord(level)?.effort;
+      return typeof effort === "string" && effort.trim() ? [effort.trim().toLowerCase()] : [];
+    });
+    if (efforts.length) levels.set(slug, efforts);
+  }
+  return levels;
+}
+
 function parseCodexIds(body: unknown): string[] | null {
   const models = asRecord(body)?.models;
   if (!Array.isArray(models)) return null;

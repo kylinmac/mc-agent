@@ -6,7 +6,7 @@
 */
 
 export const MAX_TABS = 20;
-export const PAGE_TABS = ["plugins", "scheduled", "settings"] as const;
+export const PAGE_TABS = ["plugins", "scheduled", "settings", "creative"] as const;
 export type PageTab = (typeof PAGE_TABS)[number];
 const PAGE_PREFIX = "page:";
 

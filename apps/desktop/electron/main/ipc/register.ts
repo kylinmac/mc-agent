@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { app, dialog, shell, type BrowserWindow, type IpcMain, type IpcMainInvokeEvent } from "electron";
+import { app, clipboard, dialog, nativeImage, shell, type BrowserWindow, type IpcMain, type IpcMainInvokeEvent } from "electron";
 import { err, ErrorCodes, IPC, ok, type Result } from "@pi-desktop/shared";
 import type { AgentHostBridge } from "../agent-host-bridge";
 import type { AgentSidecar } from "../agent-sidecar";
@@ -22,6 +22,8 @@ import { refreshProjectGroups } from "../workspace-roots";
 import { registerProjectResourcesIpc } from "./project-resources-ipc";
 import { registerMcTerminalIpc } from "./mc-terminal-ipc";
 import { registerMcBackgroundIpc } from "./mc-background-ipc";
+import { registerMcCreativeIpc } from "./mc-creative-ipc";
+import { imageDataUrl, measureImage } from "../creative/measure-image";
 import { TerminalManager } from "../mc-terminal";
 import { registerProviderIpc } from "./provider-ipc";
 import { registerScheduledIpc } from "./scheduled-ipc";
@@ -349,6 +351,29 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     }),
   });
   registerMcBackgroundIpc({ registrar, getHost });
+  registerMcCreativeIpc({
+    registrar,
+    getHost,
+    sendToRenderer,
+    measure: measureImage,
+    imageDataUrl,
+    pickImages: async () => {
+      const window = getMainWindow();
+      const options = {
+        properties: ["openFile" as const, "multiSelections" as const],
+        filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }],
+      };
+      const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options);
+      return result.canceled ? [] : result.filePaths;
+    },
+    revealPath: (path) => shell.showItemInFolder(path),
+    copyImage: (path) => {
+      const image = nativeImage.createFromPath(path);
+      if (image.isEmpty()) return false;
+      clipboard.writeImage(image);
+      return true;
+    },
+  });
   registerWorktreeIpc({
     registrar,
     getHost,

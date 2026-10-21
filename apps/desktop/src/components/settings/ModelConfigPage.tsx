@@ -31,6 +31,7 @@ import {
 } from "./image-generation-default";
 import { copyProviderConfiguration, type ProviderCopyDraft } from "./provider-copy";
 import { ImageGenerationModelRow } from "./ImageGenerationModelRow";
+import { AccountImageModels } from "../../features/creative/AccountImageModels";
 import { OAuthLoginDialog } from "./OAuthLoginDialog";
 import { ProviderSetupDialog } from "./ProviderSetupDialog";
 import { ServiceList } from "./ServiceList";
@@ -551,6 +552,8 @@ export function ModelConfigPage() {
               busy={changingImageModel}
               onChange={setImageGenerationDefault}
             />
+            {/* mc-agent: image models added by hand to subscription accounts. */}
+            <AccountImageModels providers={providers} />
           </div>
         </section>
       ) : null}

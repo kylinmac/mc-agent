@@ -47,6 +47,7 @@ import type { LoadedSkillDocument } from "../skill-document";
 import { getActiveRemoteHostsBoot } from "../bootstrap/remote-hosts";
 import { loadRemoteWorkspaceInstructions } from "../remote/remote-workspace-instructions.js";
 import { rememberPromptMatch, resolvePromptTemplate, templatePrompt, type PromptConfig } from "../mc-system-prompts";
+import { creativeSessionHint } from "../creative/creative-generation";
 
 const ErrorCodes = {
   ...SharedErrorCodes,
@@ -513,6 +514,19 @@ export function createSessionLaunchRuntime({
       if (resolved) customSystemPrompt = templatePrompt(resolved.template);
     } catch {
       // Templates are best effort; the files and defaults still apply.
+    }
+    // mc-agent creative studio: a conversation in a creative project is told
+    // where its images belong and which tools file them.
+    try {
+      const hint = await creativeSessionHint(runtimeState.host!, projectPath);
+      if (hint) {
+        customSystemPrompt = {
+          ...(customSystemPrompt ?? {}),
+          append: [customSystemPrompt?.append, hint].filter(Boolean).join("\n\n"),
+        };
+      }
+    } catch {
+      // Best effort, like the templates above.
     }
     sessionProjects.set(sessionId, projectPath ?? null);
     // Everything below is filtered by activation scope: a plugin, MCP server or

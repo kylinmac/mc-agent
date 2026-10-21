@@ -1130,6 +1130,8 @@ pub async fn execute_tool_with_path_access(
         // Authorize the desktop-owned image request through the normal host gate.
         // Only the trusted desktop runner performs the external call.
         "GenerateImages" => Ok(serde_json::json!({ "authorized": true })),
+        // mc-agent: the desktop registers the image in the creative library.
+        "SaveCreativeAsset" => Ok(serde_json::json!({ "authorized": true })),
         "Read" | "Glob" | "Grep" | "Write" | "Edit" => {
             run_file_tool(
                 workspace,

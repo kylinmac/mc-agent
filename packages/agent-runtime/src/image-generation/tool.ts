@@ -17,3 +17,18 @@ export const imageGenerationParameters = {
     { minItems: 1, maxItems: 10 },
   ),
 };
+
+/**
+ * mc-agent creative studio: register an image the agent drew with code (a
+ * script it wrote and ran) as an asset of the current creative project, with
+ * the script kept as its snapshot. Model-generated images register by
+ * themselves; this is only for code drawings.
+ */
+export const saveCreativeAssetDescription =
+  "Save an image you produced with code (a script you wrote and ran, e.g. Python/Pillow pixel art, charts, icons) into this creative project's asset library, so it appears in the Create workspace beside model-generated images. Pass the image path, the script path and the exact command you ran. Only for code drawings: images from GenerateImages are saved automatically. Call it for finished results, not for every intermediate attempt.";
+export const saveCreativeAssetParameters = {
+  imagePath: Type.String({ minLength: 1, maxLength: 4096, description: "The image file to save (project-relative, scratch, or absolute inside those)." }),
+  scriptPath: Type.Optional(Type.String({ minLength: 1, maxLength: 4096, description: "The script that drew it." })),
+  command: Type.Optional(Type.String({ maxLength: 4000, description: "The exact command that produced the image." })),
+  category: Type.Optional(Type.String({ maxLength: 400, description: "Category folder to file it under, e.g. 角色/角色A; uncategorized when omitted." })),
+};

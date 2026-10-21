@@ -2,7 +2,9 @@ import {
   IPC,
   ErrorCodes,
   inferEndpointProfile,
+  mergeAccountImageModels,
   normalizeApiStyle,
+  vendorServesAccountImages,
   type ModelBinding,
   type ProviderReorderInput,
   type OAuthRespondInput,
@@ -104,7 +106,30 @@ export function registerProviderIpc({
     });
   };
   handle(IPC.invoke.providersList, async () => {
-    return enrichProviderList({ providers: await listRuntimeProviders() });
+    const result = (await enrichProviderList({ providers: await listRuntimeProviders() })) as {
+      providers: Array<RuntimeProvider & { accountImageModels?: string[] | null }>;
+    };
+    // mc-agent: a signed-in account's image models: what the account reports
+    // (xAI; a slow answer falls back to the built-in list for this listing),
+    // plus the ids the user added by hand.
+    const added = await host
+      ?.call<{ models: Record<string, string[]> }>("creative.accountImageModels")
+      .then((answer) => answer.models)
+      .catch(() => ({}) as Record<string, string[]>);
+    await Promise.all(
+      result.providers.map(async (provider) => {
+        if (provider.authKind !== "oauth" || !provider.hasOauth || !vendorServesAccountImages(provider.vendorKey)) return;
+        const reported = provider.vendorKey === "xai"
+          ? await Promise.race([
+              vendorOAuth.accountImageModels(provider.id),
+              new Promise<null>((resolve) => setTimeout(() => resolve(null), 3_000)),
+            ]).catch(() => null)
+          : null;
+        const merged = mergeAccountImageModels(provider.vendorKey, reported, added?.[provider.id]);
+        if (merged?.length) provider.accountImageModels = merged;
+      }),
+    );
+    return result;
   });
   handle(IPC.invoke.providersReorder, async (input: ProviderReorderInput) => {
     if (!host) throw new Error("host unavailable");

@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../../stores/app-store";
 import { TooltipButton } from "../../components/ui";
-import { IconClock, IconHome, IconPlug, IconSettings } from "../../components/icons";
+import { IconClock, IconHome, IconPalette, IconPlug, IconSettings } from "../../components/icons";
 import { pluginViewIcon, pluginViewInitial } from "../../lib/plugin-view-icons";
 import { pluginWorkPanelTab } from "../../lib/work-panel-tabs";
 import { BROWSER_VIEW_REF, FILES_VIEW_REF } from "../work-tools/work-panes-model";
@@ -37,12 +37,12 @@ export function AppRail() {
         <TooltipButton
           type="button"
           tooltipSide="right"
-          className={`footer-action ${page !== "settings" ? "active" : ""}`}
+          className={`footer-action ${page === "chat" ? "active" : ""}`}
           data-nav="rail-home"
           tooltip={t("mcProject.appRailHome")}
           ariaLabel={t("mcProject.appRailHome")}
           onClick={() => setPage("chat")}
-          aria-pressed={page !== "settings"}
+          aria-pressed={page === "chat"}
         >
           <IconHome size={16} aria-hidden />
         </TooltipButton>
@@ -71,6 +71,19 @@ export function AppRail() {
           aria-pressed={page === "scheduled"}
         >
           <IconClock size={16} aria-hidden />
+        </TooltipButton>
+        {/* mc-agent: the creative studio (docs/mc-agent/creative-studio.md). */}
+        <TooltipButton
+          type="button"
+          tooltipSide="right"
+          className={`footer-action ${page === "creative" ? "active" : ""}`}
+          data-nav="creative"
+          tooltip={t("mcProject.creativeTitle")}
+          ariaLabel={t("mcProject.creativeTitle")}
+          onClick={() => setPage("creative")}
+          aria-pressed={page === "creative"}
+        >
+          <IconPalette size={16} aria-hidden />
         </TooltipButton>
       </div>
       <div className="app-rail-divider" aria-hidden />

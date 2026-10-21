@@ -153,6 +153,54 @@ export function imageGenerationPrompts(value: unknown): string[] {
 export const CODEX_IMAGE_VENDOR_KEY = "openai-codex";
 export const CODEX_IMAGE_MODEL_IDS = ["gpt-image-2.5", "gpt-image-2"];
 
+/**
+ * mc-agent: a signed-in xAI (Grok/X subscription) account serves Grok Imagine
+ * on `api.x.ai/v1/images/*` with the token its chat traffic uses. Its image
+ * models are left out of the chat model list, so they are offered here, newest
+ * first (docs.x.ai, 2026-10). `grok-imagine-image` is the low-cost tier.
+ */
+export const XAI_IMAGE_VENDOR_KEY = "xai";
+export const XAI_IMAGE_MODEL_IDS = [
+  "grok-imagine-image-2.0",
+  "grok-imagine-image-quality",
+  "grok-imagine-image",
+];
+
+/**
+ * Image model ids a signed-in vendor account serves, by vendor key: the
+ * fallback when the account's own list cannot be read (offline, an older
+ * backend). xAI accounts report theirs; Codex has no listing route.
+ */
+const VENDOR_ACCOUNT_IMAGE_MODELS: Record<string, readonly string[]> = {
+  [CODEX_IMAGE_VENDOR_KEY]: CODEX_IMAGE_MODEL_IDS,
+  [XAI_IMAGE_VENDOR_KEY]: XAI_IMAGE_MODEL_IDS,
+};
+
+/** Whether a signed-in account of this vendor can serve image models at all. */
+export function vendorServesAccountImages(vendorKey: string | undefined): boolean {
+  return !!vendorKey && vendorKey in VENDOR_ACCOUNT_IMAGE_MODELS;
+}
+
+/**
+ * mc-agent: an account's image models: what the account reported (or the
+ * built-in list when it reported nothing), plus the ids the user added by
+ * hand. Null when the vendor serves no account images.
+ */
+export function mergeAccountImageModels(
+  vendorKey: string | undefined,
+  reported: readonly string[] | null | undefined,
+  added: readonly string[] | null | undefined,
+): string[] | null {
+  if (!vendorKey || !vendorServesAccountImages(vendorKey)) return null;
+  const base = reported?.length ? reported : VENDOR_ACCOUNT_IMAGE_MODELS[vendorKey];
+  const merged: string[] = [];
+  for (const id of [...base, ...(added ?? [])]) {
+    const trimmed = id.trim();
+    if (trimmed && !merged.some((entry) => entry.toLowerCase() === trimmed.toLowerCase())) merged.push(trimmed);
+  }
+  return merged;
+}
+
 /** The provider fields the image rules read; anything else is ignored. */
 export type ImageProviderFacts = {
   id?: string;
@@ -161,6 +209,12 @@ export type ImageProviderFacts = {
   /** True only once the vendor-account credential is actually stored. */
   hasOauth?: boolean;
   models?: readonly { id: string }[];
+  /**
+   * mc-agent: the image models the signed-in account reported serving (read
+   * by Electron main from the account). When present it replaces the
+   * built-in list below, which stays only as the fallback.
+   */
+  accountImageModels?: readonly string[] | null;
 };
 
 /**
@@ -170,11 +224,10 @@ export type ImageProviderFacts = {
  * fails at send time, so it must not offer a choice either.
  */
 export function vendorAccountImageModelIds(provider: ImageProviderFacts): string[] {
-  return provider.authKind === "oauth" &&
-    provider.hasOauth === true &&
-    provider.vendorKey === CODEX_IMAGE_VENDOR_KEY
-    ? [...CODEX_IMAGE_MODEL_IDS]
-    : [];
+  const builtIn = provider.vendorKey ? VENDOR_ACCOUNT_IMAGE_MODELS[provider.vendorKey] : undefined;
+  if (provider.authKind !== "oauth" || provider.hasOauth !== true || !builtIn) return [];
+  const reported = provider.accountImageModels?.filter((id) => id.trim().length > 0);
+  return reported?.length ? [...reported] : [...builtIn];
 }
 
 /**
@@ -209,4 +262,23 @@ export function vendorAccountImageCandidates(
     }
   }
   return candidates;
+}
+
+/**
+ * mc-agent: output resolution, coarse and provider-neutral. `1k` is each
+ * model's standard size; xAI Imagine also takes `2k`; GPT Image 2 takes any
+ * size up to 3840x2160 (above 2560x1440 is marked experimental by OpenAI).
+ * Older GPT Image and DALL·E models have only their standard sizes.
+ */
+export const IMAGE_RESOLUTIONS = ["1k", "2k", "4k"] as const;
+export type ImageResolution = (typeof IMAGE_RESOLUTIONS)[number];
+
+export function imageResolution(value: unknown): ImageResolution | undefined {
+  return IMAGE_RESOLUTIONS.find((resolution) => resolution === value);
+}
+
+export function imageResolutionsFor(vendorKey: string | undefined, modelId: string): ImageResolution[] {
+  if (vendorKey === XAI_IMAGE_VENDOR_KEY) return ["1k", "2k"];
+  if (/^gpt-image-2(?![0-9])/i.test(modelId)) return ["1k", "2k", "4k"];
+  return ["1k"];
 }

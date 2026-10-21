@@ -8,12 +8,24 @@ import {
   CODEX_IMAGE_VENDOR_KEY,
   imageGenerationPrompts,
   imageModelOfferedByProvider,
+  type ImageGenerationInput,
   parseImageGenerationBinding,
   type AppSettings,
   type ProviderPublic,
 } from "@pi-desktop/shared";
 import type { HostProcess } from "../host-process";
 import type { LocalToolHandler } from "../agent-sidecar";
+
+/**
+ * mc-agent: handles the tool call itself when the session belongs to a
+ * creative project (the studio records the job and its assets); returns
+ * undefined to fall back to the session scratch flow.
+ */
+export type CreativeToolRoute = (
+  sessionId: string,
+  args: ImageGenerationInput,
+  signal: AbortSignal,
+) => Promise<Awaited<ReturnType<LocalToolHandler>> | undefined>;
 import { imageInputLoader } from "./image-inputs";
 
 function failure(errorCode: string, content: string) {
@@ -25,28 +37,54 @@ function failure(errorCode: string, content: string) {
   };
 }
 
-export function createImageGenerationTool(options: {
+export type ImageServiceOptions = {
   dataDir: string;
   getHost: () => Pick<HostProcess, "call"> | null;
   fetchImpl?: typeof fetch;
   allowFakeIp?: () => boolean;
   resolveAuth?: VendorOAuth["resolveAuth"];
   resolveImageModel?: (provider: ProviderPublic, modelId: string) => Promise<ImageModel<ImageApi> | undefined>;
-}): LocalToolHandler {
-  return async ({ sessionId, args, signal }) => {
-    imageGenerationPrompts(args);
+  /**
+   * mc-agent: the image models a signed-in account serves (reported by the
+   * account and added by hand); null keeps the built-in list.
+   */
+  accountImageModels?: (provider: ProviderPublic) => Promise<string[] | null>;
+};
+
+type ImageFailure = ReturnType<typeof failure>;
+export type ResolvedImageBinding = {
+  host: Pick<HostProcess, "call">;
+  binding: { providerId: string; modelId: string };
+  imageBinding: ReturnType<typeof createImageBinding>;
+  downloadOptions: { allowFakeIp: boolean };
+};
+
+/**
+ * The configured image model, its account and the bound transport. Shared by
+ * the agent tool and the creative studio's form (mc-agent), so both use the
+ * same account, credentials and checks.
+ */
+export async function resolveImageBinding(
+  options: ImageServiceOptions,
+  /** mc-agent: a model chosen for this request instead of the global one. */
+  override?: { providerId: string; modelId: string },
+): Promise<ResolvedImageBinding | ImageFailure> {
     const host = options.getHost();
     if (!host) return failure("HOST_UNAVAILABLE", "Host unavailable.");
     const settings = await host.call<AppSettings>("settings.get");
-    const binding = parseImageGenerationBinding(settings.imageGeneration);
+    const binding = override ?? parseImageGenerationBinding(settings.imageGeneration);
     if (!binding)
       return failure(
         "IMAGE_NOT_CONFIGURED",
         "Configure an image generation model in Settings > Models > Image generation model before generating images. Do not substitute another model.",
       );
-    const { provider } = await host.call<{ provider?: ProviderPublic }>("providers.get", {
+    const { provider: stored } = await host.call<{ provider?: ProviderPublic }>("providers.get", {
       id: binding.providerId,
     });
+    const reported = stored?.authKind === "oauth" && options.accountImageModels
+      ? await options.accountImageModels(stored).catch(() => null)
+      : null;
+    const provider = stored && reported?.length ? { ...stored, accountImageModels: reported } : stored;
     if (
       !provider?.enabled ||
       !provider.baseUrl ||
@@ -69,20 +107,41 @@ export function createImageGenerationTool(options: {
     const codexImages = provider.authKind === "oauth" &&
       provider.vendorKey === CODEX_IMAGE_VENDOR_KEY;
     const headers = codexImages ? { originator: "pi", ...provider.headers } : provider.headers;
-    let imageBinding;
     try {
-      imageBinding = createImageBinding({
+      const imageBinding = createImageBinding({
         nativeModel: await options.resolveImageModel?.(provider, binding.modelId),
         providerId: provider.id, vendorKey: provider.vendorKey, authKind: provider.authKind,
         baseUrl: provider.baseUrl, modelId: binding.modelId, apiKey: value, headers,
         ...(provider.authKind === "oauth" && options.resolveAuth
           ? { resolveAuth: () => options.resolveAuth!(provider.id) } : {}),
       }, downloadOptions);
+      return { host, binding, imageBinding, downloadOptions };
     } catch (error) {
       if (error && typeof error === "object" && "errorCode" in error && error.errorCode === "IMAGE_AUTH_UNSUPPORTED")
         return failure("IMAGE_AUTH_UNSUPPORTED", "The selected account has no supported image operation.");
       throw error;
     }
+}
+
+export function isImageFailure(value: ResolvedImageBinding | ImageFailure): value is ImageFailure {
+  return "ok" in value && value.ok === false;
+}
+
+export function createImageGenerationTool(
+  options: ImageServiceOptions & {
+    /** mc-agent: routes a creative project's requests through the studio. */
+    creative?: CreativeToolRoute;
+  },
+): LocalToolHandler {
+  return async ({ sessionId, args, signal }) => {
+    imageGenerationPrompts(args);
+    if (options.creative) {
+      const routed = await options.creative(sessionId, args as ImageGenerationInput, signal);
+      if (routed) return routed;
+    }
+    const resolved = await resolveImageBinding(options);
+    if (isImageFailure(resolved)) return resolved;
+    const { host, binding, imageBinding } = resolved;
     const { path } = await host.call<{ path: string }>("session.getScratchPath", { sessionId });
     const root = resolve(options.dataDir, "scratch");
     const within = (base: string, target: string) => {

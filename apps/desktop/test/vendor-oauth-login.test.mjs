@@ -21,6 +21,7 @@ import {
   isXaiConversationModel,
   protocolForApiStyle,
   secretRefForProviderOauth,
+  withAccountReasoningLevels,
 } from "../electron/main/oauth.ts";
 
 /**
@@ -1402,4 +1403,25 @@ test("failed cleanup after a rejected login preserves the surviving account inst
   const rowId = [...h.host.providers.keys()][0];
   await h.oauth.listModels(rowId);
   assert.equal(attached.filter(account => account.id === rowId).length, 1);
+});
+
+test("mc-agent: a Codex model that cannot turn reasoning off never sends effort none", () => {
+  const sol = withAccountReasoningLevels(genericModelConfig("gpt-6.1-sol", "https://chatgpt.example/backend-api"),
+    ["low", "medium", "high", "xhigh", "max", "ultra"]);
+  assert.deepEqual(sol.supportedThinkingLevels, ["low", "medium", "high", "xhigh", "max"]);
+  assert.equal(sol.thinkingLevelMap.off, null);
+  assert.equal(sol.reasoning, true);
+  // A binding saved before the levels were known (empty ladder) keeps "off"
+  // selectable, and it still omits the field instead of sending "none".
+  const bound = modelConfigWithBinding(sol, {
+    id: "gpt-6.1-sol", contextWindow: 128000, maxTokens: 8192, thinkingLevels: [],
+  });
+  assert.equal(bound.thinkingLevelMap.off, null);
+  // A model that does accept "none" keeps it.
+  const older = withAccountReasoningLevels(genericModelConfig("gpt-5.2"), ["none", "low", "high"]);
+  assert.equal(older.thinkingLevelMap.off, "none");
+  assert.deepEqual(older.supportedThinkingLevels, ["off", "low", "high"]);
+  // Unknown levels leave the config untouched.
+  const plain = genericModelConfig("x");
+  assert.equal(withAccountReasoningLevels(plain, undefined), plain);
 });

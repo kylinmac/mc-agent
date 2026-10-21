@@ -16,6 +16,8 @@ export type ProviderPublic = {
   hasSecret: boolean;
   /** True when a vendor-account OAuth credential is stored. */
   hasOauth?: boolean;
+  /** mc-agent: image models a signed-in account reported (Electron main fills it). */
+  accountImageModels?: string[] | null;
   /** Non-secret label for the signed-in account; never carries a token. */
   oauthAccountLabel?: string;
   /**

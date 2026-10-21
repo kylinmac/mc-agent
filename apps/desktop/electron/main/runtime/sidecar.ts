@@ -19,6 +19,9 @@ import {
   loadBuiltinSkillBody,
 } from "../builtin-skills";
 import { createImageGenerationTool } from "../services/image-generation-service";
+import { mergeAccountImageModels, type ProviderPublic } from "@pi-desktop/shared";
+import { createCreativeGenerator, emitCreativeJob, setCreativeGenerator } from "../creative/creative-generation";
+import { measureImage } from "../creative/measure-image";
 import { registerPluginDevTools } from "../plugin-dev-tools";
 import { resolveLocalFile } from "../browser-view";
 import { catalogModelConfigFor } from "../models-dev-catalog";
@@ -561,11 +564,19 @@ export function createSidecarRuntime({
   });
   // Agent-driven work panel preview (D100): open a workspace HTML file in
   // the embedded browser; live reload keeps it current through later edits.
-  s.setLocalTool("GenerateImages", createImageGenerationTool({
+  const imageServiceOptions = {
     dataDir,
     getHost: () => runtimeState.host,
-    resolveAuth: providerId => vendorOAuth.resolveAuth(providerId),
-    resolveImageModel: async (provider, modelId) => {
+    resolveAuth: (providerId: string) => vendorOAuth.resolveAuth(providerId),
+    accountImageModels: async (provider: ProviderPublic) => {
+      const added = await runtimeState.host
+        ?.call<{ models: Record<string, string[]> }>("creative.accountImageModels")
+        .then((answer) => answer.models[provider.id])
+        .catch(() => undefined);
+      const reported = provider.vendorKey === "xai" ? await vendorOAuth.accountImageModels(provider.id) : null;
+      return mergeAccountImageModels(provider.vendorKey, reported, added);
+    },
+    resolveImageModel: async (provider: ProviderPublic, modelId: string) => {
       await modelsDevCatalog.ensureLoaded();
       return modelsDevCatalog.findModelOfType("image", {
         providerId: provider.id, vendorKey: provider.vendorKey, baseUrl: provider.baseUrl, modelId,
@@ -573,7 +584,20 @@ export function createSidecarRuntime({
     },
     // Fake-IP tolerance belongs to the network policy, not to the proxy switch.
     allowFakeIp: () => relaxedNetworkPolicyEnabled(),
+  };
+  // mc-agent: one generation path for the creative studio's form and for this
+  // tool in creative projects (docs/mc-agent/creative-studio.md).
+  const creative = createCreativeGenerator({
+    ...imageServiceOptions,
+    measure: measureImage,
+    onJob: emitCreativeJob,
+  });
+  setCreativeGenerator(creative);
+  s.setLocalTool("GenerateImages", createImageGenerationTool({
+    ...imageServiceOptions,
+    creative: creative.toolRoute,
   }));
+  s.setLocalTool("SaveCreativeAsset", creative.saveAssetTool);
   s.setLocalTool("BrowserPreview", async ({ args, sessionId }) => {
     const raw = String((args as { path?: unknown })?.path ?? "").trim();
     if (!raw) {

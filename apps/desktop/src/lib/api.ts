@@ -1,3 +1,4 @@
+import type { CreativeAsset, CreativeJob, CreativeReferenceUse } from "../features/creative/creative-types";
 import { projectPlanHistory } from "./plan-history";
 import { guardRemoteInvocation } from "./remote-ipc-safety";
 import { isRemoteSession, safeSessionSummary } from "./remote-session-safety";
@@ -1831,6 +1832,39 @@ export const api = {
     invoke<BackgroundShell & { output: string; truncated: boolean }>(IPC.invoke.backgroundShellsView, { sessionId, id }),
   backgroundShellsKill: (sessionId: string, id: string) =>
     invoke<BackgroundShell>(IPC.invoke.backgroundShellsKill, { sessionId, id }),
+  // mc-agent creative studio (docs/mc-agent/creative-studio.md).
+  creative: {
+    call: <T>(method: string, params: Record<string, unknown> = {}) =>
+      invoke<T>(IPC.invoke.creativeCall, { method, params }),
+    generate: (input: {
+      groupId: string;
+      prompt: string;
+      count: number;
+      references: CreativeReferenceUse[];
+      params?: Record<string, unknown>;
+      model?: { providerId: string; modelId: string };
+      category?: string;
+    }) => invoke<{ job: CreativeJob }>(IPC.invoke.creativeGenerate, input),
+    cancel: (jobId: string) => invoke<{ cancelled: boolean }>(IPC.invoke.creativeCancel, { jobId }),
+    importFiles: (groupId: string, files: readonly string[], category = "") =>
+      invoke<{ assets: CreativeAsset[] }>(IPC.invoke.creativeImport, { groupId, paths: files, category }),
+    pickAndImport: (groupId: string, category = "") =>
+      invoke<{ assets: CreativeAsset[] }>(IPC.invoke.creativePickAndImport, { groupId, category }),
+    image: (groupId: string, assetId: string, size: number) =>
+      invoke<{ dataUrl: string | null }>(IPC.invoke.creativeImage, { groupId, assetId, size }),
+    reveal: (groupId: string, assetId: string) =>
+      invoke<{ ok: true }>(IPC.invoke.creativeReveal, { groupId, assetId }),
+    copyImage: (groupId: string, assetId: string) =>
+      invoke<{ ok: boolean }>(IPC.invoke.creativeCopyImage, { groupId, assetId }),
+    /** The project's `creative/` folder in the file manager. */
+    revealStorage: (groupId: string) => invoke<{ ok: true }>(IPC.invoke.creativeReveal, { groupId }),
+    onJob: (listener: (job: CreativeJob) => void) => {
+      if (!window.piDesktop?.on) return () => undefined;
+      return window.piDesktop.on(IPC.event.creativeJob, (payload) =>
+        listener((payload as { job: CreativeJob }).job),
+      );
+    },
+  },
   // mc-agent work-panel terminal (MC-ADR-0005).
   terminalCreate: (input: { tabId: string; cwd: string; cols?: number; rows?: number }) =>
     invoke<{ termId: string; replay: string }>(IPC.invoke.terminalCreate, input),

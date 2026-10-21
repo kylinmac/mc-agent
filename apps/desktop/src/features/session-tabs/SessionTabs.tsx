@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEven
 import { useTranslation } from "react-i18next";
 import { create } from "zustand";
 import { useAppStore } from "../../stores/app-store";
-import { IconClock, IconClose, IconPlug, IconPlus, IconSettings } from "../../components/icons";
+import { IconClock, IconClose, IconPalette, IconPlug, IconPlus, IconSettings } from "../../components/icons";
 import { NotificationCenter } from "../../components/NotificationCenter";
 import { ContextMenu, useContextMenu } from "../../components/ContextMenu";
 import { setSplitDropHint, useSplitView } from "../../lib/mc-split-view";
@@ -41,6 +41,7 @@ function isDefaultTitle(title?: string | null) {
 const PAGE_ICONS: Record<PageTab, ReactNode> = {
   plugins: <IconPlug size={12} aria-hidden />,
   scheduled: <IconClock size={12} aria-hidden />,
+  creative: <IconPalette size={12} aria-hidden />,
   settings: <IconSettings size={12} aria-hidden />,
 };
 
@@ -169,6 +170,7 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
   const pageTitle: Record<PageTab, string> = {
     plugins: t("nav.plugins"),
     scheduled: t("scheduled.title"),
+    creative: t("mcProject.creativeTitle"),
     settings: t("nav.settings"),
   };
   const titleOf = (key: string) => {

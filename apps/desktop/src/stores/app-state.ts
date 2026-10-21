@@ -185,7 +185,7 @@ export type AppState = {
   toasts: ToastItem[];
   notifications: AppNotification[];
   unreadNotificationCount: number;
-  page: "chat" | "scheduled" | "plugins" | "settings";
+  page: "chat" | "scheduled" | "plugins" | "settings" | "creative";
   /** Tab ids come from the shared settings index. */
   settingsTab: SettingsTabId;
   /** Pending row anchor (i18n key) to flash after landing on a settings tab. */
@@ -298,6 +298,8 @@ export type AppState = {
   openProjectPath: (path: string) => Promise<ProjectWorkspace | null>;
   switchProjectPath: (path: string) => Promise<ProjectWorkspace | null>;
   closeProjectPath: (path: string) => Promise<void>;
+  /** mc-agent: list a project in the sidebar without switching to it (creative studio). */
+  showProjectInSidebar: (workspace: { path: string; name: string }) => void;
   clearProject: (opts?: NavigationOptions) => Promise<void>;
   /**
    * Delete a project and its stored sessions on the host, then drop every

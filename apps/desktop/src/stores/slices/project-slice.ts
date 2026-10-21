@@ -243,6 +243,7 @@ export function createProjectSlice({
   | "switchProjectPath"
   | "closeProjectPath"
   | "closeProject"
+  | "showProjectInSidebar"
   | "cloneProject"
   | "openProject"
   | "closeProjectDialog"
@@ -387,6 +388,16 @@ export function createProjectSlice({
       persistCurrentSidebar(get);
     },
     closeProject: async (path) => get().closeProjectPath(path),
+    showProjectInSidebar: (workspace) => {
+      const key = normalizeProjectPath(workspace.path);
+      if (!key || get().openProjectPaths.some((path) => normalizeProjectPath(path) === key)) return;
+      set((state) => ({
+        openProjectPaths: [...state.openProjectPaths, workspace.path],
+        openProjects: upsertWorkspace(state.openProjects, workspace),
+      }));
+      rememberProject({ path: workspace.path, name: workspace.name });
+      persistCurrentSidebar(get);
+    },
 
     cloneProject: async (url) => {
       const intent = runtime.beginNavigationIntent();
