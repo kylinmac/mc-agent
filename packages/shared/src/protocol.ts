@@ -199,6 +199,8 @@ export const IPC = {
     projectResourcesTemplates: "pi-desktop/project-resources/templates",
     sessionContextBreakdown: "pi-desktop/session-info/context-breakdown",
     sessionSystemPrompt: "pi-desktop/session-info/system-prompt",
+    // mc-agent: the user's likely next message after a finished reply.
+    sessionSuggestPrompt: "pi-desktop/session-info/suggest-prompt",
     mcPromptsGet: "pi-desktop/mc-prompts/get",
     mcPromptsSet: "pi-desktop/mc-prompts/set",
     mcUsageSummary: "pi-desktop/mc-usage/summary",

@@ -22,6 +22,8 @@ import {
   delegateWorktreeNote,
   looksLikePseudoToolCall,
   toolResultFromUi,
+  nextPromptSuggestionText,
+  thinkingChangesPromptCache,
   type CompactionStrategy,
   type PluginToolDef,
   type RuntimeMatchConfig,
@@ -12239,5 +12241,88 @@ describe("isolated-session subagent worktrees (ADR 0329)", () => {
     expect(delegateWorktreeNote({ result: "noChanges" }, resume)).toContain("no file changes");
     expect(delegateWorktreeNote({ result: "notMerged", reason: "busy" }, resume)).toContain("busy");
     expect(delegateWorktreeNote({ result: "none" }, resume)).toBe("");
+  });
+});
+
+describe("next-prompt suggestion (mc-agent)", () => {
+  it("repeats the last request exactly, then asks for the next message", async () => {
+    const events: AgentEventEnvelope[] = [];
+    const runtime = createRuntime({ onEvent: (value) => events.push(value as AgentEventEnvelope) });
+    const requests: Array<{ model: unknown; context: { messages: AgentMessage[]; tools?: unknown; systemPrompt?: string }; options: Record<string, unknown> }> = [];
+    const internals = runtime as unknown as {
+      models: { streamSimple: (model: unknown, context: never, options: never) => ReturnType<typeof createAssistantMessageEventStream> };
+    };
+    internals.models = { streamSimple: (model, context, options) => {
+      requests.push({ model, context: context as never, options: options as never });
+      const message = assistantMessage({
+        content: [{ type: "text", text: requests.length === 1 ? "The tests pass." : "“Run the linter too”\nextra" }],
+        stopReason: "stop",
+      }) as unknown as AssistantMessage;
+      const stream = createAssistantMessageEventStream();
+      queueMicrotask(() => {
+        stream.push({ type: "start", partial: message });
+        stream.push({ type: "done", reason: "stop", message });
+        stream.end(message);
+      });
+      return stream;
+    } };
+    try {
+      await runtime.prompt("Run the tests.", "user-1", "turn-1");
+      await vi.waitFor(() => expect(runtime.getStatus().isRunning).toBe(false));
+      expect(requests).toHaveLength(1);
+
+      const suggestion = await runtime.suggestNextPrompt();
+      expect(suggestion).toBe("Run the linter too");
+      expect(requests).toHaveLength(2);
+      const [turn, suggest] = requests;
+      // The cached prefix: same model, system prompt, tools and history.
+      expect(suggest!.model).toBe(turn!.model);
+      expect(suggest!.context.systemPrompt).toBe(turn!.context.systemPrompt);
+      expect(suggest!.context.tools).toEqual(turn!.context.tools);
+      expect(suggest!.context.messages.slice(0, turn!.context.messages.length))
+        .toEqual(turn!.context.messages);
+      expect(suggest!.options.sessionId).toBe(turn!.options.sessionId);
+      // Not Claude: the least thinking the model allows (none for this model).
+      expect(turn!.options.reasoning).toBeDefined();
+      expect(suggest!.options.reasoning).toBeUndefined();
+      // Then the reply and the request.
+      const tail = suggest!.context.messages.slice(turn!.context.messages.length);
+      expect(tail.map((message) => message.role)).toEqual(["assistant", "user"]);
+      expect(JSON.stringify(tail[1])).toContain("Input suggestion request");
+      // Nothing joins the conversation.
+      expect(JSON.stringify(runtime.contextBreakdown())).not.toContain("Input suggestion request");
+      // Asking again for the same reply makes no second request.
+      expect(await runtime.suggestNextPrompt()).toBe("Run the linter too");
+      expect(requests).toHaveLength(2);
+    } finally {
+      await runtime.dispose();
+    }
+  });
+
+  it("suggests nothing before a finished reply", async () => {
+    const runtime = createRuntime();
+    try {
+      expect(await runtime.suggestNextPrompt()).toBeNull();
+    } finally {
+      await runtime.dispose();
+    }
+  });
+
+  it("keeps the thinking setting only where it is part of the cache", () => {
+    expect(thinkingChangesPromptCache({ api: "anthropic-messages", id: "claude-sonnet-4-5" })).toBe(true);
+    expect(thinkingChangesPromptCache({ api: "bedrock-converse-stream", id: "anthropic.claude-opus-4" })).toBe(true);
+    expect(thinkingChangesPromptCache({ api: "bedrock-converse-stream", id: "amazon.nova-pro" })).toBe(false);
+    expect(thinkingChangesPromptCache({ api: "openai-completions", id: "grok-4.7" })).toBe(false);
+    expect(thinkingChangesPromptCache({ api: "openai-codex-responses", id: "gpt-5.5" })).toBe(false);
+  });
+
+  it("keeps only one short line and drops tool calls", () => {
+    const reply = (content: unknown[], stopReason = "stop") =>
+      assistantMessage({ content, stopReason } as never) as unknown as AssistantMessage;
+    expect(nextPromptSuggestionText(reply([{ type: "text", text: "  \n「提交并推送」\n说明" }]))).toBe("提交并推送");
+    expect(nextPromptSuggestionText(reply([{ type: "text", text: "" }]))).toBeNull();
+    expect(nextPromptSuggestionText(reply([{ type: "text", text: "x".repeat(301) }]))).toBeNull();
+    expect(nextPromptSuggestionText(reply([{ type: "toolCall", id: "t", name: "Read", arguments: {} }], "toolUse"))).toBeNull();
+    expect(nextPromptSuggestionText(reply([{ type: "text", text: "partial" }], "aborted"))).toBeNull();
   });
 });

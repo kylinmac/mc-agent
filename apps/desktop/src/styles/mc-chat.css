@@ -26,3 +26,27 @@
   margin: 6px 0 0;
   white-space: pre-wrap;
 }
+
+/* mc-agent: the suggested next message in the empty composer; Tab accepts. */
+.composer-placeholder.composer-suggestion {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.composer-suggestion-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.composer-suggestion-key {
+  flex: 0 0 auto;
+  padding: 0 5px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-3xs);
+  color: var(--ds-text-muted);
+  font-family: inherit;
+  font-size: var(--text-2xs);
+  line-height: var(--leading-body);
+}

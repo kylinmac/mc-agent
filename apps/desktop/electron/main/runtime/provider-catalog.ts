@@ -189,6 +189,7 @@ export function createProviderCatalogRuntime({
       infiniteProviderRetry?: unknown;
       keepAwakeWhileRunning?: unknown;
       jevEnabled?: unknown;
+      promptSuggestions?: unknown;
       updatePreference?: unknown;
       lastNotifiedUpdateVersion?: unknown;
       networkProxy?: unknown;
@@ -214,6 +215,14 @@ export function createProviderCatalogRuntime({
       typeof value.keepAwakeWhileRunning !== "boolean"
     ) {
       throw Object.assign(new Error("keepAwakeWhileRunning is invalid"), {
+        errorCode: ErrorCodes.INVALID_PARAMS,
+      });
+    }
+    if (
+      Object.prototype.hasOwnProperty.call(value, "promptSuggestions") &&
+      typeof value.promptSuggestions !== "boolean"
+    ) {
+      throw Object.assign(new Error("promptSuggestions is invalid"), {
         errorCode: ErrorCodes.INVALID_PARAMS,
       });
     }

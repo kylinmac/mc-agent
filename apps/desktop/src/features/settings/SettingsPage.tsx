@@ -523,6 +523,16 @@ export function SettingsPage() {
                   />
                 </SettingsRow>
                 <SettingsRow
+                  title={t("mcProject.promptSuggestions")}
+                  description={t("mcProject.promptSuggestionsDesc")}
+                >
+                  <SettingsToggle
+                    checked={settings.promptSuggestions === true}
+                    label={t("mcProject.promptSuggestions")}
+                    onChange={() => void saveSettings({ promptSuggestions: settings.promptSuggestions !== true })}
+                  />
+                </SettingsRow>
+                <SettingsRow
                   title={t("settings.infiniteProviderRetry")}
                   description={t("settings.infiniteProviderRetryDesc")}
                 >

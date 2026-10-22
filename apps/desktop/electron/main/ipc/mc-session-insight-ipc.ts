@@ -12,6 +12,8 @@ export type SessionInsightIpcDependencies = {
   getSidecar: () => { call: (method: string, params: Record<string, unknown>) => Promise<unknown> } | null;
   /** Load an idle local session's runtime and return its breakdown, or null. */
   prepareRuntime?: (sessionId: string) => Promise<{ breakdown: unknown } | null>;
+  /** Whether Settings has input suggestions turned on. */
+  suggestionsEnabled?: () => Promise<boolean>;
 };
 
 const MAX_SESSION_ID_LENGTH = 256;
@@ -20,7 +22,12 @@ function invalid(message: string): Error {
   return Object.assign(new Error(message), { errorCode: ErrorCodes.INVALID_ARGUMENT });
 }
 
-export function registerSessionInsightIpc({ registrar, getSidecar, prepareRuntime }: SessionInsightIpcDependencies): void {
+export function registerSessionInsightIpc({
+  registrar,
+  getSidecar,
+  prepareRuntime,
+  suggestionsEnabled,
+}: SessionInsightIpcDependencies): void {
   // mc-agent: estimated context use by kind for one session (sidecar-owned).
   registrar.handle(IPC.invoke.sessionContextBreakdown, async (input: { sessionId?: unknown } = {}) => {
     const sessionId = typeof input?.sessionId === "string" ? input.sessionId.trim() : "";
@@ -60,5 +67,18 @@ export function registerSessionInsightIpc({ registrar, getSidecar, prepareRuntim
     return loaded?.prompt && typeof loaded.prompt === "object"
       ? { prompt: { ...(loaded.prompt as object), template: promptMatchFor(sessionId) } }
       : loaded;
+  });
+
+  // mc-agent: suggest the next message after a finished reply. Only while the
+  // setting is on, and only from a runtime that already ran here: nothing is
+  // launched for it.
+  registrar.handle(IPC.invoke.sessionSuggestPrompt, async (input: { sessionId?: unknown } = {}) => {
+    const sessionId = typeof input?.sessionId === "string" ? input.sessionId.trim() : "";
+    if (!sessionId || sessionId.length > MAX_SESSION_ID_LENGTH) throw invalid("session id required");
+    if (!suggestionsEnabled || !(await suggestionsEnabled())) return { text: null };
+    const sidecar = getSidecar();
+    if (!sidecar) return { text: null };
+    const answer = (await sidecar.call("agent.suggestPrompt", { sessionId })) as { text?: unknown } | null;
+    return { text: typeof answer?.text === "string" && answer.text.trim() ? answer.text : null };
   });
 }

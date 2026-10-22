@@ -43,6 +43,12 @@ export type ComposerInputProps = {
   onSettledInput: () => void;
   onFocus: () => void;
   onBlur: () => void;
+  /** mc-agent: the suggested next message, shown while the draft is empty. */
+  suggestion?: string | null;
+  /** Tab on an empty draft puts the suggestion in it. */
+  onAcceptSuggestion?: () => void;
+  /** Tab hint shown after the suggestion. */
+  suggestionHint?: string;
 };
 
 /** Rich contenteditable input; draft state and async operations stay outside. */
@@ -68,7 +74,11 @@ export function ComposerInput({
   onSettledInput,
   onFocus,
   onBlur,
+  suggestion,
+  onAcceptSuggestion,
+  suggestionHint,
 }: ComposerInputProps) {
+  const showSuggestion = value.length === 0 && Boolean(suggestion);
   useLayoutEffect(() => {
     const editor = inputRef.current;
     return editor ? installComposerDeletionGuard(editor) : undefined;
@@ -151,6 +161,19 @@ export function ComposerInput({
               }
             }
             if (
+              event.key === "Tab" &&
+              !event.shiftKey &&
+              !event.altKey &&
+              !event.metaKey &&
+              !event.ctrlKey &&
+              showSuggestion &&
+              onAcceptSuggestion
+            ) {
+              event.preventDefault();
+              onAcceptSuggestion();
+              return;
+            }
+            if (
               (event.key === "ArrowUp" || event.key === "ArrowDown") &&
               !event.shiftKey &&
               !event.altKey &&
@@ -171,7 +194,12 @@ export function ComposerInput({
             }
           }}
         />
-        {value.length === 0 ? (
+        {showSuggestion ? (
+          <span className="composer-placeholder composer-suggestion" aria-hidden="true">
+            <span className="composer-suggestion-text">{suggestion}</span>
+            {suggestionHint ? <kbd className="composer-suggestion-key">{suggestionHint}</kbd> : null}
+          </span>
+        ) : value.length === 0 ? (
           <span
             key={placeholderKey}
             className="composer-placeholder"

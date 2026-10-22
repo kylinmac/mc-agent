@@ -332,6 +332,12 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
       sidecar.setProjectInstructionRoot(sessionId, launch.workspaceRoot ?? launch.projectPath);
       return sidecar.call("agent.prepare", launch.sidecarParams) as Promise<{ breakdown: unknown }>;
     },
+    suggestionsEnabled: async () => {
+      const host = getHost();
+      if (!host) return false;
+      const settings = await host.call<{ promptSuggestions?: unknown }>("settings.get");
+      return settings?.promptSuggestions === true;
+    },
   });
   registerMcUsageIpc({ registrar, getHost });
   registerMcPermissionsIpc({ registrar, plugins });

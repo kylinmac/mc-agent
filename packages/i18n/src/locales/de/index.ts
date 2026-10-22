@@ -3435,6 +3435,9 @@ sklm: {
     projectPromptChosenHint: "Every conversation in this project uses this template, whatever its model.",
     projectPromptDefaultHint: "Model rules apply; with none, the built-in prompt.",
     projectPromptDefaultHintGlobal: "Model rules apply; with none, the global default “{{name}}”.",
+    promptSuggestions: "Input suggestions",
+    promptSuggestionsDesc: "After a reply, suggest your likely next message as gray text in the empty input; press Tab to use it. Each reply makes one extra request with the conversation's model, mostly read from its prompt cache.",
+    suggestionTabHint: "Tab",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

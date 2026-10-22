@@ -922,6 +922,8 @@ export const api = {
   getSystemPromptConfig: () => invoke<{ config: SystemPromptConfig }>(IPC.invoke.mcPromptsGet),
   setSystemPromptConfig: (config: SystemPromptConfig) =>
     invoke<{ config: SystemPromptConfig }>(IPC.invoke.mcPromptsSet, { config }),
+  sessionSuggestPrompt: (sessionId: string) =>
+    invoke<{ text: string | null }>(IPC.invoke.sessionSuggestPrompt, { sessionId }),
   sessionSystemPrompt: (sessionId: string) =>
     invoke<{ prompt: SessionSystemPrompt | null }>(IPC.invoke.sessionSystemPrompt, { sessionId }),
   sessionContextBreakdown: (sessionId: string) =>

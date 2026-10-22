@@ -51,6 +51,7 @@ import {
   Type,
   type Api,
   type AssistantMessage,
+  type Context,
   type ImageContent,
   type Model,
   type Models,
@@ -223,7 +224,7 @@ import {
   composeModeSystemPrompt,
   DEFAULT_RUNTIME_SYSTEM_PROMPT,
 } from "./mode-prompts.js";
-import { agentThinkingLevel, clampThinkingLevel, omitThinkingModel } from "./thinking-level.js";
+import { agentThinkingLevel, clampThinkingLevel, omitThinkingModel, requestThinkingLevel } from "./thinking-level.js";
 import {
   alignRetainedReasoningIdentity,
   harvestRetainedReasoning,
@@ -927,6 +928,47 @@ const CONTEXT_COMPACTION_TOOL_DESCRIPTION =
  */
 const CONTEXT_COMPACTION_ALREADY_DONE =
   "A new context window was already started in this turn. Do not call new_context again; continue the task, or end your reply if nothing else is needed.";
+/**
+ * mc-agent: the request appended after a finished reply to suggest the user's
+ * next message. Everything before it is the conversation exactly as the last
+ * request sent it, so the provider's prompt cache covers it.
+ */
+const NEXT_PROMPT_SUGGESTION_REQUEST = [
+  "[Input suggestion request from the app, not from the user]",
+  "Predict the next message the user is most likely to send in this conversation.",
+  "Write it as the user would type it, in the language the user writes in, as one short sentence or command.",
+  "Reply with only that text: no quotes, no explanation, no tool calls.",
+  "If there is no clear next step, reply with nothing.",
+].join("\n");
+const NEXT_PROMPT_SUGGESTION_MAX_CHARS = 300;
+const NEXT_PROMPT_SUGGESTION_TIMEOUT_MS = 60_000;
+const NEXT_PROMPT_SUGGESTION_SETTLE_MS = 5_000;
+
+/**
+ * Whether changing the thinking setting would make a request miss the cached
+ * conversation. Claude caches messages per thinking setting; the other wire
+ * APIs cache the input prefix alone, so a suggestion there can think as little
+ * as the model allows and still read the conversation from the cache.
+ */
+export function thinkingChangesPromptCache(model: Pick<Model<Api>, "api" | "id">): boolean {
+  if (model.api === "anthropic-messages") return true;
+  return model.api.startsWith("bedrock") && /claude|anthropic/i.test(model.id);
+}
+
+/** The suggestion text from a model reply, or null when there is none to show. */
+export function nextPromptSuggestionText(message: AssistantMessage): string | null {
+  if (message.stopReason === "error" || message.stopReason === "aborted") return null;
+  if (message.content.some((block) => block.type === "toolCall")) return null;
+  const text = message.content
+    .flatMap((block) => (block.type === "text" ? [block.text] : []))
+    .join("")
+    .trim();
+  const line = text.split(/\r?\n/).find((part) => part.trim())?.trim() ?? "";
+  const unquoted = line.replace(/^["'“”「『](.*)["'“”」』]$/u, "$1").trim();
+  if (!unquoted || unquoted.length > NEXT_PROMPT_SUGGESTION_MAX_CHARS) return null;
+  return unquoted;
+}
+
 const CONTEXT_COMPACTION_TOOL_REPLY: Record<CompactionStrategy, string> = {
   fresh_window:
     "A new context window will start without summarizing conversation history.",
@@ -2021,6 +2063,19 @@ export class DesktopAgentRuntime {
   private pendingModelCompaction = false;
   /** mc-agent: the prompt (turn epoch) a model-requested compaction last ran in. */
   private modelCompactedInEpoch = -1;
+  /** mc-agent: the last model request as sent, for a next-prompt suggestion. */
+  private lastModelRequest?: {
+    model: Model<Api>;
+    context: Context;
+    options?: SimpleStreamOptions;
+    /** The assistant message this request produced, once it ended. */
+    reply?: unknown;
+  };
+  /** mc-agent: the in-flight next-prompt suggestion; a new turn cancels it. */
+  private suggestionAbort?: AbortController;
+  /** mc-agent: the suggestion made for a reply, and one still being made. */
+  private suggestion?: { reply: unknown; text: string | null };
+  private suggestionInFlight?: { reply: unknown; result: Promise<string | null | undefined> };
   /** One-shot request to finish the current turn at the next boundary. */
   private gracefulStopRequested = false;
   /** Codex's `claim_*` flags: one of each reminder per context window. */
@@ -2141,6 +2196,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     const tools = this.declaredTools();
     this.agent = new Agent({
       streamFn: (m, context, options) => {
+        this.lastModelRequest = { model: m, context, options };
         this.setAgentActivity({ phase: "waiting-model", since: Date.now() });
         this.providerResponseStatus = undefined;
         this.providerRetryHeaders = undefined;
@@ -8122,6 +8178,10 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         break;
       }
       case "message_end": {
+        // mc-agent: the reply that answered the last model request.
+        if (event.message.role === "assistant" && this.lastModelRequest) {
+          this.lastModelRequest.reply = event.message;
+        }
         if (event.message.role === "user") {
           const steering = this.pendingSteering.get(event.message);
           const id = steering?.id ?? this.pendingUserMessageId ?? randomUUID();
@@ -8840,6 +8900,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
   ): Promise<{ turnId: string }> {
     if (this.disposed) throw new Error("runtime disposed");
     this.assertNotRunning();
+    this.suggestionAbort?.abort();
     const turnId = durableTurnId?.trim() || randomUUID();
     return this.trackTurnOperation(turnId, () =>
       this.promptTurn(input, userMessageId, turnId),
@@ -9180,6 +9241,137 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
   }
 
   /**
+   * mc-agent: suggest the user's next message after a finished reply.
+   *
+   * The request is the last model request of the turn exactly as it was sent
+   * (system prompt, tools, history, thinking setting, cache key and headers),
+   * then the reply it produced and a short instruction. Only the last two are
+   * new, so a provider with prompt caching reads the rest from its cache. The
+   * answer is never added to the conversation; its usage is recorded on the
+   * turn it follows. Null when there is nothing to suggest or the session is
+   * busy; a new turn cancels a suggestion still in flight.
+   */
+  async suggestNextPrompt(): Promise<string | null> {
+    // The app hears that the reply ended a moment before this runtime has
+    // settled it; wait for that rather than missing the suggestion.
+    const settleBy = Date.now() + NEXT_PROMPT_SUGGESTION_SETTLE_MS;
+    while (!this.disposed && this.getStatus().isRunning && Date.now() < settleBy) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    if (this.disposed || this.getStatus().isRunning) return null;
+    const last = this.lastModelRequest;
+    const reply = this.agent.state.messages.at(-1);
+    if (
+      !last ||
+      !reply ||
+      reply.role !== "assistant" ||
+      reply.stopReason !== "stop" ||
+      reply !== last.reply
+    ) {
+      return null;
+    }
+    // One request per reply: asking again for the same reply costs nothing.
+    if (this.suggestion?.reply === reply) return this.suggestion.text;
+    if (this.suggestionInFlight?.reply === reply) return (await this.suggestionInFlight.result) ?? null;
+    const result = this.requestNextPrompt(last, reply);
+    this.suggestionInFlight = { reply, result };
+    try {
+      const text = await result;
+      if (text !== undefined) this.suggestion = { reply, text };
+      return text ?? null;
+    } finally {
+      if (this.suggestionInFlight?.result === result) this.suggestionInFlight = undefined;
+    }
+  }
+
+  /** The suggestion request itself; undefined when it was cancelled. */
+  private async requestNextPrompt(
+    last: NonNullable<DesktopAgentRuntime["lastModelRequest"]>,
+    reply: AssistantMessage,
+  ): Promise<string | null | undefined> {
+    this.suggestionAbort?.abort();
+    const abort = new AbortController();
+    this.suggestionAbort = abort;
+    const timer = setTimeout(() => abort.abort(), NEXT_PROMPT_SUGGESTION_TIMEOUT_MS);
+    const turnId = this.turnId;
+    const m = last.model;
+    const answered = [
+      ...last.context.messages,
+      ...alignRetainedReasoningIdentity(convertToLlm([reply]), this.reasoningReplayIdentity()),
+    ];
+    const context: Context = {
+      ...last.context,
+      messages: [
+        ...answered,
+        {
+          role: "user",
+          content: [{ type: "text", text: NEXT_PROMPT_SUGGESTION_REQUEST }],
+          timestamp: Date.now(),
+        },
+      ],
+    };
+    const { signal: _runSignal, ...previous } = last.options ?? {};
+    try {
+      const options = withSessionAffinityOptions(
+        this.withExtensionProviderHooks(
+          withProviderHeaders(
+            withOpenCodeSessionHeaders(
+              {
+                ...previous,
+                // The least thinking the model allows, unless that would miss
+                // the cache (see thinkingChangesPromptCache).
+                ...(thinkingChangesPromptCache(m)
+                  ? {}
+                  : { reasoning: requestThinkingLevel(m, "off") }),
+                maxRetries: 0,
+                sessionId: this.sessionId,
+                fetch: providerRequestFetch(m.api, previous.fetch, this.provider.authKind),
+                signal: abort.signal,
+              },
+              { ...openCodeEndpointFromProvider(this.provider, m), sessionId: this.sessionId },
+            ),
+            // Copilot bills by who started a request: the conversation as it
+            // stood after the reply marks this one as the agent's, not the user's.
+            mergeProviderHeaders(
+              copilotRequestHeaders(this.provider, { messages: answered }),
+              this.provider.headers,
+            ),
+            m.api,
+          ),
+          m,
+        ),
+        { provider: this.provider, api: m.api, baseUrl: m.baseUrl, sessionId: this.sessionId },
+      );
+      const stream = accountModelStream(
+        m,
+        () =>
+          this.thinkingLevel === "omit"
+            ? this.models.stream(omitThinkingModel(m), context, {
+                ...options,
+                maxTokens: clampOutputToContext(m, context, options.maxTokens),
+              })
+            : this.models.streamSimple(m, context, {
+                ...options,
+                maxTokens: clampOutputToContext(m, context, options.maxTokens),
+              }),
+        {
+          providerId: this.provider.id,
+          nativeCost: this.provider.modelConfig?.nativeCost,
+          onUsage: (usage) => this.emit({ type: "usage", usage }, turnId),
+        },
+      );
+      const message = await stream.result();
+      if (abort.signal.aborted) return undefined;
+      return nextPromptSuggestionText(message);
+    } catch {
+      return abort.signal.aborted ? undefined : null;
+    } finally {
+      clearTimeout(timer);
+      if (this.suggestionAbort === abort) this.suggestionAbort = undefined;
+    }
+  }
+
+  /**
    * mc-agent: the system prompt this session sends, by section, for the
    * session info panel's viewer, and whether SYSTEM.md / APPEND_SYSTEM.md
    * customize it.
@@ -9255,6 +9447,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     this.hostCloseUnsubscribe?.();
     this.hostCloseUnsubscribe = undefined;
     this.agent.abort();
+    this.suggestionAbort?.abort();
     this.providerRetryAbort?.abort();
     this.cleanupActiveToolProgress();
     if (this.compactionInProgress) this.compactionAborted = true;
