@@ -20,9 +20,6 @@ jobs:
   installer:
     runs-on: windows-latest
     timeout-minutes: 20
-    env:
-      TEMP: ${{ runner.temp }}
-      TMP: ${{ runner.temp }}
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -36,6 +33,9 @@ jobs:
       - run: pnpm --filter @pi-desktop/shared build
       - run: node --test apps/desktop/test/updater-controller.test.mjs apps/desktop/test/update-preference.test.mjs apps/desktop/test/auto-update.test.mjs apps/desktop/test/update-timeout.test.mjs
       - run: node scripts/e2e-windows-installer.mjs
+        env:
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
       - uses: actions/upload-artifact@v7
         if: always()
         with:
