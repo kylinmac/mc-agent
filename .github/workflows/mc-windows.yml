@@ -7,7 +7,7 @@
 # Windows runner from that tag, and uploads the installer, the portable exe,
 # the zip and the updater feed (latest.yml) to the same release.
 #
-# Computer Use has no Windows backend: its plugin is bundled but stays off.
+# Computer Use includes its Windows helper and stays off until enabled.
 # Builds are unsigned, so Windows SmartScreen warns on first launch.
 
 name: mc-agent Windows
@@ -86,6 +86,9 @@ jobs:
           node scripts/build-mc-computer.mjs --release
           cargo test -p mc-computer --locked
 
+      - name: Verify the Windows installer and silent upgrade
+        run: node scripts/e2e-windows-installer.mjs
+
       - name: Bundle the runtime and the app
         working-directory: apps/desktop
         run: |
@@ -95,25 +98,19 @@ jobs:
 
       - name: Package (installer, zip, portable)
         working-directory: apps/desktop
-        # Same packaging as upstream's dist:win, named mc-agent and stamped
-        # with the release version; notify-only like the macOS build.
+        # Branded Setup is the primary download; NSIS handles in-app updates.
+        # Portable EXE / ZIP remain separate optional distributions.
         run: |
           set -euo pipefail
           node ../../scripts/build-desktop-release.mjs win --x64 \
-            "-c.extraMetadata.version=$VERSION" \
-            -c.extraMetadata.mcUpdateDelivery=notify \
-            -c.win.executableName=mc-agent \
-            '-c.win.artifactName=mc-agent-Portable-${version}.${ext}' \
-            '-c.portable.artifactName=mc-agent-Portable-${version}.${ext}' \
-            '-c.nsis.artifactName=mc-agent-Setup-${version}.${ext}' \
-            -c.nsis.shortcutName=mc-agent
+            "-c.extraMetadata.version=$VERSION"
 
       - name: Verify the packages
         working-directory: apps/desktop/release
         run: |
           set -euo pipefail
           ls -la
-          for file in "mc-agent-Setup-$VERSION.exe" "mc-agent-Setup-$VERSION.exe.blockmap" \
+          for file in "mc-agent-Setup-$VERSION.exe" "mc-agent-Update-$VERSION.exe" "mc-agent-Update-$VERSION.exe.blockmap" \
                       "mc-agent-Portable-$VERSION.exe" "mc-agent-Portable-$VERSION.zip" latest.yml; do
             [[ -f "$file" ]] || { echo "::error::missing $file"; exit 1; }
           done
@@ -126,8 +123,14 @@ jobs:
             const asar = require("module").createRequire(require("path").resolve("../package.json"))("@electron/asar");
             const pkg = JSON.parse(asar.extractFile("win-unpacked/resources/app.asar", "package.json").toString());
             if (pkg.version !== process.env.VERSION) throw new Error("app reports " + pkg.version);
-            if (pkg.mcUpdateDelivery !== "notify") throw new Error("app is not notify-only");
-            console.log("app.asar at", pkg.version, "notify-only");
+            if (pkg.mcUpdateDelivery === "notify") throw new Error("Windows must use NSIS updates");
+            const requireDesktop = require("module").createRequire(require("path").resolve("../package.json"));
+            const requireUpdater = require("module").createRequire(requireDesktop.resolve("electron-updater"));
+            const feed = requireUpdater("js-yaml").load(require("fs").readFileSync("latest.yml", "utf8"));
+            const expected = `mc-agent-Update-${process.env.VERSION}.exe`;
+            const digest = require("crypto").createHash("sha512").update(require("fs").readFileSync(expected)).digest("base64");
+            if (feed.path !== expected || feed.sha512 !== digest || !feed.files.some(file => file.url === expected && file.sha512 === digest)) throw new Error("Invalid Windows update feed");
+            console.log("app.asar at", pkg.version, pkg.piDistribution);
           '
 
       - name: Keep the packages as a workflow artifact

@@ -1,0 +1,44 @@
+name: mc-agent Windows installer
+
+on:
+  pull_request:
+    paths:
+      - 'apps/windows-installer/**'
+      - 'apps/desktop/build/installer*'
+      - 'apps/desktop/package.json'
+      - 'apps/desktop/electron/main/updater.ts'
+      - 'packages/i18n/windows-installer/**'
+      - 'scripts/*windows-installer*'
+      - 'scripts/build-desktop-release.mjs'
+      - '.github/workflows/mc-windows*.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  installer:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      # The fixture uses a .NET payload. It does not need node-pty, Electron
+      # native addons, credentials, a model, or an installed mc-agent instance.
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm --filter @pi-desktop/shared build
+      - run: node --test apps/desktop/test/updater-controller.test.mjs apps/desktop/test/update-preference.test.mjs apps/desktop/test/auto-update.test.mjs apps/desktop/test/update-timeout.test.mjs
+      - run: node scripts/e2e-windows-installer.mjs
+        env:
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: windows-installer-previews
+          path: ${{ runner.temp }}/mc-installer-test-*/*.png
+          if-no-files-found: warn

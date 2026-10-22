@@ -748,7 +748,9 @@ export class AppUpdaterController {
     // the shutdown handler must already know this quit is the update restart.
     this.installRequested = true;
     // Fires 'before-quit' first, so host/sidecar shutdown still runs.
-    this.autoUpdater.quitAndInstall(false, true);
+    // Windows updates reuse NSIS's recorded install directory without opening
+    // the first-install wizard. Force a relaunch after the silent update.
+    this.autoUpdater.quitAndInstall(this.platform === "win32", true);
   }
   /** Adopt legacy NSIS cache files before the first update check. */
   reclaimRelocatedUpdateCache(): Promise<void> {
