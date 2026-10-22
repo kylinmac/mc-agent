@@ -184,4 +184,5 @@ host-core 也可作为内部工具子进程启动（`tools::INTERNAL_TOOL_RUNNER
 | 创作界面拆分 | `apps/desktop/src/features/creative/use-grid-selection.ts`（选择、框选、方向键）、`use-asset-actions.ts`（导入、移动、移除、删除文件） |
 | 会话保留 | 计数与来源注册 `apps/desktop/src/lib/session-holds.ts`；React 钩子 `lib/use-held-session.ts`；分栏把列注册为来源（`lib/mc-split-view.ts`），创作聊天用 `useHeldSession` |
 | 系统权限 | Main `electron/main/mc-macos-permissions.ts`、`ipc/mc-permissions-ipc.ts`；页面 `src/features/settings/SystemPermissionsPage.tsx`；类型 `packages/shared/src/types/mac-permissions.ts`；helper 的分项检查在 `crates/mc-computer/src/macos/mod.rs` |
+| Windows 电脑操作（R12） | `crates/mc-computer/src/windows/`：mod 编排与状态、native 窗口／完整性检查、uia 元素树／pattern、input 输入、capture PNG；打包 `scripts/build-mc-computer.mjs`；独立窗口验收 `scripts/e2e-mc-computer-windows.mjs` |
 | 内置插件工具风险 | `electron/main/plugin-runtime.ts` 的 `mcpToolRisk`（只认应用自带插件目录）；manifest `mcpServers[].toolRisk` |

@@ -81,6 +81,11 @@ jobs:
           wait "$host_build_pid"
           trap - EXIT
 
+      - name: Build and test Windows Computer Use helper
+        run: |
+          node scripts/build-mc-computer.mjs --release
+          cargo test -p mc-computer --locked
+
       - name: Bundle the runtime and the app
         working-directory: apps/desktop
         run: |
@@ -115,6 +120,8 @@ jobs:
           grep -q "^version: $VERSION$" latest.yml || { echo "::error::latest.yml is not at $VERSION"; exit 1; }
           [[ -f win-unpacked/mc-agent.exe ]] || { echo "::error::win-unpacked/mc-agent.exe missing"; exit 1; }
           [[ -f win-unpacked/resources/bin/pi-desktop-host-core.exe ]] || { echo "::error::host-core missing"; exit 1; }
+          [[ -f win-unpacked/resources/plugins/mc.computer-use/bin/mc-computer.exe ]] || { echo "::error::Computer Use helper missing"; exit 1; }
+          win-unpacked/resources/plugins/mc.computer-use/bin/mc-computer.exe --version
           node -e '
             const asar = require("module").createRequire(require("path").resolve("../package.json"))("@electron/asar");
             const pkg = JSON.parse(asar.extractFile("win-unpacked/resources/app.asar", "package.json").toString());

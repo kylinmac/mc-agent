@@ -8,20 +8,20 @@
     "en": {
       "name": "Computer Use",
       "description": "Let the agent see and operate desktop apps on this computer: read a window's UI elements and screenshot, click, type, press keys, scroll. Runs entirely on this machine.",
-      "safetyNotes": "When enabled, the agent can read the contents of any app window it opens and send clicks and key presses to it, as if it were you. Reading a window does not ask; every click, key press or other action asks for your approval unless you allow it for the session. It needs the macOS Accessibility and Screen Recording permissions. Nothing is sent anywhere except to the model you chat with. Windows support is not available yet."
+      "safetyNotes": "When enabled, the agent can read the contents of any app window it opens and send clicks and key presses to it, as if it were you. Reading a window does not ask; every click, key press or other action asks for your approval unless you allow it for the session. On macOS it needs Accessibility and Screen Recording permissions. Nothing is sent anywhere except to the model you chat with. Windows supports unlocked desktop apps at the same or lower integrity level; it never elevates or operates the secure desktop."
     },
     "zh-CN": {
       "name": "电脑操作",
       "description": "让 Agent 查看并操作本机的桌面应用：读取窗口的界面元素和截图，点击、输入、按键、滚动。完全在本机运行。",
-      "safetyNotes": "启用后，Agent 能读取它打开的任何应用窗口的内容，并像你一样向它发送点击和按键。读取窗口不需要确认；点击、按键等操作每次都会请你确认，除非你选择本会话允许。需要 macOS 的“辅助功能”和“录屏”权限。除了发给你正在对话的模型，不会发送到任何地方。暂不支持 Windows。"
+      "safetyNotes": "启用后，Agent 能读取它打开的任何应用窗口的内容，并像你一样向它发送点击和按键。读取窗口不需要确认；点击、按键等操作每次都会请你确认，除非你选择本会话允许。macOS 上需要“辅助功能”和“录屏”权限。除了发给你正在对话的模型，不会发送到任何地方。Windows 支持已解锁桌面上同等或更低权限的应用，不自动提权、不操作安全桌面。"
     },
     "zh-TW": {
       "name": "電腦操作",
       "description": "讓 Agent 查看並操作本機的桌面應用：讀取視窗的介面元素和截圖，點擊、輸入、按鍵、捲動。完全在本機執行。",
-      "safetyNotes": "啟用後，Agent 能讀取它打開的任何應用視窗內容，並像你一樣送出點擊和按鍵。讀取視窗不需要確認；點擊、按鍵等操作每次都會請你確認，除非你選擇本工作階段允許。需要 macOS 的「輔助使用」和「螢幕錄製」權限。除了傳給你正在對話的模型，不會傳送到任何地方。暫不支援 Windows。"
+      "safetyNotes": "啟用後，Agent 能讀取它打開的任何應用視窗內容，並像你一樣送出點擊和按鍵。讀取視窗不需要確認；點擊、按鍵等操作每次都會請你確認，除非你選擇本工作階段允許。macOS 上需要「輔助使用」和「螢幕錄製」權限。除了傳給你正在對話的模型，不會傳送到任何地方。Windows 支援已解鎖桌面上同等或更低權限的應用，不自動提升權限、不操作安全桌面。"
     }
   },
-  "safetyNotes": "When enabled, the agent can read the contents of any app window it opens and send clicks and key presses to it, as if it were you. Reading a window does not ask; every click, key press or other action asks for your approval unless you allow it for the session. It needs the macOS Accessibility and Screen Recording permissions. Nothing is sent anywhere except to the model you chat with. Windows support is not available yet.",
+  "safetyNotes": "When enabled, the agent can read the contents of any app window it opens and send clicks and key presses to it, as if it were you. Reading a window does not ask; every click, key press or other action asks for your approval unless you allow it for the session. On macOS it needs Accessibility and Screen Recording permissions. Nothing is sent anywhere except to the model you chat with. Windows supports unlocked desktop apps at the same or lower integrity level; it never elevates or operates the secure desktop.",
   "author": "mc-agent",
   "categories": ["productivity", "official"],
   "enabledByDefault": false,

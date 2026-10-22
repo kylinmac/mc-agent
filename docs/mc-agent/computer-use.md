@@ -1,6 +1,6 @@
 # 电脑操作方案（Computer Use）
 
-**状态：** macOS 实现中，Windows 预留接口；见 [MC-ADR-0014](adr/mc-0014-computer-use.md)
+**状态：** macOS 已有实现；Windows 后端于 2026-10-22 实现并通过独立测试窗口验证，安装版验收未完成；见 [MC-ADR-0014](adr/mc-0014-computer-use.md)
 **需求：** R12
 
 ## 目标
@@ -9,8 +9,8 @@
 
 ## 范围
 
-- **一期（本次）：** macOS 全部动作；作为内置插件提供，可在扩展页启用 / 停用，默认关闭。
-- **预留：** Windows 后端（UI Automation + SendInput + Graphics Capture），接口已定，等 Windows 分析完成后实现。
+- **已实现：** macOS 和 Windows 通过同一个内置插件提供，可在扩展页启用 / 停用，默认关闭。
+- **Windows：** UI Automation + SendInput + GDI 前台窗口可见区域截图；与 macOS 共用 11 个工具和审批通道。2026-10-22 用户确认实现，对应 R12 / P9 / V49。
 - **不做：** 后台观察 / 记忆（Codex 的 Skysight）、锁屏接管、虚拟光标动画、按应用的操作手册、远程开关和遥测。
 
 ## 与 Codex 的对应
@@ -33,8 +33,8 @@
 
 | 工具 | 作用 |
 |---|---|
-| `permissions` | 查看辅助功能、录屏权限；`request: true` 时弹出系统授权 |
-| `list_apps` | 有窗口的运行中应用：名称、bundle id、pid、是否在前台 |
+| `permissions` | macOS 查看辅助功能、录屏权限并可请求；Windows 检查可交互桌面，不弹 macOS 授权页 |
+| `list_apps` | 有窗口的运行中应用：名称、路径、pid、是否在前台；Windows 名称是可执行文件名 |
 | `get_app_state` | 某应用前台窗口的元素树；首次全树，之后只给变化；`full` 要全树，`screenshot` 加截图；应用未运行时先启动 |
 | `click` | 按元素编号或截图坐标点击；左 / 右键，单 / 双击 |
 | `drag` | 从一个坐标拖到另一个坐标 |
@@ -73,17 +73,36 @@ crates/mc-computer/
   src/tools.rs           工具定义与参数解析，与平台无关
   src/backend.rs         Backend 接口与数据类型
   src/macos/             macOS 实现（AX、CGEvent、截图、按键表）
-  src/windows.rs         Windows 后端占位：实现同一接口
+  src/windows/           Windows 实现（mod 编排、native 窗口与权限、uia 元素、input 输入、capture 截图）
 ```
 
-Windows 版只需实现 `Backend`：列应用、取窗口元素树和截图、按元素 / 坐标点击、拖动、输入、按键、滚动、设值、执行动作、权限检查。上层工具、MCP、插件、技能都不用改。
+Windows 版实现相同的 `Backend`；MCP 协议和插件审批契约不变，工具说明与技能补充 Windows 用法。
+
+## Windows 行为与限制
+
+| 项目 | 实现与边界 |
+|---|---|
+| 应用 | 按 `list_apps` 的名称、pid、完整路径定位；同名多进程拒绝猜测，要求 pid。未运行时仅接受绝对本地 `.exe` 路径，不接受参数、脚本或 URL，不经过 shell |
+| 元素 | UI Automation control view，批量缓存属性，深度优先编号；读取上限 1200 个节点、40 层、约 4 秒，单次 provider 请求超时 1 秒；截断有提示。最多缓存 32 个应用状态，刷新时回收关闭窗口及 15 分钟未读的状态 |
+| 操作 | SendInput 的物理像素坐标；前台窗口与落点命中检查；Unicode UTF-16 输入，不改剪贴板；组合键按目标线程键盘布局映射。`ctrl` 是 Control，`win`／`cmd` 是 Windows 键 |
+| 控件动作 | 根据实际 pattern 列出 Invoke、Toggle、Select、Expand、Collapse、ScrollIntoView；ValuePattern 直接设值。密码字段不返回值，不允许自动输入／设值 |
+| 截图 | GDI 截取 DWM 可见窗口边框内的屏幕像素，PNG 长边最多 1280；会包含遮挡物。要求前台且整个窗口在虚拟屏幕内；不提供隐藏／遮挡恢复、最小化后台截图或 DRM 内容捕获 |
+| 坐标 | per-monitor DPI aware v2；截图坐标换算为物理屏幕坐标，支持负坐标。移动／缩放使旧截图坐标失效；元素点击重新读取当前边框 |
+| 权限 | 检查输入桌面和目标进程完整性；高于 helper 的进程、受保护进程、安全桌面／锁屏明确拒绝。不自动提权、不关闭 UAC。`permissions` 的布尔值仅表示桌面当前可用，不保证所有应用都可操作 |
+| 焦点 | 通过系统前台激活和 UIA SetFocus 请求切换，仍未取得目标焦点则失败。操作中焦点变化则停止；用户按住修饰键时不发送自动输入 |
+| 兼容性 | 本轮实测为 WinForms 测试窗口。没有暴露 UIA 的画布仍需截图坐标；其他框架、UWP 跨进程控件、远程会话及混合 DPI 多屏尚未完整验收 |
+
+Windows 原生 API 依据：[UI Automation 超时](https://learn.microsoft.com/en-us/windows/win32/api/uiautomationclient/nf-uiautomationclient-iuiautomation2-put_connectiontimeout)。使用 `windows` 绑定和 `png` 编码依赖，均仅在 Windows 编译；helper 运行时不发网络请求。
 
 ## 改动上游
 
 - `Cargo.toml`：工作区加 `crates/mc-computer`。
-- `apps/desktop/package.json`：macOS 打包把 `target/release/mc-computer` 放进插件目录；构建脚本先编译它。
+- `apps/desktop/package.json` 的既有构建接线：构建脚本先编译 helper，再放进插件目录；macOS 为 `bin/mc-computer`，Windows 为 `bin/mc-computer.exe`。保留 manifest 中无扩展名命令，Windows 的 Node spawn 会解析 `.exe`，已通过真实 stdio 握手测试。
+- `.github/workflows/mc-windows.yml`：发布构建包含 helper 编译、单元测试和包内文件／版本检查。
 
 ## 验证
 
 - 单元测试：MCP 协议、参数解析、按键解析、元素树渲染与 diff、等待稳定、`run` 批量、坐标换算（不依赖系统权限）；`toolRisk` 只对应用自带插件生效。
 - 手动：开发版里启用插件，授权后让 Agent 打开“计算器”算一道题、在“文本编辑”里输入一段话。
+- Windows 自动：`cargo test -p mc-computer --locked`、`cargo clippy -p mc-computer --all-targets --locked -- -D warnings`；`pnpm test:e2e:mc-computer-windows` 构建 helper，并用系统 .NET Framework C# 编译器创建专用 WinForms 窗口，经真实 MCP 测试输入、截图及失败路径，不调用模型、不使用安装版实例。需 x64 Windows 已解锁且可交互桌面；测试准备阶段会将专用窗口临时置顶，并只在确认标题栏命中该窗口后点击激活。
+- 本轮运行：22 项 Rust 单测、Windows 真实窗口 E2E（包括最大化截图与密码框键盘输入拒绝）、独立 Release 构建通过。安装包内启用和审批卡片、真实多屏、UAC／锁屏切换及 macOS 回归未跑，见 V49。
