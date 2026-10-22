@@ -7,8 +7,7 @@
  *   node scripts/build-mc-computer.mjs            debug build (dev)
  *   node scripts/build-mc-computer.mjs --release  release build (packaging)
  *
- * Only macOS has a backend so far; elsewhere the plugin ships without the
- * helper and its MCP server is simply skipped.
+ * macOS and Windows have native backends; other platforms skip the helper.
  */
 import { spawnSync } from "node:child_process";
 import { chmodSync, copyFileSync, mkdirSync } from "node:fs";
@@ -18,19 +17,20 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const release = process.argv.includes("--release");
 
-if (process.platform !== "darwin") {
+if (!["darwin", "win32"].includes(process.platform)) {
   console.log("[mc-computer] skipped: no backend for this platform yet");
   process.exit(0);
 }
 
-const args = ["build", "-p", "mc-computer", ...(release ? ["--release"] : [])];
+const args = ["build", "--locked", "-p", "mc-computer", ...(release ? ["--release"] : [])];
 const built = spawnSync("cargo", args, { cwd: root, stdio: "inherit" });
 if (built.status !== 0) process.exit(built.status ?? 1);
 
-const source = join(root, "target", release ? "release" : "debug", "mc-computer");
+const executable = process.platform === "win32" ? "mc-computer.exe" : "mc-computer";
+const source = join(root, "target", release ? "release" : "debug", executable);
 const targetDir = join(root, "apps", "desktop", "resources", "plugins", "mc.computer-use", "bin");
 mkdirSync(targetDir, { recursive: true });
-const target = join(targetDir, "mc-computer");
+const target = join(targetDir, executable);
 copyFileSync(source, target);
-chmodSync(target, 0o755);
+if (process.platform !== "win32") chmodSync(target, 0o755);
 console.log(`[mc-computer] ${release ? "release" : "debug"} build -> ${target}`);

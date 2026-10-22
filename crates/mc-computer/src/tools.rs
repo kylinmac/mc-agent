@@ -71,7 +71,7 @@ pub struct Tools {
 fn app_param() -> Value {
     json!({
         "type": "string",
-        "description": "The app: its name as list_apps shows it (e.g. \"Calculator\", \"计算器\"), its bundle id, its .app path, or its pid."
+        "description": "The app: its name or pid from list_apps. macOS also accepts a bundle id or .app path. Windows accepts an executable name or an absolute local .exe path (no arguments) to launch it; use pid for ambiguous names."
     })
 }
 
