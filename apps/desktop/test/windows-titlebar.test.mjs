@@ -7,6 +7,18 @@ import { I18nextProvider } from "react-i18next";
 import { catalogs } from "@pi-desktop/i18n";
 import { createServer } from "vite";
 import { fileURLToPath } from "node:url";
+import { loadStyles } from "./helpers/styles.mjs";
+
+test("Windows navigation stays below modal search and above work panels", async () => {
+  const css = await loadStyles();
+  const layer = (selector) => {
+    const rule = css.slice(css.indexOf(`${selector} {`)).split("}")[0];
+    return Number(rule.match(/z-index:\s*(\d+)/)?.[1]);
+  };
+  const navigation = layer(':root[data-platform="win32"] .mc-windows-titlebar-actions');
+  assert.ok(navigation < layer(".app-shell > .search-overlay"), "modal backdrop must cover the navigation buttons");
+  assert.ok(navigation > layer(".work-panel"), "navigation must remain above the work panel");
+});
 
 test("Windows has one persistent notification trigger; other platforms keep the tab trigger", async () => {
   const server = await createServer({

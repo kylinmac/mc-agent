@@ -627,6 +627,10 @@ export class AppUpdaterController {
       });
     });
     this.autoUpdater.on("error", (error: Error) => {
+      if (this.installRequested) {
+        this.installRequested = false;
+        this.autoUpdater.autoInstallOnAppQuit = false;
+      }
       // Auto checks fail quietly (offline, private repo, rate limits);
       // the renderer only surfaces errors when `manual` is set.
       this.logger.app("updater", "warn", "updater error", { data: String(error) });
@@ -750,7 +754,14 @@ export class AppUpdaterController {
     // Fires 'before-quit' first, so host/sidecar shutdown still runs.
     // Windows updates reuse NSIS's recorded install directory without opening
     // the first-install wizard. Force a relaunch after the silent update.
-    this.autoUpdater.quitAndInstall(this.platform === "win32", true);
+    try {
+      this.autoUpdater.quitAndInstall(this.platform === "win32", true);
+    } catch (error: unknown) {
+      this.installRequested = false;
+      this.autoUpdater.autoInstallOnAppQuit = false;
+      this.setState({ status: "error", error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
   }
   /** Adopt legacy NSIS cache files before the first update check. */
   reclaimRelocatedUpdateCache(): Promise<void> {

@@ -101,8 +101,14 @@ test("concurrent starts for one tab share a shell, and quitting kills every shel
   assert.equal(manager.size, 0);
 });
 
-test("the login shell comes from $SHELL", () => {
+test("the login shell comes from $SHELL", { skip: process.platform === "win32" }, () => {
   assert.deepEqual(resolveShell({ SHELL: "/bin/zsh" }), { shell: "/bin/zsh", args: ["-l"] });
+});
+
+test("Windows uses COMSPEC without Unix login flags", { skip: process.platform !== "win32" }, () => {
+  assert.deepEqual(resolveShell({ COMSPEC: "C:\\Windows\\System32\\cmd.exe", SHELL: "/bin/zsh" }),
+    { shell: "C:\\Windows\\System32\\cmd.exe", args: [] });
+  assert.deepEqual(resolveShell({}), { shell: "cmd.exe", args: [] });
 });
 
 test("the IPC only opens shells in folders host-core has on record", async () => {
