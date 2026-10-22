@@ -53,7 +53,7 @@ export function resolveHostBinary(): string {
  * `resources/plugins` to `<resources>/plugins`, and a source checkout reaches
  * the same tree relatively.
  */
-function resolveBuiltinPluginsDir(): string | null {
+export function resolveBuiltinPluginsDir(): string | null {
   const candidates = [
     join(process.resourcesPath || "", "plugins"),
     join(getModuleDirectory(import.meta.url), "../../resources/plugins"),

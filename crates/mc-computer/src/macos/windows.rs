@@ -11,7 +11,9 @@ use super::ffi::*;
 use crate::backend::Screenshot;
 
 /// Longest screenshot side sent to the model.
-const MAX_SIDE: u32 = 1600;
+const MAX_SIDE: u32 = 1280;
+/// JPEG quality (sips `formatOptions`, 0–100).
+const JPEG_QUALITY: &str = "70";
 
 #[derive(Debug, Clone)]
 pub struct WindowInfo {
@@ -78,14 +80,27 @@ pub fn matching(windows: &[WindowInfo], pid: i32, frame: Option<Frame>) -> Optio
     }
 }
 
-/// Width and height from a PNG header.
-pub fn png_size(bytes: &[u8]) -> Option<(u32, u32)> {
-    if bytes.len() < 24 || &bytes[..8] != b"\x89PNG\r\n\x1a\n" || &bytes[12..16] != b"IHDR" {
+/// Width and height from a JPEG's frame header.
+pub fn jpeg_size(bytes: &[u8]) -> Option<(u32, u32)> {
+    if bytes.get(..2)? != [0xFF, 0xD8] {
         return None;
     }
-    let width = u32::from_be_bytes(bytes[16..20].try_into().ok()?);
-    let height = u32::from_be_bytes(bytes[20..24].try_into().ok()?);
-    Some((width, height))
+    let mut at = 2;
+    while at + 9 < bytes.len() {
+        if bytes[at] != 0xFF {
+            return None;
+        }
+        let marker = bytes[at + 1];
+        let length = u16::from_be_bytes([bytes[at + 2], bytes[at + 3]]) as usize;
+        // SOF0–SOF15, except DHT (C4), JPG (C8) and DAC (CC).
+        if (0xC0..=0xCF).contains(&marker) && !matches!(marker, 0xC4 | 0xC8 | 0xCC) {
+            let height = u16::from_be_bytes([bytes[at + 5], bytes[at + 6]]) as u32;
+            let width = u16::from_be_bytes([bytes[at + 7], bytes[at + 8]]) as u32;
+            return Some((width, height));
+        }
+        at += 2 + length;
+    }
+    None
 }
 
 struct TempFile(PathBuf);
@@ -96,9 +111,9 @@ impl Drop for TempFile {
     }
 }
 
-fn temp_png(tag: &str) -> TempFile {
+fn temp_file(tag: &str) -> TempFile {
     let unique = format!(
-        "mc-computer-{}-{}-{tag}.png",
+        "mc-computer-{}-{}-{tag}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -128,39 +143,40 @@ fn path_str(path: &Path) -> Result<&str> {
         .ok_or_else(|| anyhow!("temporary path is not UTF-8"))
 }
 
-/// A PNG of one window (no shadow), scaled down so its long side fits.
+/// A JPEG of one window (no shadow), its long side at most [`MAX_SIDE`].
 pub fn capture(window_id: u32) -> Result<Screenshot> {
-    let shot = temp_png("shot");
+    let shot = temp_file("shot.png");
+    let small = temp_file("small.jpg");
     let id = window_id.to_string();
     run(
         "/usr/sbin/screencapture",
         &["-x", "-o", "-l", &id, "-t", "png", path_str(&shot.0)?],
     )?;
-    let mut target = &shot;
-    let scaled = temp_png("scaled");
-    let bytes = std::fs::read(&shot.0).context("read screenshot")?;
-    let (width, height) = png_size(&bytes).ok_or_else(|| anyhow!("screenshot is not a PNG"))?;
-    if width.max(height) > MAX_SIDE {
-        run(
-            "/usr/bin/sips",
-            &[
-                "-Z",
-                &MAX_SIDE.to_string(),
-                path_str(&shot.0)?,
-                "--out",
-                path_str(&scaled.0)?,
-            ],
-        )?;
-        target = &scaled;
-    }
-    let png = if std::ptr::eq(target, &shot) {
-        bytes
-    } else {
-        std::fs::read(&target.0).context("read scaled screenshot")?
-    };
-    let (width, height) =
-        png_size(&png).ok_or_else(|| anyhow!("scaled screenshot is not a PNG"))?;
-    Ok(Screenshot { png, width, height })
+    let side = MAX_SIDE.to_string();
+    run(
+        "/usr/bin/sips",
+        &[
+            "-s",
+            "format",
+            "jpeg",
+            "-s",
+            "formatOptions",
+            JPEG_QUALITY,
+            "-Z",
+            &side,
+            path_str(&shot.0)?,
+            "--out",
+            path_str(&small.0)?,
+        ],
+    )?;
+    let data = std::fs::read(&small.0).context("read screenshot")?;
+    let (width, height) = jpeg_size(&data).ok_or_else(|| anyhow!("screenshot is not a JPEG"))?;
+    Ok(Screenshot {
+        data,
+        mime: "image/jpeg",
+        width,
+        height,
+    })
 }
 
 #[cfg(test)]
@@ -201,11 +217,12 @@ mod tests {
     }
 
     #[test]
-    fn reads_png_dimensions() {
-        let mut header = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR".to_vec();
-        header.extend_from_slice(&640u32.to_be_bytes());
-        header.extend_from_slice(&480u32.to_be_bytes());
-        assert_eq!(png_size(&header), Some((640, 480)));
-        assert_eq!(png_size(b"nope"), None);
+    fn reads_jpeg_dimensions() {
+        // SOI, an APP0 segment, then SOF0 with height 480 and width 640.
+        let mut bytes = vec![0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x04, 0x00, 0x00];
+        bytes.extend_from_slice(&[0xFF, 0xC0, 0x00, 0x11, 0x08, 0x01, 0xE0, 0x02, 0x80, 0x03]);
+        bytes.extend_from_slice(&[0u8; 8]);
+        assert_eq!(jpeg_size(&bytes), Some((640, 480)));
+        assert_eq!(jpeg_size(b"nope"), None);
     }
 }

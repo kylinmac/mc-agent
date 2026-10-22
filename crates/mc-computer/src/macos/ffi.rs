@@ -18,6 +18,7 @@ pub const kAXErrorSuccess: AXError = 0;
 pub const kAXErrorAPIDisabled: AXError = -25211;
 pub const kAXValueCGPointType: u32 = 1;
 pub const kAXValueCGSizeType: u32 = 2;
+pub const kAXValueAXErrorType: u32 = 5;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
@@ -67,6 +68,17 @@ extern "C" {
         attribute: CFStringRef,
         value: *mut CFTypeRef,
     ) -> AXError;
+    pub fn AXUIElementCopyMultipleAttributeValues(
+        element: AXUIElementRef,
+        attributes: CFArrayRef,
+        options: u32,
+        values: *mut CFArrayRef,
+    ) -> AXError;
+    pub fn AXUIElementIsAttributeSettable(
+        element: AXUIElementRef,
+        attribute: CFStringRef,
+        settable: *mut u8,
+    ) -> AXError;
     pub fn AXUIElementCopyActionNames(element: AXUIElementRef, names: *mut CFArrayRef) -> AXError;
     pub fn AXUIElementSetAttributeValue(
         element: AXUIElementRef,
@@ -80,6 +92,7 @@ extern "C" {
     pub static kAXTrustedCheckOptionPrompt: CFStringRef;
     pub fn AXValueGetValue(value: AXValueRef, the_type: u32, out: *mut c_void) -> u8;
     pub fn AXValueGetTypeID() -> CFTypeID;
+    pub fn AXValueGetType(value: AXValueRef) -> u32;
 }
 
 #[link(name = "CoreGraphics", kind = "framework")]
@@ -109,5 +122,6 @@ extern "C" {
     pub fn CGEventPost(tap: u32, event: CGEventRef);
     pub fn CGWindowListCopyWindowInfo(option: u32, relative_to: u32) -> CFArrayRef;
     pub fn CGPreflightScreenCaptureAccess() -> bool;
+    pub fn CGSessionCopyCurrentDictionary() -> CFDictionaryRef;
     pub fn CGRequestScreenCaptureAccess() -> bool;
 }

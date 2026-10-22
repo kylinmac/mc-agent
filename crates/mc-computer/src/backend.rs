@@ -43,15 +43,21 @@ pub struct Element {
     pub value: Option<String>,
     pub description: Option<String>,
     pub placeholder: Option<String>,
+    pub url: Option<String>,
     pub enabled: bool,
     pub focused: bool,
     pub selected: bool,
+    /// The value can be set directly (text fields, switches, sliders).
+    pub settable: bool,
+    /// Disclosure state, for elements that have one.
+    pub expanded: Option<bool>,
     pub actions: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Screenshot {
-    pub png: Vec<u8>,
+    pub data: Vec<u8>,
+    pub mime: &'static str,
     pub width: u32,
     pub height: u32,
 }
@@ -62,9 +68,6 @@ pub struct AppState {
     pub window_title: Option<String>,
     /// Depth-first; an element's index is its position here.
     pub elements: Vec<Element>,
-    /// Stopped early because the tree was larger than the limit.
-    pub truncated: bool,
-    pub screenshot: Option<Screenshot>,
     /// Things the model should know (missing permission, no window…).
     pub notes: Vec<String>,
 }
@@ -100,9 +103,12 @@ pub enum Direction {
 pub trait Backend {
     fn permissions(&mut self, request: bool) -> Result<Permissions>;
     fn list_apps(&mut self) -> Result<Vec<AppInfo>>;
-    /// The app's front window: element tree and screenshot. Launches the app
-    /// when it is not running.
-    fn app_state(&mut self, app: &str, screenshot: bool) -> Result<AppState>;
+    /// The app's front window as an element tree. Launches the app when it is
+    /// not running. Element indices stay valid until the next state.
+    fn app_state(&mut self, app: &str) -> Result<AppState>;
+    /// A picture of the window of the app's latest state; its pixels become
+    /// the coordinate space for point targets.
+    fn screenshot(&mut self, app: &str) -> Result<Screenshot>;
     fn click(&mut self, app: &str, target: Target, button: MouseButton, count: u32) -> Result<()>;
     fn drag(&mut self, app: &str, from: Point, to: Point) -> Result<()>;
     fn type_text(&mut self, app: &str, text: &str) -> Result<()>;
@@ -116,8 +122,8 @@ pub trait Backend {
     ) -> Result<()>;
     fn set_value(&mut self, app: &str, element: usize, value: &str) -> Result<()>;
     fn perform_action(&mut self, app: &str, element: usize, action: &str) -> Result<()>;
-    /// Let the UI settle after an action.
-    fn settle(&mut self, millis: u64) {
+    /// Wait; a backend under test records it instead.
+    fn sleep(&mut self, millis: u64) {
         std::thread::sleep(std::time::Duration::from_millis(millis));
     }
 }

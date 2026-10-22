@@ -70,6 +70,15 @@ export function validateMcpServer(raw: unknown): McpValidationResult {
     return { ok: false, error: `mcp server "${server.id}" transport must be "stdio" or "http"` };
   }
   const label = `mcp server "${server.id}"`;
+  if (server.toolRisk !== undefined) {
+    const risks = server.toolRisk as unknown;
+    if (
+      !risks || typeof risks !== "object" || Array.isArray(risks) ||
+      Object.values(risks).some((risk) => risk !== "low" && risk !== "medium" && risk !== "high")
+    ) {
+      return { ok: false, error: `${label} toolRisk must map tool names to "low", "medium" or "high"` };
+    }
+  }
 
   if (server.transport === "stdio") {
     if (server.url !== undefined || server.headers !== undefined) {

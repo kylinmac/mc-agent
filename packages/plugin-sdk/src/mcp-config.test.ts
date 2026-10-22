@@ -41,6 +41,21 @@ describe("validateMcpServer (stdio)", () => {
     ).toMatch(/must not set url/);
   });
 
+  it("accepts a per-tool risk map and rejects other values", () => {
+    expect(
+      validateMcpServer({
+        id: "a",
+        transport: "stdio",
+        command: "bin/x",
+        toolRisk: { read: "low", act: "medium", wipe: "high" },
+      }).ok,
+    ).toBe(true);
+    expect(error({ id: "a", transport: "stdio", command: "bin/x", toolRisk: { read: "none" } })).toMatch(
+      /toolRisk/,
+    );
+    expect(error({ id: "a", transport: "stdio", command: "bin/x", toolRisk: ["low"] })).toMatch(/toolRisk/);
+  });
+
   it("rejects bad env keys and reference shapes", () => {
     expect(error({ id: "a", transport: "stdio", command: "x", env: { "BAD-KEY": "1" } })).toMatch(
       /not allowed/,

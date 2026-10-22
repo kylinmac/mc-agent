@@ -53,7 +53,7 @@ import { BrowserHost, BROWSER_PLUGIN_ID } from "../browser-host";
 import { OAUTH_AUTH_KIND, type VendorOAuth } from "../oauth";
 import type { ClipboardHistory } from "../clipboard-history";
 import type { TurnEndedPayload } from "../runtime/session-coordination";
-import type { HostProcess } from "../host-process";
+import { resolveBuiltinPluginsDir, type HostProcess } from "../host-process";
 import type { Logger } from "../logger";
 import type { PluginAppearance } from "../../shared/plugin-panel-chrome";
 
@@ -203,6 +203,7 @@ export function createPluginServices({
     onEvent: (pluginId, event) => plugins.deliverSocketEvent(pluginId, event),
   });
   const plugins: PluginRuntime = new PluginRuntime({
+    builtinPluginsDir: resolveBuiltinPluginsDir(),
     pluginShortcuts,
     pluginSockets,
     providerOAuthPrompt: (pluginId, loginId, input) =>

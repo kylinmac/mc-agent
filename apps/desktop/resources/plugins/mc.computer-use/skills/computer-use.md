@@ -1,6 +1,6 @@
 ---
 name: Computer Use
-description: Operate desktop apps on this computer (macOS) — look at a window, click, type, press keys, scroll. Load before using the computer tools.
+description: Operate desktop apps on this computer (macOS) — read a window, click, type, press keys, scroll, several steps per call. Load before using the computer tools.
 ---
 
 # Computer Use
@@ -9,13 +9,14 @@ Use the `computer` tools when the user asks you to do something in a desktop app
 
 ## How to work
 
-1. **Look first.** `get_app_state` with the app's name returns a numbered element tree and a screenshot of its front window, and launches the app if needed. Use `list_apps` when unsure of the name (names can be localized, e.g. 计算器).
-2. **Act by element.** Pass `element_index` from the latest state. Use `x`/`y` (screenshot pixels, origin at the window's top-left) only when nothing in the tree fits. Indices are only valid for the app's latest state.
-3. **Read the result.** Every action returns the new state. Check that it did what you meant before the next step; if not, try another way rather than repeating the same action.
-4. **Text.** For a text field: `set_value` replaces its contents directly; otherwise click it, then `type_text`. `press_key` takes chords like `cmd+a`, `cmd+c`, `Return`, `Escape`, `Tab`.
-5. **Menus and lists.** `perform_action` with an action the state line lists (`ShowMenu`, `Increment`, `Pick`…). Scroll with `scroll` when the element you need is not in the tree.
-6. **Permissions.** If a tool says Accessibility or Screen Recording is off, tell the user exactly which setting to turn on (`permissions` with `request: true` opens it). Do not try to work around it.
-7. Keep going until the task is done or you need the user. Do not narrate every click; report what you did and what you found.
+1. **Look first.** `get_app_state` with the app's name returns its front window as a numbered element tree (`12 button Save`, `30 text field (settable) hello`) and launches the app if needed. Use `list_apps` when unsure of the name (names can be localized, e.g. 计算器; a bundle id like `com.apple.calculator` also works).
+2. **Read changes, not the whole tree.** After the first state, every state lists only what changed: `~` changed and `+` added lines with their IDs, removed IDs as ranges, and the focused element. An element that is not listed kept its ID. Pass `full: true` when you need the whole tree again (for example after losing track).
+3. **Batch.** When the elements you need are already in the state, do the steps in one `run` call: `[{"do":"click","element_index":14},{"do":"click","element_index":22},{"do":"press_key","key":"Return"}]`. IDs refer to the state before the run, so end the batch at a step that changes what is on screen (opens a dialog, a page, a menu) and look at the result before going on.
+4. **Act by element.** Prefer `element_index`. A screenshot (`screenshot: true` on any state or action) is only for what the tree does not show (canvas, images, layout); then `x`/`y` are pixels in that screenshot, origin at the window's top-left.
+5. **Text.** `set_value` replaces a settable field's contents directly; otherwise click the field, then `type_text`. `press_key` takes chords like `cmd+a`, `cmd+c`, `Return`, `Escape`, `Tab`.
+6. **Menus and controls.** `perform_action` runs one of the element's `Secondary Actions` (`Raise`, `Expand`, `Increment`, an app's own action name). Right-click with `click` and `mouse_button: "right"`. Scroll with `scroll` when the element you need is not in the tree.
+7. **Permissions and the lock screen.** If a tool says Accessibility or Screen Recording is off, tell the user exactly which setting to turn on (`permissions` with `request: true` opens it). If it says the screen is locked, ask the user to unlock it. Do not try to work around either.
+8. Keep going until the task is done or you need the user. Do not narrate every click; report what you did and what you found.
 
 ## Safety
 

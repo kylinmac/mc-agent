@@ -316,6 +316,11 @@ export type PluginHostServices = {
   agentExtensionsChanged?: () => void;
   getLocale?: () => string;
   getAppVersion?: () => string;
+  /**
+   * mc-agent: the folder of plugins this build ships. Only a plugin loaded
+   * from it may lower the risk of its own MCP tools (MC-ADR-0014).
+   */
+  builtinPluginsDir?: string | null;
   /** Legacy host-owned prompt enhancement settings, used only for one-time migration. */
   getLegacyPromptEnhancementSettings?: () =>
     | LegacyPromptEnhancementSettings
@@ -3958,8 +3963,9 @@ export class PluginRuntime {
           name,
           description:
             tool.description ?? `${server.label ?? server.id} tool "${tool.name}" (MCP)`,
-          // Remote code the desktop cannot inspect; never silently auto-approved.
-          risk: "medium",
+          // Remote code the desktop cannot inspect; never silently auto-approved,
+          // unless a plugin this build ships declares the tool read-only.
+          risk: this.mcpToolRisk(loaded, server.toolRisk, tool.name),
           schema: tool.inputSchema,
           execute: async (toolArgs, ctx) => this.mcpCalls.run(
             ctx?.sessionId,
@@ -3970,6 +3976,23 @@ export class PluginRuntime {
       }
     }
     if (clients.length) this.mcpClients.set(pluginId, clients);
+  }
+
+  /**
+   * mc-agent: the risk of one MCP tool. A shipped plugin may declare it in
+   * `toolRisk` (MC-ADR-0014); every other plugin's tools stay medium.
+   */
+  private mcpToolRisk(
+    loaded: LoadedPlugin,
+    declared: Record<string, string> | undefined,
+    tool: string,
+  ): "low" | "medium" | "high" {
+    const risk = declared?.[tool];
+    const builtin = this.services.builtinPluginsDir;
+    if (!builtin || loaded.development || (risk !== "low" && risk !== "high")) return "medium";
+    const inside = relative(resolve(builtin), resolve(loaded.path));
+    if (!inside || inside.startsWith("..") || isAbsolute(inside)) return "medium";
+    return risk;
   }
 
   private skipMcpServer(

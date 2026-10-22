@@ -90,10 +90,6 @@ pub fn text(element: CFTypeRef, name: &str) -> Option<String> {
         .filter(|text| !text.trim().is_empty())
 }
 
-pub fn flag(element: CFTypeRef, name: &str) -> Option<bool> {
-    attribute(element, name).and_then(|value| cf::to_bool(value.raw()))
-}
-
 pub fn pid(element: CFTypeRef) -> Option<i32> {
     let mut pid = 0;
     // SAFETY: plain out-parameter.
@@ -184,45 +180,184 @@ pub fn front_window(app: CFTypeRef) -> Option<Cf> {
         })
 }
 
-fn describe(element: CFTypeRef, depth: usize) -> Element {
-    let role = text(element, "AXRole").unwrap_or_else(|| "AXUnknown".into());
-    let value = text(element, "AXValue");
-    Element {
+/// Attributes read for every element, in one request each (`Attrs` keeps
+/// their order).
+const ATTRIBUTES: [&str; 13] = [
+    "AXRole",
+    "AXSubrole",
+    "AXTitle",
+    "AXValue",
+    "AXDescription",
+    "AXHelp",
+    "AXPlaceholderValue",
+    "AXEnabled",
+    "AXFocused",
+    "AXSelected",
+    "AXExpanded",
+    "AXURL",
+    "AXChildren",
+];
+
+/// Roles whose value the model may set directly.
+const SETTABLE_ROLES: [&str; 8] = [
+    "AXTextField",
+    "AXTextArea",
+    "AXComboBox",
+    "AXCheckBox",
+    "AXSlider",
+    "AXIncrementor",
+    "AXDateField",
+    "AXSearchField",
+];
+
+/// Roles whose actions are only scrolling or plain press: not worth a request.
+const NO_ACTION_ROLES: [&str; 10] = [
+    "AXStaticText",
+    "AXImage",
+    "AXGroup",
+    "AXScrollArea",
+    "AXSplitGroup",
+    "AXSplitter",
+    "AXCell",
+    "AXColumn",
+    "AXLayoutArea",
+    "AXUnknown",
+];
+
+/// The attribute names as one CFArray, reused for the whole walk.
+pub struct Attrs {
+    names: Cf,
+    value_key: Cf,
+}
+
+impl Attrs {
+    pub fn new() -> Self {
+        Self {
+            names: cf::string_array(&ATTRIBUTES),
+            value_key: cf::string("AXValue"),
+        }
+    }
+}
+
+/// Every attribute in [`ATTRIBUTES`] order; `None` where the element has none.
+fn read_all(element: CFTypeRef, attrs: &Attrs) -> Vec<Option<Cf>> {
+    let mut values: CFArrayRef = std::ptr::null();
+    // SAFETY: out-parameter receives a +1 array on success.
+    let code = unsafe {
+        AXUIElementCopyMultipleAttributeValues(
+            element,
+            attrs.names.raw() as CFArrayRef,
+            0,
+            &mut values,
+        )
+    };
+    let batch = (code == kAXErrorSuccess)
+        .then(|| Cf::owned(values as CFTypeRef))
+        .flatten()
+        .map(|values| cf::array_items(values.raw()))
+        .filter(|items| items.len() == ATTRIBUTES.len());
+    let Some(items) = batch else {
+        // Some apps do not answer the batch request; ask one by one.
+        return ATTRIBUTES
+            .iter()
+            .map(|name| attribute(element, name))
+            .collect();
+    };
+    items
+        .into_iter()
+        .map(|value| {
+            // SAFETY: type checked before reading the AXValue kind.
+            let failed = unsafe {
+                CFGetTypeID(value.raw()) == AXValueGetTypeID()
+                    && AXValueGetType(value.raw()) == kAXValueAXErrorType
+            };
+            (!failed).then_some(value)
+        })
+        .collect()
+}
+
+fn settable(element: CFTypeRef, attrs: &Attrs) -> bool {
+    let mut out = 0u8;
+    // SAFETY: plain out-parameter; live element and key.
+    let code = unsafe {
+        AXUIElementIsAttributeSettable(element, attrs.value_key.raw() as CFStringRef, &mut out)
+    };
+    code == kAXErrorSuccess && out != 0
+}
+
+/// One element, and its children to walk.
+fn describe(element: CFTypeRef, depth: usize, attrs: &Attrs) -> (Element, Vec<Cf>) {
+    let values = read_all(element, attrs);
+    let text = |i: usize| {
+        values[i]
+            .as_ref()
+            .and_then(|value| cf::to_text(value.raw()))
+            .filter(|text| !text.trim().is_empty())
+    };
+    let boolean = |i: usize| {
+        values[i]
+            .as_ref()
+            .and_then(|value| cf::to_bool(value.raw()))
+    };
+    let role = text(0).unwrap_or_else(|| "AXUnknown".into());
+    let subrole = text(1);
+    let value = text(3);
+    let children = if role == "AXColumn" {
+        // A column repeats the cells its rows already list.
+        Vec::new()
+    } else {
+        values[12]
+            .as_ref()
+            .map(|list| cf::array_items(list.raw()))
+            .unwrap_or_default()
+    };
+    let settable_role =
+        SETTABLE_ROLES.contains(&role.as_str()) || subrole.as_deref() == Some("AXSearchField");
+    let element_out = Element {
         depth,
-        subrole: text(element, "AXSubrole"),
-        title: text(element, "AXTitle"),
+        title: text(2),
         // Secure fields report bullets; never echo their contents.
-        value: if role == "AXSecureTextField" {
+        value: if role == "AXSecureTextField" || subrole.as_deref() == Some("AXSecureTextField") {
             value.map(|_| "••••".into())
         } else {
             value
         },
-        description: text(element, "AXDescription").or_else(|| text(element, "AXHelp")),
-        placeholder: text(element, "AXPlaceholderValue"),
-        enabled: flag(element, "AXEnabled").unwrap_or(true),
-        focused: flag(element, "AXFocused").unwrap_or(false),
-        selected: flag(element, "AXSelected").unwrap_or(false),
-        actions: actions(element),
+        description: text(4).or_else(|| text(5)),
+        placeholder: text(6),
+        url: text(11),
+        enabled: boolean(7).unwrap_or(true),
+        focused: boolean(8).unwrap_or(false),
+        selected: boolean(9).unwrap_or(false),
+        expanded: boolean(10),
+        settable: settable_role && settable(element, attrs),
+        actions: if NO_ACTION_ROLES.contains(&role.as_str()) {
+            Vec::new()
+        } else {
+            actions(element)
+        },
+        subrole,
         role,
-    }
+    };
+    (element_out, children)
 }
 
-/// Depth-first walk from `root`: the described elements, the handles that
+/// Depth-first walk from `roots`: the described elements, the handles that
 /// back their indices, and whether the walk stopped at the limit.
-pub fn walk(root: Cf) -> (Vec<Element>, Vec<Cf>, bool) {
+pub fn walk(roots: Vec<Cf>) -> (Vec<Element>, Vec<Cf>, bool) {
+    let attrs = Attrs::new();
     let mut elements = Vec::new();
     let mut handles = Vec::new();
     let mut truncated = false;
     // Explicit stack, children pushed in reverse to keep document order.
-    let mut stack: Vec<(Cf, usize)> = vec![(root, 0)];
+    let mut stack: Vec<(Cf, usize)> = roots.into_iter().rev().map(|root| (root, 0)).collect();
     while let Some((element, depth)) = stack.pop() {
         if elements.len() >= MAX_ELEMENTS {
             truncated = true;
             break;
         }
-        elements.push(describe(element.raw(), depth));
+        let (described, mut kids) = describe(element.raw(), depth, &attrs);
+        elements.push(described);
         if depth < MAX_DEPTH {
-            let mut kids = children(element.raw());
             if kids.len() > MAX_CHILDREN {
                 kids.truncate(MAX_CHILDREN);
                 truncated = true;

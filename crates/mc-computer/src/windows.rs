@@ -21,7 +21,7 @@
 use anyhow::{anyhow, Result};
 
 use crate::backend::{
-    AppInfo, AppState, Backend, Direction, MouseButton, Permissions, Point, Target,
+    AppInfo, AppState, Backend, Direction, MouseButton, Permissions, Point, Screenshot, Target,
 };
 use crate::keys::KeyChord;
 
@@ -44,7 +44,10 @@ impl Backend for WindowsBackend {
     fn list_apps(&mut self) -> Result<Vec<AppInfo>> {
         not_yet()
     }
-    fn app_state(&mut self, _app: &str, _screenshot: bool) -> Result<AppState> {
+    fn app_state(&mut self, _app: &str) -> Result<AppState> {
+        not_yet()
+    }
+    fn screenshot(&mut self, _app: &str) -> Result<Screenshot> {
         not_yet()
     }
     fn click(

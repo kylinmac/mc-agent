@@ -657,6 +657,11 @@ export type PluginMcpServerContrib = {
   /** http only: an absolute `http://` or `https://` endpoint. */
   url?: string;
   headers?: Record<string, string | { setting: string }>;
+  /**
+   * mc-agent: approval risk per tool name. Honoured only for plugins the app
+   * ships; for any other plugin every MCP tool stays "medium".
+   */
+  toolRisk?: Record<string, "low" | "medium" | "high">;
 };
 
 export type PluginServiceContrib = {

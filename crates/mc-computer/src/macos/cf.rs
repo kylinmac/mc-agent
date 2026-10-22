@@ -3,7 +3,8 @@
 use std::ffi::c_void;
 
 use core_foundation_sys::array::{
-    CFArrayGetCount, CFArrayGetTypeID, CFArrayGetValueAtIndex, CFArrayRef,
+    kCFTypeArrayCallBacks, CFArrayCreate, CFArrayGetCount, CFArrayGetTypeID,
+    CFArrayGetValueAtIndex, CFArrayRef,
 };
 use core_foundation_sys::base::{kCFAllocatorDefault, CFGetTypeID, CFRelease, CFRetain, CFTypeRef};
 use core_foundation_sys::dictionary::{
@@ -118,10 +119,41 @@ pub fn to_bool(raw: CFTypeRef) -> Option<bool> {
     unsafe { is(raw, CFBooleanGetTypeID()).then(|| CFBooleanGetValue(raw as CFBooleanRef)) }
 }
 
-/// A short text form of a string, number or boolean value.
+/// A new CFArray of CFStrings.
+pub fn string_array(items: &[&str]) -> Cf {
+    let strings: Vec<Cf> = items.iter().map(|item| string(item)).collect();
+    let raws: Vec<CFTypeRef> = strings.iter().map(Cf::raw).collect();
+    // SAFETY: the array retains its items; `strings` releases ours after.
+    let array = unsafe {
+        CFArrayCreate(
+            kCFAllocatorDefault,
+            raws.as_ptr(),
+            raws.len() as isize,
+            &kCFTypeArrayCallBacks,
+        )
+    };
+    Cf::owned(array as CFTypeRef).expect("CFArrayCreate")
+}
+
+/// The string form of a CFURL.
+fn url_text(raw: CFTypeRef) -> Option<String> {
+    use core_foundation_sys::url::{CFURLGetString, CFURLGetTypeID};
+    // SAFETY: type checked; CFURLGetString returns a borrowed string.
+    unsafe {
+        if !is(raw, CFURLGetTypeID()) {
+            return None;
+        }
+        to_string(CFURLGetString(raw as _) as CFTypeRef)
+    }
+}
+
+/// A short text form of a string, URL, number or boolean value.
 pub fn to_text(raw: CFTypeRef) -> Option<String> {
     if let Some(text) = to_string(raw) {
         return Some(text);
+    }
+    if let Some(url) = url_text(raw) {
+        return Some(url);
     }
     if let Some(flag) = to_bool(raw) {
         return Some(flag.to_string());

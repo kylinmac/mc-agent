@@ -33,6 +33,7 @@ const LAUNCH_TIMEOUT: Duration = Duration::from_secs(8);
 
 const ACCESSIBILITY_GUIDE: &str = "Accessibility is off: open System Settings → Privacy & Security → Accessibility and turn on mc-agent (a development build shows as PI-Desktop or Electron), then try again.";
 const SCREEN_GUIDE: &str = "Screen Recording is off, so there is no screenshot: open System Settings → Privacy & Security → Screen & System Audio Recording and turn on mc-agent (PI-Desktop or Electron for a development build). The element tree still works.";
+const LOCKED: &str = "The screen is locked, so app windows cannot be read or used. Ask the user to unlock the Mac, then try again.";
 
 #[derive(Debug, Clone)]
 struct RunningApp {
@@ -46,6 +47,8 @@ struct Session {
     handles: Vec<Cf>,
     /// The window in screen points.
     window: Option<Frame>,
+    /// The window server's id for it, for screenshots.
+    window_id: Option<u32>,
     /// Pixel size of the screenshot the model saw, if any.
     shot: Option<(u32, u32)>,
 }
@@ -87,12 +90,24 @@ fn accessibility_trusted(prompt: bool) -> bool {
     }
 }
 
+fn screen_locked() -> bool {
+    // SAFETY: returns a +1 dictionary (or null); read, then released.
+    let session = unsafe { CGSessionCopyCurrentDictionary() };
+    let Some(session) = Cf::owned(session as CFTypeRef) else {
+        return false;
+    };
+    cf::to_bool(cf::dict_get(session.raw(), "CGSSessionScreenIsLocked")).unwrap_or(false)
+}
+
+/// Accessibility is on and the screen can be used.
 fn require_accessibility() -> Result<()> {
-    if accessibility_trusted(false) {
-        Ok(())
-    } else {
-        Err(anyhow!(ACCESSIBILITY_GUIDE))
+    if !accessibility_trusted(false) {
+        return Err(anyhow!(ACCESSIBILITY_GUIDE));
     }
+    if screen_locked() {
+        return Err(anyhow!(LOCKED));
+    }
+    Ok(())
 }
 
 /// The `.app` bundle a process runs from, if any.
@@ -225,6 +240,9 @@ fn resolve(query: &str) -> Result<RunningApp> {
 }
 
 fn activate(app: &RunningApp) {
+    if frontmost_pid() == Some(app.pid) {
+        return;
+    }
     if let Some(element) = ax::application(app.pid) {
         if ax::set_frontmost(element.raw()).is_ok() {
             sleep(Duration::from_millis(150));
@@ -334,7 +352,7 @@ impl Backend for MacBackend {
             .collect())
     }
 
-    fn app_state(&mut self, app: &str, screenshot: bool) -> Result<AppState> {
+    fn app_state(&mut self, app: &str) -> Result<AppState> {
         require_accessibility()?;
         let app = resolve(app)?;
         let element = ax::application(app.pid)
@@ -359,51 +377,73 @@ impl Backend for MacBackend {
                 app: info,
                 window_title: None,
                 elements: vec![],
-                truncated: false,
-                screenshot: None,
                 notes,
             });
         };
+        // While the screen is locked (or the session is otherwise cut off)
+        // macOS answers for every window with the app itself.
+        if ax::text(window.raw(), "AXRole").as_deref() == Some("AXApplication") {
+            self.sessions.remove(&app.pid);
+            return Err(anyhow!(if screen_locked() {
+                LOCKED
+            } else {
+                "macOS is not showing this app's windows to accessibility right now (the screen may be locked or asleep). Ask the user to check the screen, then try again."
+            }));
+        }
         let title = ax::text(window.raw(), "AXTitle");
         let ax_frame = ax::frame(window.raw());
-        let (elements, handles, truncated) = ax::walk(window);
+        // An open context menu belongs to the app, not the window.
+        let mut roots = vec![window];
+        roots.extend(
+            ax::children(element.raw())
+                .into_iter()
+                .filter(|child| ax::text(child.raw(), "AXRole").as_deref() == Some("AXMenu")),
+        );
+        let (elements, handles, truncated) = ax::walk(roots);
         let cg_window = windows::matching(&windows::on_screen(), app.pid, ax_frame);
-        let mut shot: Option<Screenshot> = None;
-        if screenshot {
-            // SAFETY: plain query.
-            if !unsafe { CGPreflightScreenCaptureAccess() } {
-                notes.push(SCREEN_GUIDE.into());
-            } else if let Some(window) = &cg_window {
-                match windows::capture(window.id) {
-                    Ok(captured) => shot = Some(captured),
-                    Err(error) => notes.push(format!("No screenshot: {error:#}")),
-                }
-            } else {
-                notes.push("No screenshot: the window is not on screen.".into());
-            }
-        }
         if truncated {
             notes.push(format!(
                 "The window has more than {} elements; only the first ones are listed. Scroll or narrow the view to reach the rest.",
                 ax::MAX_ELEMENTS
             ));
         }
+        let previous_shot = self.sessions.get(&app.pid).and_then(|session| session.shot);
         self.sessions.insert(
             app.pid,
             Session {
                 handles,
-                window: cg_window.map(|window| window.bounds).or(ax_frame),
-                shot: shot.as_ref().map(|shot| (shot.width, shot.height)),
+                window: cg_window.as_ref().map(|window| window.bounds).or(ax_frame),
+                window_id: cg_window.map(|window| window.id),
+                // Coordinates keep meaning pixels of the last screenshot.
+                shot: previous_shot,
             },
         );
         Ok(AppState {
             app: info,
             window_title: title,
             elements,
-            truncated,
-            screenshot: shot,
             notes,
         })
+    }
+
+    fn screenshot(&mut self, app: &str) -> Result<Screenshot> {
+        // SAFETY: plain query.
+        if !unsafe { CGPreflightScreenCaptureAccess() } {
+            return Err(anyhow!(SCREEN_GUIDE));
+        }
+        if screen_locked() {
+            return Err(anyhow!(LOCKED));
+        }
+        let app = resolve(app)?;
+        let id = self
+            .session(&app)?
+            .window_id
+            .ok_or_else(|| anyhow!("the window is not on screen"))?;
+        let shot = windows::capture(id)?;
+        if let Some(session) = self.sessions.get_mut(&app.pid) {
+            session.shot = Some((shot.width, shot.height));
+        }
+        Ok(shot)
     }
 
     fn click(&mut self, app: &str, target: Target, button: MouseButton, count: u32) -> Result<()> {
@@ -480,12 +520,26 @@ impl Backend for MacBackend {
     fn perform_action(&mut self, app: &str, element: usize, action: &str) -> Result<()> {
         require_accessibility()?;
         let app = resolve(app)?;
-        let action = if action.starts_with("AX") {
-            action.to_string()
-        } else {
-            format!("AX{action}")
-        };
-        ax::perform(self.handle(&app, element)?, &action)
+        let handle = self.handle(&app, element)?;
+        let available = ax::actions(handle);
+        // The state lists `Raise` for `AXRaise`, and an app's own action by its name.
+        let wanted = action.trim();
+        let found = available.iter().find(|name| {
+            name.as_str() == wanted
+                || name.strip_prefix("AX") == Some(wanted)
+                || crate::render::action_name(name) == wanted
+        });
+        match found {
+            Some(name) => ax::perform(handle, name),
+            None => Err(anyhow!(
+                "element {element} has no action \"{wanted}\"; it has: {}",
+                available
+                    .iter()
+                    .map(|name| crate::render::action_name(name))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )),
+        }
     }
 }
 
@@ -524,6 +578,7 @@ mod tests {
     fn screenshot_pixels_scale_to_screen_points() {
         let session = Session {
             handles: vec![],
+            window_id: None,
             window: Some(Frame {
                 x: 100.0,
                 y: 50.0,

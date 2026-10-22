@@ -745,8 +745,9 @@ test("discovered mcp tools ride the existing plugin tool path", () => {
   assert.match(register, /pluginMcpToolKey\(server\.id, tool\.name\)/);
   assert.match(register, /pluginToolName\(pluginId, name\)/);
   assert.match(register, /this\.tools\.set\(fullName/);
-  // Remote code the desktop cannot inspect never auto-approves.
-  assert.match(register, /risk: "medium"/);
+  // Remote code the desktop cannot inspect never auto-approves; only a
+  // plugin this build ships may lower a tool's risk (MC-ADR-0014).
+  assert.match(register, /risk: this\.mcpToolRisk\(loaded, server\.toolRisk, tool\.name\)/);
   assert.match(register, /this\.mcpCalls\.run\(/);
   assert.match(register, /client\.callTool\(tool\.name, toolArgs, signal\)/);
   // A server that fails to answer must not fail the plugin load.
