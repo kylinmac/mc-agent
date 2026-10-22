@@ -99,6 +99,13 @@
   background: var(--mc-chrome-bg);
 }
 
+/* Windows/Linux controls complete the same title-bar row. Override the
+   upstream dock surface too: its transparent dark fill exposes the pane below. */
+.app-shell > .window-controls,
+.app-shell:has(.work-panel) > .window-controls {
+  background: var(--mc-chrome-bg);
+}
+
 .app-rail ~ .main-pane .main-titlebar:has(.mc-titlebar-tabs) {
   justify-content: flex-start;
   gap: 8px;

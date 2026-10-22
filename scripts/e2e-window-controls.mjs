@@ -84,9 +84,10 @@ async function checkControls(label) {
   const result = await evaluate(`(() => {
     const buttons = [...document.querySelectorAll('.window-control-btn')];
     const band = document.querySelector('.window-controls');
-    const header = document.querySelector('.work-panel-header');
+    const header = document.querySelector('.work-panel-header') ??
+      document.querySelector('.main-titlebar, .conversation-topbar');
     if (band && header && getComputedStyle(band).backgroundColor !== getComputedStyle(header).backgroundColor)
-      throw new Error('Window-control background differs from the adjacent panel header');
+      throw new Error('Window-control background differs from the adjacent titlebar');
     return buttons.map(el => {
       const r = el.getBoundingClientRect();
       const x = r.x + r.width / 2, y = r.y + r.height / 2;
