@@ -18,7 +18,6 @@ import { SearchDialog } from "../../components/SearchDialog";
 import { Sidebar } from "../../components/Sidebar";
 import { StartupRecovery } from "../../components/StartupRecovery";
 import { ToastHost } from "../../components/Toast";
-import { UpdateBanner } from "../../components/UpdateBanner";
 import { cx, TooltipButton } from "../../components/ui";
 import { WindowControls } from "../../components/WindowControls";
 import { useCopyTex } from "../../hooks/use-copy-tex";
@@ -232,8 +231,8 @@ export function AppShell() {
                     <SessionTabs onNewTask={() => void runMenuCommand("newTask")} />
                   </div>
                 )}
-                {/* mc-agent: the settings tab shows the same update card. */}
-                {page !== "settings" ? <UpdateBanner /> : null}
+                {/* mc-agent: no update popup. The app rail's update button and
+                    Settings → Info carry new versions, downloads and restarts. */}
                 {/* mc-agent: session information card in the conversation's left margin. */}
                 {/* In a split view each column has its own (MC-ADR-0007). */}
                 {page === "chat" && !split ? <SessionInfo /> : null}

@@ -208,11 +208,8 @@ test("renderer exposes the updates API, banner and settings row", () => {
   assert.match(releaseNotesDialogSource, /aria-modal="true"/);
   assert.match(releaseNotesDialogSource, /data-release-version/);
   assert.match(releaseNotesDialogSource, /event\.key === "Escape"/);
-  assert.match(
-    appSource,
-    /<section className="main-pane">[\s\S]*?<UpdateBanner \/>/,
-    "chat update notice is anchored inside the main pane",
-  );
+  // mc-agent: no update popup; the app rail button and Settings → Info remain.
+  assert.doesNotMatch(appSource, /<UpdateBanner \/>/, "no update popup in the main pane");
   assert.match(
     stylesSource,
     /\.update-notice \{[\s\S]*?position: absolute;[\s\S]*?top: 54px;/,
