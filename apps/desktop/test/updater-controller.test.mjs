@@ -46,23 +46,65 @@ class FakeUpdater extends EventEmitter {
     return [];
   }
 
-  quitAndInstall() {}
+  installs = [];
+
+  quitAndInstall(...args) {
+    this.installs.push(args);
+  }
 }
 
-function createController({ updater, settings = {}, persist = async () => {} }) {
+function createController({ updater, settings = {}, persist = async () => {}, platform = "darwin", distribution }) {
   const logger = { app: () => {} };
   const sent = [];
   const controller = new AppUpdaterController({
     logger,
     send: (channel, payload) => sent.push({ channel, payload }),
     currentVersion: "0.16.0",
-    platform: "darwin",
+    platform,
+    distribution,
     isPackaged: true,
     autoUpdater: updater,
     readUpdateSettings: async () => settings,
     persistDismissedVersion: persist,
   });
   return { controller, sent };
+}
+
+for (const platform of ["win32", "darwin"]) {
+  test(`${platform}: download, progress, restart uses the correct installer mode`, async () => {
+    const updater = new FakeUpdater();
+    const { controller } = createController({ updater, platform, distribution: "installed" });
+    try {
+      assert.throws(() => controller.install(), /no downloaded update/);
+      await controller.check();
+      assert.deepEqual(updater.downloadStarts, ["0.16.1"]);
+      updater.emit("download-progress", { percent: 47 });
+      assert.equal(controller.getState().progressPercent, 47);
+      updater.emit("update-downloaded", { version: "0.16.1" });
+      assert.equal(controller.getState().status, "downloaded");
+      controller.install();
+      assert.equal(controller.isInstallingUpdate(), true);
+      assert.deepEqual(updater.installs, [[platform === "win32", true]]);
+    } finally {
+      controller.dispose();
+    }
+  });
+}
+
+for (const distribution of ["zip", "portable"]) {
+  test(`Windows ${distribution} keeps manual updates by default`, async () => {
+    const updater = new FakeUpdater();
+    const { controller } = createController({ updater, platform: "win32", distribution });
+    try {
+      await controller.check();
+      assert.equal(controller.getState().mode, "manual");
+      assert.deepEqual(updater.downloadStarts, []);
+      assert.throws(() => controller.install(), /no downloaded update/);
+      assert.deepEqual(updater.installs, []);
+    } finally {
+      controller.dispose();
+    }
+  });
 }
 
 test("dismissing an in-app update cancels its download and disables install on quit", async () => {

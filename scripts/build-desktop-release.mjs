@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
 const forwardedArgs = process.argv.slice(2);
 
@@ -55,6 +56,11 @@ if (target === "win") {
     ...forwardedArgs,
     "-c.extraMetadata.piDistribution=installed",
   ]);
+  await new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [fileURLToPath(new URL("./build-windows-installer.mjs", import.meta.url))], { stdio: "inherit", windowsHide: true });
+    child.once("error", reject);
+    child.once("exit", code => code === 0 ? resolve() : reject(new Error(`Windows setup failed: ${code}`)));
+  });
   await runBuilder([
     "--win",
     "zip",

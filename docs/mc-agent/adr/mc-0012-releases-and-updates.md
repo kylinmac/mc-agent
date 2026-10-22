@@ -24,5 +24,7 @@
 
 ## 重访条件
 
+2026-10-22：Windows 安装界面和静默更新由 [MC-ADR-0016](mc-0016-windows-installer.md) 补充；macOS 自更新方式保持不变。
+
 - 取得 Developer ID 证书后：签名、公证，并恢复应用内自动更新。
 - 需要 Intel 或其他平台安装包时扩展脚本。
