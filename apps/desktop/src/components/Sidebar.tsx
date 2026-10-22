@@ -2314,22 +2314,25 @@ export function Sidebar({
                 </button>
               </>
             ) : null}
-            {session.source !== "pi-native" ? (
-              <button
-                type="button"
-                role="menuitem"
-                className={cx("danger", armedDelete === session.id && "is-armed")}
-                data-action="delete-session"
-                data-armed={armedDelete === session.id ? "true" : undefined}
-                onClick={() => requestDeleteSession(session)}
-              >
-                <IconX size={14} />
-                {armedDelete === session.id ? t("nav.deleteTaskConfirm", { defaultValue: "Delete?" }) : t("nav.deleteTask", { defaultValue: "Delete" })}
-                {armedDelete === session.id && session.worktree ? (
-                  <WorktreeDeleteLossNote sessionId={session.id} />
-                ) : null}
-              </button>
-            ) : null}
+            {/* mc-agent: a Pi CLI session can be deleted too; its file goes to the Trash. */}
+            <button
+              type="button"
+              role="menuitem"
+              className={cx("danger", armedDelete === session.id && "is-armed")}
+              data-action="delete-session"
+              data-armed={armedDelete === session.id ? "true" : undefined}
+              onClick={() => requestDeleteSession(session)}
+            >
+              <IconX size={14} />
+              {session.source === "pi-native" ? (
+                armedDelete === session.id ? t("mcProject.deletePiSessionConfirm") : t("mcProject.deletePiSession")
+              ) : (
+                <>{armedDelete === session.id ? t("nav.deleteTaskConfirm", { defaultValue: "Delete?" }) : t("nav.deleteTask", { defaultValue: "Delete" })}</>
+              )}
+              {armedDelete === session.id && session.worktree ? (
+                <WorktreeDeleteLossNote sessionId={session.id} />
+              ) : null}
+            </button>
           </>
           )
         ) : null}

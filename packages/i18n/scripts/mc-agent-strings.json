@@ -2969,6 +2969,56 @@
     "zh-CN": "更新失败：{{error}}。点击重试",
     "zh-TW": "更新失敗：{{error}}。點擊重試"
   },
+  "deletePiSession": {
+    "en": "Move to Trash",
+    "zh-CN": "移到废纸篓",
+    "zh-TW": "移到垃圾桶"
+  },
+  "deletePiSessionConfirm": {
+    "en": "Move this Pi session's file to the Trash?",
+    "zh-CN": "把这个 Pi 会话文件移到废纸篓？",
+    "zh-TW": "把這個 Pi 工作階段檔案移到垃圾桶？"
+  },
+  "updateReadyTitle": {
+    "en": "Version {{version}} is ready",
+    "zh-CN": "新版本 {{version}} 已下载完成",
+    "zh-TW": "新版本 {{version}} 已下載完成"
+  },
+  "updateReadyBody": {
+    "en": "Restart mc-agent to finish updating. Your conversations are kept.",
+    "zh-CN": "重启 mc-agent 即可完成更新，会话都会保留。",
+    "zh-TW": "重新啟動 mc-agent 即可完成更新，工作階段都會保留。"
+  },
+  "updateLater": {
+    "en": "Later",
+    "zh-CN": "稍后",
+    "zh-TW": "稍後"
+  },
+  "updateRestartNow": {
+    "en": "Restart and update",
+    "zh-CN": "立即重启更新",
+    "zh-TW": "立即重新啟動更新"
+  },
+  "pluginsUpdateShort": {
+    "en": "Update",
+    "zh-CN": "更新",
+    "zh-TW": "更新"
+  },
+  "accountImageModelsTitle": {
+    "en": "Subscription image models",
+    "zh-CN": "订阅账号生图模型",
+    "zh-TW": "訂閱帳號生圖模型"
+  },
+  "accountImageModelsAccount": {
+    "en": "Account",
+    "zh-CN": "账号",
+    "zh-TW": "帳號"
+  },
+  "accountImageModelsModels": {
+    "en": "Image models",
+    "zh-CN": "生图模型",
+    "zh-TW": "生圖模型"
+  },
   "creativeChatPickModel": {
     "en": "Pick a chat model (image models are in Direct)",
     "zh-CN": "请选择对话模型（生图模型在“直出”里用）",

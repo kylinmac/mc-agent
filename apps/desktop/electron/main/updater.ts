@@ -306,6 +306,11 @@ export class AppUpdaterController {
     const version = this.state.availableVersion;
     if (!version) throw new Error("no update available");
     if (this.state.status === "downloading" || updater.stagedVersion() === version) return this.state;
+    // Asking for the download takes back an earlier "not now" for this version.
+    if (this.dismissedVersion === version) {
+      this.dismissedVersion = undefined;
+      void this.persistDismissedVersionInOrder(null);
+    }
     this.setState({ status: "downloading", progressPercent: 0, error: undefined, dismissed: false });
     try {
       await updater.download(version, (percent) => {

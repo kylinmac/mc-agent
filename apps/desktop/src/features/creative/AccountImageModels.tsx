@@ -49,15 +49,20 @@ export function AccountImageModels({ providers }: { providers: readonly Provider
   return (
     <div className="mc-account-image-models">
       <div className="settings-row-detail">{t("mcProject.accountImageModelsHint")}</div>
+      <div className="mc-account-image-table" role="table" aria-label={t("mcProject.accountImageModelsTitle")}>
+        <div className="mc-account-image-models-row is-head" role="row">
+          <span className="mc-account-image-models-name" role="columnheader">{t("mcProject.accountImageModelsAccount")}</span>
+          <span className="mc-account-image-models-ids" role="columnheader">{t("mcProject.accountImageModelsModels")}</span>
+        </div>
       {accounts.map((account) => {
         const mine = added[account.id] ?? [];
         const offered = (account.accountImageModels ?? []).filter(
           (id) => !mine.some((entry) => entry.toLowerCase() === id.toLowerCase()),
         );
         return (
-          <div key={account.id} className="mc-account-image-models-row">
-            <span className="mc-account-image-models-name">{account.name}</span>
-            <div className="mc-account-image-models-ids">
+          <div key={account.id} className="mc-account-image-models-row" role="row">
+            <span className="mc-account-image-models-name" role="cell" title={account.name}>{account.name}</span>
+            <div className="mc-account-image-models-ids" role="cell">
               {offered.map((id) => (
                 <span key={id} className="mc-account-image-chip is-builtin" title={t("mcProject.accountImageModelsFromAccount")}>
                   {id}
@@ -97,6 +102,7 @@ export function AccountImageModels({ providers }: { providers: readonly Provider
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

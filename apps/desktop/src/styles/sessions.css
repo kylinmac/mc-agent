@@ -1089,3 +1089,11 @@
   outline: 1px dashed var(--ds-border-strong);
   outline-offset: -2px;
 }
+
+/* mc-agent: the row's "…" shows focus and its open menu with its background;
+ * the global focus ring drew a white box around it. */
+.thread-item-more:focus-visible,
+.thread-item-more[aria-expanded="true"] {
+  outline: none;
+  box-shadow: none;
+}

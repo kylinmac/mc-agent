@@ -778,18 +778,39 @@
   border-top: 1px solid var(--ds-border-subtle);
 }
 
+/* A small table on a gray block: account | its image models. */
+.mc-account-image-table {
+  overflow: hidden;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--ds-bg-elevated);
+}
+
 .mc-account-image-models-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) minmax(0, 1fr);
   font-size: var(--text-sm);
 }
 
+.mc-account-image-models-row + .mc-account-image-models-row {
+  border-top: 1px solid var(--ds-border-subtle);
+}
+
+.mc-account-image-models-row.is-head {
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+}
+
+.mc-account-image-models-row > * {
+  padding: 8px 12px;
+}
+
+.mc-account-image-models-row > * + * {
+  border-left: 1px solid var(--ds-border-subtle);
+}
+
 .mc-account-image-models-name {
-  width: 200px;
-  flex: 0 0 auto;
   overflow: hidden;
-  padding-top: 4px;
   color: var(--ds-text-secondary);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -798,7 +819,6 @@
 .mc-account-image-models-ids {
   display: flex;
   min-width: 0;
-  flex: 1 1 auto;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
@@ -809,8 +829,9 @@
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
+  border: 1px solid var(--ds-border-subtle);
   border-radius: var(--radius-full);
-  background: var(--ds-bg-elevated);
+  background: var(--ds-bg-primary);
   color: var(--ds-text-primary);
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: var(--text-xs);
@@ -827,8 +848,13 @@
 
 .mc-account-image-models-add {
   display: inline-flex;
+  flex-basis: 100%;
   align-items: center;
   gap: 6px;
+}
+
+.mc-account-image-models-add .mc-creative-input {
+  width: 240px;
 }
 
 /* New creative project dialog */

@@ -332,9 +332,13 @@ export function registerSessionIpc({
   });
   handle(IPC.invoke.sessionDelete, async (id: string) => {
     if (id.startsWith("native-pi:")) {
-      throw Object.assign(new Error("Native Pi sessions cannot be deleted from PI-Desktop"), {
-        errorCode: ErrorCodes.INVALID_ARGUMENT,
-      });
+      // mc-agent: a Pi CLI session is the Pi CLI's own file; it goes to the
+      // Trash (recoverable) rather than being erased.
+      if (!sidecar) throw new Error("agent runtime unavailable");
+      const { path } = await sidecar.call<{ path: string }>("native.session.forget", { id });
+      await shell.trashItem(path);
+      logger.app("session", "info", "native pi session moved to trash", { sessionId: id });
+      return { ok: true };
     }
     if (!host) throw new Error("host unavailable");
     const res = await host.call("session.delete", { id });

@@ -413,6 +413,11 @@ async function handle(method: string, params: any): Promise<unknown> {
         }),
       };
     }
+    case "native.session.forget": {
+      // mc-agent: the desktop moves the returned file to the Trash.
+      const service = await getNativePiService();
+      return service.forget(String(params.id ?? ""));
+    }
     case "native.session.fork": {
       const service = await getNativePiService();
       return {

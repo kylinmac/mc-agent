@@ -39,6 +39,8 @@ export function PluginsPage() {
     market,
     showToast,
     installedGroups,
+    busyId,
+    queueInstall,
   } = page;
 
   /*
@@ -131,33 +133,49 @@ export function PluginsPage() {
               </div>
             ) : (
               filteredInstalled.map((plugin) => (
-                <button
-                  key={plugin.id}
-                  type="button"
-                  className={cx(
-                    "settings-nav-item",
-                    "mc-plugins-nav-item",
-                    selected === plugin.id && "active",
-                    !plugin.enabled && "is-off",
-                  )}
-                  title={plugin.description || plugin.name}
-                  onClick={() => setSelected(plugin.id)}
-                >
-                  <span className="settings-nav-icon">
-                    {attention.has(plugin.id) ? (
-                      <IconCircleAlert size={14} />
-                    ) : (
-                      <IconPlug size={14} />
+                <div key={plugin.id} className="mc-plugins-nav-row">
+                  <button
+                    type="button"
+                    className={cx(
+                      "settings-nav-item",
+                      "mc-plugins-nav-item",
+                      selected === plugin.id && "active",
+                      !plugin.enabled && "is-off",
                     )}
-                  </span>
-                  <span className="settings-nav-label">{plugin.name}</span>
+                    title={plugin.description || plugin.name}
+                    onClick={() => setSelected(plugin.id)}
+                  >
+                    <span className="settings-nav-icon">
+                      {attention.has(plugin.id) ? (
+                        <IconCircleAlert size={14} />
+                      ) : (
+                        <IconPlug size={14} />
+                      )}
+                    </span>
+                    <span className="settings-nav-label">{plugin.name}</span>
+                  </button>
+                  {/* mc-agent: update straight from the list, one click. */}
                   {plugin.updateAvailable ? (
-                    <span
-                      className="mc-plugins-nav-dot"
-                      aria-label={t("mcProject.pluginsUpdateReady")}
-                    />
+                    <button
+                      type="button"
+                      className="mc-plugins-nav-update"
+                      disabled={busyId === plugin.id}
+                      title={`${t("plugins.updateNow")} v${plugin.updateAvailable.version}`}
+                      aria-label={`${t("plugins.updateNow")} ${plugin.name} v${plugin.updateAvailable.version}`}
+                      onClick={() =>
+                        queueInstall({
+                          id: plugin.id,
+                          name: plugin.name,
+                          version: plugin.updateAvailable!.version,
+                          permissions: plugin.permissions ?? [],
+                          newPermissions: plugin.updateAvailable!.permissionDiff ?? [],
+                        })
+                      }
+                    >
+                      {busyId === plugin.id ? t("plugins.updating") : t("mcProject.pluginsUpdateShort")}
+                    </button>
                   ) : null}
-                </button>
+                </div>
               ))
             )}
           </div>

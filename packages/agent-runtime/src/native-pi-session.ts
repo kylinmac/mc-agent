@@ -1035,6 +1035,21 @@ export class NativePiSessionService {
     this.runtimes.delete(id);
   }
 
+  /**
+   * mc-agent: let go of a Pi session so the desktop can move its file to the
+   * Trash. Refuses one that is running or being opened; the path returned is
+   * checked to lie inside the Pi session root.
+   */
+  forget(id: string): { path: string } {
+    const record = this.record(id);
+    if (this.runtimes.get(id)?.isRunning || this.opening.has(id)) {
+      throw Object.assign(new Error("This Pi session is running; stop it first"), { errorCode: "AGENT_BUSY" });
+    }
+    this.dispose(id);
+    this.records.delete(id);
+    return { path: record.path };
+  }
+
   disposeAll(): void {
     for (const runtime of this.runtimes.values()) runtime.dispose();
     this.runtimes.clear();
