@@ -104,6 +104,11 @@ export function UpdateBanner() {
               {t("updates.restart")}
             </Button>
           )}
+          {update.status === "available" && update.mode === "manual" && update.selfInstall && (
+            <Button variant="primary" size="sm" onClick={() => void api.updatesDownload().catch(() => undefined)}>
+              {t("mcProject.updateDownloadAction")}
+            </Button>
+          )}
           {update.status === "available" && update.mode === "manual" && (
             <Button
               variant="secondary"

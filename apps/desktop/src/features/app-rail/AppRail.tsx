@@ -5,6 +5,7 @@ import { IconClock, IconHome, IconPalette, IconPlug, IconSettings } from "../../
 import { pluginViewIcon, pluginViewInitial } from "../../lib/plugin-view-icons";
 import { pluginWorkPanelTab } from "../../lib/work-panel-tabs";
 import { BROWSER_VIEW_REF, FILES_VIEW_REF } from "../work-tools/work-panes-model";
+import { UpdateRailButton } from "./UpdateRailButton";
 
 /*
   mc-agent: a narrow rail at the window's left edge holding the app-level
@@ -111,6 +112,7 @@ export function AppRail() {
         })}
       </div>
       <div className="app-rail-bottom no-drag">
+        <UpdateRailButton />
         <TooltipButton
           type="button"
           tooltipSide="right"

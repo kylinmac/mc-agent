@@ -52,6 +52,7 @@ import {
   type WindowsDistribution,
 } from "./update-policy";
 import { ManualUpdateReminderTracker } from "./manual-update-reminder";
+import { bundleOf, McSelfUpdater } from "./mc-self-update";
 
 export { resolveUpdateMode } from "./update-policy";
 export type { WindowsDistribution } from "./update-policy";
@@ -158,6 +159,8 @@ export class AppUpdaterController {
   private installRequested = false;
   private readonly autoUpdater: AppUpdater;
   private readonly cacheMaintenance: UpdateCacheMaintenance;
+  /** mc-agent: downloads and swaps the bundle where Squirrel.Mac cannot. */
+  private selfUpdate: McSelfUpdater | null = null;
 
   /** mc-agent: one field of the packaged package.json (build metadata). */
   private readPackagedField(isPackaged: boolean, field: string): unknown {
@@ -282,6 +285,42 @@ export class AppUpdaterController {
       releasesUrl: RELEASES_URL,
     };
     if (mode !== "disabled") this.attachListeners();
+    if (mode !== "disabled" && platform === "darwin" && this.env[MC_NOTIFY_ONLY_ENV]) {
+      const bundle = bundleOf(process.execPath);
+      void McSelfUpdater.usable(bundle).then((usable) => {
+        if (!usable || !bundle || this.disposed) return;
+        this.selfUpdate = new McSelfUpdater({
+          bundle,
+          workDir: app.getPath("temp"),
+          arch: process.arch,
+          fetch: (input, init) => globalThis.fetch(input, init),
+          quit: () => app.quit(),
+        });
+        this.setState({ selfInstall: true });
+      });
+    }
+  }
+
+  /** mc-agent: download and stage the available version ourselves. */
+  private async selfDownload(updater: McSelfUpdater): Promise<UpdateState> {
+    const version = this.state.availableVersion;
+    if (!version) throw new Error("no update available");
+    if (this.state.status === "downloading" || updater.stagedVersion() === version) return this.state;
+    this.setState({ status: "downloading", progressPercent: 0, error: undefined, dismissed: false });
+    try {
+      await updater.download(version, (percent) => {
+        if (this.state.status === "downloading") this.setState({ progressPercent: percent });
+      });
+      this.setState({ status: "downloaded", progressPercent: 100 });
+    } catch (error) {
+      this.logger.app("updater", "warn", "self update download failed", { data: String(error) });
+      this.setState({
+        status: "error",
+        progressPercent: undefined,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+    return this.state;
   }
 
   /** Localized product notes for a discovered version, if catalogued. */
@@ -665,6 +704,7 @@ export class AppUpdaterController {
 
   /** Explicit download for in-app installs when a check was manual-only. */
   async download(): Promise<UpdateState> {
+    if (this.selfUpdate) return this.selfDownload(this.selfUpdate);
     if (this.state.mode !== "in-app") {
       throw new Error("in-app download is not supported on this install");
     }
@@ -688,6 +728,14 @@ export class AppUpdaterController {
 
   /** Quit and install a downloaded update (in-app mode). */
   install(): void {
+    if (this.selfUpdate && this.state.status === "downloaded") {
+      this.installRequested = true;
+      void this.selfUpdate.install().catch((error: unknown) => {
+        this.installRequested = false;
+        this.setState({ status: "error", error: error instanceof Error ? error.message : String(error) });
+      });
+      return;
+    }
     if (this.state.mode !== "in-app" || this.state.status !== "downloaded") {
       throw new Error("no downloaded update to install");
     }

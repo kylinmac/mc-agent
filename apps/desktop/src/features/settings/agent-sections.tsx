@@ -137,6 +137,13 @@ export function UpdatesRow({
         {t("updates.restart")}
       </Button>
     );
+  } else if (update?.status === "available" && update.mode === "manual" && update.selfInstall) {
+    // mc-agent: this install downloads and replaces itself (MC-ADR-0012).
+    action = (
+      <Button variant="primary" onClick={() => void api.updatesDownload().catch(() => undefined)}>
+        {t("mcProject.updateDownloadAction")}
+      </Button>
+    );
   } else if (update?.status === "available" && update.mode === "manual") {
     action = (
       <Button

@@ -84,6 +84,11 @@ export type UpdateState = {
    */
   dismissed?: boolean;
   releasesUrl: string;
+  /**
+   * mc-agent: this install can download and replace itself even though the
+   * platform updater cannot (ad-hoc signed macOS, MC-ADR-0012).
+   */
+  selfInstall?: boolean;
 };
 
 export type OnboardingState = {

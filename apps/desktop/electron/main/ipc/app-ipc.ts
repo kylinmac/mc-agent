@@ -59,7 +59,7 @@ export function registerAppIpc({
           .catch(() => undefined)
       : undefined;
     const url = buildBugReportUrl({
-      version: APP_VERSION,
+      version: app.isPackaged ? app.getVersion() : APP_VERSION,
       platform: process.platform,
       arch: process.arch,
       protocolVersion: PROTOCOL_VERSION,
@@ -78,8 +78,10 @@ export function registerAppIpc({
         )
       : undefined;
     return {
-      name: APP_NAME,
-      version: APP_VERSION,
+      // mc-agent: a packaged build reports its own name and release version
+      // (MC-ADR-0012); the upstream constants stay for development builds.
+      name: app.isPackaged ? app.getName() : APP_NAME,
+      version: app.isPackaged ? app.getVersion() : APP_VERSION,
       protocolVersion: PROTOCOL_VERSION,
       hostProtocolVersion: hostVersion?.protocolVersion,
       hostVersion: hostVersion?.version,

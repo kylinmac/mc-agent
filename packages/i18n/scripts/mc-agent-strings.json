@@ -2949,6 +2949,26 @@
     "zh-CN": "右图",
     "zh-TW": "右圖"
   },
+  "updateDownload": {
+    "en": "Download update {{version}}",
+    "zh-CN": "下载更新 {{version}}",
+    "zh-TW": "下載更新 {{version}}"
+  },
+  "updateDownloadAction": {
+    "en": "Download and update",
+    "zh-CN": "下载并更新",
+    "zh-TW": "下載並更新"
+  },
+  "updateRestartTo": {
+    "en": "Restart to update to {{version}}",
+    "zh-CN": "重启并更新到 {{version}}",
+    "zh-TW": "重新啟動並更新到 {{version}}"
+  },
+  "updateRetry": {
+    "en": "Update failed: {{error}}. Click to retry",
+    "zh-CN": "更新失败：{{error}}。点击重试",
+    "zh-TW": "更新失敗：{{error}}。點擊重試"
+  },
   "creativeChatPickModel": {
     "en": "Pick a chat model (image models are in Direct)",
     "zh-CN": "请选择对话模型（生图模型在“直出”里用）",
