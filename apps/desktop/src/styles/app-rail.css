@@ -10,6 +10,47 @@
   --mc-app-rail-width: 52px;
 }
 
+/* R11.12: one persistent Windows navigation group, outside the animated dock.
+   Its 112px footprint includes the rail; reserve the remaining 60px in content. */
+:root[data-platform="win32"] .mc-windows-titlebar-actions {
+  position: absolute;
+  top: 0;
+  left: 12px;
+  z-index: 201;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: var(--ds-toolbar-height);
+  background: var(--mc-chrome-bg);
+}
+
+:root[data-platform="win32"] .app-rail [data-nav="rail-home"],
+:root[data-platform="win32"] .sidebar-header-actions,
+:root[data-platform="win32"] .conversation-topbar .ct-lead,
+:root[data-platform="win32"] .conversation-topbar [data-nav="search"],
+:root[data-platform="win32"] .titlebar-nav [data-nav="toggle-sidebar"],
+:root[data-platform="win32"] .mc-titlebar-end {
+  display: none;
+}
+
+:root[data-platform="win32"] .sidebar-header {
+  padding-left: 60px;
+}
+
+:root[data-platform="win32"] .app-shell.sidebar-collapsed .conversation-topbar,
+:root[data-platform="win32"] .app-shell.sidebar-collapsed .main-titlebar {
+  padding-left: 60px;
+}
+
+:root[data-platform="win32"] .app-shell.sidebar-collapsed > .app-chat-shell > .window-chrome-row {
+  padding-left: 112px;
+}
+
+:root[data-platform="win32"] .app-shell.work-panel-maximized.sidebar-collapsed {
+  --preview-chrome-inset: 112px;
+  --preview-chrome-action-lane: calc(var(--ds-control-size) + 8px);
+}
+
 /* A slimmer title bar than upstream's 46px, for the main window only: plugin
    panel windows keep their own 46px drag-band contract. The traffic lights
    move up to match (MAC_TRAFFIC_LIGHT_POSITION in @pi-desktop/shared). */

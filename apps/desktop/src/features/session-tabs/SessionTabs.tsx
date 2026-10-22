@@ -304,7 +304,7 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
         </button>
       </div>
       <div className="mc-titlebar-end">
-        <NotificationCenter />
+        {(typeof window === "undefined" || window.piDesktop?.platform !== "win32") && <NotificationCenter />}
       </div>
       <ContextMenu state={contextMenu} onClose={closeContextMenu} />
     </div>

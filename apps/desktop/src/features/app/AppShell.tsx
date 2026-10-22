@@ -1,6 +1,7 @@
 import { type CSSProperties, lazy, type ReactNode, Suspense, useEffect } from "react";
 import { ConversationTopbar } from "../../components/ConversationTopbar";
 import { AppRail } from "../app-rail/AppRail";
+import { WindowsTitlebarActions } from "../app-rail/WindowsTitlebarActions";
 import { SessionTabs } from "../session-tabs/SessionTabs";
 import { SessionInfo } from "../session-info/SessionInfo";
 import { useSplitSync } from "../split-view/split-actions";
@@ -155,6 +156,10 @@ export function AppShell() {
             className="app-chat-shell"
           >
             <AppRail />
+            {window.piDesktop?.platform === "win32" && (
+              <WindowsTitlebarActions collapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar}
+                onOpenSearch={() => setSearchOpen(true)} />
+            )}
             {!sidebarCollapsed || sidebarExiting ? (
               <Sidebar
                 className={cx(sidebarEntering && "is-entering", sidebarExiting && "is-exiting")}
