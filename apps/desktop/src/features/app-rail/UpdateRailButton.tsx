@@ -8,7 +8,8 @@ import { api } from "../../lib/api";
   mc-agent: the update button above Settings in the app rail. It appears once
   a newer version is found and the install can update itself: click to
   download (the ring fills as it downloads), then click again to restart into
-  the new version. A failed download turns it into a retry.
+  the new version. A failed download turns it into a retry. It stays until
+  the update is installed: there is no popup to dismiss it with.
 */
 export function UpdateRailButton() {
   const { t } = useTranslation();
@@ -18,7 +19,6 @@ export function UpdateRailButton() {
   const selfUpdating = update.selfInstall === true || update.mode === "in-app";
   const status = update.status;
   if (!selfUpdating) return null;
-  if (status === "available" && update.dismissed) return null;
   if (!["available", "downloading", "downloaded", "error"].includes(status)) return null;
 
   const progress = Math.max(0, Math.min(100, update.progressPercent ?? 0));

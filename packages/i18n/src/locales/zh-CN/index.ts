@@ -3509,6 +3509,9 @@ sklm: {
     projectPromptChosenHint: "这个项目里的所有对话都用这个模板，不论用哪个模型。",
     projectPromptDefaultHint: "按模型规则选择；没有匹配时使用内置提示词。",
     projectPromptDefaultHintGlobal: "按模型规则选择；没有匹配时使用全局默认「{{name}}」。",
+    promptSuggestions: "输入建议",
+    promptSuggestionsDesc: "回复结束后，在空的输入框里用灰字给出你可能要发的下一句，按 Tab 采用。每次回复会多一次请求，用当前对话的模型，大部分内容走提示词缓存。",
+    suggestionTabHint: "Tab",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

@@ -157,6 +157,12 @@ export type AppSettings = {
    * platforms. Absent and false mean the system manages sleep normally.
    */
   preventScreenSleep?: boolean;
+  /**
+   * mc-agent: after a reply, suggest the next message as gray text in the
+   * empty composer (Tab accepts). One extra request per reply with the
+   * conversation's own model, mostly read from its prompt cache. Off when absent.
+   */
+  promptSuggestions?: boolean;
   /** Voice input settings (D-voice-runtime). */
   voice?: VoiceInputSettings;
   onboardingDismissed: boolean;

@@ -3473,5 +3473,20 @@
     "en": "Model rules apply; with none, the global default “{{name}}”.",
     "zh-CN": "按模型规则选择；没有匹配时使用全局默认「{{name}}」。",
     "zh-TW": "依模型規則選擇；沒有符合時使用全域預設「{{name}}」。"
+  },
+  "promptSuggestions": {
+    "en": "Input suggestions",
+    "zh-CN": "输入建议",
+    "zh-TW": "輸入建議"
+  },
+  "promptSuggestionsDesc": {
+    "en": "After a reply, suggest your likely next message as gray text in the empty input; press Tab to use it. Each reply makes one extra request with the conversation's model, mostly read from its prompt cache.",
+    "zh-CN": "回复结束后，在空的输入框里用灰字给出你可能要发的下一句，按 Tab 采用。每次回复会多一次请求，用当前对话的模型，大部分内容走提示词缓存。",
+    "zh-TW": "回覆結束後，在空的輸入框裡用灰字給出你可能要送出的下一句，按 Tab 採用。每次回覆會多一次請求，用目前對話的模型，大部分內容走提示詞快取。"
+  },
+  "suggestionTabHint": {
+    "en": "Tab",
+    "zh-CN": "Tab",
+    "zh-TW": "Tab"
   }
 }

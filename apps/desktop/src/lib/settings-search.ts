@@ -54,6 +54,8 @@ export type SettingsNavEntry = {
   developerOnly?: true;
   /** Surface is omitted from packaged builds; development builds retain it. */
   developmentOnly?: true;
+  /** mc-agent: the page is about macOS only and is hidden elsewhere. */
+  macOnly?: true;
   /** Localized Experimental badge shown beside the rail row and page title. */
   experimentalBadgeKey?: string;
 };
@@ -291,6 +293,7 @@ export const SETTINGS_NAV: SettingsNavEntry[] = [
     labelKey: "mcProject.permNav",
     titleKey: "mcProject.permTitle",
     group: "system",
+    macOnly: true,
     keywordKeys: ["mcProject.permAccessibility", "mcProject.permScreenRecording", "mcProject.permMicrophone"],
   },
   {
@@ -365,10 +368,12 @@ export function visibleSettingsNav(
   developerMode: boolean,
   includeDevelopmentOnly = true,
 ): SettingsNavEntry[] {
+  const platform = typeof window === "undefined" ? undefined : window.piDesktop?.platform;
   return SETTINGS_NAV.filter(
     (entry) =>
       (entry.developerOnly !== true || developerMode) &&
-      (entry.developmentOnly !== true || includeDevelopmentOnly),
+      (entry.developmentOnly !== true || includeDevelopmentOnly) &&
+      (entry.macOnly !== true || platform === undefined || platform === "darwin"),
   );
 }
 

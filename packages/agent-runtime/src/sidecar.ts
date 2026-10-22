@@ -622,6 +622,13 @@ async function handle(method: string, params: any): Promise<unknown> {
       if (sessionId.startsWith(NATIVE_PI_SESSION_PREFIX)) return { prompt: null };
       return { prompt: runtimes.get(sessionId)?.systemPromptView() ?? null };
     }
+    // mc-agent: the user's likely next message after a finished reply, from
+    // the session's own model and prompt cache; null when there is none.
+    case "agent.suggestPrompt": {
+      const sessionId = String(params.sessionId);
+      if (sessionId.startsWith(NATIVE_PI_SESSION_PREFIX)) return { text: null };
+      return { text: (await runtimes.get(sessionId)?.suggestNextPrompt()) ?? null };
+    }
     // mc-agent: load a session's runtime without prompting, so the session
     // info panel can show its context breakdown right after the app starts
     // (MC-ADR-0005 follow-up). Same launch path as a manual compaction.

@@ -48,6 +48,7 @@ import { useComposerAttachments } from "../features/chat/composer/hooks/useCompo
 import { useComposerCompletions } from "../features/chat/composer/hooks/useComposerCompletions";
 import { useComposerDraft } from "../features/chat/composer/hooks/useComposerDraft";
 import { useComposerInputHistory } from "../features/chat/composer/hooks/useComposerInputHistory";
+import { useNextPromptSuggestion } from "../features/chat/composer/hooks/useNextPromptSuggestion";
 import { usePluginComposerBridge } from "../features/chat/composer/hooks/usePluginComposerBridge";
 import { useComposerSubmit } from "../features/chat/composer/hooks/useComposerSubmit";
 import { useComposerTransforms } from "../features/chat/composer/hooks/useComposerTransforms";
@@ -200,6 +201,13 @@ export function Composer({
     insertNewlineInEditor,
     handleInput,
   } = draft;
+  // mc-agent: the suggested next message after a reply (Settings → General).
+  const nextSuggestion = useNextPromptSuggestion({
+    sessionId: activeSessionId ?? null,
+    running: isRunning,
+    enabled: settings?.promptSuggestions === true,
+    draftEmpty: () => !readLiveDraft().trim() && fileReferencesRef.current.length === 0,
+  });
   const inputHistory = useComposerInputHistory({
     draftKey,
     referenceSessionId,
@@ -581,8 +589,17 @@ export function Composer({
             onAcceptCompletion={completions.acceptCompletion}
             onSubmit={(steering) => void submitFromComposer(steering)}
             onInsertNewline={insertNewlineInEditor}
+            suggestion={inputBlocked ? null : nextSuggestion.text}
+            suggestionHint={t("mcProject.suggestionTabHint")}
+            onAcceptSuggestion={() => {
+              const text = nextSuggestion.text;
+              if (!text) return;
+              nextSuggestion.dismiss();
+              applyEditorDraft(text, [], text.length);
+            }}
             onInput={(source, caret) => {
               inputHistory.exitBrowsing();
+              if (source) nextSuggestion.dismiss();
               completions.handleInput(source, caret);
             }}
             onHistoryNavigate={inputHistory.navigate}
