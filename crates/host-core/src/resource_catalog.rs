@@ -24,7 +24,11 @@ use crate::db::{now_ms, Database, ProjectGroupRecord, ProjectGroupRootKind};
 use crate::resource_index::{self, IndexTarget};
 
 const STATES_NAMESPACE: &str = "mcResourceStates";
-const RESERVED_ROOT_FILES: &[&str] = &[crate::workspace_notes::FILE_NAME, "AGENTS.md"];
+const RESERVED_ROOT_FILES: &[&str] = &[
+    crate::workspace_notes::FILE_NAME,
+    "AGENTS.md",
+    crate::resource_overview::OVERVIEW_FILE,
+];
 const MAX_LISTED_FILES: usize = 2_000;
 const MAX_DEPTH: usize = 8;
 const MAX_HASHED_BYTES: u64 = 50 * 1024 * 1024;
@@ -112,9 +116,24 @@ pub fn list(db: &Database, group: &ProjectGroupRecord) -> Result<ResourceListing
     let mut truncated = false;
     if let Some(resources) = group.resource_root() {
         let root = Path::new(&resources.path);
-        let (files, more) = scan(root)?;
+        // The studio's own folder, when it lives here, is not scanned: its
+        // outputs are not project documents. Files in it the user confirmed
+        // as resources stay listed, so no reference disappears.
+        let managed = crate::mc_creative::managed_resource_subfolder(db, group);
+        let (mut files, more) = scan(root, managed)?;
         truncated = more;
         categories = first_level_folders(root)?;
+        if let Some(managed) = managed {
+            categories.retain(|name| name != managed);
+            let prefix = format!("folder:{managed}/");
+            for key in states.keys() {
+                if let Some(relative) = key.strip_prefix("folder:") {
+                    if key.starts_with(&prefix) && root.join(relative).is_file() {
+                        files.push(relative.to_string());
+                    }
+                }
+            }
+        }
         for relative in files {
             let key = format!("folder:{relative}");
             let category = match relative.split_once('/') {
@@ -183,12 +202,20 @@ pub fn list(db: &Database, group: &ProjectGroupRecord) -> Result<ResourceListing
             ResourceStatus::Missing => summary.missing += 1,
         }
     }
-    Ok(ResourceListing {
+    let listing = ResourceListing {
         items,
         summary,
         categories,
         truncated,
-    })
+    };
+    // Keep RESOURCES.md in step with what is listed. Best effort: a folder
+    // that cannot be written still lists.
+    if let Some(resources) = group.resource_root() {
+        let root = Path::new(&resources.path);
+        let descriptions = crate::resource_overview::template_descriptions(root);
+        let _ = crate::resource_overview::write_if_changed(root, &listing, &descriptions);
+    }
+    Ok(listing)
 }
 
 /// Mark a resource draft, confirmed or deprecated. Confirming a file hashes
@@ -386,7 +413,7 @@ fn item(
 }
 
 /// Files below `root`, as `/`-separated relative paths, sorted.
-fn scan(root: &Path) -> Result<(Vec<String>, bool)> {
+fn scan(root: &Path, skip: Option<&str>) -> Result<(Vec<String>, bool)> {
     let mut files = Vec::new();
     let mut truncated = false;
     let walker = walkdir::WalkDir::new(root)
@@ -395,7 +422,12 @@ fn scan(root: &Path) -> Result<(Vec<String>, bool)> {
         .follow_links(false)
         .sort_by_file_name()
         .into_iter()
-        .filter_entry(|entry| !entry.file_name().to_string_lossy().starts_with('.'));
+        .filter_entry(|entry| {
+            let name = entry.file_name().to_string_lossy();
+            let hidden = name.starts_with('.');
+            let skipped = entry.depth() == 1 && skip == Some(name.as_ref());
+            !hidden && !skipped
+        });
     for entry in walker {
         let Ok(entry) = entry else { continue };
         if !entry.file_type().is_file() {
@@ -431,7 +463,7 @@ fn first_level_folders(root: &Path) -> Result<Vec<String>> {
     Ok(names)
 }
 
-fn hash_file(path: &Path) -> Result<String> {
+pub(crate) fn hash_file(path: &Path) -> Result<String> {
     let metadata = fs::metadata(path).with_context(|| format!("read {}", path.display()))?;
     if metadata.len() > MAX_HASHED_BYTES {
         return Err(anyhow!("file is too large to confirm: {}", path.display()));
@@ -765,5 +797,47 @@ mod tests {
         let f = fixture();
         assert!(set_status(&f.db, &f.group, "folder:notes.md", ResourceStatus::Changed).is_err());
         assert!(set_status(&f.db, &f.group, "folder:notes.md", ResourceStatus::Missing).is_err());
+    }
+
+    #[test]
+    fn a_creative_projects_studio_folder_is_not_listed_as_resources() {
+        let f = fixture();
+        let creative = f.resources.join("creative");
+        fs::create_dir_all(creative.join("角色")).unwrap();
+        fs::write(creative.join("角色/a.png"), "a").unwrap();
+        fs::write(creative.join("kept.png"), "k").unwrap();
+        let keys = |listing: &ResourceListing| -> Vec<String> {
+            listing.items.iter().map(|item| item.key.clone()).collect()
+        };
+        // An ordinary project: its creative/ folder is plain documents.
+        let before = list(&f.db, &f.group).unwrap();
+        assert!(keys(&before).contains(&"folder:creative/角色/a.png".to_string()));
+        assert!(before.categories.contains(&"creative".to_string()));
+        set_status(
+            &f.db,
+            &f.group,
+            "folder:creative/kept.png",
+            ResourceStatus::Confirmed,
+        )
+        .unwrap();
+
+        // Creative, storing in the resource folder: the studio's output is left out,
+        // except what the user confirmed as a resource.
+        crate::mc_creative::set_purpose(&f.db, &f.group, crate::mc_creative::Purpose::Creative)
+            .unwrap();
+        crate::mc_creative::set_storage(&f.db, &f.group, &f.resources.to_string_lossy()).unwrap();
+        let after = list(&f.db, &f.group).unwrap();
+        let listed = keys(&after);
+        assert!(!listed.contains(&"folder:creative/角色/a.png".to_string()));
+        assert!(listed.contains(&"folder:creative/kept.png".to_string()));
+        assert!(!after.categories.contains(&"creative".to_string()));
+        assert!(listed.contains(&"folder:requirements/login/spec.md".to_string()));
+        // Nothing on disk changed.
+        assert!(creative.join("角色/a.png").is_file());
+
+        // Stored in a workspace instead: the resource folder is scanned as before.
+        crate::mc_creative::set_storage(&f.db, &f.group, &f.web.to_string_lossy()).unwrap();
+        assert!(keys(&list(&f.db, &f.group).unwrap())
+            .contains(&"folder:creative/角色/a.png".to_string()));
     }
 }

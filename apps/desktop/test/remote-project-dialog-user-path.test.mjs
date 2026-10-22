@@ -53,6 +53,7 @@ window.piDesktop = { platform: "darwin", channels: IPC, on() { return () => {}; 
     return { kind: "text", content: "remote file", size: 11 };
    case IPC.invoke.projectGroupList: return { groups: [group] };
    case IPC.invoke.projectGroupRename: return { group: { ...group, name: input.name } };
+   case IPC.invoke.mcPromptsGet: return { config: { templates: [], globalTemplateId: null, modelRules: [], projectRules: [] } };
    default: unexpectedCalls.push(channel); throw new Error("Unexpected IPC: " + channel);
   } })();
   return { ok: true, data };

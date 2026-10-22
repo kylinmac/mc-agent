@@ -241,7 +241,12 @@ impl BackgroundShells {
             .get("command")
             .and_then(Value::as_str)
             .filter(|command| !command.trim().is_empty())
-            .ok_or_else(|| ("INVALID_ARGUMENT".to_string(), "command required".to_string()))?;
+            .ok_or_else(|| {
+                (
+                    "INVALID_ARGUMENT".to_string(),
+                    "command required".to_string(),
+                )
+            })?;
         let (session_running, total_running) = self.running_counts(&options.session_id);
         if session_running >= MAX_RUNNING_PER_SESSION || total_running >= MAX_RUNNING_TOTAL {
             return Err((
@@ -333,9 +338,7 @@ impl BackgroundShells {
         result["backgroundId"] = json!(shell.id);
         result["output"] = json!(output);
         if skipped > 0 || truncated {
-            result["note"] = json!(
-                "earlier output was dropped; only the latest output is shown"
-            );
+            result["note"] = json!("earlier output was dropped; only the latest output is shown");
         }
         Ok(result)
     }
@@ -506,7 +509,10 @@ async fn supervise(
             append(chunk, &mut decoders);
         }
     };
-    if tokio::time::timeout(PIPE_DRAIN_TIMEOUT, drain).await.is_err() {
+    if tokio::time::timeout(PIPE_DRAIN_TIMEOUT, drain)
+        .await
+        .is_err()
+    {
         stdout_task.abort();
         stderr_task.abort();
     }
@@ -553,9 +559,15 @@ mod tests {
 
     #[test]
     fn recognizes_the_background_flag_in_either_spelling() {
-        assert!(requested(&json!({ "command": "x", "runInBackground": true })));
-        assert!(requested(&json!({ "command": "x", "run_in_background": true })));
-        assert!(!requested(&json!({ "command": "x", "runInBackground": false })));
+        assert!(requested(
+            &json!({ "command": "x", "runInBackground": true })
+        ));
+        assert!(requested(
+            &json!({ "command": "x", "run_in_background": true })
+        ));
+        assert!(!requested(
+            &json!({ "command": "x", "runInBackground": false })
+        ));
         assert!(!requested(&json!({ "command": "x" })));
     }
 
@@ -565,19 +577,27 @@ mod tests {
         let shell = record("s1", "bg-1", Status::Running);
         shells.register(shell.clone(), "s1");
         shell.lock().unwrap().append("hello\n");
-        let first = shells.read_new("s1", &json!({ "backgroundId": "bg-1" })).unwrap();
+        let first = shells
+            .read_new("s1", &json!({ "backgroundId": "bg-1" }))
+            .unwrap();
         assert_eq!(first["output"], "hello\n");
         shell.lock().unwrap().append("world\n");
-        let second = shells.read_new("s1", &json!({ "backgroundId": "bg-1" })).unwrap();
+        let second = shells
+            .read_new("s1", &json!({ "backgroundId": "bg-1" }))
+            .unwrap();
         assert_eq!(second["output"], "world\n");
         assert_eq!(second["status"], "running");
         // Another session cannot see it.
-        assert!(shells.read_new("s2", &json!({ "backgroundId": "bg-1" })).is_err());
+        assert!(shells
+            .read_new("s2", &json!({ "backgroundId": "bg-1" }))
+            .is_err());
 
         // Overflowing the buffer drops the front and says so.
         let big = "x".repeat(BUFFER_LIMIT_BYTES + 10);
         shell.lock().unwrap().append(&big);
-        let third = shells.read_new("s1", &json!({ "backgroundId": "bg-1" })).unwrap();
+        let third = shells
+            .read_new("s1", &json!({ "backgroundId": "bg-1" }))
+            .unwrap();
         assert!(third["note"].is_string());
         assert_eq!(third["output"].as_str().unwrap().len(), READ_LIMIT_BYTES);
     }
@@ -589,7 +609,10 @@ mod tests {
             shells.register(record("s1", &format!("bg-{index}"), Status::Exited), "s1");
         }
         let listed = shells.list("s1");
-        assert_eq!(listed["shells"].as_array().unwrap().len(), MAX_KEPT_PER_SESSION);
+        assert_eq!(
+            listed["shells"].as_array().unwrap().len(),
+            MAX_KEPT_PER_SESSION
+        );
         // Newest first.
         assert_eq!(
             listed["shells"][0]["id"],
@@ -629,7 +652,9 @@ mod tests {
         let id = started["backgroundId"].as_str().unwrap().to_string();
         let mut output = String::new();
         for _ in 0..100 {
-            let read = shells.read_new("s1", &json!({ "backgroundId": id })).unwrap();
+            let read = shells
+                .read_new("s1", &json!({ "backgroundId": id }))
+                .unwrap();
             output.push_str(read["output"].as_str().unwrap());
             if output.contains("ready") {
                 break;
@@ -655,7 +680,12 @@ mod tests {
         let mut options = BashExecutionOptions::local(shell_id, None);
         options.session_id = "s1".into();
         let started = shells
-            .start(Some(dir.path()), None, &json!({ "command": "echo done; exit 3" }), options)
+            .start(
+                Some(dir.path()),
+                None,
+                &json!({ "command": "echo done; exit 3" }),
+                options,
+            )
             .await
             .unwrap();
         let id = started["backgroundId"].as_str().unwrap().to_string();

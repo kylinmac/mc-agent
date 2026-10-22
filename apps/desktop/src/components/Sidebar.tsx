@@ -87,7 +87,6 @@ import { useArmedDelete } from "../hooks/use-armed-delete";
 import { ProjectDeleteDialog } from "./ProjectDeleteDialog";
 import { SessionRenameDialog } from "./SessionRenameDialog";
 import { openProjectImportDialog } from "../features/project-import/ProjectImportDialog";
-import { useUpdateState } from "../hooks/use-update-state";
 import {
   IconArchive,
   IconArchiveRestore,
@@ -288,10 +287,7 @@ export function Sidebar({
   const setProjectSort = useAppStore((s) => s.setProjectSort);
   const reorderProjects = useAppStore((s) => s.reorderProjects);
   const showToast = useAppStore((s) => s.showToast);
-  const version = useAppStore((s) => s.version);
   const setSettingsTab = useAppStore((s) => s.setSettingsTab);
-  const setSettingsAnchor = useAppStore((s) => s.setSettingsAnchor);
-  const update = useUpdateState();
 
   const [sortOpen, setSortOpen] = useState(false);
   const [sessionMenu, setSessionMenu] = useState<string | null>(null);
@@ -646,24 +642,6 @@ export function Sidebar({
     sectionMenu,
     sortOpen,
   ]);
-
-  // Footer utility bar: settings / plugins / notifications + build chip.
-
-  // An update only earns the accent dot once it is actionable — a pending
-  // check or a failed one keeps the chip quiet.
-  const updateReady =
-    update?.status === "available" || update?.status === "downloaded";
-  const appVersion = update?.currentVersion || version?.version || "";
-  const buildLabel = updateReady
-    ? `v${update?.availableVersion ?? appVersion}`
-    : update?.status === "checking"
-      ? t("updates.checking")
-      : appVersion
-        ? `v${appVersion}`
-        : t("nav.buildUnknown");
-  const buildTitle = updateReady
-    ? t("updates.available", { version: update?.availableVersion ?? "" })
-    : t("nav.checkForUpdates");
 
   const onMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Escape") {
@@ -2614,32 +2592,9 @@ export function Sidebar({
             renderSessions={(sessions) => renderSessionRows(sessions, { temporary: false })} />
         </div>
 
-        <div className="sidebar-footer no-drag">
-          {/* mc-agent: plugins, scheduled, notifications and settings moved to the app rail (features/app-rail). */}
-
-          <TooltipButton
-            type="button"
-            className={`footer-build ${updateReady ? "has-update" : ""}`}
-            data-nav="build"
-            tooltip={buildTitle}
-            ariaLabel={buildTitle}
-            onClick={() => {
-              if (updateReady) {
-                setSettingsAnchor("updates.title");
-                setSettingsTab("about");
-                return;
-              }
-              void (async () => {
-                try {
-                  await api.updatesCheck();
-                } catch { /* ignore */ }
-              })();
-            }}
-          >
-            <span className="footer-build-version">{buildLabel}</span>
-            {updateReady ? <span className="footer-build-dot" aria-hidden /> : null}
-          </TooltipButton>
-        </div>
+        {/* mc-agent (bugs.md B-013): no footer. Plugins, scheduled, notifications,
+            settings and updates live in the app rail; upstream's version chip
+            showed PI-Desktop's version. */}
       </div>
       {/* mc-agent: pages such as settings put their navigation here. */}
       <SidebarSlotHost />

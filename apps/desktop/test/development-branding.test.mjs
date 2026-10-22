@@ -126,7 +126,7 @@ test("macOS development launches from a branded host bundle", () => {
   assert.match(devScriptSource, /CFBundleName", APP_NAME/);
   assert.match(devScriptSource, /CFBundleExecutable", APP_NAME/);
   assert.match(devScriptSource, /CFBundleIconFile", "icon\.icns"/);
-  assert.match(devScriptSource, /BRANDING_SCHEMA = "v4"/);
+  assert.match(devScriptSource, /BRANDING_SCHEMA = "v5"/);
   assert.match(
     devScriptSource,
     /copyFileSync\(iconPath, join\(resources, "icon\.icns"\)\)/,
@@ -226,8 +226,9 @@ test(
         ),
         "macOS-tray-icon",
       );
-      assert.match(plist, /<string>PI-Desktop<\/string>/);
-      assert.match(plist, /<string>net\.aiuo\.pi-desktop\.dev<\/string>/);
+      // mc-agent: the development bundle is named apart from upstream.
+      assert.match(plist, /<string>mc-agent Dev<\/string>/);
+      assert.match(plist, /<string>com\.kylinmac\.mc-agent\.dev<\/string>/);
       assert.equal(prepareMacDevelopmentBundle(options), brandedExecutable);
 
       await writeFile(trayIconMacPath, "updated-macOS-tray-icon");

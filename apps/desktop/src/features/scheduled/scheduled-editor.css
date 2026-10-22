@@ -133,3 +133,21 @@
 .scheduled-interval .field-input {
   width: 92px;
 }
+
+/* mc-agent (bugs.md B-009): the typed time beside the time-of-day presets. */
+.scheduled-time-input {
+  height: var(--ds-settings-picker-height, 30px);
+  margin-left: 8px;
+  padding: 0 8px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--ds-bg-hover);
+  color: var(--ds-text-primary);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.scheduled-time-input:focus {
+  border-color: var(--ds-accent);
+  outline: none;
+}

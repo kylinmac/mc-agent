@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, cx } from "../../components/ui";
 import {
@@ -17,7 +17,8 @@ import { IntoSidebarSlot } from "../sidebar-slot/SidebarSlot";
 import { ContextMenu, useContextMenu } from "../../components/ContextMenu";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
-import type { CreativeAsset, CreativeComparison, CreativeJob } from "./creative-types";
+import type { CreativeParams } from "@pi-desktop/shared";
+import type { CreativeAsset, CreativeComparison, CreativeJob, CreativeStorage } from "./creative-types";
 import {
   categoryTree,
   flattenCategories,
@@ -30,13 +31,14 @@ import {
   jobProgress,
   neighbour,
   queueJobs,
-  selectionAfterClick,
   toggleSelection,
   viewAssets,
   type FormReference,
   type StudioView,
 } from "./creative-model";
 import { useCreativeProjects, useStudioData } from "./use-creative";
+import { useGridSelection } from "./use-grid-selection";
+import { useAssetActions, type StudioNotice } from "./use-asset-actions";
 import { AssetTile } from "./AssetTile";
 import { AssetDetail } from "./AssetDetail";
 import { AssetPicker } from "./AssetPicker";
@@ -118,6 +120,14 @@ function JobStatusLabel({ job }: { job: CreativeJob }) {
   return <span className={cx("mc-creative-status", `is-${job.status}`)}>{t(`mcProject.creativeJob_${job.status}`)}</span>;
 }
 
+/** The storage errors host-core marks (mc_creative::STORAGE_*), else null. */
+function storageProblemOf(failure: unknown): "unlinked" | "unavailable" | null {
+  const message = failure instanceof Error ? failure.message : String(failure);
+  if (message.includes("STORAGE_UNLINKED")) return "unlinked";
+  if (message.includes("STORAGE_UNAVAILABLE")) return "unavailable";
+  return null;
+}
+
 function folderName(path: string): string {
   return path.split(/[\\/]/).filter(Boolean).pop() ?? path;
 }
@@ -131,7 +141,6 @@ export function CreativePage() {
   const [groupId, setGroupId] = useState<string | null>(readStoredGroup);
   const [view, setView] = useState<StudioView>({ kind: "all" });
   const [query, setQuery] = useState("");
-  const [selection, setSelection] = useState<string[]>([]);
   const [references, setReferences] = useState<FormReference[]>([]);
   const [prompt, setPrompt] = useState("");
   const [targetCategory, setTargetCategory] = useState("");
@@ -146,14 +155,10 @@ export function CreativePage() {
   const [creating, setCreating] = useState(false);
   const [picking, setPicking] = useState(false);
   // A message under the header; an undoable action carries its undo.
-  const [notice, setNotice] = useState<string | { text: string; undo: () => Promise<void> } | null>(null);
-  const [anchor, setAnchor] = useState<string | null>(null);
-  const [focusId, setFocusId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<StudioNotice>(null);
   const [moving, setMoving] = useState<string[] | null>(null);
   // Images on their way to a category (0 when nothing is dragged).
   const [assetDrag, setAssetDrag] = useState(0);
-  const [marquee, setMarquee] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
   const [dragging, setDragging] = useState(false);
 
   const creativeGroups = groups.filter((group) => purposes[group.id] === "creative");
@@ -184,14 +189,17 @@ export function CreativePage() {
   }, [group, isCreative, showProjectInSidebar]);
 
   // Where the project keeps its files: one of its folders' creative/.
-  const [storage, setStorage] = useState<{ folder: string; kind: string; base: string } | null>(null);
+  const [storage, setStorage] = useState<CreativeStorage | null>(null);
+  // Why there is no location: a chosen folder left the project or is offline.
+  const [storageProblem, setStorageProblem] = useState<"unlinked" | "unavailable" | null>(null);
   useEffect(() => {
     setStorage(null);
+    setStorageProblem(null);
     if (!studioGroupId) return;
-    void api.creative
-      .call<{ storage: { folder: string; kind: string; base: string } }>("creative.storage", { groupId: studioGroupId })
-      .then((answer) => setStorage(answer.storage))
-      .catch(() => setStorage(null));
+    void api.creative.call("creative.storage", { groupId: studioGroupId }).then(
+      (answer) => setStorage(answer.storage),
+      (failure: unknown) => setStorageProblem(storageProblemOf(failure)),
+    );
   }, [studioGroupId]);
 
   const { assets, jobs, comparisons, categories, error, reload } = useStudioData(studioGroupId);
@@ -230,20 +238,9 @@ export function CreativePage() {
     [groupsForGrid, view],
   );
 
-  // A selection belongs to the view it was made in: switching views starts
-  // fresh, and a search keeps only what is still on screen.
   const viewKey = view.kind === "category" ? `category:${view.path}` : view.kind;
-  useEffect(() => {
-    setSelection([]);
-    setAnchor(null);
-    setFocusId(null);
-  }, [viewKey]);
-  useEffect(() => {
-    setSelection((current) => {
-      const kept = current.filter((id) => order.includes(id));
-      return kept.length === current.length ? current : kept;
-    });
-  }, [order]);
+  const grid = useGridSelection({ order, viewKey, disabled: view.kind === "comparisons" });
+  const { selection, setSelection, setAnchor, focusId, setFocusId, marquee, scrollRef, selectTile, startMarquee } = grid;
 
   const projectPath = useMemo(() => {
     if (!group) return null;
@@ -285,12 +282,17 @@ export function CreativePage() {
 
   const currentCategory = view.kind === "category" ? view.path : "";
 
-  const importFiles = async (paths: string[]) => {
-    if (!studioGroupId || !paths.length) return;
-    const { assets: added } = await api.creative.importFiles(studioGroupId, paths, currentCategory);
-    setNotice(t("mcProject.creativeImported", { count: added.length }));
-    await reload();
-  };
+  const { importFiles, moveAssets, removeFromLibrary, deleteFiles } = useAssetActions({
+    groupId: studioGroupId,
+    assetById,
+    category: currentCategory,
+    reload,
+    setNotice,
+    onGone: (ids) => {
+      setSelection((current) => current.filter((id) => !ids.includes(id)));
+      setReferences((current) => current.filter((entry) => !ids.includes(entry.assetId)));
+    },
+  });
 
   const onDropFiles = (event: DragEvent) => {
     if (event.dataTransfer.types.includes(ASSET_DRAG_TYPE)) return;
@@ -302,66 +304,11 @@ export function CreativePage() {
     void importFiles(paths).catch(fail);
   };
 
-  const moveAssets = async (ids: string[], category: string) => {
-    if (!studioGroupId || !ids.length) return;
-    const groupId = studioGroupId;
-    // Where each one was, so the move can be undone.
-    const before = new Map<string, string[]>();
-    for (const id of ids) {
-      const from = assetById.get(id)?.category ?? "";
-      if (from === category) continue;
-      before.set(from, [...(before.get(from) ?? []), id]);
-    }
-    await api.creative.call("creative.assets.move", { groupId, assetIds: ids, category });
-    setNotice({
-      text: t("mcProject.creativeMoved", {
-        count: ids.length,
-        name: category || t("mcProject.creativeUncategorized"),
-      }),
-      undo: async () => {
-        for (const [from, moved] of before) {
-          await api.creative.call("creative.assets.move", { groupId, assetIds: moved, category: from });
-        }
-        setNotice(t("mcProject.creativeMoveUndone", { count: ids.length }));
-        await reload();
-      },
-    });
-    await reload();
-  };
-
   const addReferences = (ids: string[]) =>
     setReferences((current) => [
       ...current,
       ...ids.filter((id) => !current.some((entry) => entry.assetId === id)).map((id) => ({ assetId: id, role: "reference" as const })),
     ]);
-
-  /** Out of the library only; the files stay, and the notice can undo it. */
-  const removeFromLibrary = async (ids: string[]) => {
-    if (!studioGroupId || !ids.length) return;
-    const groupId = studioGroupId;
-    for (const id of ids) await api.creative.call("creative.assets.remove", { groupId, assetId: id });
-    setSelection((current) => current.filter((id) => !ids.includes(id)));
-    setReferences((current) => current.filter((entry) => !ids.includes(entry.assetId)));
-    setNotice({
-      text: t("mcProject.creativeRemovedSelected", { count: ids.length }),
-      undo: async () => {
-        for (const id of ids) await api.creative.call("creative.assets.restore", { groupId, assetId: id });
-        setNotice(t("mcProject.creativeRestored", { count: ids.length }));
-        await reload();
-      },
-    });
-    await reload();
-  };
-
-  const selectTile = (id: string, event: MouseEvent) => {
-    const next = selectionAfterClick(selection, anchor, order, id, {
-      toggle: event.metaKey || event.ctrlKey,
-      range: event.shiftKey,
-    });
-    setSelection(next.selection);
-    setAnchor(next.anchor);
-    setFocusId(id);
-  };
 
   /** Right-click on a tile: acts on the selection when the tile is in it, else on the tile alone. */
   const tileMenu = (event: MouseEvent<HTMLElement>, asset: CreativeAsset) => {
@@ -451,52 +398,6 @@ export function CreativePage() {
   };
 
   /*
-    Box selection on empty space, as in Finder: the rectangle selects what it
-    touches (added to the selection with ⇧/⌘); a click without a drag clears it.
-  */
-  const startMarquee = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || view.kind === "comparisons") return;
-    const target = event.target as HTMLElement;
-    if (target.closest(".mc-creative-tile, button, a, input, select, textarea")) return;
-    const container = scrollRef.current;
-    if (!container) return;
-    const keep = event.shiftKey || event.metaKey || event.ctrlKey ? selection : [];
-    const origin = { x: event.clientX, y: event.clientY };
-    let moved = false;
-    const box = container.getBoundingClientRect();
-    const onMove = (move: globalThis.PointerEvent) => {
-      const left = Math.min(origin.x, move.clientX);
-      const top = Math.min(origin.y, move.clientY);
-      const right = Math.max(origin.x, move.clientX);
-      const bottom = Math.max(origin.y, move.clientY);
-      if (!moved && right - left < 4 && bottom - top < 4) return;
-      moved = true;
-      setMarquee({
-        left: left - box.left + container.scrollLeft,
-        top: top - box.top + container.scrollTop,
-        width: right - left,
-        height: bottom - top,
-      });
-      const hits = [...container.querySelectorAll<HTMLElement>("[data-asset-id]")]
-        .filter((tile) => {
-          const rect = tile.getBoundingClientRect();
-          return rect.right > left && rect.left < right && rect.bottom > top && rect.top < bottom;
-        })
-        .map((tile) => tile.dataset.assetId!)
-        .filter((id) => !keep.includes(id));
-      setSelection([...keep, ...hits]);
-    };
-    const onUp = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      setMarquee(null);
-      if (!moved && !keep.length) setSelection([]);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-  };
-
-  /*
     Keyboard, as in photo libraries: ⌘A all, Esc clear, arrows move, Space or
     Enter previews, Delete removes from the library (undoable), ⌘Delete
     deletes the files. In the preview, ← → step through the grid. Typing in a
@@ -523,55 +424,8 @@ export function CreativePage() {
       }
       return;
     }
-    if (mod && event.key.toLowerCase() === "a") {
-      event.preventDefault();
-      setSelection([...order]);
-      return;
-    }
-    if (event.key === "Escape" && selection.length) {
-      event.preventDefault();
-      setSelection([]);
-      return;
-    }
-    if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
-      event.preventDefault();
-      const from = focusId && order.includes(focusId) ? focusId : selection[selection.length - 1] ?? null;
-      let next: string | null;
-      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-        next = neighbour(order, from, event.key === "ArrowLeft" ? -1 : 1);
-      } else {
-        // Up/down: the nearest tile in the row above or below.
-        const tiles = [...(scrollRef.current?.querySelectorAll<HTMLElement>("[data-asset-id]") ?? [])];
-        const current = tiles.find((tile) => tile.dataset.assetId === from);
-        if (!current) next = neighbour(order, null, 1);
-        else {
-          const here = current.getBoundingClientRect();
-          const down = event.key === "ArrowDown";
-          const candidates = tiles
-            .map((tile) => ({ id: tile.dataset.assetId!, rect: tile.getBoundingClientRect() }))
-            .filter(({ rect }) => (down ? rect.top > here.top + 4 : rect.top < here.top - 4))
-            .sort(
-              (a, b) =>
-                Math.abs(a.rect.top - here.top) - Math.abs(b.rect.top - here.top) ||
-                Math.abs(a.rect.left - here.left) - Math.abs(b.rect.left - here.left),
-            );
-          const rowTop = candidates[0]?.rect.top;
-          next =
-            candidates
-              .filter(({ rect }) => rect.top === rowTop)
-              .sort((a, b) => Math.abs(a.rect.left - here.left) - Math.abs(b.rect.left - here.left))[0]?.id ?? from;
-        }
-      }
-      if (next) {
-        const step = selectionAfterClick(selection, anchor, order, next, { toggle: false, range: event.shiftKey });
-        setSelection(step.selection);
-        setAnchor(step.anchor);
-        setFocusId(next);
-        scrollRef.current?.querySelector(`[data-asset-id="${CSS.escape(next)}"]`)?.scrollIntoView({ block: "nearest" });
-      }
-      return;
-    }
-    const focus = focusId && selection.includes(focusId) ? focusId : selection[selection.length - 1];
+    if (grid.navigateKey(event)) return;
+    const focus = grid.keyTarget;
     if ((event.key === " " || event.key === "Enter") && focus) {
       event.preventDefault();
       setDetailId(focus);
@@ -642,31 +496,9 @@ export function CreativePage() {
     writeStored(RESOLUTION_KEY, restoredSize);
   };
 
-  /** Delete files after one confirmation; their records stay for history. */
-  const deleteFiles = async (ids: string[]) => {
-    if (!studioGroupId || !ids.length) return;
-    if (!window.confirm(t("mcProject.creativeDeleteFilesConfirm", { count: ids.length }))) return;
-    let failed = 0;
-    for (const id of ids) {
-      try {
-        await api.creative.call("creative.assets.deleteFile", { groupId: studioGroupId, assetId: id });
-      } catch {
-        failed += 1;
-      }
-    }
-    setSelection((current) => current.filter((id) => !ids.includes(id)));
-    setReferences((current) => current.filter((entry) => !ids.includes(entry.assetId)));
-    setNotice(
-      failed
-        ? t("mcProject.creativeDeletedSomeFailed", { count: ids.length - failed, failed })
-        : t("mcProject.creativeDeletedFiles", { count: ids.length }),
-    );
-    await reload();
-  };
-
   const saveComparison = async (ids: string[], existing: CreativeComparison | null, input: { title: string; note: string; chosen: string | null }) => {
     if (!studioGroupId) return;
-    const { comparison } = await api.creative.call<{ comparison: CreativeComparison }>("creative.comparisons.save", {
+    const { comparison } = await api.creative.call("creative.comparisons.save", {
       groupId: studioGroupId,
       ...(existing ? { comparisonId: existing.id } : {}),
       comparison: { ...input, assetIds: ids },
@@ -676,22 +508,27 @@ export function CreativePage() {
     await reload();
   };
 
-  /** Store later images under `folder`'s `creative/`; a folder picked from disk joins the project. */
-  const moveStorage = async (folder: string, add: boolean) => {
+  /**
+   * Store later images under `folder`'s `creative/`; a folder picked from disk
+   * joins the project. Nothing already saved moves: earlier files and their
+   * records stay where they are.
+   */
+  const changeStorage = async (folder: string, add: boolean) => {
     if (!studioGroupId) return;
     try {
       const answer = add
-        ? await api.creative.call<{ storage: { folder: string; kind: string; base: string } }>("creative.useWorkspace", {
+        ? await api.creative.call("creative.useWorkspace", {
             groupId: studioGroupId,
             folder,
             add: true,
           })
-        : await api.creative.call<{ storage: { folder: string; kind: string; base: string } }>("creative.setStorage", {
+        : await api.creative.call("creative.setStorage", {
             groupId: studioGroupId,
             folder,
           });
       setStorage(answer.storage);
-      setNotice(t("mcProject.creativeStorageMoved", { path: answer.storage.base }));
+      setStorageProblem(null);
+      setNotice(t("mcProject.creativeStorageChanged", { path: answer.storage.base }));
       if (add) await reloadProjects();
       await reload();
     } catch (failure) {
@@ -699,14 +536,41 @@ export function CreativePage() {
     }
   };
 
-  const categoryCall = async (method: string, params: Record<string, unknown>) => {
+  /** Where new files go: one of the project's folders, or another picked from disk. */
+  const storageMenu = (event: MouseEvent<HTMLElement>) => {
+    if (!group) return;
+    openContextMenu(event, {
+      label: t("mcProject.creativeStorageChangeTitle"),
+      items: [
+        ...group.roots.map((root) => ({
+          id: root.path,
+          label: `${root.kind === "resources" ? t("mcProject.creativeStorageResources") : folderName(root.path)}/creative${
+            root.path === storage?.folder ? ` · ${t("mcProject.creativeStorageCurrent")}` : ""
+          }`,
+          disabled: root.path === storage?.folder,
+          onSelect: () => void changeStorage(root.path, false),
+        })),
+        {
+          id: "pick",
+          label: t("mcProject.creativeStoragePick"),
+          separatorBefore: true,
+          onSelect: () =>
+            void api.pickProjectFolders().then(({ folders }) => {
+              if (folders[0]) void changeStorage(folders[0], true);
+            }, fail),
+        },
+      ],
+    });
+  };
+
+  const categoryCall = async <M extends "creative.categories.create" | "creative.categories.rename" | "creative.categories.delete">(
+    method: M,
+    params: Omit<CreativeParams<M>, "groupId">,
+  ) => {
     if (!studioGroupId) return;
-    try {
-      await api.creative.call(method, { groupId: studioGroupId, ...params });
-      await reload();
-    } catch (failure) {
-      fail(failure);
-    }
+    // Refusals reach the caller: the name field keeps the input and says why.
+    await api.creative.call(method, { groupId: studioGroupId, ...params } as CreativeParams<M>);
+    await reload();
   };
 
   const viewItem = (target: StudioView, icon: ReactNode, label: string, count: number) => (
@@ -800,32 +664,21 @@ export function CreativePage() {
                     <button
                       type="button"
                       className="mc-creative-storage-change"
-                      onClick={(event) =>
-                        openContextMenu(event, {
-                          label: t("mcProject.creativeStorageChange"),
-                          items: [
-                            ...group.roots.map((root) => ({
-                              id: root.path,
-                              label: `${root.kind === "resources" ? t("mcProject.creativeStorageResources") : folderName(root.path)}/creative${
-                                root.path === storage.folder ? ` · ${t("mcProject.creativeStorageCurrent")}` : ""
-                              }`,
-                              disabled: root.path === storage.folder,
-                              onSelect: () => void moveStorage(root.path, false),
-                            })),
-                            {
-                              id: "pick",
-                              label: t("mcProject.creativeStoragePick"),
-                              separatorBefore: true,
-                              onSelect: () =>
-                                void api.pickProjectFolders().then(({ folders }) => {
-                                  if (folders[0]) void moveStorage(folders[0], true);
-                                }, fail),
-                            },
-                          ],
-                        })
-                      }
+                      title={t("mcProject.creativeStorageChangeTitle")}
+                      aria-label={t("mcProject.creativeStorageChangeTitle")}
+                      onClick={storageMenu}
                     >
                       {t("mcProject.creativeStorageChange")}
+                    </button>
+                  </div>
+                ) : storageProblem ? (
+                  <div className="settings-nav-item mc-creative-storage mc-creative-storage-problem" role="alert">
+                    <span className="settings-nav-label">
+                      <span className="mc-creative-muted">{t("mcProject.creativeStorage")}</span>
+                      {t(storageProblem === "unlinked" ? "mcProject.creativeStorageUnlinked" : "mcProject.creativeStorageUnavailable")}
+                    </span>
+                    <button type="button" className="mc-creative-storage-change" onClick={storageMenu}>
+                      {t("mcProject.creativeStorageChoose")}
                     </button>
                   </div>
                 ) : null}
@@ -845,7 +698,12 @@ export function CreativePage() {
                   }
                 }}
                 onDelete={async (path) => {
-                  await categoryCall("creative.categories.delete", { path });
+                  try {
+                    await categoryCall("creative.categories.delete", { path });
+                  } catch (failure) {
+                    fail(failure);
+                    return;
+                  }
                   if (view.kind === "category" && (view.path === path || view.path.startsWith(`${path}/`))) {
                     setView({ kind: "all" });
                   }

@@ -23,7 +23,8 @@ use self::ax::Frame;
 use self::cf::Cf;
 use self::ffi::*;
 use crate::backend::{
-    AppInfo, AppState, Backend, Direction, MouseButton, Permissions, Point, Screenshot, Target,
+    AppInfo, AppState, Backend, CheckedBy, Direction, MouseButton, PermissionCheck, PermissionItem,
+    PermissionRequest, Permissions, Point, Screenshot, Target,
 };
 use crate::keys::KeyChord;
 
@@ -31,8 +32,27 @@ use crate::keys::KeyChord;
 const LINES_PER_PAGE: f64 = 8.0;
 const LAUNCH_TIMEOUT: Duration = Duration::from_secs(8);
 
-const ACCESSIBILITY_GUIDE: &str = "Accessibility is off: open System Settings → Privacy & Security → Accessibility and turn on mc-agent (a development build shows as PI-Desktop or Electron), then try again.";
-const SCREEN_GUIDE: &str = "Screen Recording is off, so there is no screenshot: open System Settings → Privacy & Security → Screen & System Audio Recording and turn on mc-agent (PI-Desktop or Electron for a development build). The element tree still works.";
+const ACCESSIBILITY_GUIDE: &str = "Accessibility is off: open System Settings → Privacy & Security → Accessibility and turn on mc-agent (a development build shows as mc-agent Dev), then try again. mc-agent → Settings → System permissions opens the right page.";
+const SCREEN_GUIDE: &str = "Screen Recording is off, so there is no screenshot: open System Settings → Privacy & Security → Screen & System Audio Recording and turn on mc-agent (mc-agent Dev for a development build). The element tree still works.";
+const ACCESSIBILITY_PATH: &str = "System Settings → Privacy & Security → Accessibility";
+const SCREEN_PATH: &str = "System Settings → Privacy & Security → Screen & System Audio Recording";
+
+/// Open one permission's settings page; false when `open` failed.
+fn open_settings(item: PermissionItem) -> bool {
+    let url = match item {
+        PermissionItem::Accessibility => {
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+        }
+        PermissionItem::ScreenRecording => {
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
+        }
+    };
+    Command::new("/usr/bin/open")
+        .arg(url)
+        .status()
+        .is_ok_and(|status| status.success())
+}
+
 const LOCKED: &str = "The screen is locked, so app windows cannot be read or used. Ask the user to unlock the Mac, then try again.";
 
 #[derive(Debug, Clone)]
@@ -304,37 +324,51 @@ impl MacBackend {
 }
 
 impl Backend for MacBackend {
-    fn permissions(&mut self, request: bool) -> Result<Permissions> {
-        let accessibility = accessibility_trusted(request);
-        // SAFETY: plain queries.
+    fn permissions(&mut self, request: &PermissionRequest) -> Result<Permissions> {
+        let wants = |item| request.request.contains(&item);
+        // Each prompt only for what was asked, and only while missing.
+        let accessibility = accessibility_trusted(wants(PermissionItem::Accessibility));
+        // SAFETY: plain query.
         let mut screen_recording = unsafe { CGPreflightScreenCaptureAccess() };
-        if request && !screen_recording {
+        if wants(PermissionItem::ScreenRecording) && !screen_recording {
             // SAFETY: shows the system prompt at most once per app.
             screen_recording = unsafe { CGRequestScreenCaptureAccess() };
+        }
+        let mut items = vec![
+            PermissionCheck {
+                item: PermissionItem::Accessibility,
+                granted: accessibility,
+                settings_opened: None,
+                settings_path: ACCESSIBILITY_PATH.into(),
+            },
+            PermissionCheck {
+                item: PermissionItem::ScreenRecording,
+                granted: screen_recording,
+                settings_opened: None,
+                settings_path: SCREEN_PATH.into(),
+            },
+        ];
+        if let Some(item) = request.open_settings {
+            let opened = open_settings(item);
+            if let Some(check) = items.iter_mut().find(|check| check.item == item) {
+                check.settings_opened = Some(opened);
+            }
         }
         let mut guidance = Vec::new();
         if !accessibility {
             guidance.push(ACCESSIBILITY_GUIDE.to_string());
-            if request {
-                let _ = Command::new("/usr/bin/open")
-                    .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-                    .status();
-            }
         }
         if !screen_recording {
             guidance.push(SCREEN_GUIDE.to_string());
-            if request && accessibility {
-                let _ = Command::new("/usr/bin/open")
-                    .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")
-                    .status();
-            }
         }
         if !guidance.is_empty() {
-            guidance.push("A permission turned on while mc-agent is running may only take effect after restarting it.".into());
+            guidance.push("Settings → System permissions in mc-agent shows both and opens the right page. A permission turned on while mc-agent is running may only take effect after restarting it.".into());
         }
         Ok(Permissions {
             accessibility,
             screen_recording,
+            items,
+            checked_by: CheckedBy::this_process(),
             guidance,
         })
     }

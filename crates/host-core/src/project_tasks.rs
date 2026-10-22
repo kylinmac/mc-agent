@@ -53,6 +53,14 @@ pub struct ResourceSnapshot {
     pub key: String,
     pub title: String,
     pub status: ResourceStatus,
+    /// mc-agent (X-CONCEPT-02): the file's SHA-256 when the run started, so
+    /// a run can be traced to the content it was given. Not a copy of the
+    /// content; absent for links, unreadable files and runs recorded before.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sha256: Option<String>,
+    /// When that resource was last confirmed, as of the run's start.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub confirmed_at: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -442,10 +450,16 @@ fn resource_preflight(
         drafts: Vec::new(),
     };
     for key in keys {
-        let (title, status) = match listing.items.iter().find(|item| &item.key == key) {
+        let item = listing.items.iter().find(|item| &item.key == key);
+        let (title, status) = match item {
             Some(item) => (item.title.clone(), item.status),
             None => (key.clone(), ResourceStatus::Missing),
         };
+        let sha256 = item
+            .and_then(|item| item.path.as_deref())
+            .filter(|_| status != ResourceStatus::Missing)
+            .and_then(|path| resource_catalog::hash_file(std::path::Path::new(path)).ok());
+        let confirmed_at = item.and_then(|item| item.confirmed_at);
         match status {
             ResourceStatus::Missing | ResourceStatus::Changed => {
                 preflight.blocking.push(key.clone())
@@ -457,6 +471,8 @@ fn resource_preflight(
             key: key.clone(),
             title,
             status,
+            sha256,
+            confirmed_at,
         });
     }
     Ok(preflight)
@@ -709,6 +725,9 @@ mod tests {
             start_run(&f.db, &f.group, &task.id, task.revision, &session, &f.web).unwrap();
         assert_eq!(started.status, TaskStatus::InProgress);
         assert_eq!(started.runs[0].resources[0].status, ResourceStatus::Draft);
+        // The run records what the file held when it started.
+        let first_hash = started.runs[0].resources[0].sha256.clone().expect("hashed");
+        assert_eq!(first_hash.len(), 64);
         assert!(
             start_run(
                 &f.db,
@@ -752,6 +771,7 @@ mod tests {
         assert_eq!(rejected.status, TaskStatus::Todo);
         assert_eq!(rejected.reviews[0].note, "缺少错误处理");
 
+        fs::write(Path::new(&f.resources).join("requirements/login.md"), "v2").unwrap();
         let session2 = session_in(&f.db, &f.resources);
         let second = start_run(
             &f.db,
@@ -775,6 +795,15 @@ mod tests {
         .unwrap();
         assert_eq!(done.status, TaskStatus::Done);
         assert_eq!(done.runs.len(), 2);
+        assert_ne!(
+            second.runs[1].resources[0].sha256.as_deref(),
+            Some(first_hash.as_str())
+        );
+        // A later run keeps its own record; the first one is not rewritten.
+        assert_eq!(
+            done.runs[0].resources[0].sha256.as_deref(),
+            Some(first_hash.as_str())
+        );
         assert_eq!(second.runs[1].start_folder, f.resources);
     }
 

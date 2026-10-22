@@ -331,7 +331,7 @@ export function NotificationCenter({
                 const title = t(
                   failed
                     ? "notifications.failedTitle"
-                    : "notifications.completedTitle",
+                    : "mcProject.turnFinishedTitle",
                   { sessionTitle },
                 );
                 const body = failed
@@ -340,7 +340,7 @@ export function NotificationCenter({
                         code: notification.errorCode,
                       })
                     : t("notifications.failedBody")
-                  : t("notifications.completedBody");
+                  : t("mcProject.turnFinishedBody");
                 return (
                   <li key={notification.id}>
                     <button

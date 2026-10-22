@@ -1,0 +1,79 @@
+/* mc-agent: Settings and full pages inside the mc-agent shell.
+   Split out of app-rail.css; imported right after it in globals.css,
+   in the original order. */
+
+/* Settings tab and pages marked .mc-slot-page (extensions): their own nav takes the sidebar's place (features/
+   sidebar-slot); the rail's home button brings the conversation list back. */
+.mc-sidebar-slot {
+  display: none;
+}
+
+.app-shell:has(.mc-settings-tab) .sidebar .sidebar-body,
+.app-shell:has(.mc-slot-page) .sidebar .sidebar-body {
+  display: none;
+}
+
+.app-shell:has(.mc-settings-tab) .sidebar .mc-sidebar-slot,
+.app-shell:has(.mc-slot-page) .sidebar .mc-sidebar-slot {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-rail ~ .sidebar .mc-sidebar-slot {
+  border-top: 1px solid var(--mc-card-border);
+  border-left: 1px solid var(--mc-card-border);
+  border-top-left-radius: 12px;
+  background: var(--mc-card-bg);
+}
+
+.mc-sidebar-slot .settings-nav {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+  background: none;
+}
+
+/* The settings nav takes the conversation list's card tone: the platform
+   glass of .sidebar-surface must not paint over it, and its selected and
+   hovered rows match the conversation rows. */
+:root[data-platform] .mc-sidebar-slot .settings-nav.sidebar-surface,
+.mc-sidebar-slot .settings-nav.sidebar-surface {
+  background: none;
+}
+
+.mc-sidebar-slot .settings-nav-item:hover {
+  background: var(--ds-bg-hover);
+}
+
+.mc-sidebar-slot .settings-nav-item.active {
+  background: var(--ds-bg-active);
+}
+
+.mc-sidebar-slot .settings-nav-top {
+  padding: 8px 8px 6px;
+}
+
+.mc-sidebar-slot .settings-nav-footer {
+  display: none;
+}
+
+/* Settings content: no page heading, ordinary spacing under the title bar. */
+.mc-settings-tab .settings-section-title {
+  display: none;
+}
+
+.mc-settings-tab .settings-content {
+  padding-top: calc(var(--ds-toolbar-height) + 20px);
+}
+
+/* Full pages (extensions, scheduled tasks, projects) start the same distance
+   under the title bar as settings; upstream's 8px suited its taller band. */
+:root[data-platform] .app-shell .page-frame {
+  padding-top: calc(var(--ds-toolbar-height) + 20px);
+}

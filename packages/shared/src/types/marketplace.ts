@@ -11,6 +11,8 @@ export type MarketPluginSummary = {
   name: string;
   description: string;
   author: string;
+  /** mc-agent: the author's page, when the catalog gives one. */
+  authorUrl?: string;
   iconUrl?: string;
   latestVersion: string;
   downloads?: number;

@@ -63,6 +63,7 @@ export function ProjectKindPicker({
           );
         })}
       </div>
+      <p className="mc-workbench-muted">{t("mcProject.kindPurposeNote")}</p>
       {kind === "managed" && !remote ? (
         <TemplatePicker value={template} onChange={onTemplateChange} disabled={disabled} />
       ) : null}

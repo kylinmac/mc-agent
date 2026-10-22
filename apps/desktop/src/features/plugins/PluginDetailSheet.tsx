@@ -21,6 +21,7 @@ import {
   showsVerifiedBadge,
   versionInstallable,
   versionWithdrawn,
+  authorParts,
 } from "./model";
 import type { PluginsPageModel } from "./usePluginsPage";
 
@@ -87,7 +88,17 @@ export function PluginDetailSheet({
                       <span className="plugins-dot" aria-hidden>
                         ·
                       </span>
-                      <span>{detail.author}</span>
+                      {(detail.authorUrl ?? authorParts(detail.author).url) ? (
+                        <button
+                          type="button"
+                          className="plugins-author-link"
+                          onClick={() => openHttpUrl((detail.authorUrl ?? authorParts(detail.author).url)!)}
+                        >
+                          {authorParts(detail.author).name}
+                        </button>
+                      ) : (
+                        <span>{authorParts(detail.author).name}</span>
+                      )}
                     </>
                   ) : null}
                 </div>

@@ -55,7 +55,7 @@ export function bundleOf(execPath: string): string | null {
   return index > 0 ? execPath.slice(0, index + 4) : null;
 }
 
-function plistValue(app: string, key: string): string | null {
+export function plistValue(app: string, key: string): string | null {
   const result = spawnSync("/usr/bin/plutil", ["-extract", key, "raw", "-o", "-", join(app, "Contents", "Info.plist")], {
     encoding: "utf8",
   });

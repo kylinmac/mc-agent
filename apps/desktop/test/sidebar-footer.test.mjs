@@ -92,7 +92,6 @@ test("footer sits on the sidebar content grid without a hairline", () => {
   // apart from the nav by `margin-top: auto` and its own padding, not a rule.
   assert.match(block, /padding:\s*7px 0 2px/);
   assert.doesNotMatch(block, /border-top/);
-  assert.match(globalStyles, /\.footer-build\s*\{[^}]*padding:\s*5px 8px/s);
 });
 
 test("footer action buttons share the notification trigger's hit target", () => {
@@ -102,17 +101,8 @@ test("footer action buttons share the notification trigger's hit target", () => 
   assert.match(block, /transition:[^;]*var\(--motion-duration-fast\)/);
 });
 
-test("build chip surfaces the version and only dots an actionable update", () => {
-  assert.match(sidebarSource, /const update = useUpdateState\(\)/);
-  assert.match(
-    sidebarSource,
-    /update\?\.status === "available" \|\| update\?\.status === "downloaded"/,
-  );
-  assert.match(sidebarSource, /className="footer-build-dot"/);
-  // An actionable update routes to the Settings row that can act on it.
-  assert.match(sidebarSource, /setSettingsAnchor\("updates\.title"\)/);
-  assert.match(sidebarSource, /setSettingsTab\("about"\)/);
-  assert.match(sidebarSource, /api\.updatesCheck\(\)/);
-  const dot = globalStyles.match(/\.footer-build-dot\s*\{[^}]+\}/)?.[0] ?? "";
-  assert.match(dot, /background:\s*var\(--ds-accent\)/);
+test("mc-agent: the sidebar has no version chip; updates live in the app rail", () => {
+  // bugs.md B-013: the chip showed upstream's PI-Desktop version.
+  assert.doesNotMatch(sidebarSource, /footer-build/);
+  assert.doesNotMatch(sidebarSource, /useUpdateState\(\)/);
 });

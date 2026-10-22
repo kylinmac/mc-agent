@@ -920,6 +920,13 @@ const CONTEXT_COMPACTION_TOOL_NAME = "new_context";
 const CONTEXT_COMPACTION_TOOL_DESCRIPTION =
   "Start a new context window. Does not clear, reset, or otherwise affect environment state.";
 /** Codex's `NEW_CONTEXT_WINDOW_MESSAGE`, one per family. */
+/**
+ * mc-agent (bugs.md B-001): the reply to a second request in the same prompt.
+ * The compaction keeps the active turn's user message, so a model that was
+ * asked for "a new conversation" would otherwise ask again and compact twice.
+ */
+const CONTEXT_COMPACTION_ALREADY_DONE =
+  "A new context window was already started in this turn. Do not call new_context again; continue the task, or end your reply if nothing else is needed.";
 const CONTEXT_COMPACTION_TOOL_REPLY: Record<CompactionStrategy, string> = {
   fresh_window:
     "A new context window will start without summarizing conversation history.",
@@ -2012,6 +2019,8 @@ export class DesktopAgentRuntime {
   private compactionAborted = false;
   /** Set by the `new_context` tool, consumed at the next turn boundary. */
   private pendingModelCompaction = false;
+  /** mc-agent: the prompt (turn epoch) a model-requested compaction last ran in. */
+  private modelCompactedInEpoch = -1;
   /** One-shot request to finish the current turn at the next boundary. */
   private gracefulStopRequested = false;
   /** Codex's `claim_*` flags: one of each reminder per context window. */
@@ -6185,6 +6194,12 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       description: CONTEXT_COMPACTION_TOOL_DESCRIPTION,
       parameters: Type.Object({}),
       execute: async () => {
+        if (this.modelCompactedInEpoch === this.turnEpoch) {
+          return {
+            content: [{ type: "text", text: CONTEXT_COMPACTION_ALREADY_DONE }],
+            details: { queued: false },
+          };
+        }
         this.pendingModelCompaction = true;
         return {
           content: [
@@ -6924,6 +6939,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         "CONTEXT_COMPACTION_FAILED: unable to create a checkpoint before the next model request",
       );
     }
+    if (modelRequested) this.modelCompactedInEpoch = this.turnEpoch;
     context = this.rebuiltAgentContext();
     const postCompactionBudget = this.contextBudget(context.messages);
     if (postCompactionBudget.tokens >= postCompactionBudget.hardLimit) {

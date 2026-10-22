@@ -540,6 +540,7 @@ impl PluginManager {
             .unwrap_or_else(|| "0.0.0".into());
         let installed = self.get(&entry.id);
         let catalog_url = self.market_source_url();
+        let (author, author_url) = super::model::author_parts(&entry.author);
         MarketPluginSummary {
             id: entry.id.clone(),
             name: localized_field(entry.i18n.as_ref(), &self.locale, |text| text.name.as_ref())
@@ -550,7 +551,8 @@ impl PluginManager {
             })
             .cloned()
             .unwrap_or_else(|| entry.description.clone()),
-            author: entry.author.clone(),
+            author,
+            author_url,
             icon_url: entry.icon_url.clone(),
             latest_version: latest.clone(),
             downloads: entry.downloads,

@@ -13,7 +13,9 @@ use anyhow::{anyhow, Result};
 use base64::Engine;
 use serde_json::{json, Value};
 
-use crate::backend::{AppState, Backend, Direction, MouseButton, Point, Target};
+use crate::backend::{
+    AppState, Backend, Direction, MouseButton, PermissionItem, PermissionRequest, Point, Target,
+};
 use crate::keys::parse_chord;
 use crate::render::{self, Line};
 
@@ -164,8 +166,16 @@ pub fn definitions() -> Vec<Value> {
     let mut defs = vec![
         json!({
             "name": "permissions",
-            "description": "Check whether this computer allows reading app UIs and sending input (Accessibility) and taking screenshots (Screen Recording). With request=true, ask the system for the missing permissions and open the settings page; the user must approve there.",
-            "inputSchema": { "type": "object", "properties": { "request": { "type": "boolean" } }, "additionalProperties": false }
+            "description": "Check whether this computer allows reading app UIs and sending input (Accessibility) and taking screenshots (Screen Recording). Checking never prompts. To help the user grant one, pass request_item (shows the system prompt if it is missing) and open_settings (opens that settings page); ask for one permission at a time and do not repeat a request the user declined. The user approves in System Settings.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "request_item": { "type": "string", "enum": ["accessibility", "screenRecording"] },
+                    "open_settings": { "type": "string", "enum": ["accessibility", "screenRecording"] },
+                    "request": { "type": "boolean", "description": "Older form: request every missing permission." }
+                },
+                "additionalProperties": false
+            }
         }),
         json!({
             "name": "list_apps",
@@ -277,6 +287,30 @@ pub fn target(args: &Value) -> Result<Option<Target>> {
         (None, None) => Ok(None),
         _ => Err(anyhow!("give both x and y")),
     }
+}
+
+fn permission_item(args: &Value, key: &str) -> Result<Option<PermissionItem>> {
+    match args.get(key) {
+        None | Some(Value::Null) => Ok(None),
+        Some(value) => serde_json::from_value(value.clone())
+            .map(Some)
+            .map_err(|_| anyhow!("`{key}` is accessibility or screenRecording")),
+    }
+}
+
+/// What a `permissions` call asks for; the older `request: true` means both.
+fn permission_request(args: &Value) -> Result<PermissionRequest> {
+    let mut request = PermissionRequest {
+        request: permission_item(args, "request_item")?.into_iter().collect(),
+        open_settings: permission_item(args, "open_settings")?,
+    };
+    if flag(args, "request", false) && request.request.is_empty() {
+        request.request = vec![
+            PermissionItem::Accessibility,
+            PermissionItem::ScreenRecording,
+        ];
+    }
+    Ok(request)
 }
 
 /// One action; returns what was done, in a few words.
@@ -507,7 +541,7 @@ impl Tools {
     fn run(&mut self, backend: &mut dyn Backend, name: &str, args: &Value) -> Result<ToolOutput> {
         match name {
             "permissions" => {
-                let permissions = backend.permissions(flag(args, "request", false))?;
+                let permissions = backend.permissions(&permission_request(args)?)?;
                 Ok(ToolOutput::text(serde_json::to_string_pretty(
                     &permissions,
                 )?))
@@ -550,7 +584,7 @@ impl Tools {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::backend::{AppInfo, Element, Permissions, Screenshot};
+    use crate::backend::{AppInfo, CheckedBy, Element, Permissions, Screenshot};
     use crate::keys::KeyChord;
 
     /// Records calls; its window gains a line per action.
@@ -561,11 +595,19 @@ pub(crate) mod tests {
     }
 
     impl Backend for Fake {
-        fn permissions(&mut self, request: bool) -> Result<Permissions> {
-            self.calls.push(format!("permissions {request}"));
+        fn permissions(&mut self, request: &PermissionRequest) -> Result<Permissions> {
+            self.calls.push(format!(
+                "permissions {:?} {:?}",
+                request.request, request.open_settings
+            ));
             Ok(Permissions {
                 accessibility: true,
                 screen_recording: false,
+                items: vec![],
+                checked_by: CheckedBy {
+                    pid: 1,
+                    executable: "mc-computer".into(),
+                },
                 guidance: vec!["grant it".into()],
             })
         }
@@ -813,6 +855,34 @@ pub(crate) mod tests {
             &json!({ "app": "Notes", "steps": [{ "do": "fly" }] }),
         );
         assert!(text(&out).contains("unknown action \"fly\""));
+    }
+
+    #[test]
+    fn permissions_are_asked_one_at_a_time_and_the_old_form_still_works() {
+        let mut tools = Tools::new();
+        let mut fake = Fake::default();
+        let out = tools.call(&mut fake, "permissions", &json!({}));
+        assert!(text(&out).contains("\"checkedBy\""));
+        tools.call(
+            &mut fake,
+            "permissions",
+            &json!({ "request_item": "screenRecording", "open_settings": "screenRecording" }),
+        );
+        tools.call(&mut fake, "permissions", &json!({ "request": true }));
+        assert_eq!(
+            fake.calls,
+            vec![
+                "permissions [] None",
+                "permissions [ScreenRecording] Some(ScreenRecording)",
+                "permissions [Accessibility, ScreenRecording] None",
+            ]
+        );
+        let out = tools.call(
+            &mut fake,
+            "permissions",
+            &json!({ "request_item": "camera" }),
+        );
+        assert!(out.is_error);
     }
 
     #[test]

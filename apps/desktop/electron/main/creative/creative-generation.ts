@@ -1,7 +1,12 @@
 import { realpath, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { generateImageBatch } from "@pi-desktop/agent-runtime";
-import type { GeneratedImageResult, ImageGenerationInput } from "@pi-desktop/shared";
+import type {
+  CreativeJob,
+  CreativeReferenceUse,
+  GeneratedImageResult,
+  ImageGenerationInput,
+} from "@pi-desktop/shared";
 import type { HostProcess } from "../host-process";
 import type { LocalToolHandler } from "../agent-sidecar";
 import { imageInputLoader } from "../services/image-inputs";
@@ -20,7 +25,7 @@ import {
   registered, and registered as assets with the references they used.
 */
 
-export type CreativeReference = { assetId: string; role: "reference" | "edit" | "style" };
+export type CreativeReference = CreativeReferenceUse;
 
 export type CreativeGenerateInput = {
   groupId: string;
@@ -61,14 +66,7 @@ export function promptWithRoles(prompt: string, references: readonly CreativeRef
   return `${lines.join("\n")}\n\n${prompt}`;
 }
 
-export type CreativeJob = {
-  id: string;
-  groupId: string;
-  status: string;
-  providerId?: string | null;
-  modelId?: string | null;
-  results: Array<{ index: number; status: string; path?: string | null; assetId?: string | null; error?: string | null }>;
-};
+export type { CreativeJob };
 
 export type FileFacts = { mime?: string; width?: number; height?: number };
 

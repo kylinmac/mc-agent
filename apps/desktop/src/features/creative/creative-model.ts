@@ -275,3 +275,42 @@ export function chatHandoffText(
   );
   return `${intro}\n${lines.join("\n")}\n\n`;
 }
+
+/**
+ * Where a project folder keeps creative files, for the preview before
+ * anything is created: `<folder>/creative`, as host-core's storage rule says
+ * for workspaces and resource folders alike. After creation the studio shows
+ * the path host-core returns instead.
+ */
+export function creativeFolderOf(folder: string): string {
+  const windows = folder.includes("\\") && !folder.includes("/");
+  const separator = windows ? "\\" : "/";
+  const trimmed = folder.replace(/[\\/]+$/, "");
+  return `${trimmed || separator}${trimmed ? separator : ""}creative`;
+}
+
+export type CategoryNameError = "empty" | "dots" | "hidden" | "tooLong" | "chars" | "tooDeep" | "reserved";
+
+/**
+ * Why a category path would be refused, mirroring host-core's
+ * `normalize_category` so the form can say so before sending (bugs.md B-006).
+ * host-core still checks every name.
+ */
+export function categoryNameError(raw: string): CategoryNameError | null {
+  const segments = raw
+    .split(/[\\/]/)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  if (!segments.length) return "empty";
+  if (segments.length > 6) return "tooDeep";
+  for (const segment of segments) {
+    if (segment === "." || segment === "..") return "dots";
+    if (segment.startsWith(".")) return "hidden";
+    if ([...segment].length > 60) return "tooLong";
+    if ([...segment].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127 || ':*?"<>|'.includes(char))) {
+      return "chars";
+    }
+  }
+  if (segments[0] === "scripts" || segments[0] === "未分类") return "reserved";
+  return null;
+}

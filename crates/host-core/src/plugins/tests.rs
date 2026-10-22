@@ -2383,3 +2383,35 @@ fn plugin_ui_meta_parses_the_floating_widget_placement() {
     assert!(panel.always_on_top.is_none());
     assert!(panel.resizable.is_none());
 }
+
+#[test]
+fn catalog_authors_show_a_name_and_keep_their_page() {
+    // mc-agent (bugs.md B-008): some catalogs serve the author as JSON text.
+    use super::model::author_parts;
+    assert_eq!(author_parts("PI-Desktop"), ("PI-Desktop".into(), None));
+    assert_eq!(
+        author_parts(r#"{"name":"归星 (GzxingR)","url":"https://github.com/GzxingR"}"#),
+        (
+            "归星 (GzxingR)".into(),
+            Some("https://github.com/GzxingR".into())
+        )
+    );
+    assert_eq!(
+        author_parts(r#"{"name":"x","url":"javascript:alert(1)"}"#),
+        ("x".into(), None)
+    );
+    assert_eq!(
+        author_parts(r#"{"url":"https://a.b"}"#),
+        (String::new(), Some("https://a.b".into()))
+    );
+    assert_eq!(author_parts("{not json"), ("{not json".into(), None));
+
+    // An object in the catalog itself reads the same way.
+    let entry: MarketCatalogEntry = serde_json::from_value(serde_json::json!({
+        "id": "a.b", "name": "A", "description": "",
+        "author": { "name": "归星", "url": "https://github.com/GzxingR" },
+        "versions": []
+    }))
+    .unwrap();
+    assert_eq!(author_parts(&entry.author).0, "归星");
+}

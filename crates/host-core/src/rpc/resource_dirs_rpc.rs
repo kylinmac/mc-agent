@@ -94,13 +94,18 @@ pub fn group_context(state: &AppState, path: &str) -> Result<Value, JsonRpcError
         return Ok(json!({ "context": null }));
     };
     let mut value = serde_json::to_value(&context).map_err(|error| internal(error.into()))?;
-    let notes = state
-        .db
-        .project_group(&context.group_id)
-        .and_then(|group| match group {
-            Some(group) => workspace_notes::read(&group),
-            None => Ok(Vec::new()),
-        });
+    let group = state.db.project_group(&context.group_id);
+    // A launch refreshes the resource folder's RESOURCES.md, which the
+    // project-folders note points sessions at. Best effort, like the notes.
+    if let Ok(Some(group)) = &group {
+        if group.resource_root().is_some() {
+            let _ = crate::resource_catalog::list(&state.db, group);
+        }
+    }
+    let notes = group.and_then(|group| match group {
+        Some(group) => workspace_notes::read(&group),
+        None => Ok(Vec::new()),
+    });
     match notes {
         Ok(notes) => value["notes"] = json!(notes),
         Err(error) => value["notesError"] = json!(error.to_string()),

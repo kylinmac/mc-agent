@@ -6372,6 +6372,15 @@ describe("DesktopAgentRuntime per-turn context protection", () => {
     await (runtime as any).prepareNextTurn(nextTurn);
     expect(runCompaction).toHaveBeenCalledOnce();
 
+    // mc-agent (B-001): asked again in the same prompt, it does not queue a
+    // second compaction; a new prompt may ask again.
+    const again = await tool.execute("call-2", {});
+    expect(again.content[0].text).toContain("already started in this turn");
+    expect((runtime as any).pendingModelCompaction).toBe(false);
+    (runtime as any).turnEpoch += 1;
+    await tool.execute("call-3", {});
+    expect((runtime as any).pendingModelCompaction).toBe(true);
+
     await runtime.dispose();
   });
 

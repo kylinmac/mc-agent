@@ -73,3 +73,24 @@ test("split columns keep their retained panes beyond the bound", () => {
   // A pinned column survives.
   assert.deepEqual(retainSessionPane(panes, "d", [], ["a", "d"]).retainedSessionIds, ["d", "c", "b", "a"]);
 });
+
+test("held sessions are counted per holder and include the split's columns", async () => {
+  const { heldSessionIds, holdSession, isSessionHeld, registerSessionHoldSource } = await import(
+    "../src/lib/session-holds.ts"
+  );
+  const releaseA = holdSession("s1");
+  const releaseB = holdSession("s1");
+  releaseA();
+  releaseA();
+  assert.equal(isSessionHeld("s1"), true, "a second holder keeps it");
+  releaseB();
+  assert.equal(isSessionHeld("s1"), false);
+  const columns = ["c1", "", "c2"];
+  const unregister = registerSessionHoldSource(() => columns);
+  const release = holdSession("studio");
+  assert.deepEqual([...heldSessionIds()].sort(), ["c1", "c2", "studio"]);
+  assert.equal(isSessionHeld("c2"), true);
+  release();
+  unregister();
+  assert.equal(isSessionHeld("c1"), false);
+});

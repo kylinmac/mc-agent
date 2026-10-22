@@ -1,0 +1,199 @@
+/* mc-agent: Session information: context menus, capability dialog, system prompt viewer.
+   Split out of app-rail.css; imported right after it in globals.css,
+   in the original order. */
+
+/* While a context menu is open nothing drags the window, so a press anywhere,
+   the title bar included, reaches the page and closes the menu. */
+:root[data-context-menu-open="true"] *,
+:root[data-context-menu-open="true"] *::before,
+:root[data-context-menu-open="true"] *::after {
+  -webkit-app-region: no-drag !important;
+}
+
+/* A context category that opens something (MCP, skills, tools, instructions,
+   memory): dotted underline, as in desktop agents' context panels. */
+.mc-session-info-kind-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline dotted;
+  text-decoration-color: color-mix(in oklab, currentColor 55%, transparent);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.mc-session-info-kind-link:hover {
+  color: var(--ds-text-primary);
+  text-decoration-color: currentColor;
+}
+
+.mc-session-info-expand {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+}
+
+.mc-session-info-expand:hover {
+  background: var(--ds-bg-hover);
+  color: var(--ds-text-primary);
+}
+
+/* Capability dialog: the servers or entries a category is made of. */
+.mc-capability-overlay {
+  padding: 24px;
+}
+
+.mc-capability-dialog {
+  display: flex;
+  width: min(100%, 620px);
+  max-height: min(560px, calc(100vh - 48px));
+  flex-direction: column;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-lg-plus);
+  background: var(--ds-bg-elevated-opaque);
+  box-shadow: var(--ds-shadow-dialog);
+  padding: 0;
+}
+
+.mc-capability-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 20px 12px;
+}
+
+.mc-capability-head h2 {
+  margin: 0;
+  color: var(--ds-text-primary);
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-strong);
+  line-height: var(--leading-heading);
+}
+
+.mc-capability-sub {
+  margin: 4px 0 0;
+  color: var(--ds-text-muted);
+  font-size: var(--text-sm);
+}
+
+.mc-capability-body {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  padding: 0 12px;
+}
+
+.mc-capability-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.mc-capability-table th {
+  padding: 8px;
+  border-bottom: 1px solid var(--ds-border-subtle);
+  color: var(--ds-text-muted);
+  font-weight: var(--font-weight-medium);
+  text-align: left;
+}
+
+.mc-capability-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--ds-border-subtle);
+  vertical-align: middle;
+}
+
+.mc-capability-name {
+  color: var(--ds-text-primary);
+}
+
+.mc-capability-detail {
+  max-width: 380px;
+  overflow: hidden;
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mc-capability-state {
+  display: inline-flex;
+  align-items: center;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.mc-capability-state[data-state="failed"] {
+  color: var(--ds-error);
+}
+
+.mc-capability-state[data-state="off"],
+.mc-capability-state[data-state="pending"] {
+  color: var(--ds-text-muted);
+}
+
+.mc-capability-foot {
+  display: flex;
+  gap: 8px;
+  padding: 14px 20px;
+}
+
+.mc-capability-foot > :last-child {
+  margin-left: auto;
+}
+
+/* System prompt viewer: one collapsible block per section. */
+.mc-system-prompt-dialog {
+  width: min(100%, 820px);
+  max-height: min(760px, calc(100vh - 48px));
+}
+
+.mc-system-prompt-section {
+  margin: 0 8px 10px;
+}
+
+.mc-system-prompt-head {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  color: var(--ds-text-primary);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  text-align: left;
+  cursor: pointer;
+}
+
+.mc-system-prompt-head .mc-capability-detail {
+  margin-left: auto;
+}
+
+.mc-system-prompt-text {
+  max-height: 340px;
+  margin: 0;
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--ds-bg-primary);
+  color: var(--ds-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  white-space: pre-wrap;
+  word-break: break-word;
+}

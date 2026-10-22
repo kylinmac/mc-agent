@@ -61,17 +61,26 @@ export type ResourceTemplateSummary = {
   categories: string[];
   version: number;
   description: string;
+  /** Folder (relative path, any depth) → what belongs in it. */
   categoryDescriptions: Record<string, string>;
+  /** mc-agent: every folder as a `/`-separated relative path, parents first. */
+  folders?: string[];
+  /** What it sets up: a resource folder (default) or creative categories. */
+  target?: ResourceTemplateTarget;
 };
+
+export type ResourceTemplateTarget = "resources" | "creative";
 
 /** A template as the in-app editor saves it (R1.4). */
 export type ResourceTemplateDraft = {
   name: string;
   description: string;
+  /** Every folder, `name` being its relative path (`docs/api`). */
   categories: Array<{ name: string; description: string }>;
   /** Create a new template, optionally copying another one's folder. */
   create?: boolean;
   copyFrom?: string;
+  target?: ResourceTemplateTarget;
 };
 
 /** One workspace's description from `<resource dir>/workspaces.md` (R10). */
@@ -123,7 +132,11 @@ export type ProjectTaskRun = {
   sessionId: string;
   startFolder: string;
   startedAt: number;
-  resources: Array<{ key: string; title: string; status: ResourceStatus }>;
+  /**
+   * What the run was given. `sha256`: the file's content hash when the run
+   * started (mc-agent X-CONCEPT-02); absent for links and older runs.
+   */
+  resources: Array<{ key: string; title: string; status: ResourceStatus; sha256?: string; confirmedAt?: number }>;
   outcome: "running" | "finished" | "stopped" | "failed";
   endedAt?: number;
   note?: string;

@@ -47,7 +47,7 @@ export function AssetDetail({
 
   const load = () =>
     api.creative
-      .call<{ asset: CreativeAsset; job: CreativeJob | null; links: CreativeLinks }>("creative.assets.get", { groupId, assetId })
+      .call("creative.assets.get", { groupId, assetId })
       .then(setDetail, (failure: unknown) => setError(failure instanceof Error ? failure.message : String(failure)));
 
   useEffect(() => {
@@ -64,8 +64,8 @@ export function AssetDetail({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const act = async (method: string, extra: Record<string, unknown> = {}) => {
-    await api.creative.call(method, { groupId, assetId, ...extra });
+  const act = async (method: "creative.assets.remove" | "creative.assets.restore" | "creative.assets.deleteFile") => {
+    await api.creative.call(method, { groupId, assetId });
     await load();
     onChanged();
   };
@@ -207,7 +207,8 @@ export function AssetDetail({
               <div className="mc-creative-detail-actions mc-creative-detail-danger">
                 {asset.removedAt ? (
                   <Button size="sm" variant="secondary" onClick={() => void act("creative.assets.restore")}>
-                    {t("mcProject.creativeRestore")}
+                    {/* The file is gone after "delete file": only the record comes back. */}
+                    {t(asset.fileExists ? "mcProject.creativeRestore" : "mcProject.creativeRestoreRecordOnly")}
                   </Button>
                 ) : (
                   <Button size="sm" variant="ghost" onClick={() => void act("creative.assets.remove").then(onClose)}>

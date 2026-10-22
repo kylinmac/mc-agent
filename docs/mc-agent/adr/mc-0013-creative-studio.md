@@ -60,3 +60,11 @@
 
 - 接入视频时：在生成任务上扩展提交与轮询。
 - 上游提供自己的素材管理时，评估是否跟随。
+
+## 修订（2026-10-22）
+
+- **契约：** 素材、任务、对比集、存储等传输类型和 `creative.*` 方法表放在 `packages/shared`（`types/creative.ts`），方法名决定参数与返回；Main 的放行列表就是这份表，测试核对 host-core 确实处理每个方法。
+- **存储不回退：** 用户选过的位置不再属于项目或不可用时报错，要求重新选择，不写到其他根目录；从未选择时仍默认第一个工作区（R13.1）。
+- **创作模板：** 新建创作时可选创作目录模板，只在空的 `creative/` 下建文件夹并登记为分类（R13.2）。
+- **表结构：** mc 的创作表版本记在 `mc_schema_versions`（键 `creative`），逐步迁移，不碰上游的 `user_version`。
+- **模块：** host-core 拆为 `mc_creative/{mod,assets,jobs,comparisons,schema}.rs`；前端选择与拖放、素材操作拆成 `use-grid-selection.ts`、`use-asset-actions.ts`。

@@ -1,10 +1,11 @@
 //! In-app template editing (mc-agent R1.4).
 //!
 //! A template is a folder below `<home>/templates`; its first-level folders
-//! are the resource categories and `template.json` holds the descriptions.
-//! Saving creates missing category folders, removes dropped ones only while
-//! they are empty, and bumps the version whenever categories or descriptions
-//! change, so projects created from it see the template as changed. Starter
+//! are the resource categories, and folders may nest (`requirements/api`).
+//! `template.json` holds a description per folder, keyed by relative path.
+//! Saving creates missing folders, removes dropped ones only while they are
+//! empty, and bumps the version whenever folders or descriptions change, so
+//! projects created from it see the template as changed. Starter
 //! files inside the folder are edited in Finder. Deleting moves the folder to
 //! `templates/.trash/`, which listings skip, instead of erasing it.
 
@@ -16,15 +17,18 @@ use anyhow::{anyhow, Context, Result};
 use serde::Deserialize;
 
 use crate::resource_dirs::{self, TEMPLATES_DIR};
-use crate::resource_templates::{read_template_meta, write_template_meta, TemplateMeta};
+use crate::resource_templates::{
+    read_template_meta, write_template_meta, TemplateMeta, TemplateTarget,
+};
 
 const TRASH_DIR: &str = ".trash";
-const MAX_CATEGORIES: usize = 64;
+const MAX_FOLDERS: usize = 200;
 const MAX_DESCRIPTION_CHARS: usize = 500;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CategoryInput {
+    /// A folder's path relative to the template, `/`-separated.
     pub name: String,
     #[serde(default)]
     pub description: String,
@@ -44,6 +48,9 @@ pub struct TemplateInput {
     pub create: bool,
     #[serde(default)]
     pub copy_from: Option<String>,
+    /// What the template sets up; kept as it was when omitted.
+    #[serde(default)]
+    pub target: Option<TemplateTarget>,
 }
 
 /// Create or update a template and return its metadata as saved.
@@ -79,7 +86,16 @@ pub fn save(home: &Path, input: &TemplateInput) -> Result<TemplateMeta> {
             if let Some(source) = &source {
                 resource_dirs::copy_template(source, &root)?;
             }
-            apply(&root, &description, &wanted, TemplateMeta::default(), true)
+            let target = input.target.unwrap_or_default();
+            check_folders_for(target, &wanted)?;
+            apply(
+                &root,
+                &description,
+                &wanted,
+                target,
+                TemplateMeta::default(),
+                true,
+            )
         })();
         if created.is_err() {
             // The folder was made by this call and holds only copied content.
@@ -92,7 +108,9 @@ pub fn save(home: &Path, input: &TemplateInput) -> Result<TemplateMeta> {
         return Err(anyhow!("template not found: {name}"));
     }
     let previous = read_template_meta(&root)?;
-    apply(&root, &description, &wanted, previous, false)
+    let target = input.target.unwrap_or(previous.target);
+    check_folders_for(target, &wanted)?;
+    apply(&root, &description, &wanted, target, previous, false)
 }
 
 /// Move a user template to `templates/.trash/`. Built-in templates are kept:
@@ -124,25 +142,28 @@ fn apply(
     root: &Path,
     description: &str,
     wanted: &BTreeMap<String, String>,
+    target: TemplateTarget,
     previous: TemplateMeta,
     created: bool,
 ) -> Result<TemplateMeta> {
-    let existing = first_level_folders(root)?;
-    let wanted_names: BTreeSet<&String> = wanted.keys().collect();
-    let dropped: Vec<&String> = existing
+    let existing: BTreeSet<String> = resource_dirs::template_folders(root)?.into_iter().collect();
+    let dropped: BTreeSet<&String> = existing
         .iter()
-        .filter(|name| !wanted_names.contains(name))
+        .filter(|name| !wanted.contains_key(*name))
         .collect();
     // Check every removal before touching the disk, so a refusal changes nothing.
     for name in &dropped {
-        if !is_empty_folder(&root.join(name))? {
+        if !only_dropped_inside(root, name, &dropped)? {
             return Err(anyhow!(
-                "category {name} still has files; empty it in Finder before removing it"
+                "folder {name} still has files; empty it in Finder before removing it"
             ));
         }
     }
-    for name in &dropped {
-        let folder = root.join(name);
+    // Children first, so each folder is empty when its turn comes.
+    let mut removals: Vec<&&String> = dropped.iter().collect();
+    removals.sort_by_key(|name| std::cmp::Reverse(name.matches('/').count()));
+    for name in removals {
+        let folder = root.join(name.as_str());
         let _ = fs::remove_file(folder.join(".DS_Store"));
         fs::remove_dir(&folder).with_context(|| format!("remove {}", folder.display()))?;
     }
@@ -159,7 +180,8 @@ fn apply(
         !dropped.is_empty() || wanted.keys().any(|name| !existing.contains(name));
     let changed = structure_changed
         || previous.description != description
-        || previous.categories != categories;
+        || previous.categories != categories
+        || previous.target != target;
     let version = if created {
         1
     } else if changed {
@@ -171,6 +193,7 @@ fn apply(
         version,
         description: description.to_string(),
         categories,
+        target,
     };
     if created || changed {
         write_template_meta(root, &meta)?;
@@ -178,26 +201,57 @@ fn apply(
     Ok(meta)
 }
 
+/// The folders asked for, by relative path. A nested folder brings its
+/// parents along, so the tree never has a gap.
 fn wanted_categories(input: &[CategoryInput]) -> Result<BTreeMap<String, String>> {
-    if input.len() > MAX_CATEGORIES {
-        return Err(anyhow!(
-            "a template can have at most {MAX_CATEGORIES} categories"
-        ));
+    if input.len() > MAX_FOLDERS {
+        return Err(anyhow!("a template can have at most {MAX_FOLDERS} folders"));
     }
     let mut wanted = BTreeMap::new();
     for category in input {
         let name = category.name.trim();
-        resource_dirs::validate_template_name(name)
-            .map_err(|_| anyhow!("invalid category name: {name}"))?;
-        if name.chars().count() > resource_dirs::MAX_NAME_CHARS {
-            return Err(anyhow!("category name is too long: {name}"));
+        let parts: Vec<&str> = name.split('/').collect();
+        if parts.len() > resource_dirs::MAX_FOLDER_DEPTH {
+            return Err(anyhow!("folder is nested too deep: {name}"));
         }
-        let text = bounded(&category.description, "category description")?;
+        for part in &parts {
+            resource_dirs::validate_template_name(part)
+                .map_err(|_| anyhow!("invalid folder name: {name}"))?;
+            if part.chars().count() > resource_dirs::MAX_NAME_CHARS {
+                return Err(anyhow!("folder name is too long: {name}"));
+            }
+        }
+        let text = bounded(&category.description, "folder description")?;
         if wanted.insert(name.to_string(), text).is_some() {
-            return Err(anyhow!("duplicate category: {name}"));
+            return Err(anyhow!("duplicate folder: {name}"));
         }
     }
+    let parents: Vec<String> = wanted
+        .keys()
+        .flat_map(|name| {
+            let parts: Vec<&str> = name.split('/').collect();
+            (1..parts.len()).map(move |end| parts[..end].join("/"))
+        })
+        .collect();
+    for parent in parents {
+        wanted.entry(parent).or_default();
+    }
+    if wanted.len() > MAX_FOLDERS {
+        return Err(anyhow!("a template can have at most {MAX_FOLDERS} folders"));
+    }
     Ok(wanted)
+}
+
+/// A creative template's folders become studio categories, so they follow the
+/// studio's rules (reserved names, characters) as well.
+fn check_folders_for(target: TemplateTarget, wanted: &BTreeMap<String, String>) -> Result<()> {
+    if target == TemplateTarget::Creative {
+        for name in wanted.keys() {
+            crate::mc_creative::normalize_category(name)
+                .map_err(|error| anyhow!("{name}: {error:#}"))?;
+        }
+    }
+    Ok(())
 }
 
 fn bounded(text: &str, what: &str) -> Result<String> {
@@ -211,6 +265,7 @@ fn bounded(text: &str, what: &str) -> Result<String> {
     Ok(text.to_string())
 }
 
+#[cfg(test)]
 fn first_level_folders(root: &Path) -> Result<BTreeSet<String>> {
     let mut names = BTreeSet::new();
     for entry in fs::read_dir(root)? {
@@ -223,9 +278,16 @@ fn first_level_folders(root: &Path) -> Result<BTreeSet<String>> {
     Ok(names)
 }
 
-fn is_empty_folder(folder: &Path) -> Result<bool> {
-    for entry in fs::read_dir(folder)? {
-        if entry?.file_name() != ".DS_Store" {
+/// Does `name` hold nothing but `.DS_Store` and folders that are dropped too?
+fn only_dropped_inside(root: &Path, name: &str, dropped: &BTreeSet<&String>) -> Result<bool> {
+    for entry in fs::read_dir(root.join(name))? {
+        let entry = entry?;
+        let file = entry.file_name().to_string_lossy().into_owned();
+        if file == ".DS_Store" {
+            continue;
+        }
+        let child = format!("{name}/{file}");
+        if !(entry.file_type()?.is_dir() && dropped.iter().any(|d| **d == child)) {
             return Ok(false);
         }
     }
@@ -249,6 +311,7 @@ mod tests {
                 .collect(),
             create: false,
             copy_from: None,
+            target: None,
         }
     }
 
@@ -349,6 +412,46 @@ mod tests {
         let mut bad = input("../escape", &[]);
         bad.create = true;
         assert!(save(home, &bad).is_err());
+    }
+
+    #[test]
+    fn folders_nest_with_a_description_per_level() {
+        let dir = tempfile::tempdir().unwrap();
+        let home = dir.path();
+        let mut new = input(
+            "nested",
+            &[
+                ("docs/api", "Endpoints"),
+                ("docs", "All documents"),
+                ("design/screens", ""),
+            ],
+        );
+        new.create = true;
+        let meta = save(home, &new).unwrap();
+        assert_eq!(meta.categories.get("docs/api").unwrap(), "Endpoints");
+        assert_eq!(meta.categories.get("docs").unwrap(), "All documents");
+        let root = home.join("templates/nested");
+        assert_eq!(
+            resource_dirs::template_folders(&root).unwrap(),
+            ["design", "design/screens", "docs", "docs/api"],
+            "parents come along and sort before children"
+        );
+
+        // Dropping a parent drops its empty children with it.
+        let meta = save(home, &input("nested", &[("docs", "All documents")])).unwrap();
+        assert_eq!(meta.version, 2);
+        assert_eq!(resource_dirs::template_folders(&root).unwrap(), ["docs"]);
+
+        // A file anywhere below blocks the removal, and nothing changes.
+        save(home, &input("nested", &[("docs/api/v1", "")])).unwrap();
+        fs::write(root.join("docs/api/v1/a.md"), "x").unwrap();
+        let error = save(home, &input("nested", &[])).unwrap_err().to_string();
+        assert!(error.contains("still has files"), "{error}");
+        assert!(root.join("docs/api/v1/a.md").is_file());
+
+        assert!(save(home, &input("nested", &[("a/../b", "")])).is_err());
+        assert!(save(home, &input("nested", &[("a//b", "")])).is_err());
+        assert!(save(home, &input("nested", &[("a/b/c/d/e/f/g", "")])).is_err());
     }
 
     #[test]

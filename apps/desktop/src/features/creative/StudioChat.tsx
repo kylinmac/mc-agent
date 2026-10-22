@@ -7,14 +7,13 @@ import { IconArrowUp, IconExternal, IconPlus, IconStop } from "../../components/
 import { Markdown } from "../../components/Markdown";
 import { PermissionCard } from "../../components/PermissionCard";
 import { api } from "../../lib/api";
-import { pinSessionPane } from "../../lib/mc-split-view";
+import { useHeldSession } from "../../lib/use-held-session";
 import { untitledTaskTitle } from "../../lib/session-title-utils";
 import { useTranscriptView } from "../../hooks/use-transcript-view";
 import { useAppStore } from "../../stores/app-store";
 import { ToolRow } from "../chat/transcript/ToolRow";
 import { AssistantErrorMessage, ThinkingRow } from "../chat/transcript/shared";
 import { TranscriptDisclosureProvider } from "../chat/transcript/disclosure";
-import { useColumnTranscript } from "../split-view/split-actions";
 import { composerModelDisplayName } from "../../lib/composer-models";
 import { inheritedSessionModelBinding } from "../../lib/session-model";
 import { ComposerModelPicker } from "../chat/composer/ComposerModelPicker";
@@ -128,8 +127,7 @@ export function StudioChat({
       live = false;
     };
   }, [sessionId, listed, groupId]);
-  useEffect(() => (sessionId ? pinSessionPane(sessionId) : undefined), [sessionId]);
-  useColumnTranscript(sessionId ?? "", false);
+  useHeldSession(sessionId);
   const { messages } = useTranscriptView(sessionId ?? "");
   const running = useAppStore((state) => (sessionId ? Boolean(state.runningSessions[sessionId]) : false));
   const queue = useAppStore((state) => (sessionId ? state.pendingPermissions[sessionId] : undefined));

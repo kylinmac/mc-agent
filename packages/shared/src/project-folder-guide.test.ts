@@ -20,7 +20,7 @@ describe("project folder guide", () => {
     expect(projectFolderGuide({ roots, startPath: "/docs/App", notes })).toBe(
       [
         "Project folders:",
-        "- Start folder. Resource folder (project documents): /docs/App",
+        "- Start folder. Resource folder (project documents): /docs/App — read RESOURCES.md there first; it lists every document with a summary and its status",
         '- Workspace "web": /code/web — 前端，React + Vite',
         '- Workspace "server": /code/server — 后端 Rust API 提供 /login',
         "Use an absolute path when reading or editing a folder other than the start folder.",
@@ -33,7 +33,7 @@ describe("project folder guide", () => {
     const guide = projectFolderGuide({ roots, startPath: "/code/server/", notes });
     const lines = guide.split("\n");
     expect(lines[1]).toBe('- Start folder. Workspace "server": /code/server — 后端 Rust API 提供 /login');
-    expect(lines[2]).toBe("- Resource folder (project documents): /docs/App");
+    expect(lines[2]).toBe("- Resource folder (project documents): /docs/App — read RESOURCES.md there first; it lists every document with a summary and its status");
     expect(lines[3]).toBe('- Workspace "web": /code/web — 前端，React + Vite');
   });
 
@@ -51,7 +51,7 @@ describe("project folder guide", () => {
     const guide = projectFolderGuide({ roots, startPath: "/elsewhere", notes });
     expect(guide.split("\n").slice(1, 5)).toEqual([
       "- Start folder: /elsewhere",
-      "- Resource folder (project documents): /docs/App",
+      "- Resource folder (project documents): /docs/App — read RESOURCES.md there first; it lists every document with a summary and its status",
       '- Workspace "web": /code/web — 前端，React + Vite',
       '- Workspace "server": /code/server — 后端 Rust API 提供 /login',
     ]);
@@ -63,7 +63,7 @@ describe("project folder guide", () => {
       startPath: "/docs/App",
       notes: [{ path: "/materials/brand", heading: "brand", description: "客户提供的品牌素材" }],
     });
-    expect(guide).toContain('- Reference folder "brand": /materials/brand — 客户提供的品牌素材');
+    expect(guide).toContain('- Reference folder (same access as a workspace) "brand": /materials/brand — 客户提供的品牌素材');
   });
 
   it("shortens long descriptions", () => {

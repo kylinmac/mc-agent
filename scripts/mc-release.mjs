@@ -151,6 +151,17 @@ if (!feed.includes(`version: ${version}\n`)) fail("latest-mac.yml describes anot
 if (!feed.includes(`path: ${zip}`)) fail(`latest-mac.yml does not point at ${zip}`);
 const appDir = join(RELEASE_DIR, arch === "arm64" ? "mac-arm64" : "mac", `${PRODUCT}.app`);
 run("codesign", ["--verify", "--deep", "--strict", appDir]);
+// The Computer Use helper: present, built for this architecture, signed
+// inside the bundle, and runnable (docs/mc-agent/macos-permissions.md P2).
+const helper = join(appDir, "Contents/Resources/plugins/mc.computer-use/bin/mc-computer");
+if (!existsSync(helper)) fail("the Computer Use helper is missing from the app");
+const helperArch = run("lipo", ["-archs", helper], { capture: true }).trim();
+if (!helperArch.split(/\s+/).includes(arch === "arm64" ? "arm64" : "x86_64")) {
+  fail(`the Computer Use helper is built for ${helperArch}, not ${arch}`);
+}
+run("codesign", ["--verify", "--strict", helper]);
+const helperVersion = run(helper, ["--version"], { capture: true }).trim();
+if (!helperVersion.startsWith("mc-computer ")) fail(`the Computer Use helper did not run: ${helperVersion}`);
 // The version and delivery mode the app itself will report to the updater.
 const asar = createRequire(join(DESKTOP, "package.json"))("@electron/asar");
 const packaged = JSON.parse(
@@ -158,7 +169,9 @@ const packaged = JSON.parse(
 );
 if (packaged.version !== version) fail(`the app reports version ${packaged.version}`);
 if (packaged.mcUpdateDelivery !== "notify") fail("the app is not marked notify-only");
-console.log(`  ${assets.length} files present, feed and app at ${version}, notify-only, signature valid`);
+console.log(
+  `  ${assets.length} files present, feed and app at ${version}, notify-only, signature valid, helper ${helperArch} ok`,
+);
 
 if (dryRun) {
   console.log(`\n✔ Dry run done. Publish with: node scripts/mc-release.mjs ${version}`);

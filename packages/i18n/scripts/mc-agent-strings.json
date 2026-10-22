@@ -314,6 +314,16 @@
     "zh-CN": "任务依据的资料",
     "zh-TW": "任務依據的資料"
   },
+  "taskRunBasis": {
+    "en": "Based on {{count}} resources (hover for content hashes)",
+    "zh-CN": "执行依据 {{count}} 份资料（悬停查看内容哈希）",
+    "zh-TW": "執行依據 {{count}} 份資料（懸停查看內容雜湊）"
+  },
+  "taskRunHashMissing": {
+    "en": "content hash not recorded",
+    "zh-CN": "未记录内容哈希",
+    "zh-TW": "未記錄內容雜湊"
+  },
   "taskCreate": {
     "en": "Create task",
     "zh-CN": "创建任务",
@@ -335,9 +345,9 @@
     "zh-TW": "待驗收"
   },
   "taskDone": {
-    "en": "Done",
-    "zh-CN": "已完成",
-    "zh-TW": "已完成"
+    "en": "Accepted",
+    "zh-CN": "已验收",
+    "zh-TW": "已驗收"
   },
   "taskBlocked": {
     "en": "Blocked",
@@ -449,6 +459,11 @@
     "zh-CN": "外部资料",
     "zh-TW": "外部資料"
   },
+  "kindReferenceHint": {
+    "en": "Marks what the folder holds. Sessions read and write it like a workspace; it is not read-only.",
+    "zh-CN": "只标明这个文件夹放的是外部资料；会话对它的读写和工作区一样，不是只读。",
+    "zh-TW": "只標明這個資料夾放的是外部資料；工作階段對它的讀寫和工作區一樣，不是唯讀。"
+  },
   "setAsReference": {
     "en": "Mark as reference",
     "zh-CN": "设为外部资料",
@@ -469,20 +484,25 @@
     "zh-CN": "模板",
     "zh-TW": "範本"
   },
+  "templateSettingsNav": {
+    "en": "Project templates",
+    "zh-CN": "项目模板",
+    "zh-TW": "專案範本"
+  },
+  "templateSettingsTitle": {
+    "en": "Project templates",
+    "zh-CN": "项目模板",
+    "zh-TW": "專案範本"
+  },
+  "templateSettingsDesc": {
+    "en": "Resource folder templates set up a new template project's materials folder: categories, descriptions and starter files. Creative folder templates set up the categories of a new creative folder. Templates are copied once; changing one does not change existing projects.",
+    "zh-CN": "资料目录模板：新建模板项目时按它建立资料目录（分类、说明和起始文件）。创作目录模板：新建创作时按它建立 creative/ 下的分类。模板只在创建时复制一次，修改模板不影响已有项目。",
+    "zh-TW": "資料目錄範本：新建範本專案時依它建立資料目錄（分類、說明和起始檔案）。創作目錄範本：新建創作時依它建立 creative/ 下的分類。範本只在建立時複製一次，修改範本不影響已有專案。"
+  },
   "templateEditorOpen": {
     "en": "Manage templates",
     "zh-CN": "管理模板",
     "zh-TW": "管理範本"
-  },
-  "templateEditorClose": {
-    "en": "Close",
-    "zh-CN": "收起",
-    "zh-TW": "收起"
-  },
-  "templateEditorSelect": {
-    "en": "Template to edit",
-    "zh-CN": "要编辑的模板",
-    "zh-TW": "要編輯的範本"
   },
   "templateBuiltin": {
     "en": "built-in",
@@ -514,10 +534,30 @@
     "zh-CN": "复制 {{name}}",
     "zh-TW": "複製 {{name}}"
   },
+  "templateTarget": {
+    "en": "Used for",
+    "zh-CN": "用途",
+    "zh-TW": "用途"
+  },
+  "templateTargetResources": {
+    "en": "Resource folder",
+    "zh-CN": "资料目录",
+    "zh-TW": "資料目錄"
+  },
+  "templateTargetCreative": {
+    "en": "Creative folders",
+    "zh-CN": "创作目录",
+    "zh-TW": "創作目錄"
+  },
   "templateCreate": {
     "en": "Create",
     "zh-CN": "创建",
     "zh-TW": "建立"
+  },
+  "templateCancel": {
+    "en": "Cancel",
+    "zh-CN": "取消",
+    "zh-TW": "取消"
   },
   "templateCreated": {
     "en": "Created {{name}}",
@@ -539,15 +579,60 @@
     "zh-CN": "新",
     "zh-TW": "新"
   },
-  "templateCategoryRemove": {
-    "en": "Remove category {{name}}",
-    "zh-CN": "删除分类 {{name}}",
-    "zh-TW": "刪除分類 {{name}}"
+  "templateFolders": {
+    "en": "Folders",
+    "zh-CN": "文件夹",
+    "zh-TW": "資料夾"
   },
-  "templateCategoryRemoveShort": {
-    "en": "Remove",
-    "zh-CN": "删除",
-    "zh-TW": "刪除"
+  "templateNoFolders": {
+    "en": "No folders yet.",
+    "zh-CN": "还没有文件夹。",
+    "zh-TW": "還沒有資料夾。"
+  },
+  "templateFolderName": {
+    "en": "Folder name, e.g. design",
+    "zh-CN": "文件夹名，如 design",
+    "zh-TW": "資料夾名稱，如 design"
+  },
+  "templateFolderAdd": {
+    "en": "Add",
+    "zh-CN": "添加",
+    "zh-TW": "新增"
+  },
+  "templateFolderAddTop": {
+    "en": "Add folder",
+    "zh-CN": "添加文件夹",
+    "zh-TW": "新增資料夾"
+  },
+  "templateFolderAddInside": {
+    "en": "Add a folder inside {{name}}",
+    "zh-CN": "在 {{name}} 里添加子文件夹",
+    "zh-TW": "在 {{name}} 裡新增子資料夾"
+  },
+  "templateFolderError_empty": {
+    "en": "Enter a folder name.",
+    "zh-CN": "请输入文件夹名。",
+    "zh-TW": "請輸入資料夾名稱。"
+  },
+  "templateFolderError_invalid": {
+    "en": "Folder names cannot start with a dot or contain slashes.",
+    "zh-CN": "文件夹名不能以点开头，也不能包含斜杠。",
+    "zh-TW": "資料夾名稱不能以點開頭，也不能包含斜線。"
+  },
+  "templateFolderError_duplicate": {
+    "en": "This folder already exists.",
+    "zh-CN": "这个文件夹已存在。",
+    "zh-TW": "這個資料夾已存在。"
+  },
+  "templateFolderError_tooDeep": {
+    "en": "Folders can nest at most 6 levels.",
+    "zh-CN": "文件夹最多 6 层。",
+    "zh-TW": "資料夾最多 6 層。"
+  },
+  "templateCategoryRemove": {
+    "en": "Remove folder {{name}}",
+    "zh-CN": "删除文件夹 {{name}}",
+    "zh-TW": "刪除資料夾 {{name}}"
   },
   "templateCategoryDescription": {
     "en": "Description of {{name}}",
@@ -555,39 +640,19 @@
     "zh-TW": "{{name}} 的說明"
   },
   "templateCategoryDescriptionPlaceholder": {
-    "en": "What belongs in this category",
-    "zh-CN": "这个分类放什么",
-    "zh-TW": "這個分類放什麼"
-  },
-  "templateCategoryAdd": {
-    "en": "Add category",
-    "zh-CN": "添加分类",
-    "zh-TW": "新增分類"
-  },
-  "templateCategoryAddPlaceholder": {
-    "en": "Category folder name, e.g. design",
-    "zh-CN": "分类文件夹名，如 design",
-    "zh-TW": "分類資料夾名，如 design"
-  },
-  "templateCategoryError_empty": {
-    "en": "Enter a folder name.",
-    "zh-CN": "请输入文件夹名。",
-    "zh-TW": "請輸入資料夾名。"
-  },
-  "templateCategoryError_invalid": {
-    "en": "Folder names cannot start with a dot or contain slashes.",
-    "zh-CN": "文件夹名不能以点开头，也不能包含斜杠。",
-    "zh-TW": "資料夾名不能以點開頭，也不能包含斜線。"
-  },
-  "templateCategoryError_duplicate": {
-    "en": "This category already exists.",
-    "zh-CN": "这个分类已存在。",
-    "zh-TW": "這個分類已存在。"
+    "en": "What belongs in this folder",
+    "zh-CN": "这一层放什么",
+    "zh-TW": "這一層放什麼"
   },
   "templateSave": {
     "en": "Save template",
     "zh-CN": "保存模板",
     "zh-TW": "儲存範本"
+  },
+  "templateRevert": {
+    "en": "Discard changes",
+    "zh-CN": "撤销修改",
+    "zh-TW": "捨棄修改"
   },
   "templateSaved": {
     "en": "Saved {{name}}",
@@ -615,9 +680,9 @@
     "zh-TW": "已刪除 {{name}}"
   },
   "templateEditorHint": {
-    "en": "Categories are the template's first-level folders; a category is removed only while its folder is empty. Edit starter files such as AGENTS.md in Finder. Projects created from a changed template show it as changed.",
-    "zh-CN": "分类就是模板的一级文件夹，只有文件夹为空时才能删除。AGENTS.md 等起始文件在 Finder 中编辑。模板改动后，用它创建的项目会提示模板已更新。",
-    "zh-TW": "分類就是範本的一級資料夾，只有資料夾為空時才能刪除。AGENTS.md 等起始檔案在 Finder 中編輯。範本變更後，用它建立的專案會提示範本已更新。"
+    "en": "First-level folders are the project's resource categories; folders can nest, each with its own description. A folder is removed only while it is empty. Edit starter files such as AGENTS.md in Finder. Projects created from a changed template show it as changed.",
+    "zh-CN": "一级文件夹就是项目的资料分类，下面可以再分层，每层都可以写说明。文件夹为空时才能删除。AGENTS.md 等起始文件在 Finder 中编辑。模板改动后，用它创建的项目会提示模板已更新。",
+    "zh-TW": "一級資料夾就是專案的資料分類，下面可以再分層，每層都可以寫說明。資料夾為空時才能刪除。AGENTS.md 等起始檔案在 Finder 中編輯。範本改動後，用它建立的專案會提示範本已更新。"
   },
   "sidebarResourcesTag": {
     "en": "Resources",
@@ -670,19 +735,49 @@
     "zh-TW": "簡單專案"
   },
   "kindSimpleHint": {
-    "en": "Folders only, like before",
-    "zh-CN": "只有文件夹，和原来一样",
-    "zh-TW": "只有資料夾，和原來一樣"
+    "en": "A regular project",
+    "zh-CN": "普通项目",
+    "zh-TW": "一般專案"
   },
   "kindManaged": {
-    "en": "Managed project",
-    "zh-CN": "管理项目",
-    "zh-TW": "管理專案"
+    "en": "Template project",
+    "zh-CN": "模板项目",
+    "zh-TW": "範本專案"
   },
   "kindManagedHint": {
-    "en": "Resource folder, documents and tasks",
-    "zh-CN": "资料目录、文档与任务",
-    "zh-TW": "資料目錄、文件與任務"
+    "en": "Materials stored separately, by template",
+    "zh-CN": "按模板独立存储资料",
+    "zh-TW": "按範本獨立儲存資料"
+  },
+  "kindPurposeNote": {
+    "en": "Either kind can be used for creative work: mark it in the Create page. A resource folder and creative use are independent.",
+    "zh-CN": "两种项目都可以用于创作（在“创作”页标记）；有没有资料目录和是否用于创作互不影响。",
+    "zh-TW": "兩種專案都可以用於創作（在「創作」頁標記）；有沒有資料目錄和是否用於創作互不影響。"
+  },
+  "turnFinishedTitle": {
+    "en": "{{sessionTitle}}: this turn has finished",
+    "zh-CN": "{{sessionTitle}} 本轮执行结束",
+    "zh-TW": "{{sessionTitle}} 本輪執行結束"
+  },
+  "turnFinishedBody": {
+    "en": "The reply is done. If this was a project task, review and accept it in the task.",
+    "zh-CN": "这一轮回复已结束；如果是项目任务，请到任务里验收后才算完成。",
+    "zh-TW": "這一輪回覆已結束；如果是專案任務，請到任務裡驗收後才算完成。"
+  },
+  "purposeLabel": {
+    "en": "Used for",
+    "zh-CN": "用途",
+    "zh-TW": "用途"
+  },
+  "purposeCreative": {
+    "en": "Creative",
+    "zh-CN": "创作",
+    "zh-TW": "創作"
+  },
+  "purposeCreativeHint": {
+    "en": "This project is listed in the Create page. Its resource folder, tasks and files are unaffected.",
+    "zh-CN": "这个项目会出现在“创作”页；它的资料目录、任务和文件不受影响。",
+    "zh-TW": "這個專案會出現在「創作」頁；它的資料目錄、任務和檔案不受影響。"
   },
   "kindManagedRemote": {
     "en": "Remote projects cannot have a resource folder",
@@ -690,19 +785,19 @@
     "zh-TW": "遠端專案不能有資料目錄"
   },
   "convertToManaged": {
-    "en": "Make it a managed project",
-    "zh-CN": "转为管理项目",
-    "zh-TW": "轉為管理專案"
+    "en": "Make it a template project",
+    "zh-CN": "转为模板项目",
+    "zh-TW": "轉為範本專案"
   },
   "detachResources": {
-    "en": "Detach resource folder",
-    "zh-CN": "解除资料目录",
-    "zh-TW": "解除資料目錄"
+    "en": "Unlink resource folder",
+    "zh-CN": "解除资料目录关联",
+    "zh-TW": "解除資料目錄關聯"
   },
   "detachConfirm": {
-    "en": "Detach the resource folder? The project becomes a simple project; the folder and its files stay on disk, and sessions started there keep their place.",
-    "zh-CN": "解除资料目录？项目会变回简单项目；资料目录和里面的文件保留在磁盘上，在那里开过的会话也不受影响。",
-    "zh-TW": "解除資料目錄？專案會變回簡單專案；資料目錄和裡面的檔案保留在磁碟上，在那裡開過的會話也不受影響。"
+    "en": "Unlink the resource folder? The project becomes a simple project again; the folder and its files stay on disk, and sessions opened there are not affected.",
+    "zh-CN": "解除资料目录关联？项目会变回简单项目；资料目录和里面的文件保留在磁盘上，在那里开过的会话也不受影响。",
+    "zh-TW": "解除資料目錄關聯？專案會變回簡單專案；資料目錄和裡面的檔案保留在磁碟上，在那裡開過的工作階段也不受影響。"
   },
   "sessionInfoTitle": {
     "en": "Session info",
@@ -858,11 +953,6 @@
     "en": "By kind: estimates from the agent runtime",
     "zh-CN": "按类别为运行时估算值",
     "zh-TW": "按類別為執行時估算值"
-  },
-  "sessionInfoNoBreakdown": {
-    "en": "Send a message in this session to see the breakdown",
-    "zh-CN": "在本会话发送一条消息后可查看分类",
-    "zh-TW": "在本會話傳送一則訊息後可查看分類"
   },
   "sessionInfoCompact": {
     "en": "Compact session",
@@ -1455,14 +1545,14 @@
     "zh-TW": "適用規則"
   },
   "promptRulesDesc": {
-    "en": "A conversation uses one template: its project's, else its model's, else the global default. With none, SYSTEM.md files or the built-in prompt apply.",
-    "zh-CN": "一个对话只用一个模板：先看项目，再看模型，最后全局默认；都不匹配时使用 SYSTEM.md 文件或内置提示。",
-    "zh-TW": "一個對話只用一個範本：先看專案，再看模型，最後全域預設；都不符合時使用 SYSTEM.md 檔案或內建提示。"
+    "en": "One template per conversation: folder rules first, then model rules, then the global default; with no match, the SYSTEM.md file or the built-in prompt. Folder rules match the conversation's start folder first, then the project's other folders, in list order.",
+    "zh-CN": "一个对话只用一个模板：先看目录规则，再看模型规则，最后全局默认；都不匹配时使用 SYSTEM.md 文件或内置提示。目录规则先匹配对话的起始目录，再匹配项目的其他目录；同一层命中多条时取列表中靠前的一条。",
+    "zh-TW": "一個對話只用一個範本：先看目錄規則，再看模型規則，最後全域預設；都不符合時使用 SYSTEM.md 檔案或內建提示。目錄規則先比對對話的起始目錄，再比對專案的其他目錄；同一層命中多條時取列表中靠前的一條。"
   },
   "promptByProject": {
-    "en": "By project",
-    "zh-CN": "按项目",
-    "zh-TW": "依專案"
+    "en": "By project folder",
+    "zh-CN": "按项目目录",
+    "zh-TW": "按專案目錄"
   },
   "promptByModel": {
     "en": "By model",
@@ -1495,9 +1585,9 @@
     "zh-TW": "填模型名，* 符合任意字元，如 claude-*、gpt-5*；具體型號優先於萬用字元。"
   },
   "promptAddProjectRule": {
-    "en": "Add project rule",
-    "zh-CN": "添加项目规则",
-    "zh-TW": "新增專案規則"
+    "en": "Add folder rule",
+    "zh-CN": "添加目录规则",
+    "zh-TW": "新增目錄規則"
   },
   "promptAddModelRule": {
     "en": "Add model rule",
@@ -1530,9 +1620,9 @@
     "zh-TW": "系統提示詞已儲存，下一則訊息生效。"
   },
   "promptAppliedProject": {
-    "en": "template “{{name}}” · project rule",
-    "zh-CN": "模板「{{name}}」· 项目规则",
-    "zh-TW": "範本「{{name}}」· 專案規則"
+    "en": "Template “{{name}}” · folder rule {{path}}",
+    "zh-CN": "模板「{{name}}」· 目录规则 {{path}}",
+    "zh-TW": "範本「{{name}}」· 目錄規則 {{path}}"
   },
   "promptAppliedModel": {
     "en": "template “{{name}}” · model rule {{pattern}}",
@@ -1555,9 +1645,9 @@
     "zh-TW": "收起"
   },
   "promptNoProjectRules": {
-    "en": "No project rules. Add one to give a project its own template.",
-    "zh-CN": "还没有项目规则。添加后，该项目的对话使用指定模板。",
-    "zh-TW": "還沒有專案規則。新增後，該專案的對話使用指定範本。"
+    "en": "No folder rules yet. Add one and conversations in that project folder use the template.",
+    "zh-CN": "还没有目录规则。添加后，在该项目目录里的对话使用指定模板。",
+    "zh-TW": "還沒有目錄規則。新增後，在該專案目錄裡的對話使用指定範本。"
   },
   "promptNoModelRules": {
     "en": "No model rules. Add one to give a model or model family its own template.",
@@ -2110,14 +2200,14 @@
     "zh-TW": "儲存中"
   },
   "creativeJob_done": {
-    "en": "Done",
-    "zh-CN": "完成",
-    "zh-TW": "完成"
+    "en": "All succeeded",
+    "zh-CN": "全部成功",
+    "zh-TW": "全部成功"
   },
   "creativeJob_partial": {
-    "en": "Partly done",
-    "zh-CN": "部分完成",
-    "zh-TW": "部分完成"
+    "en": "Partly succeeded",
+    "zh-CN": "部分成功",
+    "zh-TW": "部分成功"
   },
   "creativeJob_failed": {
     "en": "Failed",
@@ -2349,15 +2439,20 @@
     "zh-CN": "恢复到素材库",
     "zh-TW": "還原到素材庫"
   },
+  "creativeRestoreRecordOnly": {
+    "en": "Restore the record (the file was deleted)",
+    "zh-CN": "恢复记录（文件已删除，无法恢复）",
+    "zh-TW": "恢復紀錄（檔案已刪除，無法恢復）"
+  },
   "creativeDeleteFile": {
     "en": "Delete file",
     "zh-CN": "删除文件",
     "zh-TW": "刪除檔案"
   },
   "creativeDeleteConfirm": {
-    "en": "Delete this image file from disk? Comparisons and generation records that used it keep their entry.",
-    "zh-CN": "确定从磁盘删除这个图片文件吗？用到它的对比和生成记录会保留条目。",
-    "zh-TW": "確定從磁碟刪除這個圖片檔案嗎？用到它的比較和生成紀錄會保留條目。"
+    "en": "Delete this image file from disk? This cannot be undone. Comparisons and generation records that used it keep their entries.",
+    "zh-CN": "确定从磁盘删除这个图片文件吗？删除后无法撤销；用到它的对比和生成记录会保留条目。",
+    "zh-TW": "確定從磁碟刪除這個圖片檔案嗎？刪除後無法復原；用到它的比較和生成紀錄會保留條目。"
   },
   "creativeFileMissing": {
     "en": "File missing",
@@ -2440,9 +2535,9 @@
     "zh-TW": "已從素材庫移出 {{count}} 項，檔案仍在磁碟上。"
   },
   "creativeDeleteFilesConfirm": {
-    "en": "Delete {{count}} image files from disk? Generation records that used them keep their entry.",
-    "zh-CN": "确定从磁盘删除 {{count}} 个图片文件吗？用到它们的生成记录会保留条目。",
-    "zh-TW": "確定從磁碟刪除 {{count}} 個圖片檔案嗎？用到它們的生成紀錄會保留條目。"
+    "en": "Delete {{count}} image files from disk? This cannot be undone. Generation records that used them keep their entries.",
+    "zh-CN": "确定从磁盘删除 {{count}} 个图片文件吗？删除后无法撤销；用到它们的生成记录会保留条目。",
+    "zh-TW": "確定從磁碟刪除 {{count}} 個圖片檔案嗎？刪除後無法復原；用到它們的生成紀錄會保留條目。"
   },
   "creativeDeletedFiles": {
     "en": "Deleted {{count}} files.",
@@ -2489,10 +2584,10 @@
     "zh-CN": "资料目录",
     "zh-TW": "資料目錄"
   },
-  "creativeStorageMoved": {
-    "en": "New files go to {{path}}; files already saved stay where they are.",
-    "zh-CN": "新文件会存到 {{path}}，已保存的文件留在原处。",
-    "zh-TW": "新檔案會存到 {{path}}，已儲存的檔案留在原處。"
+  "creativeStorageChanged": {
+    "en": "From now on, new files go to {{path}}. Files already saved stay where they are.",
+    "zh-CN": "之后的新文件会存到 {{path}}，已保存的文件留在原处，不会移动。",
+    "zh-TW": "之後的新檔案會存到 {{path}}，已儲存的檔案留在原處，不會移動。"
   },
   "creativeNewIntro": {
     "en": "Creative work happens in a real folder of a project, so the images are where you will use them.",
@@ -2538,6 +2633,21 @@
     "en": "Add a folder…",
     "zh-CN": "添加文件夹…",
     "zh-TW": "新增資料夾…"
+  },
+  "creativeTemplate": {
+    "en": "Category template",
+    "zh-CN": "分类模板",
+    "zh-TW": "分類範本"
+  },
+  "creativeTemplateNone": {
+    "en": "No template (start empty)",
+    "zh-CN": "不使用模板（从空白开始）",
+    "zh-TW": "不使用範本（從空白開始）"
+  },
+  "creativeTemplateHint": {
+    "en": "Only creates the template's folders in an empty creative/ folder; existing files are never touched.",
+    "zh-CN": "只在空的 creative/ 下建立模板里的文件夹；已有文件不会被改动。",
+    "zh-TW": "只在空的 creative/ 下建立範本裡的資料夾；已有檔案不會被改動。"
   },
   "creativeAddedFolder": {
     "en": "Add {{name}}",
@@ -2620,9 +2730,9 @@
     "zh-TW": "刪除分類"
   },
   "creativeCategoryDeleteConfirm": {
-    "en": "Delete the category {{name}}? Its images move up one level; nothing is deleted from disk.",
-    "zh-CN": "删除分类 {{name}}？其中的图片移到上一级，不会从磁盘删除。",
-    "zh-TW": "刪除分類 {{name}}？其中的圖片移到上一層，不會從磁碟刪除。"
+    "en": "Delete the category {{name}}? Its images move up one level (a top-level category's go to Uncategorized); no file is deleted.",
+    "zh-CN": "删除分类 {{name}}？其中的图片移到上一级（顶层分类的图片移到“未分类”），不会从磁盘删除。",
+    "zh-TW": "刪除分類 {{name}}？其中的圖片移到上一級（頂層分類的圖片移到「未分類」），不會從磁碟刪除。"
   },
   "creativeCategoryName": {
     "en": "Category name",
@@ -2758,6 +2868,26 @@
     "en": "Change",
     "zh-CN": "更改",
     "zh-TW": "更改"
+  },
+  "creativeStorageChangeTitle": {
+    "en": "Change where new creative files are saved",
+    "zh-CN": "更改创作存储位置（只影响之后的新文件）",
+    "zh-TW": "變更創作儲存位置（只影響之後的新檔案）"
+  },
+  "creativeStorageChoose": {
+    "en": "Choose",
+    "zh-CN": "重新选择",
+    "zh-TW": "重新選擇"
+  },
+  "creativeStorageUnlinked": {
+    "en": "The chosen folder is no longer part of this project",
+    "zh-CN": "之前选的文件夹已不属于这个项目",
+    "zh-TW": "之前選的資料夾已不屬於這個專案"
+  },
+  "creativeStorageUnavailable": {
+    "en": "The chosen folder is not available (disconnected or no access)",
+    "zh-CN": "之前选的文件夹现在不可用（未连接或无权限）",
+    "zh-TW": "之前選的資料夾現在不可用（未連接或無權限）"
   },
   "creativeStoragePick": {
     "en": "Choose another folder…",
@@ -2979,25 +3109,10 @@
     "zh-CN": "把这个 Pi 会话文件移到废纸篓？",
     "zh-TW": "把這個 Pi 工作階段檔案移到垃圾桶？"
   },
-  "updateReadyTitle": {
-    "en": "Version {{version}} is ready",
-    "zh-CN": "新版本 {{version}} 已下载完成",
-    "zh-TW": "新版本 {{version}} 已下載完成"
-  },
-  "updateReadyBody": {
-    "en": "Restart mc-agent to finish updating. Your conversations are kept.",
-    "zh-CN": "重启 mc-agent 即可完成更新，会话都会保留。",
-    "zh-TW": "重新啟動 mc-agent 即可完成更新，工作階段都會保留。"
-  },
-  "updateLater": {
-    "en": "Later",
-    "zh-CN": "稍后",
-    "zh-TW": "稍後"
-  },
-  "updateRestartNow": {
-    "en": "Restart and update",
-    "zh-CN": "立即重启更新",
-    "zh-TW": "立即重新啟動更新"
+  "updateCardDesc": {
+    "en": "Keep mc-agent up to date for fixes and new features.",
+    "zh-CN": "保持 mc-agent 为最新版本，以获取修复与新功能。",
+    "zh-TW": "保持 mc-agent 為最新版本，以取得修正與新功能。"
   },
   "pluginsUpdateShort": {
     "en": "Update",
@@ -3053,5 +3168,310 @@
     "en": "The message was not sent.",
     "zh-CN": "消息没有发出。",
     "zh-TW": "訊息沒有送出。"
+  },
+  "permNav": {
+    "en": "System permissions",
+    "zh-CN": "系统权限",
+    "zh-TW": "系統權限"
+  },
+  "permTitle": {
+    "en": "macOS permissions",
+    "zh-CN": "macOS 系统权限",
+    "zh-TW": "macOS 系統權限"
+  },
+  "permDesc": {
+    "en": "What each feature needs from macOS, checked where it is used. Checking never asks; a prompt or a settings page only opens when you click.",
+    "zh-CN": "每项功能需要的 macOS 授权，在实际使用它的地方检查。检查不会弹窗；只有你点击时才会弹出系统提示或打开设置页。",
+    "zh-TW": "每項功能需要的 macOS 授權，在實際使用它的地方檢查。檢查不會彈窗；只有你點擊時才會彈出系統提示或開啟設定頁。"
+  },
+  "permAccessibility": {
+    "en": "Accessibility",
+    "zh-CN": "辅助功能",
+    "zh-TW": "輔助使用"
+  },
+  "permScreenRecording": {
+    "en": "Screen Recording",
+    "zh-CN": "屏幕录制",
+    "zh-TW": "螢幕錄製"
+  },
+  "permMicrophone": {
+    "en": "Microphone",
+    "zh-CN": "麦克风",
+    "zh-TW": "麥克風"
+  },
+  "permAccessibilityPurpose": {
+    "en": "Computer Use: read other apps' UI elements, click and type.",
+    "zh-CN": "电脑操作：读取其他应用的界面元素、点击和输入。",
+    "zh-TW": "電腦操作：讀取其他應用的介面元素、點擊和輸入。"
+  },
+  "permScreenRecordingPurpose": {
+    "en": "Computer Use: screenshots of other apps' windows. Without it, reading UI elements still works.",
+    "zh-CN": "电脑操作：给其他应用的窗口截图。没开时仍能读取界面元素。",
+    "zh-TW": "電腦操作：為其他應用的視窗截圖。沒開時仍能讀取介面元素。"
+  },
+  "permMicrophonePurpose": {
+    "en": "Live voice calls, recording, and plugin audio you allowed. Text chat does not need it.",
+    "zh-CN": "实时语音通话、录音，以及你允许的插件音频。文字聊天不需要。",
+    "zh-TW": "即時語音通話、錄音，以及你允許的外掛音訊。文字聊天不需要。"
+  },
+  "permState_granted": {
+    "en": "Allowed",
+    "zh-CN": "已允许",
+    "zh-TW": "已允許"
+  },
+  "permState_notGranted": {
+    "en": "Not allowed",
+    "zh-CN": "未授权",
+    "zh-TW": "未授權"
+  },
+  "permState_denied": {
+    "en": "Denied",
+    "zh-CN": "已拒绝",
+    "zh-TW": "已拒絕"
+  },
+  "permState_restricted": {
+    "en": "Restricted by the system (device management or parental controls)",
+    "zh-CN": "受系统限制（设备管理或家长控制）",
+    "zh-TW": "受系統限制（裝置管理或家長控制）"
+  },
+  "permState_notDetermined": {
+    "en": "Not asked yet",
+    "zh-CN": "尚未询问",
+    "zh-TW": "尚未詢問"
+  },
+  "permState_helperOff": {
+    "en": "Computer Use is off or not running; turn it on in Extensions to check",
+    "zh-CN": "电脑操作未启用或未运行；在扩展里启用后可检查",
+    "zh-TW": "電腦操作未啟用或未執行；在擴充裡啟用後可檢查"
+  },
+  "permState_helperError": {
+    "en": "Could not check",
+    "zh-CN": "检查失败",
+    "zh-TW": "檢查失敗"
+  },
+  "permState_unknown": {
+    "en": "Unknown",
+    "zh-CN": "未知",
+    "zh-TW": "未知"
+  },
+  "permState_unsupported": {
+    "en": "Not needed on this system",
+    "zh-CN": "此系统不需要",
+    "zh-TW": "此系統不需要"
+  },
+  "permGrant": {
+    "en": "Allow…",
+    "zh-CN": "授权…",
+    "zh-TW": "授權…"
+  },
+  "permOpenSettings": {
+    "en": "Open System Settings",
+    "zh-CN": "打开系统设置",
+    "zh-TW": "開啟系統設定"
+  },
+  "permRecheck": {
+    "en": "Check again",
+    "zh-CN": "重新检查",
+    "zh-TW": "重新檢查"
+  },
+  "permChecking": {
+    "en": "Checking…",
+    "zh-CN": "正在检查…",
+    "zh-TW": "正在檢查…"
+  },
+  "permManualPath": {
+    "en": "By hand: {{path}}",
+    "zh-CN": "手动路径：{{path}}",
+    "zh-TW": "手動路徑：{{path}}"
+  },
+  "permRestartHint": {
+    "en": "Turned it on in System Settings but it still reads Not allowed? macOS sometimes applies it only after mc-agent restarts. Restart when nothing is running.",
+    "zh-CN": "已经在系统设置里打开，这里仍显示未授权？macOS 有时要重启 mc-agent 才生效；请在没有任务运行时手动重启。",
+    "zh-TW": "已經在系統設定裡開啟，這裡仍顯示未授權？macOS 有時要重新啟動 mc-agent 才生效；請在沒有任務執行時手動重新啟動。"
+  },
+  "permIdentityTitle": {
+    "en": "Who gets the permission",
+    "zh-CN": "授权对象",
+    "zh-TW": "授權對象"
+  },
+  "permIdentity": {
+    "en": "In System Settings, turn on {{name}} ({{path}}).",
+    "zh-CN": "在系统设置里打开 {{name}}（{{path}}）。",
+    "zh-TW": "在系統設定裡開啟 {{name}}（{{path}}）。"
+  },
+  "permAdhocNote": {
+    "en": "This build is ad-hoc signed: after each update macOS treats it as a new app, so these permissions must be allowed again.",
+    "zh-CN": "当前是 ad-hoc 签名的版本：每次更新后 macOS 会把它当成新应用，需要重新授权。",
+    "zh-TW": "目前是 ad-hoc 簽名的版本：每次更新後 macOS 會把它當成新應用，需要重新授權。"
+  },
+  "permApprovalNote": {
+    "en": "These are macOS permissions only. Whether a tool call asks for your approval is still set by the app's approval settings.",
+    "zh-CN": "这里只管 macOS 的系统授权；工具调用是否需要你确认，仍按应用内的审批设置。",
+    "zh-TW": "這裡只管 macOS 的系統授權；工具呼叫是否需要你確認，仍按應用內的審批設定。"
+  },
+  "permDiagnostics": {
+    "en": "Diagnostics",
+    "zh-CN": "诊断信息",
+    "zh-TW": "診斷資訊"
+  },
+  "permVersion": {
+    "en": "Version",
+    "zh-CN": "版本",
+    "zh-TW": "版本"
+  },
+  "permSignature": {
+    "en": "Signature",
+    "zh-CN": "签名",
+    "zh-TW": "簽名"
+  },
+  "permHelper": {
+    "en": "Computer Use helper",
+    "zh-CN": "电脑操作 helper",
+    "zh-TW": "電腦操作 helper"
+  },
+  "permHelperNotRunning": {
+    "en": "not running",
+    "zh-CN": "未运行",
+    "zh-TW": "未執行"
+  },
+  "permCheck": {
+    "en": "Check permissions",
+    "zh-CN": "检查权限",
+    "zh-TW": "檢查權限"
+  },
+  "promptDraftRestored": {
+    "en": "Your unsaved changes are back. Save to apply them, or discard.",
+    "zh-CN": "已恢复上次未保存的修改。保存后才生效，也可以放弃。",
+    "zh-TW": "已恢復上次未儲存的修改。儲存後才生效，也可以放棄。"
+  },
+  "editResourceFolderNote": {
+    "en": "Resource folder: {{path}} (not counted above; managed in the project workbench)",
+    "zh-CN": "资料目录：{{path}}（不计入上面的工作区，在项目工作台管理）",
+    "zh-TW": "資料目錄：{{path}}（不計入上面的工作區，在專案工作台管理）"
+  },
+  "schedEveryWeekday": {
+    "en": "Weekdays",
+    "zh-CN": "工作日",
+    "zh-TW": "工作日"
+  },
+  "schedEveryWeekend": {
+    "en": "Weekends",
+    "zh-CN": "周末",
+    "zh-TW": "週末"
+  },
+  "schedWeeklyOn": {
+    "en": "Weekly on {{days}}",
+    "zh-CN": "每周 {{days}}",
+    "zh-TW": "每週 {{days}}"
+  },
+  "creativeCategoryError_empty": {
+    "en": "Enter a category name.",
+    "zh-CN": "请输入分类名称。",
+    "zh-TW": "請輸入分類名稱。"
+  },
+  "creativeCategoryError_dots": {
+    "en": "A category name cannot be . or .. (no going up a folder).",
+    "zh-CN": "分类名称不能是 . 或 ..（不能指向上级目录）。",
+    "zh-TW": "分類名稱不能是 . 或 ..（不能指向上級目錄）。"
+  },
+  "creativeCategoryError_hidden": {
+    "en": "A category name cannot start with a dot.",
+    "zh-CN": "分类名称不能以点开头。",
+    "zh-TW": "分類名稱不能以點開頭。"
+  },
+  "creativeCategoryError_tooLong": {
+    "en": "Each level of a category name can have at most 60 characters.",
+    "zh-CN": "分类名称每一层最多 60 个字。",
+    "zh-TW": "分類名稱每一層最多 60 個字。"
+  },
+  "creativeCategoryError_chars": {
+    "en": "A category name cannot contain : * ? \" < > |.",
+    "zh-CN": "分类名称不能包含 : * ? \" < > |。",
+    "zh-TW": "分類名稱不能包含 : * ? \" < > |。"
+  },
+  "creativeCategoryError_tooDeep": {
+    "en": "Categories can nest at most 6 levels.",
+    "zh-CN": "分类最多 6 层。",
+    "zh-TW": "分類最多 6 層。"
+  },
+  "creativeCategoryError_reserved": {
+    "en": "\"未分类\" and \"scripts\" are used by the app; choose another name.",
+    "zh-CN": "“未分类”和“scripts”由应用使用，请换个名字。",
+    "zh-TW": "「未分类」和「scripts」由應用使用，請換個名字。"
+  },
+  "creativeCategoryRefused": {
+    "en": "This category could not be saved. Check the name and try again.",
+    "zh-CN": "这个分类没能保存，请检查名称后重试。",
+    "zh-TW": "這個分類沒能儲存，請檢查名稱後重試。"
+  },
+  "turnStoppedLabel": {
+    "en": "Reply stopped",
+    "zh-CN": "回复已停止",
+    "zh-TW": "回覆已停止"
+  },
+  "schedExactTime": {
+    "en": "Exact time",
+    "zh-CN": "具体时间",
+    "zh-TW": "具體時間"
+  },
+  "schedExactTimeHint": {
+    "en": "Pick a time of day, or type an exact time such as 09:30.",
+    "zh-CN": "可以选时段，也可以直接输入具体时间，例如 09:30。",
+    "zh-TW": "可以選時段，也可以直接輸入具體時間，例如 09:30。"
+  },
+  "schedTimeInvalid": {
+    "en": "Enter a time between 00:00 and 23:59.",
+    "zh-CN": "请输入 00:00 到 23:59 之间的时间。",
+    "zh-TW": "請輸入 00:00 到 23:59 之間的時間。"
+  },
+  "schedTaskName": {
+    "en": "Task name",
+    "zh-CN": "任务名称",
+    "zh-TW": "任務名稱"
+  },
+  "taskRunTitle": {
+    "en": "{{title}} · run {{n}}",
+    "zh-CN": "{{title}} · 第 {{n}} 次",
+    "zh-TW": "{{title}} · 第 {{n}} 次"
+  },
+  "projectPromptLabel": {
+    "en": "System prompt template",
+    "zh-CN": "系统提示词模板",
+    "zh-TW": "系統提示詞範本"
+  },
+  "projectPromptManage": {
+    "en": "Manage templates",
+    "zh-CN": "管理模板",
+    "zh-TW": "管理範本"
+  },
+  "projectPromptDefault": {
+    "en": "Follow the defaults",
+    "zh-CN": "跟随默认",
+    "zh-TW": "跟隨預設"
+  },
+  "projectPromptLoading": {
+    "en": "Loading templates…",
+    "zh-CN": "正在读取模板…",
+    "zh-TW": "正在讀取範本…"
+  },
+  "projectPromptNoTemplates": {
+    "en": "No templates yet. Add one under Settings → System prompts; until then the default prompt applies.",
+    "zh-CN": "还没有模板。可在 设置 → 系统提示词 中添加；在此之前使用默认提示词。",
+    "zh-TW": "還沒有範本。可在 設定 → 系統提示詞 中新增；在此之前使用預設提示詞。"
+  },
+  "projectPromptChosenHint": {
+    "en": "Every conversation in this project uses this template, whatever its model.",
+    "zh-CN": "这个项目里的所有对话都用这个模板，不论用哪个模型。",
+    "zh-TW": "這個專案裡的所有對話都用這個範本，不論用哪個模型。"
+  },
+  "projectPromptDefaultHint": {
+    "en": "Model rules apply; with none, the built-in prompt.",
+    "zh-CN": "按模型规则选择；没有匹配时使用内置提示词。",
+    "zh-TW": "依模型規則選擇；沒有符合時使用內建提示詞。"
+  },
+  "projectPromptDefaultHintGlobal": {
+    "en": "Model rules apply; with none, the global default “{{name}}”.",
+    "zh-CN": "按模型规则选择；没有匹配时使用全局默认「{{name}}」。",
+    "zh-TW": "依模型規則選擇；沒有符合時使用全域預設「{{name}}」。"
   }
 }

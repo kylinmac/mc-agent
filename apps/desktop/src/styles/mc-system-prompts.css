@@ -1,0 +1,97 @@
+/* mc-agent: System prompt templates page (MC-ADR-0010).
+   Split out of app-rail.css; imported right after it in globals.css,
+   in the original order. */
+
+/* System prompt templates (MC-ADR-0010): settings tiles like the other pages. */
+.mc-prompts-intro {
+  margin: 0;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+}
+
+.mc-prompts-muted {
+  color: var(--ds-text-muted);
+  font-size: var(--text-sm);
+}
+
+.mc-prompts-template {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+
+.mc-prompts-template-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mc-prompts-template-toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mc-prompts-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--ds-border-subtle);
+}
+
+.mc-prompts-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.mc-prompts-textarea {
+  min-height: 120px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.mc-prompts-rule {
+  gap: 10px;
+}
+
+.mc-prompts-arrow {
+  flex: 0 0 auto;
+  color: var(--ds-text-muted);
+}
+
+.mc-prompts-icon {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+}
+
+.mc-prompts-icon:hover {
+  background: var(--ds-bg-hover);
+  color: var(--ds-text-primary);
+}
+
+.mc-prompts-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

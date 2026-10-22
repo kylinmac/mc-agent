@@ -1494,3 +1494,15 @@
   color: var(--ds-text-muted);
   font-size: var(--text-xs);
 }
+
+/* The chosen storage folder left the project or is offline: say so, offer a new choice. */
+.mc-creative-storage-problem .settings-nav-label {
+  color: var(--ds-warning);
+  white-space: normal;
+}
+
+/* A refused category name: the reason, under the field that keeps the input. */
+.mc-creative-tree-error {
+  margin: 2px 0 4px;
+  font-size: var(--text-xs);
+}

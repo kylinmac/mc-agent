@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ResourceTemplateSummary } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
+import { Button } from "../../components/ui";
+import { openTemplateSettings } from "./TemplateEditor";
 
 /*
   Resource-folder template choice for the project create dialog (R1.4). The
@@ -25,7 +27,8 @@ export function TemplatePicker({
     void api
       .listResourceTemplates()
       .then(({ templates: listed }) => {
-        if (!canceled) setTemplates(listed);
+        // Creative templates set up studio categories, not resource folders.
+        if (!canceled) setTemplates(listed.filter((template) => template.target !== "creative"));
       })
       .catch(() => {
         // Without a listing the default template name is still submitted.
@@ -45,6 +48,9 @@ export function TemplatePicker({
         <label id="mc-template-heading" className="project-create-dialog-section-title" htmlFor="mc-template-select">
           {t("mcProject.templateLabel")}
         </label>
+        <Button size="sm" variant="ghost" onClick={openTemplateSettings}>
+          {t("mcProject.templateEditorOpen")}
+        </Button>
       </div>
       <select
         id="mc-template-select"

@@ -151,3 +151,25 @@ test("the chat is told the compared images in panel order with their paths", () 
   assert.equal(text, "Compared:\n1. 龙 (/p/creative/龙.png)\n2. red.png (/p/creative/red.png)");
   assert.equal(model.compareContextText([], "Compared:"), "");
 });
+
+test("the storage preview is <folder>/creative for every kind of project folder", () => {
+  // host-core's storage_for uses creative/ for workspaces and resource folders alike.
+  assert.equal(model.creativeFolderOf("/Users/a/work/game"), "/Users/a/work/game/creative");
+  assert.equal(model.creativeFolderOf("/Users/a/Documents/mc-agent/projects/游戏A/"), "/Users/a/Documents/mc-agent/projects/游戏A/creative");
+  assert.equal(model.creativeFolderOf("C:\\work\\game\\"), "C:\\work\\game\\creative");
+  assert.equal(model.creativeFolderOf("/"), "/creative");
+});
+
+test("category names are checked like host-core, with a reason for each refusal", () => {
+  const error = model.categoryNameError;
+  assert.equal(error("角色/测试A"), null);
+  assert.equal(error("  "), "empty");
+  assert.equal(error("../越界测试"), "dots");
+  assert.equal(error("角色/.隐藏"), "hidden");
+  assert.equal(error("x".repeat(61)), "tooLong");
+  assert.equal(error("a:b"), "chars");
+  assert.equal(error("a/b/c/d/e/f/g"), "tooDeep");
+  assert.equal(error("未分类/子"), "reserved");
+  assert.equal(error("scripts"), "reserved");
+  assert.equal(error("角色/scripts"), null, "only the first level is reserved");
+});

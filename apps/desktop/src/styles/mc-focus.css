@@ -1,0 +1,22 @@
+/*
+  mc-agent (bugs.md B-012): no square white rings on clickable things. The
+  base `:focus-visible` outline draws a box around the focused element — on a
+  wrapper that box is square — and it lingers after a menu hands focus back.
+  Buttons, links and button-like elements show keyboard focus as a light tint
+  inside their own shape instead; text fields keep their focus style.
+*/
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible,
+[role="menuitem"]:focus-visible,
+[role="option"]:focus-visible,
+[role="treeitem"]:focus-visible,
+[role="listitem"]:focus-visible {
+  outline: none;
+  background-image: linear-gradient(
+    color-mix(in oklab, var(--ds-text-primary) 10%, transparent),
+    color-mix(in oklab, var(--ds-text-primary) 10%, transparent)
+  );
+}

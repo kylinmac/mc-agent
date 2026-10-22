@@ -24,6 +24,7 @@ mod providers;
 mod resource_catalog;
 mod resource_dirs;
 mod resource_index;
+mod resource_overview;
 mod resource_templates;
 mod review;
 mod rpc;

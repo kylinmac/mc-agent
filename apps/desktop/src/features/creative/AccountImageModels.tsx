@@ -25,7 +25,7 @@ export function AccountImageModels({ providers }: { providers: readonly Provider
 
   useEffect(() => {
     void api.creative
-      .call<{ models: Record<string, string[]> }>("creative.accountImageModels")
+      .call("creative.accountImageModels")
       .then((answer) => setAdded(answer.models ?? {}))
       .catch(() => undefined);
   }, []);
@@ -34,7 +34,7 @@ export function AccountImageModels({ providers }: { providers: readonly Provider
 
   const save = async (providerId: string, modelIds: string[]) => {
     try {
-      const { modelIds: saved } = await api.creative.call<{ modelIds: string[] }>("creative.setAccountImageModels", {
+      const { modelIds: saved } = await api.creative.call("creative.setAccountImageModels", {
         providerId,
         modelIds,
       });

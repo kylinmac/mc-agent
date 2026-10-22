@@ -22,6 +22,7 @@ import {
   IconMonitor,
 } from "./icons";
 import { ProjectKindPicker, type ProjectKind } from "../features/project-workbench/ProjectKindPicker";
+import { ProjectPromptPicker, usePromptConfig } from "./ProjectPromptPicker";
 
 /** One project entry point for local folders, git checkouts and remote hosts. */
 type ProjectSource = "local" | "git" | "remote";
@@ -61,6 +62,9 @@ function ProjectCreateDialogContent({ initialRemoteHostKey }: { initialRemoteHos
   // template, R1.4); "chat" in the picker leaves the dialog instead.
   const [kind, setKind] = useState<ProjectKind>("simple");
   const [template, setTemplate] = useState("software");
+  // mc-agent: the system prompt template for the new project's folders.
+  const promptConfig = usePromptConfig();
+  const [promptTemplate, setPromptTemplate] = useState("");
   const createProjectFromGit = useAppStore(
     (state) => state.createProjectFromGit,
   );
@@ -213,6 +217,7 @@ function ProjectCreateDialogContent({ initialRemoteHostKey }: { initialRemoteHos
           url: cloneTarget.url,
           parentPath: cloneParent,
           template: kind === "managed" ? template : undefined,
+          promptTemplate: promptTemplate || undefined,
         });
       } else {
         await createProject({
@@ -220,6 +225,7 @@ function ProjectCreateDialogContent({ initialRemoteHostKey }: { initialRemoteHos
           folders,
           primaryPath: folders[0],
           template: kind === "managed" ? template : undefined,
+          promptTemplate: promptTemplate || undefined,
         });
       }
     } catch (error) {
@@ -319,6 +325,16 @@ function ProjectCreateDialogContent({ initialRemoteHostKey }: { initialRemoteHos
               remote={source === "remote"}
               disabled={busy}
             />
+
+            {source === "remote" ? null : (
+              <ProjectPromptPicker
+                config={promptConfig}
+                value={promptTemplate}
+                onChange={setPromptTemplate}
+                onLeave={close}
+                disabled={busy}
+              />
+            )}
 
             <section
               className="project-create-dialog-section project-create-dialog-source-section"

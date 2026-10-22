@@ -23,6 +23,7 @@ import { useProjectFolderIndex } from "../project-sidebar/useProjectFolderIndex"
 import { sessionFolderLabel } from "../project-sidebar/project-merge";
 import {
   breakdownRows,
+  PENDING_BREAKDOWN_ROWS,
   clampPanelWidth,
   DEFAULT_PREFS,
   conversationOffset,
@@ -293,10 +294,12 @@ export function SessionInfo({
   const [breakdown, setBreakdown] = useState<SessionContextBreakdown | null>(null);
   const [collaboration, setCollaboration] = useState<SessionCollaborationSummary | null>(null);
   const [connectors, setConnectors] = useState<{ ready: number; total: number } | null>(null);
-  // Refresh when the panel opens, the session changes, or a turn ends.
-  const settledMessages = isRunning ? -1 : messages.length;
+  // Refresh when the panel opens, the session changes, a message lands, or a
+  // turn ends. A running turn is estimated too (mc-agent B-002): the list
+  // should never wait for the turn to finish.
+  const messageCount = messages.length;
   useEffect(() => {
-    if (!open || !sessionId || settledMessages < 0) return;
+    if (!open || !sessionId) return;
     let canceled = false;
     void api
       .sessionContextBreakdown(sessionId)
@@ -328,7 +331,7 @@ export function SessionInfo({
     return () => {
       canceled = true;
     };
-  }, [open, sessionId, settledMessages]);
+  }, [open, sessionId, messageCount, isRunning]);
 
   // The panel opens and closes only through its button. The layout menu
   // closes on an outside click or Escape.
@@ -383,7 +386,7 @@ export function SessionInfo({
   const model = session?.modelId ?? "";
   const workers = collaboration?.createdSessions ?? [];
   const usedTone = !context ? "" : context.usedPercent >= 85 ? " is-high" : context.usedPercent >= 65 ? " is-mid" : "";
-  const rows = breakdown ? breakdownRows(breakdown) : [];
+  const rows = breakdown ? breakdownRows(breakdown) : PENDING_BREAKDOWN_ROWS;
 
   const sectionTitle: Record<SectionId, string> = {
     environment: t("mcProject.sessionInfoEnvironment"),
@@ -453,8 +456,8 @@ export function SessionInfo({
         ) : (
           <div className="mc-session-info-muted">{t("mcProject.sessionInfoNoUsage")}</div>
         )}
-        {breakdown ? (
-          <>
+        <>
+            {breakdown ? (
             <div className="mc-session-info-stack" aria-hidden>
               {rows
                 .filter((row) => row.key !== "free" && row.tokens > 0)
@@ -466,10 +469,11 @@ export function SessionInfo({
                   />
                 ))}
             </div>
+            ) : null}
             <ul className="mc-session-info-breakdown">
               {rows.map((row) => {
                 const namesKey = EXPANDABLE[row.key];
-                const names = namesKey ? (breakdown[namesKey] as string[]) : [];
+                const names = namesKey && breakdown ? (breakdown[namesKey] as string[]) : [];
                 const canExpand = names.length > 0;
                 const isExpanded = expanded === row.key;
                 // mc-agent: a category with something to manage opens it (a
@@ -517,8 +521,12 @@ export function SessionInfo({
                           </button>
                         ) : null}
                       </span>
-                      <span className="mc-session-info-muted">{compact(row.tokens)}</span>
-                      <span className="mc-session-info-breakdown-percent">{row.percent.toFixed(1)}%</span>
+                      <span className="mc-session-info-muted">
+                        {Number.isFinite(row.tokens) ? compact(row.tokens) : "?"}
+                      </span>
+                      <span className="mc-session-info-breakdown-percent">
+                        {Number.isFinite(row.percent) ? `${row.percent.toFixed(1)}%` : "?%"}
+                      </span>
                     </div>
                     {isExpanded ? (
                       <ul className="mc-session-info-names">
@@ -532,10 +540,7 @@ export function SessionInfo({
               })}
             </ul>
             <div className="mc-session-info-muted">{t("mcProject.sessionInfoEstimated")}</div>
-          </>
-        ) : (
-          <div className="mc-session-info-muted">{t("mcProject.sessionInfoNoBreakdown")}</div>
-        )}
+        </>
         <div className="mc-session-info-row mc-session-info-compact">
           <span className="mc-session-info-muted">
             {breakdown

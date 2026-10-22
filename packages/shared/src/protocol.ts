@@ -202,6 +202,10 @@ export const IPC = {
     mcPromptsGet: "pi-desktop/mc-prompts/get",
     mcPromptsSet: "pi-desktop/mc-prompts/set",
     mcUsageSummary: "pi-desktop/mc-usage/summary",
+    // mc-agent: macOS system permissions page (X-PERM-02).
+    macPermissionsCheck: "pi-desktop/mac-permissions/check",
+    macPermissionsRequest: "pi-desktop/mac-permissions/request",
+    macPermissionsOpenSettings: "pi-desktop/mac-permissions/open-settings",
     // mc-agent creative studio (docs/mc-agent/creative-studio.md).
     creativeCall: "pi-desktop/mc-creative/call",
     creativeGenerate: "pi-desktop/mc-creative/generate",

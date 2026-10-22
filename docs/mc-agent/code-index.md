@@ -61,7 +61,7 @@ mc-agent 新增功能（R1–R10）的代码见文末“mc-agent 项目管理”
 | 从 Claude / Codex / OpenCode / Pi 导入 | `apps/desktop/electron/main/importers/` |
 | 导入项目与对话（mc） | 界面 `apps/desktop/src/features/project-import/`（`ProjectImportDialog.tsx`、`import-model.ts`），入口在 `components/Sidebar.tsx`；PI-Desktop 来源 `electron/main/importers/pi-desktop.ts` → host-core `src/mc_import.rs`（`mcImport.*`）；通道 `ipc/session-ipc.ts` 的 `sessionImportScan/Run` |
 | 系统提示词（mc） | 查看器 `apps/desktop/src/features/session-info/SystemPromptDialog.tsx`（运行时 `systemPromptView`、sidecar `agent.systemPrompt`）；模板设置页 `src/features/settings/SystemPromptsPage.tsx`；存储 host-core `src/mc_prompts.rs`（`mcPrompts.*`）；匹配 `electron/main/mc-system-prompts.ts`，在 `runtime/session-launch.ts` 应用 |
-| 用量统计（mc） | host-core `src/mc_usage.rs`（`mcUsage.summary`）；页面 `apps/desktop/src/features/settings/UsagePage.tsx`、`usage-model.ts`；通道在 `ipc/project-resources-ipc.ts` |
+| 用量统计（mc） | host-core `src/mc_usage.rs`（`mcUsage.summary`）；页面 `apps/desktop/src/features/settings/UsagePage.tsx`、`usage-model.ts`；通道在 `ipc/mc-usage-ipc.ts` |
 
 ## 工具、权限、工作区
 
@@ -145,7 +145,7 @@ host-core 也可作为内部工具子进程启动（`tools::INTERNAL_TOOL_RUNNER
 
 | 功能 | 代码 |
 |---|---|
-| 左侧竖栏 | `apps/desktop/src/features/app-rail/AppRail.tsx`；样式 `apps/desktop/src/styles/app-rail.css`（含三层配色、标签栏样式） |
+| 左侧竖栏 | `apps/desktop/src/features/app-rail/AppRail.tsx`；样式 `apps/desktop/src/styles/app-rail.css`（竖栏、标题栏与三层配色）；其余 mc 样式按功能拆在 `styles/mc-*.css`（标签栏、信息栏、工作面板、后台任务、提示词、用量、扩展页、定时任务、更新按钮、系统权限），在 `globals.css` 里按原顺序引入 |
 | 顶部标签栏 | `apps/desktop/src/features/session-tabs/`（`tab-list.ts` 纯逻辑，`SessionTabs.tsx` 组件）；挂在 `ConversationTopbar.tsx` 与 `AppShell.tsx` 的 `main-titlebar` |
 | 设置以标签打开 | `apps/desktop/src/features/app/AppShell.tsx`（`mc-settings-tab`）；设置导航进侧边栏 `features/sidebar-slot/SidebarSlot.tsx` |
 | 侧边栏按项目合并 | `apps/desktop/src/features/project-sidebar/`；host 侧失效目录查询 `project.folders.missing`（`rpc/resource_dirs_rpc.rs`） |
@@ -155,7 +155,7 @@ host-core 也可作为内部工具子进程启动（`tools::INTERNAL_TOOL_RUNNER
 | 会话信息栏 | `apps/desktop/src/features/session-info/`（停靠与浮层、行计算在 `session-info-model.ts`；子任务列表 `session-subagents.ts`，复用 `lib/subagent-topology.ts` 的状态规则）；按类别估算 `packages/agent-runtime/src/context-breakdown.ts`，sidecar 方法 `agent.contextBreakdown`，Main 通道在 `project-resources-ipc.ts` |
 | 提示显示在右侧 | `apps/desktop/src/components/ui.tsx` 的 `tooltipSide` |
 | 图标源文件 | `apps/desktop/build/icon.svg`、`tray-icon.svg`、`logo-dark.svg` |
-| 模板编辑 | `crates/host-core/src/template_editor.rs`；界面 `features/project-workbench/TemplateEditor.tsx` |
+| 模板编辑 | `crates/host-core/src/template_editor.rs`（多层文件夹、用途）；设置页 `features/settings/ProjectTemplatesPage.tsx` → `features/project-workbench/TemplateEditor.tsx`（`TemplateManager`）、草稿逻辑 `template-draft.ts` |
 | Session Orchestrator（含 `workspace`） | `plugins/session-orchestrator/` |
 
 ## mc-agent 项目管理（R1–R10）
@@ -166,11 +166,22 @@ host-core 也可作为内部工具子进程启动（`tools::INTERNAL_TOOL_RUNNER
 | 资料目录创建、模板、改名跟随 | `crates/host-core/src/resource_dirs.rs`；路径改写复用 `data_relocation.rs::rewrite_database_paths` |
 | 新建类型、转换与解除（R1.7） | 对话框 `apps/desktop/src/features/project-workbench/ProjectKindPicker.tsx`；转换 `ConvertToManaged.tsx`；解除 `db/project_resources.rs::detach_project_resource_root`；接回旧目录在 `resource_dirs.rs::ensure_project_resources` |
 | 工作区说明（`workspaces.md`） | `crates/host-core/src/workspace_notes.rs` |
-| 资料清单、确认、项目目标 | `crates/host-core/src/resource_catalog.rs`；分类索引 `resource_index.rs`（`INDEX.md`）；模板元数据 `resource_templates.rs` |
+| 资料清单、确认、项目目标 | `crates/host-core/src/resource_catalog.rs`；分类索引 `resource_index.rs`（`INDEX.md`）；总索引 `resource_overview.rs`（`RESOURCES.md`）；模板元数据 `resource_templates.rs` |
 | 项目任务、执行、验收 | `crates/host-core/src/project_tasks.rs` |
 | RPC | `crates/host-core/src/rpc/resource_dirs_rpc.rs`、`resource_catalog_rpc.rs`、`project_tasks_rpc.rs` |
-| Main IPC | `apps/desktop/electron/main/ipc/project-resources-ipc.ts` |
+| Main IPC | `apps/desktop/electron/main/ipc/project-resources-ipc.ts`；会话信息 `mc-session-insight-ipc.ts`、系统提示词 `mc-prompts-ipc.ts`、用量 `mc-usage-ipc.ts` |
 | 会话“项目目录”说明 | `packages/shared/src/project-folder-guide.ts`（三条启动路径共用） |
 | 界面 | `apps/desktop/src/features/project-workbench/`（工作台、概览、资料、任务、AI 整理、模板选择） |
 | 文案 | `packages/i18n/scripts/mc-agent-strings.json` 生成各语言 `mcProject` 区块 |
 | 端到端测试 | `scripts/e2e-project-resources.mjs`（`pnpm test:e2e:project-resources`） |
+
+## mc-agent 创作、会话保留与系统权限（2026-10-22）
+
+| 功能 | 代码 |
+|---|---|
+| 创作跨进程契约 | `packages/shared/src/types/creative.ts`（记录类型、`CreativeMethods` 方法表、`CREATIVE_RENDERER_METHODS`）；契约测试 `apps/desktop/test/mc-creative-contract.test.mjs` |
+| 创作 host-core | `crates/host-core/src/mc_creative/`：`mod.rs`（用途、存储、记录、公共辅助）、`assets.rs`（素材、分类、创作模板）、`jobs.rs`（生成任务）、`comparisons.rs`（对比集）、`schema.rs`（`mc_schema_versions` 迁移）；RPC `rpc/mc_creative_rpc.rs` |
+| 创作界面拆分 | `apps/desktop/src/features/creative/use-grid-selection.ts`（选择、框选、方向键）、`use-asset-actions.ts`（导入、移动、移除、删除文件） |
+| 会话保留 | 计数与来源注册 `apps/desktop/src/lib/session-holds.ts`；React 钩子 `lib/use-held-session.ts`；分栏把列注册为来源（`lib/mc-split-view.ts`），创作聊天用 `useHeldSession` |
+| 系统权限 | Main `electron/main/mc-macos-permissions.ts`、`ipc/mc-permissions-ipc.ts`；页面 `src/features/settings/SystemPermissionsPage.tsx`；类型 `packages/shared/src/types/mac-permissions.ts`；helper 的分项检查在 `crates/mc-computer/src/macos/mod.rs` |
+| 内置插件工具风险 | `electron/main/plugin-runtime.ts` 的 `mcpToolRisk`（只认应用自带插件目录）；manifest `mcpServers[].toolRisk` |

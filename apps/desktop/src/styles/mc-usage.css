@@ -1,0 +1,479 @@
+/* mc-agent: Usage statistics page (MC-ADR-0011).
+   Split out of app-rail.css; imported right after it in globals.css,
+   in the original order. */
+
+/* Usage statistics (MC-ADR-0011). */
+.mc-usage-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mc-usage-head .mc-prompts-intro {
+  flex: 1 1 320px;
+}
+
+.mc-usage-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.mc-usage-kpi {
+  padding: 14px 16px;
+  border-radius: var(--radius-md-plus);
+  background: var(--ds-tile);
+}
+
+.mc-usage-kpi-label,
+.mc-usage-kpi-detail {
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+}
+
+.mc-usage-kpi-value {
+  margin: 4px 0 2px;
+  color: var(--ds-text-primary);
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.mc-usage-chart {
+  display: flex;
+  height: 140px;
+  align-items: flex-end;
+  justify-content: space-around;
+  gap: 2px;
+  padding: 16px 16px 6px;
+}
+
+.mc-usage-bar {
+  display: flex;
+  height: 100%;
+  min-width: 2px;
+  max-width: 28px;
+  flex: 1;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.mc-usage-bar-fill {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+  border-radius: var(--radius-xs, var(--radius-sm)) var(--radius-xs, var(--radius-sm)) 0 0;
+}
+
+/* Fresh tokens on top, the cached part of the day below it. */
+.mc-usage-bar-fresh {
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  background: var(--ds-text-secondary);
+}
+
+.mc-usage-bar-cache {
+  width: 100%;
+  flex: 0 0 auto;
+  background: var(--ds-text-faint);
+}
+
+.mc-usage-bar:hover .mc-usage-bar-fill {
+  filter: brightness(1.2);
+}
+
+.mc-usage-chart-axis {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 16px 12px;
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+}
+
+.mc-usage-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.mc-usage-table th {
+  padding: 10px 12px 6px;
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.mc-usage-table td {
+  padding: 8px 12px;
+  border-top: 1px solid var(--ds-border-subtle);
+  color: var(--ds-text-secondary);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.mc-usage-table th:first-child,
+.mc-usage-table td:first-child {
+  width: 100%;
+  max-width: 0;
+  text-align: left;
+  white-space: normal;
+}
+
+.mc-usage-table tbody tr:first-child td {
+  border-top: 0;
+}
+
+.mc-usage-name,
+.mc-usage-link {
+  overflow: hidden;
+  color: var(--ds-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mc-usage-link {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mc-usage-link:hover {
+  text-decoration: underline;
+}
+
+.mc-usage-sub {
+  overflow: hidden;
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mc-usage-strong {
+  color: var(--ds-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.mc-usage-share {
+  display: inline-block;
+  width: 80px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--ds-bg-hover);
+  vertical-align: middle;
+}
+
+.mc-usage-share > span {
+  display: block;
+  height: 100%;
+  background: var(--ds-text-secondary);
+}
+
+.mc-usage-legend {
+  display: flex;
+  gap: 14px;
+  padding: 0 16px 4px;
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+}
+
+.mc-usage-legend span::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: var(--radius-full);
+  vertical-align: middle;
+}
+
+.mc-usage-legend-fresh::before {
+  background: var(--ds-text-secondary);
+}
+
+.mc-usage-legend-cache::before {
+  background: var(--ds-text-faint);
+}
+
+/* Model colors on the usage page: the donut, the stacked days and the table share them. */
+.mc-usage {
+  --mc-series-1: #5b8def;
+  --mc-series-2: #4fae7b;
+  --mc-series-3: #d9774a;
+  --mc-series-4: #9b7be0;
+  --mc-series-5: #c9a33c;
+  --mc-series-6: #3fa7b5;
+  --mc-series-7: #e06c8c;
+  --mc-series-other: var(--ds-text-faint);
+}
+
+.mc-usage-bar-model {
+  width: 100%;
+  flex: 0 0 auto;
+}
+
+.mc-usage-legend {
+  flex-wrap: wrap;
+}
+
+.mc-usage-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.mc-usage-legend-item i,
+.mc-usage-model-legend i,
+.mc-usage-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-full);
+}
+
+.mc-usage-dot {
+  margin-right: 6px;
+}
+
+.mc-usage-models {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 16px;
+  border-bottom: 1px solid var(--ds-border-subtle);
+}
+
+.mc-usage-donut {
+  width: 150px;
+  height: 150px;
+  flex: 0 0 auto;
+}
+
+.mc-usage-donut-track {
+  stroke: var(--ds-bg-hover);
+}
+
+.mc-usage-donut-value {
+  fill: var(--ds-text-primary);
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-strong);
+}
+
+.mc-usage-donut-label {
+  fill: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+}
+
+.mc-usage-model-legend {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.mc-usage-model-legend li {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.mc-usage-model-legend .mc-usage-name {
+  flex: 0 1 auto;
+}
+
+.mc-usage-model-legend .mc-usage-sub {
+  flex: 1 1 auto;
+}
+
+.mc-usage-model-share {
+  margin-left: auto;
+  color: var(--ds-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.mc-usage-model-legend .mc-usage-strong {
+  min-width: 64px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Daily chart with axes and an instant tooltip. */
+.mc-usage-daily {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  row-gap: 30px;
+  padding: 18px 16px 10px 8px;
+}
+
+.mc-usage-yaxis {
+  position: relative;
+  height: 160px;
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.mc-usage-yaxis span {
+  position: absolute;
+  right: 8px;
+  transform: translateY(50%);
+}
+
+.mc-usage-plot {
+  position: relative;
+  height: 160px;
+}
+
+.mc-usage-gridline {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 0;
+  border-top: 1px solid var(--ds-border-subtle);
+}
+
+.mc-usage-plot .mc-usage-chart {
+  position: absolute;
+  inset: 0;
+  height: auto;
+  padding: 0 4px;
+}
+
+.mc-usage-bar {
+  cursor: default;
+}
+
+.mc-usage-bar[data-hovered="true"] .mc-usage-bar-fill {
+  filter: brightness(1.25);
+}
+
+.mc-usage-xaxis {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  display: flex;
+  justify-content: space-around;
+  gap: 2px;
+  padding: 0 4px;
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.mc-usage-xaxis span {
+  display: flex;
+  min-width: 2px;
+  max-width: 28px;
+  flex: 1;
+  justify-content: center;
+  overflow: visible;
+  white-space: nowrap;
+}
+
+.mc-usage-daily .mc-usage-legend {
+  grid-column: 1 / -1;
+  padding: 0 0 0 52px;
+}
+
+.mc-usage-tooltip {
+  position: absolute;
+  z-index: 5;
+  min-width: 160px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--ds-bg-elevated-opaque);
+  box-shadow: var(--ds-shadow-dialog);
+  color: var(--ds-text-secondary);
+  font-size: var(--text-xs);
+  pointer-events: none;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.mc-usage-tooltip[data-align="start"] {
+  transform: translateX(-12px);
+}
+
+.mc-usage-tooltip[data-align="end"] {
+  transform: translateX(calc(-100% + 12px));
+}
+
+.mc-usage-tooltip-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--ds-text-primary);
+}
+
+.mc-usage-tooltip-sub {
+  margin: 2px 0 6px;
+  color: var(--ds-text-muted);
+}
+
+.mc-usage-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mc-usage-tooltip-row span:last-child {
+  margin-left: auto;
+  padding-left: 12px;
+  color: var(--ds-text-primary);
+}
+
+.mc-usage-tooltip-row i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+}
+
+.mc-usage-tooltip-row[data-kind="fresh"] i {
+  background: var(--ds-text-secondary);
+}
+
+.mc-usage-tooltip-row[data-kind="cache"] i {
+  background: var(--ds-text-faint);
+}
+
+.mc-usage-tooltip[data-align="left"] {
+  margin-bottom: 0;
+  transform: translateX(calc(-100% - 18px));
+}
+
+.mc-usage-tooltip[data-align="right"] {
+  margin-bottom: 0;
+  transform: translateX(18px);
+}
+
+.settings-panel:has(> .mc-usage-daily) {
+  overflow: visible;
+}

@@ -74,8 +74,14 @@ pub struct TemplateSummary {
     /// From `template.json`; 1 when the template has none.
     pub version: u32,
     pub description: String,
-    /// Category folder → what belongs in it, from `template.json`.
+    /// Folder (relative path, `/`-separated, any depth) → what belongs in
+    /// it, from `template.json`.
     pub category_descriptions: std::collections::BTreeMap<String, String>,
+    /// mc-agent: every folder of the template as a relative path, parents
+    /// before children, so the editor can show the tree.
+    pub folders: Vec<String>,
+    /// What the template sets up: a resource folder or creative categories.
+    pub target: crate::resource_templates::TemplateTarget,
 }
 
 /// The mc-agent home: `$MC_AGENT_HOME`, else `<Documents>/mc-agent`.
@@ -152,6 +158,8 @@ pub fn list_templates(home: &Path) -> Result<Vec<TemplateSummary>> {
             builtin: is_builtin_template(&name),
             path: entry.path().to_string_lossy().into_owned(),
             categories: categories(&entry.path())?,
+            folders: template_folders(&entry.path())?,
+            target: meta.target,
             version: meta.version.max(1),
             description: meta.description,
             category_descriptions: meta.categories,
@@ -190,6 +198,14 @@ pub fn ensure_project_resources(
     let source = home.join(TEMPLATES_DIR).join(template);
     if !source.is_dir() {
         return Err(anyhow!("template not found: {template}"));
+    }
+    if !crate::resource_templates::read_template_meta(&source)?
+        .target
+        .is_resources()
+    {
+        return Err(anyhow!(
+            "template {template} is for creative folders, not resource folders"
+        ));
     }
     let projects = home.join(PROJECTS_DIR);
     fs::create_dir_all(&projects)?;
@@ -538,6 +554,37 @@ pub(crate) fn copy_template(source: &Path, target: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Deepest folder level a template may have.
+pub(crate) const MAX_FOLDER_DEPTH: usize = 6;
+
+/// Every visible folder below `root` as a `/`-separated relative path,
+/// sorted so a parent comes right before its children. Symlinks are not
+/// followed.
+pub(crate) fn template_folders(root: &Path) -> Result<Vec<String>> {
+    let mut folders: Vec<Vec<String>> = Vec::new();
+    let walker = walkdir::WalkDir::new(root)
+        .min_depth(1)
+        .max_depth(MAX_FOLDER_DEPTH)
+        .follow_links(false)
+        .into_iter()
+        .filter_entry(|entry| !entry.file_name().to_string_lossy().starts_with('.'));
+    for entry in walker {
+        let entry = entry?;
+        if !entry.file_type().is_dir() {
+            continue;
+        }
+        let relative = entry.path().strip_prefix(root)?;
+        folders.push(
+            relative
+                .components()
+                .map(|part| part.as_os_str().to_string_lossy().into_owned())
+                .collect(),
+        );
+    }
+    folders.sort();
+    Ok(folders.into_iter().map(|parts| parts.join("/")).collect())
+}
+
 fn categories(root: &Path) -> Result<Vec<String>> {
     let mut names = Vec::new();
     for entry in fs::read_dir(root)? {
@@ -770,7 +817,20 @@ mod tests {
         let group =
             f.db.create_project_group("App", std::slice::from_ref(&f.web))
                 .unwrap();
-        for template in ["missing", "../escape", ".hidden", ""] {
+        // A creative template sets up categories, never a resource folder.
+        crate::template_editor::save(
+            &f.home,
+            &crate::template_editor::TemplateInput {
+                name: "art".into(),
+                description: String::new(),
+                categories: vec![],
+                create: true,
+                copy_from: None,
+                target: Some(crate::resource_templates::TemplateTarget::Creative),
+            },
+        )
+        .unwrap();
+        for template in ["missing", "../escape", ".hidden", "", "art"] {
             assert!(ensure_project_resources(&f.db, &f.home, &group.id, template).is_err());
         }
         let projects = f.home.join("projects");

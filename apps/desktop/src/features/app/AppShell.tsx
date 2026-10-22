@@ -232,7 +232,8 @@ export function AppShell() {
                     <SessionTabs onNewTask={() => void runMenuCommand("newTask")} />
                   </div>
                 )}
-                <UpdateBanner />
+                {/* mc-agent: the settings tab shows the same update card. */}
+                {page !== "settings" ? <UpdateBanner /> : null}
                 {/* mc-agent: session information card in the conversation's left margin. */}
                 {/* In a split view each column has its own (MC-ADR-0007). */}
                 {page === "chat" && !split ? <SessionInfo /> : null}

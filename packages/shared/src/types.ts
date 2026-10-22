@@ -12,6 +12,8 @@ export * from "./types/sessions.js";
 export * from "./types/worktree.js";
 export * from "./types/agent.js";
 export * from "./types/workspace.js";
+export * from "./types/creative.js";
+export * from "./types/mac-permissions.js";
 export * from "./types/providers.js";
 export * from "./types/settings.js";
 export * from "./types/plugins.js";

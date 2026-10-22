@@ -9,7 +9,7 @@ import { chooseStartFolder, rememberedStartFolder, rememberStartFolder } from ".
 import { ProjectOverview } from "./ProjectOverview";
 import { ResourceCatalog } from "./ResourceCatalog";
 import { ConvertToManaged } from "./ConvertToManaged";
-import { TemplateEditor } from "./TemplateEditor";
+import { openTemplateSettings } from "./TemplateEditor";
 import { TemplateMigration } from "./TemplateMigration";
 import { TaskBoard } from "./TaskBoard";
 
@@ -45,8 +45,21 @@ export function ProjectWorkbench({
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [listing, setListing] = useState<ResourceListing | null>(null);
   // Bumped by the template editor so the organize panel reloads templates.
-  const [templatesRevision, setTemplatesRevision] = useState(0);
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
+  // Creative use is its own mark, independent of having a resource folder.
+  const [creative, setCreative] = useState(false);
+  useEffect(() => {
+    let canceled = false;
+    void api.creative.call("creative.purposes").then(
+      ({ purposes }) => {
+        if (!canceled) setCreative(purposes[project.groupId] === "creative");
+      },
+      () => undefined,
+    );
+    return () => {
+      canceled = true;
+    };
+  }, [project.groupId]);
   const [startFolder, setStartFolder] = useState(() =>
     chooseStartFolder(project.roots, project.path, rememberedStartFolder(project.groupId)),
   );
@@ -155,6 +168,14 @@ export function ProjectWorkbench({
           onError={onError}
         />
       ) : null}
+      {creative ? (
+        <div className="mc-workbench-row">
+          <span className="mc-workbench-label">{t("mcProject.purposeLabel")}</span>
+          <span className="mc-workbench-tag is-creative" title={t("mcProject.purposeCreativeHint")}>
+            {t("mcProject.purposeCreative")}
+          </span>
+        </div>
+      ) : null}
       <div className="mc-workbench-row">
         <span className="mc-workbench-label">{t("mcProject.resourcesTitle")}</span>
         {resources ? (
@@ -197,7 +218,10 @@ export function ProjectWorkbench({
                 <IconFolder size={12} aria-hidden />
                 <span>{name}</span>
                 {resources ? (<>
-                <span className={`mc-workbench-tag is-${root.kind ?? "workspace"}`}>
+                <span
+                  className={`mc-workbench-tag is-${root.kind ?? "workspace"}`}
+                  title={root.kind === "reference" ? t("mcProject.kindReferenceHint") : undefined}
+                >
                   {root.kind === "reference" ? t("mcProject.kindReference") : t("mcProject.kindWorkspace")}
                 </span>
                 <Button
@@ -274,7 +298,6 @@ export function ProjectWorkbench({
       ) : null}
       {resources ? (
         <TemplateMigration
-          key={templatesRevision}
           groupId={project.groupId}
           resourceFolder={resources.path}
           currentCategories={listing?.categories ?? []}
@@ -287,7 +310,12 @@ export function ProjectWorkbench({
         />
       ) : null}
       {resources ? (
-        <TemplateEditor onChanged={() => setTemplatesRevision((value) => value + 1)} onError={onError} />
+        <div className="mc-workbench-row">
+          <span className="mc-workbench-label">{t("mcProject.templateEditorTitle")}</span>
+          <Button size="sm" variant="ghost" onClick={openTemplateSettings}>
+            {t("mcProject.templateEditorOpen")}
+          </Button>
+        </div>
       ) : null}
 
       <div className="mc-workbench-row">

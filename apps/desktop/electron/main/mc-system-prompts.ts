@@ -3,7 +3,9 @@
 
   Templates and their rules live in host-core (`mcPrompts.get`). Exactly one
   template applies, whole, to a conversation: the project's, else the model's,
-  else the global default. Without one, the pi-compatible SYSTEM.md /
+  else the global default. "Project" rules match folders, not project ids: a
+  rule for the conversation's start folder wins, then a rule for any other
+  folder of its project, each in the order the rules are listed. Without one, the pi-compatible SYSTEM.md /
   APPEND_SYSTEM.md files and then the built-in prompt apply as before. A
   template replaces only the persona and adds rules after the base prompt;
   the runtime's operational rules, the project's AGENTS.md and its memory
@@ -49,20 +51,23 @@ function specificity(pattern: string): number {
 export function resolvePromptTemplate(
   config: PromptConfig | null | undefined,
   context: {
-    /** The conversation's folder and, for a multi-folder project, its other folders. */
+    /**
+     * The conversation's start folder first, then the other folders of its
+     * project.
+     */
     projectPaths: readonly string[];
     modelId?: string | null;
   },
 ): ResolvedPromptTemplate | null {
   if (!config) return null;
   const byId = new Map(config.templates.map((template) => [template.id, template]));
-  const paths = new Set(context.projectPaths.map(normalizePath).filter(Boolean));
-  for (const rule of config.projectRules) {
-    const template = byId.get(rule.templateId);
-    if (template && paths.has(normalizePath(rule.path))) {
-      return { template, match: { kind: "project", path: rule.path } };
-    }
-  }
+  const [start = "", ...others] = context.projectPaths.map(normalizePath);
+  const rest = new Set(others.filter(Boolean));
+  const usable = config.projectRules.filter((rule) => byId.has(rule.templateId));
+  const hit =
+    (start ? usable.find((rule) => normalizePath(rule.path) === start) : undefined) ??
+    usable.find((rule) => rest.has(normalizePath(rule.path)));
+  if (hit) return { template: byId.get(hit.templateId)!, match: { kind: "project", path: hit.path } };
   const modelId = context.modelId?.trim();
   if (modelId) {
     const best = config.modelRules

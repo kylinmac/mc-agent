@@ -1,0 +1,177 @@
+/* mc-agent: Scheduled tasks page (mc-agent).
+   Split out of app-rail.css; imported right after it in globals.css,
+   in the original order. */
+
+/* Scheduled page (mc-agent): tasks in the sidebar, overview with templates. */
+.mc-sched-nav-task {
+  align-items: flex-start;
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
+.mc-sched-nav-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mc-sched-nav-name {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mc-sched-nav-meta {
+  overflow: hidden;
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mc-sched-nav-task.is-off .mc-sched-nav-name {
+  color: var(--ds-text-muted);
+}
+
+.mc-sched-nav-empty {
+  padding: 6px 10px;
+  color: var(--ds-text-muted);
+  font-size: var(--text-sm);
+}
+
+.mc-sched-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.mc-sched-status.is-running {
+  color: var(--ds-success);
+}
+
+.mc-sched-status.is-error {
+  color: var(--ds-error);
+}
+
+.mc-sched-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.mc-sched-overview .page-header .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mc-sched-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 36px 0 32px;
+  border-bottom: 1px dashed var(--ds-border-default);
+  color: var(--ds-text-secondary);
+  font-size: var(--text-md);
+}
+
+.mc-sched-empty p {
+  margin: 0;
+}
+
+.mc-sched-empty-icon {
+  display: inline-flex;
+  width: 64px;
+  height: 64px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: var(--ds-bg-elevated);
+  color: var(--ds-text-secondary);
+}
+
+.mc-sched-templates-head h2 {
+  margin: 0;
+  color: var(--ds-text-primary);
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-semibold);
+}
+
+.mc-sched-templates-head p {
+  margin: 4px 0 0;
+  color: var(--ds-text-muted);
+  font-size: var(--text-sm);
+}
+
+.mc-sched-template-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 24px;
+  margin-top: 14px;
+}
+
+@media (max-width: 900px) {
+  .mc-sched-template-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.mc-sched-template {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 12px;
+  border-radius: var(--radius-lg);
+  text-align: left;
+  transition: background var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.mc-sched-template:hover:not(:disabled) {
+  background: var(--ds-bg-elevated);
+}
+
+.mc-sched-template-icon {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--ds-bg-elevated);
+  color: var(--ds-text-secondary);
+}
+
+.mc-sched-template-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mc-sched-template-title {
+  color: var(--ds-text-primary);
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-medium);
+}
+
+.mc-sched-template-desc {
+  color: var(--ds-text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+}
+
+.mc-sched-template-when {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+}

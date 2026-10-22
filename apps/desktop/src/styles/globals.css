@@ -28,6 +28,19 @@
 @import "./project-create-dialog.css";
 @import "./project-workbench.css";
 @import "./app-rail.css";
+@import "./mc-session-tabs.css";
+@import "./mc-shell-pages.css";
+@import "./mc-session-info.css";
+@import "./mc-work-panel.css";
+@import "./mc-background-tasks.css";
+@import "./mc-session-info-dialogs.css";
+@import "./mc-system-prompts.css";
+@import "./mc-usage.css";
+@import "./mc-plugins-page.css";
+@import "./mc-scheduled.css";
+@import "./mc-app-rail-update.css";
+@import "./mc-system-permissions.css";
+@import "./mc-chat.css";
 @import "./split-view.css";
 @import "./project-import.css";
 @import "./sessions.css";
@@ -42,3 +55,4 @@
 @import "./extensions.css";
 @import "./plugin-launcher.css";
 @import "./responsive.css";
+@import "./mc-focus.css";

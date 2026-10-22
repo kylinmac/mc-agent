@@ -1,5 +1,5 @@
 import type { UiMessage } from "@pi-desktop/shared";
-import { splitPinnedSessionIds } from "./mc-split-view.ts";
+import { heldSessionIds } from "./session-holds.ts";
 
 /**
  * How many session panes stay mounted at once (ADR 0137): the visible one plus
@@ -37,9 +37,9 @@ export function retainSessionPane(
   current: RetainedPanes,
   id: string | undefined,
   messages: UiMessage[],
-  // mc-agent (MC-ADR-0007): the columns of a split view stay on screen, so
-  // their panes are kept beyond the bound.
-  pinned: readonly string[] = splitPinnedSessionIds(),
+  // mc-agent: held sessions (split-view columns, the creative studio's chat)
+  // stay on screen, so their panes are kept beyond the bound.
+  pinned: readonly string[] = heldSessionIds(),
 ): RetainedPanes {
   if (!id) return current;
   const order = [

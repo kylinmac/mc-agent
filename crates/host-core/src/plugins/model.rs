@@ -259,6 +259,9 @@ pub struct MarketPluginSummary {
     pub name: String,
     pub description: String,
     pub author: String,
+    /// mc-agent: the author's page, when the catalog gives one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub author_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon_url: Option<String>,
     pub latest_version: String,
@@ -416,6 +419,10 @@ pub(crate) struct MarketCatalogEntry {
     pub(crate) id: String,
     pub(crate) name: String,
     pub(crate) description: String,
+    /// A plain name, or an `{ "name", "url" }` object — as an object or as
+    /// the JSON text of one, which some catalogs serve (bugs.md B-008). Read
+    /// through [`author_parts`].
+    #[serde(deserialize_with = "author_text")]
     pub(crate) author: String,
     #[serde(default)]
     pub(crate) icon_url: Option<String>,
@@ -512,4 +519,36 @@ pub struct InstallResult {
     pub upgraded: bool,
     #[serde(default)]
     pub permission_diff: Vec<String>,
+}
+
+/// mc-agent (bugs.md B-008): a catalog author as text, whether the catalog
+/// wrote a string or an object.
+fn author_text<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<String, D::Error> {
+    let value = Value::deserialize(deserializer)?;
+    Ok(match value {
+        Value::String(text) => text,
+        Value::Null => String::new(),
+        other => other.to_string(),
+    })
+}
+
+/// The display name and page of a catalog author: a plain name stays as it
+/// is; `{"name": …, "url": …}` (as an object or its JSON text) gives both.
+pub(crate) fn author_parts(raw: &str) -> (String, Option<String>) {
+    let trimmed = raw.trim();
+    if trimmed.starts_with('{') {
+        if let Ok(Value::Object(map)) = serde_json::from_str::<Value>(trimmed) {
+            let text = |key: &str| {
+                map.get(key)
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|text| !text.is_empty())
+                    .map(str::to_string)
+            };
+            let url =
+                text("url").filter(|url| url.starts_with("https://") || url.starts_with("http://"));
+            return (text("name").unwrap_or_default(), url);
+        }
+    }
+    (trimmed.to_string(), None)
 }

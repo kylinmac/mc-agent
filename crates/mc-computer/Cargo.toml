@@ -3,7 +3,7 @@ name = "mc-computer"
 description = "mc-agent Computer Use helper: a local MCP server that sees and operates desktop apps (docs/mc-agent/computer-use.md)"
 edition.workspace = true
 license.workspace = true
-version = "0.1.0"
+version = "0.2.0"
 publish = false
 
 [[bin]]

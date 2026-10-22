@@ -11,6 +11,9 @@ import {
 } from "../features/project-workbench/follow-move";
 import { MAX_PROJECT_NAME_CHARS } from "../lib/sidebar-preferences";
 import { OverlayBackdrop, Button, Input, TooltipButton } from "./ui";
+import { ProjectPromptPicker, usePromptConfig } from "./ProjectPromptPicker";
+import { projectPromptTemplateId } from "../features/project-workbench/project-prompt";
+import { saveProjectPromptTemplate } from "../features/project-workbench/project-prompt-save";
 import {
   IconClose,
   IconFolder,
@@ -74,6 +77,20 @@ export function ProjectEditDialog({
   const busyRef = useRef(false);
   const folderPickerInFlightRef = useRef(false);
   const reportLoadError = useEffectEvent((error: unknown) => onError(error));
+  // mc-agent: the project's system prompt template, read from the folder
+  // rules once both the project and the configuration have loaded.
+  const promptConfig = usePromptConfig();
+  const [promptTemplate, setPromptTemplate] = useState<string | null>(null);
+  const [initialPromptTemplate, setInitialPromptTemplate] = useState<string | null>(null);
+  useEffect(() => {
+    if (!group || !promptConfig || initialPromptTemplate !== null) return;
+    const current = projectPromptTemplateId(promptConfig, [
+      group.primaryPath,
+      ...group.roots.map((root) => root.path),
+    ]);
+    setInitialPromptTemplate(current);
+    setPromptTemplate(current);
+  }, [group, promptConfig, initialPromptTemplate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -199,6 +216,13 @@ export function ProjectEditDialog({
         for (const path of plan.close) await store.closeProject(path);
         if (plan.activate) await store.activateProject(plan.activate);
       }
+      if (!group.remote && promptTemplate !== null && promptTemplate !== initialPromptTemplate) {
+        await saveProjectPromptTemplate(
+          [...group.roots.map((root) => root.path), ...result.group.roots.map((root) => root.path)],
+          result.group.primaryPath,
+          promptTemplate,
+        ).catch(onError);
+      }
       onSaved(result.group);
       if (resourcesRenameError) {
         onError(new Error(t("mcProject.resourcesRenameError", { message: resourcesRenameError })));
@@ -221,6 +245,9 @@ export function ProjectEditDialog({
   // listed, and with it present the remaining workspaces are equal, so no row
   // is marked primary or offered as one.
   const resourcePath = group?.roots.find((root) => root.kind === "resources")?.path;
+  // mc-agent (bugs.md B-004): the count is of the rows shown; the resource
+  // folder is named on its own line instead of being counted invisibly.
+  const listedFolders = orderedFolders.filter((path) => !resourcePath || !samePath(path, resourcePath));
   const dialog = (
     <OverlayBackdrop
       className="overlay project-create-dialog-overlay"
@@ -302,8 +329,8 @@ export function ProjectEditDialog({
               <div className="project-create-dialog-section-head">
                 <h3 id="project-edit-folders-heading" className="project-create-dialog-section-title">
                   {t("project.createFoldersLabel")}
-                  {folders.length > 0 ? (
-                    <span className="project-create-dialog-count">{folders.length}</span>
+                  {listedFolders.length > 0 ? (
+                    <span className="project-create-dialog-count">{listedFolders.length}</span>
                   ) : null}
                 </h3>
                 <span className="project-create-dialog-source" data-project-source={group?.remote ? "remote" : "local"}>
@@ -314,9 +341,7 @@ export function ProjectEditDialog({
 
               {!loading && folders.length > 0 ? (
                 <div className="project-create-dialog-folder-list" role="list">
-                  {orderedFolders
-                    .filter((path) => !resourcePath || !samePath(path, resourcePath))
-                    .map((path) => {
+                  {listedFolders.map((path) => {
                     const primary = !resourcePath && samePath(path, primaryPath);
                     const displayPath = group?.remote?.path ?? path;
                     return (
@@ -377,6 +402,11 @@ export function ProjectEditDialog({
                   })}
                 </div>
               ) : null}
+              {resourcePath ? (
+                <p className="mc-workbench-muted" title={resourcePath}>
+                  {t("mcProject.editResourceFolderNote", { path: resourcePath })}
+                </p>
+              ) : null}
 
               {!group?.remote ? <Button
                 type="button"
@@ -395,6 +425,16 @@ export function ProjectEditDialog({
                 </span>
               </Button> : null}
             </section>
+
+            {group && !group.remote ? (
+              <ProjectPromptPicker
+                config={promptConfig}
+                value={promptTemplate ?? ""}
+                onChange={setPromptTemplate}
+                onLeave={onClose}
+                disabled={loading || busy || promptTemplate === null}
+              />
+            ) : null}
           </div>
 
           <div className="project-create-dialog-actions">

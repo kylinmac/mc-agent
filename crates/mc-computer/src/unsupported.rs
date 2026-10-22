@@ -3,7 +3,8 @@
 use anyhow::{anyhow, Result};
 
 use crate::backend::{
-    AppInfo, AppState, Backend, Direction, MouseButton, Permissions, Point, Screenshot, Target,
+    AppInfo, AppState, Backend, Direction, MouseButton, PermissionRequest, Permissions, Point,
+    Screenshot, Target,
 };
 use crate::keys::KeyChord;
 
@@ -14,7 +15,7 @@ fn not_yet<T>() -> Result<T> {
 }
 
 impl Backend for Unsupported {
-    fn permissions(&mut self, _request: bool) -> Result<Permissions> {
+    fn permissions(&mut self, _request: &PermissionRequest) -> Result<Permissions> {
         not_yet()
     }
     fn list_apps(&mut self) -> Result<Vec<AppInfo>> {

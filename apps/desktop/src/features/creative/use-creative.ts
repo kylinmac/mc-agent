@@ -20,7 +20,7 @@ export function useCreativeProjects() {
   const reload = useCallback(async () => {
     const [{ groups: listed }, { purposes: marks }] = await Promise.all([
       api.listProjectGroups(),
-      api.creative.call<{ purposes: Record<string, string> }>("creative.purposes"),
+      api.creative.call("creative.purposes"),
     ]);
     setGroups(listed.filter((group) => !group.legacy && !group.remote));
     setPurposes(marks ?? {});
@@ -52,10 +52,10 @@ export function useStudioData(groupId: string | null) {
     }
     try {
       const [listedAssets, listedJobs, listedComparisons, listedCategories] = await Promise.all([
-        api.creative.call<{ assets: CreativeAsset[] }>("creative.assets.list", { groupId: id, filter: {} }),
-        api.creative.call<{ jobs: CreativeJob[] }>("creative.jobs.list", { groupId: id, limit: 200 }),
-        api.creative.call<{ comparisons: CreativeComparison[] }>("creative.comparisons.list", { groupId: id }),
-        api.creative.call<{ categories: CreativeCategory[] }>("creative.categories.list", { groupId: id }),
+        api.creative.call("creative.assets.list", { groupId: id, filter: {} }),
+        api.creative.call("creative.jobs.list", { groupId: id, limit: 200 }),
+        api.creative.call("creative.comparisons.list", { groupId: id }),
+        api.creative.call("creative.categories.list", { groupId: id }),
       ]);
       if (current.current !== id) return;
       setAssets(listedAssets.assets);

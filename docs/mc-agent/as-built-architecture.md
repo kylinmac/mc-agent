@@ -1,8 +1,16 @@
 # 现状架构
 
-本文描述仓库里已经在的代码，不是 R1–R9 的增量设计。增量放在哪，见 [架构文档](architecture.md) 和 [MC-ADR-0002](adr/mc-0002-fork-pi-desktop.md)。
+本文描述仓库里已经在的代码。上游基线与 mc-agent 当前状态分开写：下面的进程与模块图是上游 0.20.1 的结构；mc-agent 新增的模块按功能列在[代码索引](code-index.md)，增量设计见[架构文档](architecture.md)和 [MC-ADR-0002](adr/mc-0002-fork-pi-desktop.md)。
 
-产品名仍是上游 `pi-desktop` 0.20.1。许可 LGPL-3.0-or-later。数据目录默认 `~/.pi-desktop`（`PI_DESKTOP_DATA_DIR` 可覆盖）。
+许可 LGPL-3.0-or-later。目录（2026-10-22 核对，见[工程结构评审](engineering-structure-review.md) 7.1）：
+
+| 目录 | 安装版 mc-agent | 开发版 | 上游 PI-Desktop（历史基线） |
+|---|---|---|---|
+| 应用数据（host-core 数据库、日志、插件） | `~/.mc-agent` | `~/.pi-desktop-dev` | `~/.pi-desktop` |
+| Electron userData | `~/Library/Application Support/mc-agent` | `…/PI-Desktop Dev` | `…/PI-Desktop` |
+| 资料根目录（模板、项目资料目录） | `~/Documents/mc-agent`（`MC_AGENT_HOME` 可覆盖） | 同左 | 无 |
+
+`PI_DESKTOP_DATA_DIR` 可覆盖应用数据目录。项目是逻辑分组，没有唯一的物理目录；资料目录、工作区、创作存储（`<所选目录>/creative/`）都是它关联的位置。
 
 ## 进程
 
@@ -61,4 +69,4 @@ Agent sidecar：`packages/agent-runtime/src/sidecar.ts` 注明协议是与 Elect
 
 ## 和规划文档的关系
 
-[architecture.md](architecture.md) 写的是项目管理增量（R1–R9）该接在哪。那些模块还没建。本文只索引已经存在的上游代码。
+[architecture.md](architecture.md) 写的是项目管理增量该接在哪；这些模块已经建好（R1–R14），文件位置见[代码索引](code-index.md)。本文的进程与模块图仍以上游结构为准。

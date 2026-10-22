@@ -6,7 +6,11 @@ import { APP_NAME } from "@pi-desktop/shared";
  * The two directories that define an installation, and the development split
  * between them.
  *
- * A packaged PI-Desktop and a `pnpm dev` host used to share both: the
+ * mc-agent (MC-ADR-0008): a shipped mc-agent uses `mc-agent` and `~/.mc-agent`
+ * (below); a development build `PI-Desktop Dev` and `~/.pi-desktop-dev`. The
+ * history that follows is upstream's and describes PI-Desktop.
+ *
+ * Upstream history: a packaged PI-Desktop and a `pnpm dev` host used to share both: the
  * name-derived `userData` — where Electron keeps the single-instance lock,
  * renderer `localStorage`, and the plugin panel partitions — and
  * `~/.pi-desktop`, where host-core keeps `pi.sqlite` beside the persistence

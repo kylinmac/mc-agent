@@ -28,6 +28,14 @@ function sameConfig(a: SystemPromptConfig, b: SystemPromptConfig): boolean {
   return JSON.stringify(strip(a)) === JSON.stringify(strip(b));
 }
 
+/**
+ * mc-agent (bugs.md B-003): unsaved edits outlive the page, so switching to
+ * another settings tab and back does not lose them. They are kept against the
+ * configuration they started from and dropped if that changed meanwhile; they
+ * are never applied without Save.
+ */
+let keptDraft: { base: SystemPromptConfig; draft: SystemPromptConfig; editing: string | null } | null = null;
+
 export function SystemPromptsPage() {
   const { t } = useTranslation();
   const showToast = useAppStore((state) => state.showToast);
@@ -36,6 +44,7 @@ export function SystemPromptsPage() {
   const [editing, setEditing] = useState<string | null>(null);
   const [groups, setGroups] = useState<ProjectGroupRecord[]>([]);
   const [saving, setSaving] = useState(false);
+  const [restored, setRestored] = useState(false);
 
   useEffect(() => {
     let canceled = false;
@@ -44,7 +53,14 @@ export function SystemPromptsPage() {
         if (canceled) return;
         const loaded = { ...EMPTY, ...config };
         setSaved(loaded);
-        setDraft(loaded);
+        if (keptDraft && sameConfig(keptDraft.base, loaded)) {
+          setDraft(keptDraft.draft);
+          setEditing(keptDraft.editing);
+          setRestored(true);
+        } else {
+          keptDraft = null;
+          setDraft(loaded);
+        }
       },
       (error: unknown) => showToast(error instanceof Error ? error.message : String(error), { variant: "error" }),
     );
@@ -60,6 +76,10 @@ export function SystemPromptsPage() {
   }, [showToast]);
 
   const dirty = saved !== null && !sameConfig(saved, draft);
+  useEffect(() => {
+    if (!saved) return;
+    keptDraft = dirty ? { base: saved, draft, editing } : null;
+  }, [saved, draft, editing, dirty]);
   const templateOptions = useMemo(
     () => draft.templates.map((template) => ({ id: template.id, label: template.name || t("mcProject.promptUntitled") })),
     [draft.templates, t],
@@ -98,6 +118,8 @@ export function SystemPromptsPage() {
     try {
       const { config } = await api.setSystemPromptConfig(draft);
       const stored = { ...EMPTY, ...config };
+      keptDraft = null;
+      setRestored(false);
       setSaved(stored);
       setDraft(stored);
       showToast(t("mcProject.promptSaved"), { variant: "success" });
@@ -122,6 +144,7 @@ export function SystemPromptsPage() {
   return (
     <div className="settings-stack mc-prompts">
       <p className="mc-prompts-intro">{t("mcProject.promptRulesDesc")}</p>
+      {restored && dirty ? <p className="mc-prompts-intro">{t("mcProject.promptDraftRestored")}</p> : null}
 
       <SettingsCard
         title={t("mcProject.promptTemplates")}
@@ -343,7 +366,11 @@ export function SystemPromptsPage() {
       </SettingsCard>
 
       <div className="mc-prompts-actions">
-        <Button variant="secondary" disabled={!dirty || saving} onClick={() => saved && setDraft(saved)}>
+        <Button variant="secondary" disabled={!dirty || saving} onClick={() => {
+            keptDraft = null;
+            setRestored(false);
+            if (saved) setDraft(saved);
+          }}>
           {t("mcProject.promptDiscard")}
         </Button>
         <Button variant="primary" disabled={!dirty || saving} onClick={() => void save()}>

@@ -16,9 +16,13 @@ import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const APP_NAME = "PI-Desktop";
-const DEV_BUNDLE_ID = "net.aiuo.pi-desktop.dev";
-const BRANDING_SCHEMA = "v4";
+// mc-agent (docs/mc-agent/macos-permissions.md 4.3): the development bundle
+// gets its own name and id, so System Settings shows "mc-agent Dev" rather
+// than upstream's PI-Desktop. Only the bundle changes: the data directory
+// (~/.pi-desktop-dev) and Electron's userData name are set in code and stay.
+const APP_NAME = "mc-agent Dev";
+const DEV_BUNDLE_ID = "com.kylinmac.mc-agent.dev";
+const BRANDING_SCHEMA = "v5";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DESKTOP_ROOT = join(ROOT, "apps", "desktop");
 

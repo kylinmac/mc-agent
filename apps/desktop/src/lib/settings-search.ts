@@ -15,6 +15,8 @@ export type SettingsTabId =
   | "mcp"
   | "subagents"
   | "systemPrompts"
+  | "projectTemplates"
+  | "systemPermissions"
   | "mcUsage"
   | "projects"
   | "sync"
@@ -274,6 +276,22 @@ export const SETTINGS_NAV: SettingsNavEntry[] = [
       "project.restore",
       "project.delete",
     ],
+  },
+  {
+    // mc-agent (R1.4): resource-folder templates for template projects.
+    id: "projectTemplates",
+    labelKey: "mcProject.templateSettingsNav",
+    titleKey: "mcProject.templateSettingsTitle",
+    group: "workspace",
+    keywordKeys: ["mcProject.templateEditorOpen", "mcProject.kindManaged", "mcProject.templateNew"],
+  },
+  {
+    // mc-agent (X-PERM-02): macOS system permissions by feature.
+    id: "systemPermissions",
+    labelKey: "mcProject.permNav",
+    titleKey: "mcProject.permTitle",
+    group: "system",
+    keywordKeys: ["mcProject.permAccessibility", "mcProject.permScreenRecording", "mcProject.permMicrophone"],
   },
   {
     // mc-agent (MC-ADR-0011): token usage by model, project and day.

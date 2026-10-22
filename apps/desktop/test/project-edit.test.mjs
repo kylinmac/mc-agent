@@ -63,7 +63,10 @@ test("project edit dialog promotes another folder to primary", () => {
     dialogSource,
     /const orderedFolders = \[[\s\S]*?folders\.filter\(\(path\) => !samePath\(path, primaryPath\)\)/,
   );
-  assert.match(dialogSource, /\{orderedFolders\s*\.filter\([\s\S]*?\)\s*\.map\(\(path\) => \{/);
+  // mc-agent (B-004): the rows and their count come from the same filtered list.
+  assert.match(dialogSource, /const listedFolders = orderedFolders\.filter\(/);
+  assert.match(dialogSource, /\{listedFolders\.map\(\(path\) => \{/);
+  assert.match(dialogSource, /project-create-dialog-count">\{listedFolders\.length\}/);
   assert.match(dialogSource, /project\.editSetPrimary/);
   assert.match(dialogSource, /className="project-create-folder-primary"/);
   // A remote project keeps its host-owned binding and never promotes; with an

@@ -1,0 +1,101 @@
+/* mc-agent: Settings → System permissions (features/settings/SystemPermissionsPage). */
+.mc-perm-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.mc-perm-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--ds-border-subtle);
+}
+
+.mc-perm-row:last-child {
+  border-bottom: 0;
+}
+
+.mc-perm-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mc-perm-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--ds-text-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.mc-perm-state {
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: var(--ds-bg-hover);
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-normal);
+}
+
+.mc-perm-state.is-granted {
+  color: var(--ds-success);
+}
+
+.mc-perm-state.is-notGranted,
+.mc-perm-state.is-denied,
+.mc-perm-state.is-helperError {
+  color: var(--ds-warning);
+}
+
+.mc-perm-purpose {
+  color: var(--ds-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.mc-perm-detail {
+  color: var(--ds-text-faint);
+  font-size: var(--text-xs);
+}
+
+.mc-perm-error {
+  padding: 0 16px 12px;
+  color: var(--ds-error);
+}
+
+.mc-perm-actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mc-perm-diagnostics {
+  color: var(--ds-text-faint);
+  font-size: var(--text-xs);
+}
+
+.mc-perm-diagnostics summary {
+  cursor: pointer;
+}
+
+.mc-perm-diagnostics dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 6px 0 0;
+}
+
+.mc-perm-diagnostics dt {
+  color: var(--ds-text-muted);
+}
+
+.mc-perm-diagnostics dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

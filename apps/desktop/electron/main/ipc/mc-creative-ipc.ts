@@ -1,4 +1,4 @@
-import { ErrorCodes, IPC } from "@pi-desktop/shared";
+import { CREATIVE_RENDERER_METHODS, ErrorCodes, IPC } from "@pi-desktop/shared";
 import type { HostProcess } from "../host-process";
 import type { IpcRegistrar } from "./types";
 import { mkdir } from "node:fs/promises";
@@ -28,35 +28,8 @@ export type McCreativeIpcDependencies = {
   copyImage: (path: string) => boolean;
 };
 
-/** The host methods the studio may call directly. */
-const PASSTHROUGH = new Set([
-  "creative.purposes",
-  "creative.createProject",
-  "creative.accountImageModels",
-  "creative.setAccountImageModels",
-  "creative.setPurpose",
-  "creative.storage",
-  "creative.useWorkspace",
-  "creative.setStorage",
-  "creative.assets.list",
-  "creative.assets.get",
-  "creative.assets.setFavorite",
-  "creative.assets.setTitle",
-  "creative.assets.remove",
-  "creative.assets.restore",
-  "creative.assets.deleteFile",
-  "creative.assets.move",
-  "creative.categories.list",
-  "creative.categories.create",
-  "creative.categories.rename",
-  "creative.categories.delete",
-  "creative.jobs.list",
-  "creative.jobs.get",
-  "creative.jobs.reconcile",
-  "creative.comparisons.list",
-  "creative.comparisons.save",
-  "creative.comparisons.delete",
-]);
+/** The host methods the studio may call directly (typed in @pi-desktop/shared). */
+const PASSTHROUGH: ReadonlySet<string> = new Set(CREATIVE_RENDERER_METHODS);
 
 const MAX_PROMPT = 32_000;
 const ROLES = new Set(["reference", "edit", "style"]);

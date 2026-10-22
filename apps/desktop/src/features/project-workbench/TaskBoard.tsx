@@ -100,6 +100,14 @@ export function TaskBoard({
       const started = await api.projectTasks.startRun(groupId, task.id, task.revision, sessionId, startFolder);
       const runId = started.task.runs.at(-1)?.id;
       try {
+        // mc-agent (bugs.md B-011): the session is named after the task, not
+        // after the first line of the (English) task prompt; later runs get
+        // their number.
+        const runs = started.task.runs.length;
+        await useAppStore
+          .getState()
+          .renameSession(sessionId, runs > 1 ? t("mcProject.taskRunTitle", { title: task.title, n: runs }) : task.title)
+          .catch(() => undefined);
         const lastRejection = [...task.reviews].reverse().find((review) => review.verdict === "rejected");
         const prompt = taskPrompt({
           title: task.title,
@@ -218,6 +226,21 @@ export function TaskBoard({
                 </span>
                 <span className={`mc-workbench-status is-task-${task.status}`}>{t(STATUS_KEYS[task.status])}</span>
                 {run?.note ? <span className="mc-workbench-muted">{run.note}</span> : null}
+                {run?.resources.length ? (
+                  // What this run was given: titles and content hashes as of its start,
+                  // not copies of the files (X-CONCEPT-02).
+                  <span
+                    className="mc-workbench-muted"
+                    title={run.resources
+                      .map(
+                        (resource) =>
+                          `${resource.title} · ${resource.sha256 ? `sha256 ${resource.sha256.slice(0, 12)}…` : t("mcProject.taskRunHashMissing")}`,
+                      )
+                      .join("\n")}
+                  >
+                    {t("mcProject.taskRunBasis", { count: run.resources.length })}
+                  </span>
+                ) : null}
                 <span className="mc-workbench-actions">
                   {task.status === "todo" || task.status === "blocked" ? (
                     <Button size="sm" variant="ghost" disabled={busy} onClick={() => void start(task)}>

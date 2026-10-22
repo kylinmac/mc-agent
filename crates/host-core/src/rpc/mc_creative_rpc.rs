@@ -24,9 +24,20 @@ pub fn handle(state: &AppState, method: &str, params: &Value) -> Result<Value, J
         "creative.createProject" => {
             let folder = required(params, "folder")?;
             let name = params.get("name").and_then(Value::as_str).unwrap_or("");
-            return creative::create_project(db, name, Path::new(folder))
-                .map(|group| json!({ "group": group }))
-                .map_err(coded);
+            let template = template_of(params)?;
+            return (|| {
+                // Check the template and the target before creating anything.
+                if let Some((home, template)) = &template {
+                    creative::creative_template_source(home, template)?;
+                    creative::check_creative_folder_free(&Path::new(folder).join("creative"))?;
+                }
+                let group = creative::create_project(db, name, Path::new(folder))?;
+                if let Some((home, template)) = &template {
+                    creative::apply_creative_template(db, &group, home, template)?;
+                }
+                Ok(json!({ "group": group }))
+            })()
+            .map_err(coded);
         }
         "creative.accountImageModels" => {
             return creative::account_image_models(db)
@@ -49,13 +60,26 @@ pub fn handle(state: &AppState, method: &str, params: &Value) -> Result<Value, J
     let group = group(state, params)?;
     let result = match method {
         "creative.setPurpose" => set_purpose(state, &group, params),
-        "creative.useWorkspace" => creative::use_workspace(
-            db,
-            &group,
-            Path::new(required(params, "folder")?),
-            params.get("add").and_then(Value::as_bool).unwrap_or(false),
-        )
-        .map(|(group, storage)| json!({ "group": group, "storage": storage })),
+        "creative.useWorkspace" => {
+            let folder = Path::new(required(params, "folder")?);
+            let template = template_of(params)?;
+            (|| {
+                if let Some((home, template)) = &template {
+                    creative::creative_template_source(home, template)?;
+                    creative::check_creative_folder_free(&folder.join("creative"))?;
+                }
+                let (group, storage) = creative::use_workspace(
+                    db,
+                    &group,
+                    folder,
+                    params.get("add").and_then(Value::as_bool).unwrap_or(false),
+                )?;
+                if let Some((home, template)) = &template {
+                    creative::apply_creative_template(db, &group, home, template)?;
+                }
+                Ok(json!({ "group": group, "storage": storage }))
+            })()
+        }
         "creative.storage" => {
             creative::storage(db, &group).map(|storage| json!({ "storage": storage }))
         }
@@ -258,6 +282,22 @@ fn set_purpose(
             .map_err(|_| anyhow::anyhow!("INVALID_ARGUMENT: purpose is code or creative"))?;
     creative::set_purpose(&state.db, group, purpose)?;
     Ok(json!({ "group": group, "purpose": purpose }))
+}
+
+/// The creative template asked for, with the mc-agent home it lives in.
+fn template_of(params: &Value) -> Result<Option<(std::path::PathBuf, String)>, JsonRpcError> {
+    match params
+        .get("template")
+        .and_then(Value::as_str)
+        .map(str::trim)
+    {
+        None | Some("") => Ok(None),
+        Some(name) => {
+            let home = crate::resource_dirs::home_dir()
+                .map_err(|error| rpc_err(1000, error.to_string(), "INTERNAL"))?;
+            Ok(Some((home, name.to_string())))
+        }
+    }
 }
 
 fn group(state: &AppState, params: &Value) -> Result<ProjectGroupRecord, JsonRpcError> {

@@ -32,6 +32,7 @@ import {
   normalizeProjectPath,
   sessionMatchesProject,
 } from "../../lib/sidebar-session-groups";
+import { saveProjectPromptTemplate } from "../../features/project-workbench/project-prompt-save";
 import type { AppState } from "../app-state";
 import type { SessionRuntime } from "../runtime/session-runtime";
 import type { StoreAccess } from "./types";
@@ -69,7 +70,8 @@ async function createNamedProjectGroup(
     folders,
     primaryPath,
     template,
-  }: { name: string; folders: string[]; primaryPath?: string; template?: string },
+    promptTemplate,
+  }: { name: string; folders: string[]; primaryPath?: string; template?: string; promptTemplate?: string },
 ): Promise<void> {
   const normalizedName = name.trim();
   if (!normalizedName) {
@@ -108,6 +110,7 @@ async function createNamedProjectGroup(
     );
     if (existing) {
       const existingPrimary = existing.primaryPath || orderedFolders[0];
+      await applyPromptTemplate(get, existing.roots.map((root) => root.path), existingPrimary, promptTemplate);
       const workspace = await get().activateProject(existingPrimary, {
         navigationIntent: intent,
       });
@@ -131,8 +134,14 @@ async function createNamedProjectGroup(
           return null;
         })
     : null;
-  if (!runtime.navigationIntentIsCurrent(intent)) return;
   const groupPrimary = withResources?.group.primaryPath || created.group.primaryPath || primary;
+  await applyPromptTemplate(
+    get,
+    (withResources?.group ?? created.group).roots.map((root) => root.path),
+    groupPrimary,
+    promptTemplate,
+  );
+  if (!runtime.navigationIntentIsCurrent(intent)) return;
   const workspace = await get().activateProject(groupPrimary, {
     navigationIntent: intent,
   });
@@ -144,6 +153,22 @@ async function createNamedProjectGroup(
   const onboarding = await api.getOnboarding();
   if (!runtime.navigationIntentIsCurrent(intent)) return;
   set({ createProjectDialogOpen: false, createProjectDialogRemoteHostKey: undefined, onboarding, page: "chat" });
+}
+
+/**
+ * mc-agent: the system prompt template chosen when the project was created.
+ * A failure keeps the project; the template can be chosen again when editing.
+ */
+async function applyPromptTemplate(
+  get: ProjectSliceDependencies["get"],
+  paths: string[],
+  primaryPath: string,
+  promptTemplate: string | undefined,
+): Promise<void> {
+  if (!promptTemplate) return;
+  await saveProjectPromptTemplate(paths, primaryPath, promptTemplate).catch((error: unknown) => {
+    get().showToast(error instanceof Error ? error.message : String(error), { variant: "error" });
+  });
 }
 
 /**
@@ -415,10 +440,10 @@ export function createProjectSlice({
     closeProjectDialog: () => {
       set({ createProjectDialogOpen: false, createProjectDialogRemoteHostKey: undefined });
     },
-    createProjectFromFolders: async ({ name, folders, primaryPath, template }) =>
+    createProjectFromFolders: async ({ name, folders, primaryPath, template, promptTemplate }) =>
       createNamedProjectGroup(
         { get, set, runtime },
-        { name, folders, primaryPath, template },
+        { name, folders, primaryPath, template, promptTemplate },
       ),
     createProjectFromRemote: async ({ name, hostKey, path }) => {
       const normalizedName = normalizeProjectName(name);
@@ -433,13 +458,13 @@ export function createProjectSlice({
       if (!runtime.navigationIntentIsCurrent(intent)) return;
       set({ createProjectDialogOpen: false, createProjectDialogRemoteHostKey: undefined, onboarding, page: "chat" });
     },
-    createProjectFromGit: async ({ name, url, parentPath, template }) => {
+    createProjectFromGit: async ({ name, url, parentPath, template, promptTemplate }) => {
       // Clone first, then create the project through the same group path, so a
       // checkout and a folder pick produce identical project semantics.
       const checkout = await api.cloneProjectInto(url, parentPath);
       await createNamedProjectGroup(
         { get, set, runtime },
-        { name, folders: [checkout.path], primaryPath: checkout.path, template },
+        { name, folders: [checkout.path], primaryPath: checkout.path, template, promptTemplate },
       );
     },
 

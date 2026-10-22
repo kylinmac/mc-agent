@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { cx } from "../../components/ui";
 import { ContextMenu, useContextMenu } from "../../components/ContextMenu";
 import { IconChevronDown, IconChevronRight, IconFolder, IconPlus } from "../../components/icons";
-import type { CategoryNode, StudioView } from "./creative-model";
+import { categoryNameError, type CategoryNode, type StudioView } from "./creative-model";
 
 /*
   mc-agent creative studio: the category tree in the sidebar. Categories are
@@ -24,32 +24,81 @@ function draggedIds(event: DragEvent): string[] | null {
   }
 }
 
+/**
+ * A category name being typed. A refused name keeps the field open with what
+ * was typed and says why (mc-agent, bugs.md B-006); only success or Escape
+ * closes it.
+ */
 function NameInput({
   initial,
   placeholder,
-  onDone,
+  check,
+  onSubmit,
+  onCancel,
 }: {
   initial: string;
   placeholder: string;
-  onDone: (value: string | null) => void;
+  /** The full path the value would make, checked before sending. */
+  check: (value: string) => string | null;
+  /** Resolves when done; rejects with a message to show. */
+  onSubmit: (value: string) => Promise<void>;
+  onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const [value, setValue] = useState(initial);
+  const [error, setError] = useState<{ text: string; detail?: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    const name = value.trim();
+    if (!name || name === initial) {
+      onCancel();
+      return;
+    }
+    const problem = check(name);
+    if (problem) {
+      setError({ text: problem });
+      return;
+    }
+    setBusy(true);
+    try {
+      await onSubmit(name);
+    } catch (failure) {
+      const detail = failure instanceof Error ? failure.message : String(failure);
+      setError({ text: t("mcProject.creativeCategoryRefused"), detail });
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
-    <input
-      autoFocus
-      className="mc-creative-input mc-creative-tree-input"
-      value={value}
-      placeholder={placeholder}
-      onChange={(event) => setValue(event.target.value)}
-      onBlur={() => onDone(value.trim() ? value.trim() : null)}
-      onKeyDown={(event) => {
-        if (event.key === "Escape") onDone(null);
-        if (event.key === "Enter" && !event.nativeEvent.isComposing) {
-          event.preventDefault();
-          onDone(value.trim() ? value.trim() : null);
-        }
-      }}
-    />
+    <>
+      <input
+        autoFocus
+        className="mc-creative-input mc-creative-tree-input"
+        value={value}
+        placeholder={placeholder}
+        disabled={busy}
+        aria-invalid={error ? true : undefined}
+        onChange={(event) => {
+          setValue(event.target.value);
+          setError(null);
+        }}
+        onBlur={() => {
+          if (!error) void submit();
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") onCancel();
+          if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+            event.preventDefault();
+            void submit();
+          }
+        }}
+      />
+      {error ? (
+        <p className="mc-creative-error mc-creative-tree-error" role="alert" title={error.detail}>
+          {error.text}
+        </p>
+      ) : null}
+    </>
   );
 }
 
@@ -77,6 +126,10 @@ export function CategoryTree({
   dragCount?: number;
 }) {
   const { t } = useTranslation();
+  const nameProblem = (path: string): string | null => {
+    const problem = categoryNameError(path);
+    return problem ? t(`mcProject.creativeCategoryError_${problem}`) : null;
+  };
   const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   // The parent a new category is being typed under ("" for top level).
@@ -146,10 +199,12 @@ export function CategoryTree({
             <NameInput
               initial={node.name}
               placeholder={t("mcProject.creativeCategoryName")}
-              onDone={(value) => {
+              check={(value) => nameProblem(parent ? `${parent}/${value}` : value)}
+              onSubmit={async (value) => {
+                await onRename(node.path, parent ? `${parent}/${value}` : value);
                 setRenaming(null);
-                if (value && value !== node.name) void onRename(node.path, parent ? `${parent}/${value}` : value);
               }}
+              onCancel={() => setRenaming(null)}
             />
           </div>
         ) : (
@@ -234,10 +289,12 @@ export function CategoryTree({
             <NameInput
               initial=""
               placeholder={t("mcProject.creativeCategoryName")}
-              onDone={(value) => {
+              check={(value) => nameProblem(`${node.path}/${value}`)}
+              onSubmit={async (value) => {
+                await onCreate(`${node.path}/${value}`);
                 setAdding(null);
-                if (value) void onCreate(`${node.path}/${value}`);
               }}
+              onCancel={() => setAdding(null)}
             />
           </div>
         ) : null}
@@ -287,10 +344,12 @@ export function CategoryTree({
           <NameInput
             initial=""
             placeholder={t("mcProject.creativeCategoryNameHint")}
-            onDone={(value) => {
+            check={nameProblem}
+            onSubmit={async (value) => {
+              await onCreate(value);
               setAdding(null);
-              if (value) void onCreate(value);
             }}
+            onCancel={() => setAdding(null)}
           />
         </div>
       ) : null}

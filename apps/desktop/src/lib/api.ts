@@ -1,9 +1,16 @@
-import type { CreativeAsset, CreativeJob, CreativeReferenceUse } from "../features/creative/creative-types";
 import { projectPlanHistory } from "./plan-history";
 import { guardRemoteInvocation } from "./remote-ipc-safety";
 import { isRemoteSession, safeSessionSummary } from "./remote-session-safety";
 import type {
   BackgroundShell,
+  CreativeAsset,
+  CreativeJob,
+  CreativeMethod,
+  CreativeParams,
+  CreativeReferenceUse,
+  CreativeResult,
+  MacPermissionItem,
+  MacPermissionReport,
   ConfigSyncTestInput,
   ConfigSyncTestResult,
   ScheduledTaskRun,
@@ -905,6 +912,13 @@ export const api = {
   /** mc-agent: estimated context use by kind; null until the session has run. */
   usageSummary: (fromMs: number, toMs: number) =>
     invoke<UsageSummary>(IPC.invoke.mcUsageSummary, { fromMs, toMs }),
+  /** mc-agent macOS permissions (X-PERM-02): check never prompts. */
+  macPermissions: {
+    check: () => invoke<MacPermissionReport>(IPC.invoke.macPermissionsCheck),
+    request: (item: MacPermissionItem) => invoke<MacPermissionReport>(IPC.invoke.macPermissionsRequest, { item }),
+    openSettings: (item: MacPermissionItem) =>
+      invoke<{ ok: true }>(IPC.invoke.macPermissionsOpenSettings, { item }),
+  },
   getSystemPromptConfig: () => invoke<{ config: SystemPromptConfig }>(IPC.invoke.mcPromptsGet),
   setSystemPromptConfig: (config: SystemPromptConfig) =>
     invoke<{ config: SystemPromptConfig }>(IPC.invoke.mcPromptsSet, { config }),
@@ -1834,8 +1848,11 @@ export const api = {
     invoke<BackgroundShell>(IPC.invoke.backgroundShellsKill, { sessionId, id }),
   // mc-agent creative studio (docs/mc-agent/creative-studio.md).
   creative: {
-    call: <T>(method: string, params: Record<string, unknown> = {}) =>
-      invoke<T>(IPC.invoke.creativeCall, { method, params }),
+    /** A host `creative.*` method; the name fixes its parameters and result. */
+    call: <M extends CreativeMethod>(
+      method: M,
+      ...[params]: object extends CreativeParams<M> ? [CreativeParams<M>?] : [CreativeParams<M>]
+    ) => invoke<CreativeResult<M>>(IPC.invoke.creativeCall, { method, params: params ?? {} }),
     generate: (input: {
       groupId: string;
       prompt: string;

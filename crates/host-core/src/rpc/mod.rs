@@ -3128,7 +3128,11 @@ async fn handle_request(
         "mcUsage.summary" => {
             let now = crate::db::now_ms();
             let to_ms = params.get("toMs").and_then(Value::as_i64).unwrap_or(now);
-            let from_ms = params.get("fromMs").and_then(Value::as_i64).unwrap_or(0).min(to_ms);
+            let from_ms = params
+                .get("fromMs")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                .min(to_ms);
             let st = state.lock().await;
             let summary = crate::mc_usage::summary(&st.db, from_ms, to_ms)
                 .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
@@ -3137,7 +3141,8 @@ async fn handle_request(
         // mc-agent (MC-ADR-0010): system prompt templates and their rules.
         "mcPrompts.get" => {
             let st = state.lock().await;
-            let config = crate::mc_prompts::get(&st.db).map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
+            let config = crate::mc_prompts::get(&st.db)
+                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
             Ok(json!({ "config": config }))
         }
         "mcPrompts.set" => {
@@ -3173,11 +3178,13 @@ async fn handle_request(
                 .get("sourceDir")
                 .and_then(Value::as_str)
                 .ok_or_else(|| rpc_err(1002, "sourceDir required", "INVALID_PARAMS"))?;
-            let ids: Vec<String> = serde_json::from_value(params.get("ids").cloned().unwrap_or(Value::Null))
-                .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
+            let ids: Vec<String> =
+                serde_json::from_value(params.get("ids").cloned().unwrap_or(Value::Null))
+                    .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
             let st = state.lock().await;
-            let outcome = crate::mc_import::import_pi_desktop(&st.db, std::path::Path::new(source), &ids)
-                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
+            let outcome =
+                crate::mc_import::import_pi_desktop(&st.db, std::path::Path::new(source), &ids)
+                    .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
             Ok(json!(outcome))
         }
 
@@ -4536,7 +4543,12 @@ async fn handle_request(
                     } else if let Some(options) = bash_options.take() {
                         let shells = state.lock().await.background_shells.clone();
                         shells
-                            .start(ws_path.as_deref(), scratch_path.as_deref(), &p.args, options)
+                            .start(
+                                ws_path.as_deref(),
+                                scratch_path.as_deref(),
+                                &p.args,
+                                options,
+                            )
                             .await
                     } else {
                         Err((

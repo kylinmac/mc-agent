@@ -238,3 +238,24 @@ export function groupOf(plugin: PluginSummary): GroupId {
   if (plugin.updateAvailable) return "updates";
   return plugin.enabled ? "active" : "disabled";
 }
+
+/**
+ * mc-agent (bugs.md B-008): an author as people should read it. Catalogs and
+ * manifests sometimes carry `{"name","url"}` as JSON text; show the name and
+ * keep the page apart. host-core already does this for the marketplace; this
+ * covers installed manifests and older hosts.
+ */
+export function authorParts(raw: string | undefined | null): { name: string; url?: string } {
+  const text = (raw ?? "").trim();
+  if (text.startsWith("{")) {
+    try {
+      const value = JSON.parse(text) as { name?: unknown; url?: unknown };
+      const name = typeof value.name === "string" ? value.name.trim() : "";
+      const url = typeof value.url === "string" && /^https?:\/\//.test(value.url) ? value.url : undefined;
+      return { name, ...(url ? { url } : {}) };
+    } catch {
+      // Not JSON after all: show it as written.
+    }
+  }
+  return { name: text };
+}

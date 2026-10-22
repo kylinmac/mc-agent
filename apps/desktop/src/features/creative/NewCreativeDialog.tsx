@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ProjectGroupRecord } from "@pi-desktop/shared";
+import type { ProjectGroupRecord, ResourceTemplateSummary } from "@pi-desktop/shared";
 import { Button, cx, portalOverlay } from "../../components/ui";
 import { IconFolderOpen, IconX } from "../../components/icons";
 import { api } from "../../lib/api";
+import { creativeFolderOf } from "./creative-model";
 
 /*
   mc-agent creative studio: creative work always happens in a real folder of a
@@ -37,6 +38,9 @@ export function NewCreativeDialog({
   const [workspace, setWorkspace] = useState<string>("");
   const [added, setAdded] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Creative templates (R1.4 with target "creative"); "" starts empty.
+  const [templates, setTemplates] = useState<ResourceTemplateSummary[]>([]);
+  const [template, setTemplate] = useState("");
   const [error, setError] = useState<string | null>(null);
   const group = groups.find((candidate) => candidate.id === groupId) ?? null;
 
@@ -55,6 +59,19 @@ export function NewCreativeDialog({
     setAdded(null);
   }, [group]);
 
+  useEffect(() => {
+    let canceled = false;
+    void api.listResourceTemplates().then(
+      ({ templates: listed }) => {
+        if (!canceled) setTemplates(listed.filter((entry) => entry.target === "creative"));
+      },
+      () => undefined,
+    );
+    return () => {
+      canceled = true;
+    };
+  }, []);
+
   const pick = async (): Promise<string | null> => {
     const { folders } = await api.pickProjectFolders();
     return folders[0] ?? null;
@@ -66,9 +83,10 @@ export function NewCreativeDialog({
     try {
       if (mode === "folder") {
         if (!folder) return;
-        const { group: created } = await api.creative.call<{ group: { id: string } }>("creative.createProject", {
+        const { group: created } = await api.creative.call("creative.createProject", {
           folder,
           name: name.trim(),
+          ...(template ? { template } : {}),
         });
         onCreated(created.id);
       } else {
@@ -79,6 +97,7 @@ export function NewCreativeDialog({
           groupId: group.id,
           folder: target,
           add: workspace === ADD_FOLDER,
+          ...(template ? { template } : {}),
         });
         onCreated(group.id);
       }
@@ -187,11 +206,27 @@ export function NewCreativeDialog({
         {target ? (
           <p className="mc-creative-muted mc-creative-mono">
             {t("mcProject.creativeWillStore", {
-              path: workspace !== ADD_FOLDER && group?.roots.find((root) => root.path === target)?.kind === "resources" && mode === "project"
-                ? `${target}/assets`
-                : `${target}/creative`,
+              path: creativeFolderOf(target),
             })}
           </p>
+        ) : null}
+        {templates.length ? (
+          <div className="mc-creative-choice-body">
+            <select
+              className="mc-creative-select"
+              aria-label={t("mcProject.creativeTemplate")}
+              value={template}
+              onChange={(event) => setTemplate(event.target.value)}
+            >
+              <option value="">{t("mcProject.creativeTemplateNone")}</option>
+              {templates.map((entry) => (
+                <option key={entry.name} value={entry.name}>
+                  {entry.description ? `${entry.name} · ${entry.description}` : entry.name}
+                </option>
+              ))}
+            </select>
+            {template ? <p className="mc-creative-muted">{t("mcProject.creativeTemplateHint")}</p> : null}
+          </div>
         ) : null}
         {error ? <p className="mc-creative-error">{error}</p> : null}
         <div className="mc-creative-dialog-actions">

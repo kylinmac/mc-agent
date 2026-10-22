@@ -652,14 +652,15 @@ export function useAppShellRuntime() {
       playNotificationChime();
       const failed = notification.kind === "task.failed";
       const title = t(
-        failed ? "notifications.failedTitle" : "notifications.completedTitle",
+        // mc-agent: a turn ended; a project task is only done once accepted.
+        failed ? "notifications.failedTitle" : "mcProject.turnFinishedTitle",
         { sessionTitle: notification.sessionTitle },
       );
       const body = failed
         ? notification.errorCode
           ? t("notifications.failedBodyWithCode", { code: notification.errorCode })
           : t("notifications.failedBody")
-        : t("notifications.completedBody");
+        : t("mcProject.turnFinishedBody");
       void api
         .showNativeNotification({
           id: notification.id,

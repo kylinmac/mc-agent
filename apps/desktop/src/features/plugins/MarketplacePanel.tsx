@@ -5,6 +5,7 @@ import {
   formatDate,
   monogram,
   showsVerifiedBadge,
+  authorParts,
 } from "./model";
 import type { PluginsPageModel } from "./usePluginsPage";
 
@@ -135,7 +136,7 @@ export function MarketplacePanel({
                               ) : null}
                             </span>
                             <span className="plugins-card-meta">
-                              <span className="plugins-card-author">{item.author}</span>
+                              <span className="plugins-card-author">{authorParts(item.author).name}</span>
                               <span className="plugins-dot" aria-hidden>
                                 ·
                               </span>

@@ -1,0 +1,178 @@
+/* mc-agent: Conversation tabs across the title bar (features/session-tabs).
+   Split out of app-rail.css; imported right after it in globals.css,
+   in the original order. */
+
+/* Conversation tabs across the title bar (features/session-tabs). */
+.conversation-topbar .ct-left:has(.mc-titlebar-tabs) {
+  flex: 1 1 auto;
+  min-width: 0;
+  align-self: stretch;
+  /* Empty title-bar space between and after the tabs drags the window, as it
+     does on either side; only the controls themselves opt out. */
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.conversation-topbar .ct-left:has(.mc-titlebar-tabs) > :not(.mc-titlebar-tabs),
+.mc-titlebar-tabs button,
+.mc-session-tab {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.conversation-topbar .ct-left:has(.mc-titlebar-tabs) .ct-title-wrap {
+  display: none;
+}
+
+.mc-titlebar-tabs {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-self: stretch;
+  align-items: stretch;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.mc-titlebar-end {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  margin-left: auto;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.mc-session-tab-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--ds-text-muted);
+}
+
+.mc-session-tabs {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: stretch;
+  gap: 2px;
+  overflow-x: auto;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.mc-session-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.mc-session-tab {
+  position: relative;
+  display: inline-flex;
+  min-width: 96px;
+  max-width: 200px;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px 0 10px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+  cursor: default;
+  user-select: none;
+  transition: background var(--motion-duration-fast) var(--motion-ease-out),
+    color var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+/* Reordering by drag: the moving tab dims, a bar marks where it lands. */
+.mc-session-tab.is-dragging {
+  opacity: 0.5;
+}
+
+.mc-session-tab.is-drop-before {
+  box-shadow: inset 2px 0 0 var(--ds-accent);
+}
+
+.mc-session-tab.is-drop-after {
+  box-shadow: inset -2px 0 0 var(--ds-accent);
+}
+
+.mc-session-tab:hover {
+  background: var(--ds-bg-hover);
+  color: var(--ds-text-secondary);
+}
+
+.mc-session-tab.active {
+  color: var(--ds-text-primary);
+}
+
+.mc-session-tab.active::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  bottom: 0;
+  left: 8px;
+  height: 2px;
+  border-radius: var(--radius-full);
+  background: var(--ds-text-primary);
+}
+
+.mc-session-tab:focus-visible {
+  outline: 2px solid var(--ds-accent);
+  outline-offset: -2px;
+}
+
+.mc-session-tab-dot {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 5px;
+  border-radius: var(--radius-round);
+  background: currentColor;
+  opacity: 0.45;
+}
+
+.mc-session-tab-dot.running {
+  background: var(--ds-accent);
+  opacity: 1;
+}
+
+.mc-session-tab-title {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mc-session-tab-close,
+.mc-session-tab-new {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-3xs);
+  color: var(--ds-text-muted);
+}
+
+.mc-session-tab-close {
+  visibility: hidden;
+}
+
+.mc-session-tab:hover .mc-session-tab-close,
+.mc-session-tab.active .mc-session-tab-close {
+  visibility: visible;
+}
+
+.mc-session-tab-close:hover,
+.mc-session-tab-new:hover {
+  background: var(--ds-bg-active);
+  color: var(--ds-text-primary);
+}
+
+.mc-session-tab-new {
+  align-self: center;
+  width: 24px;
+  height: 24px;
+  flex-basis: 24px;
+  margin-left: 4px;
+}

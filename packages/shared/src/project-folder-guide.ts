@@ -51,11 +51,16 @@ export function projectFolderGuide({ roots, startPath, notes = [] }: ProjectFold
   if (folders.length <= 1) return "";
   const start = comparable(startPath);
   const describe = (root: { path: string; kind?: string }): string => {
-    if (root.kind === "resources") return `Resource folder (project documents): ${root.path}`;
+    // mc-agent: host-core keeps RESOURCES.md there current (resource_overview.rs).
+    if (root.kind === "resources") {
+      return `Resource folder (project documents): ${root.path} — read RESOURCES.md there first; it lists every document with a summary and its status`;
+    }
     const note = notes.find((candidate) => comparable(candidate.path) === comparable(root.path));
     const name = note?.heading || folderName(root.path);
     const description = oneLine(note?.description);
-    const label = root.kind === "reference" ? "Reference folder" : "Workspace";
+    // A reference folder is marked for what it holds; it is read and written
+    // like any workspace, so the note does not call it read-only.
+    const label = root.kind === "reference" ? "Reference folder (same access as a workspace)" : "Workspace";
     return `${label} "${name}": ${root.path}${description ? ` — ${description}` : ""}`;
   };
   const startRoot = folders.find((root) => comparable(root.path) === start);

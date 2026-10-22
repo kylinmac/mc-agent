@@ -10,12 +10,14 @@ import {
   IconSettings,
   IconTrash,
   IconTriangleAlert,
+  IconShield,
 } from "../../components/icons";
 import { ScopeControl } from "../../components/extensions/ScopeControl";
 import { Markdown } from "../../components/Markdown";
 import { api } from "../../lib/api";
+import { useAppStore } from "../../stores/app-store";
 import { openHttpUrl } from "../../lib/open-http-url";
-import { formatDate, versionWithdrawn } from "./model";
+import { authorParts, formatDate, versionWithdrawn } from "./model";
 import { PluginRowDetails } from "./presentation";
 import type { PluginsPageModel } from "./usePluginsPage";
 
@@ -126,7 +128,7 @@ export function InstalledPluginView({
                 <span className="plugins-dot" aria-hidden>
                   ·
                 </span>
-                <span>{plugin.author || detail?.author}</span>
+                <span>{authorParts(plugin.author || detail?.author).name}</span>
               </>
             ) : null}
           </div>
@@ -176,6 +178,21 @@ export function InstalledPluginView({
           <Button variant="secondary" size="sm" onClick={() => void run(() => api.openPluginPanel(plugin.id))}>
             <IconPanel size={14} />
             {t("plugins.openPanel")}
+          </Button>
+        ) : null}
+        {plugin.id === "mc.computer-use" ? (
+          // mc-agent (X-PERM-02): the helper's macOS permissions live on one page.
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              const store = useAppStore.getState();
+              store.setSettingsTab("systemPermissions");
+              store.setPage("settings");
+            }}
+          >
+            <IconShield size={14} />
+            {t("mcProject.permCheck")}
           </Button>
         ) : null}
         {plugin.enabled && plugin.settings?.length ? (

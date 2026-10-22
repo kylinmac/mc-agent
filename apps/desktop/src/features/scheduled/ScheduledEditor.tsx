@@ -190,7 +190,7 @@ export function ScheduledEditor({
       <h2 className="text-md-plus font-medium">
         {t(task ? "scheduled.edit" : "scheduled.create")}
       </h2>
-      <Field label={t("nav.newTask")}>
+      <Field label={t("mcProject.schedTaskName")}>
         <Input
           required
           autoFocus
@@ -289,6 +289,19 @@ export function ScheduledEditor({
                 const next = periods.find((item) => item.id === id);
                 if (next) { setHour(next.hour); setMinute("00"); }
               }} />
+            {/* mc-agent (bugs.md B-009): any time, typed, without asking the AI. */}
+            <input
+              type="time"
+              className="scheduled-time-input"
+              aria-label={t("mcProject.schedExactTime")}
+              disabled={busy}
+              value={hour !== "" && minute !== "" ? `${hour.padStart(2, "0")}:${minute.padStart(2, "0")}` : ""}
+              onChange={(event) => {
+                const [nextHour = "", nextMinute = ""] = event.target.value.split(":");
+                setHour(nextHour);
+                setMinute(nextMinute);
+              }}
+            />
           </Field>
         )}
         {cadence === "weekly" && (
@@ -298,7 +311,9 @@ export function ScheduledEditor({
         )}
       </div>
       {(cadence === "daily" || cadence === "weekly") && (
-        <p className="dest-row-meta">{hour}:{minute} · {t("scheduled.exactTimeHint")}</p>
+        <p className="dest-row-meta" aria-live="polite">
+          {validTime ? t("mcProject.schedExactTimeHint") : t("mcProject.schedTimeInvalid")}
+        </p>
       )}
       {cadence === "weekly" && (
         <p className="dest-row-meta" aria-live="polite">

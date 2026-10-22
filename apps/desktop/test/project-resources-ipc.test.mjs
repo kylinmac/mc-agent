@@ -87,7 +87,7 @@ test("template edits are shape-checked and templates are revealed by listed name
   await invoke(IPC.invoke.projectResourcesTemplateSave, {
     template: {
       name: " notes ",
-      categories: [{ name: "a", description: "x" }, { name: "b" }],
+      categories: [{ name: "a", description: "x" }, { name: "b/c/d" }],
       create: true,
       copyFrom: "software",
       extra: "dropped",
@@ -101,7 +101,7 @@ test("template edits are shape-checked and templates are revealed by listed name
         description: "",
         categories: [
           { name: "a", description: "x" },
-          { name: "b", description: "" },
+          { name: "b/c/d", description: "" },
         ],
         create: true,
         copyFrom: "software",
@@ -114,7 +114,8 @@ test("template edits are shape-checked and templates are revealed by listed name
     { name: "", categories: [] },
     { name: "x", categories: [{ name: 3 }] },
     { name: "x", categories: [], create: "yes" },
-    { name: "x", categories: Array.from({ length: 65 }, (_, i) => ({ name: `c${i}` })) },
+    { name: "x", categories: Array.from({ length: 201 }, (_, i) => ({ name: `c${i}` })) },
+    { name: "x", categories: [{ name: "a/".repeat(300) }] },
   ]) {
     await assert.rejects(invoke(IPC.invoke.projectResourcesTemplateSave, { template }));
   }

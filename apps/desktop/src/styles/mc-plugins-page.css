@@ -1,0 +1,194 @@
+/* mc-agent: Extensions page (mc-agent).
+   Split out of app-rail.css; imported right after it in globals.css,
+   in the original order. */
+
+/* Extensions page sidebar (mc-agent): installed plugins as nav items. */
+.mc-plugins-nav-item.is-off .settings-nav-label {
+  color: var(--ds-text-muted);
+}
+
+.mc-plugins-nav-count {
+  margin-left: auto;
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+}
+
+/* A plugin with an update gets its button right on the row. */
+.mc-plugins-nav-row {
+  position: relative;
+}
+
+.mc-plugins-nav-row:has(.mc-plugins-nav-update) .settings-nav-item {
+  padding-right: 60px;
+}
+
+.mc-plugins-nav-update {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--ds-info);
+  color: #fff;
+  font-size: var(--text-xs);
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.mc-plugins-nav-update:hover {
+  filter: brightness(1.12);
+}
+
+.mc-plugins-nav-update:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.mc-plugins-description {
+  max-height: 120px;
+  margin: 0 0 12px;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+}
+
+.mc-plugin-view-section .plugins-row-details-toggle {
+  display: none;
+}
+
+/* Extensions page: one installed plugin (features/plugins/InstalledPluginView). */
+.mc-plugin-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.mc-plugin-view-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mc-plugin-view-head .plugins-glyph {
+  width: 36px;
+  height: 36px;
+}
+
+.mc-plugin-view-ident {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mc-plugin-view-ident .page-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mc-plugin-view-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.mc-plugin-view-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mc-plugin-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 4px;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.mc-plugin-view-actions .mc-plugin-view-danger {
+  margin-left: auto;
+  color: var(--ds-error);
+}
+
+.mc-plugin-view .mc-plugins-description {
+  margin: 0;
+}
+
+.mc-plugin-view-section .plugins-row-details {
+  margin: 0;
+}
+
+.mc-plugin-view-muted {
+  margin: 0;
+  color: var(--ds-text-muted);
+  font-size: var(--text-sm);
+}
+
+.mc-plugin-view-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  align-items: start;
+  gap: 24px;
+}
+
+@media (max-width: 1100px) {
+  .mc-plugin-view-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.mc-plugin-view-versions ul {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+}
+
+.mc-plugin-view-columns.is-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.mc-plugin-view-changelog {
+  margin-top: 4px;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-body);
+}
+
+.mc-plugin-view-changelog :is(h1, h2, h3, h4) {
+  margin: 4px 0;
+  font-size: var(--text-sm);
+}
+
+.mc-plugin-view-changelog :is(p, ul, ol) {
+  margin: 2px 0;
+}
+
+.mc-plugin-view-version-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+}
+
+/* mc-agent (bugs.md B-008): the author's page, from a catalog author object. */
+.plugins-author-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}

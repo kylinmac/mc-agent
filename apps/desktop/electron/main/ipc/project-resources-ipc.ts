@@ -1,7 +1,6 @@
 import { ErrorCodes, IPC } from "@pi-desktop/shared";
 import type { HostProcess } from "../host-process";
 import type { IpcRegistrar } from "./types";
-import { promptMatchFor } from "../mc-system-prompts.ts";
 
 /**
  * mc-agent resource directories (MC-ADR-0003). host-core owns the directory
@@ -19,10 +18,6 @@ export type ProjectResourcesIpcDependencies = {
   openExternal: (url: string) => Promise<void>;
   /** Native single-file picker; `null` when the user cancels. */
   pickFile: (defaultPath?: string) => Promise<string | null>;
-  /** The agent sidecar, for the session info panel's context breakdown. */
-  getSidecar?: () => { call: (method: string, params: Record<string, unknown>) => Promise<unknown> } | null;
-  /** Load an idle local session's runtime and return its breakdown, or null. */
-  prepareRuntime?: (sessionId: string) => Promise<{ breakdown: unknown } | null>;
 };
 
 const MAX_GROUP_ID_LENGTH = 256;
@@ -45,7 +40,16 @@ function templateNameOf(value: unknown): string {
   return name;
 }
 
-const MAX_TEMPLATE_CATEGORIES = 64;
+// host-core allows 200 folders per template (template_editor::MAX_FOLDERS).
+const MAX_TEMPLATE_CATEGORIES = 200;
+// A folder is a relative path up to six levels deep (`docs/api`).
+const MAX_FOLDER_PATH_LENGTH = 6 * 81;
+
+function folderPathOf(value: unknown): string {
+  const path = typeof value === "string" ? value.trim() : "";
+  if (!path || path.length > MAX_FOLDER_PATH_LENGTH) throw invalid("template folder is invalid");
+  return path;
+}
 
 /** Shape check only; host-core validates names and bounds descriptions. */
 function templateDraftOf(value: unknown) {
@@ -62,15 +66,19 @@ function templateDraftOf(value: unknown) {
   const categories = draft.categories.map((category: unknown) => {
     if (!category || typeof category !== "object") throw invalid("template category is invalid");
     const entry = category as Record<string, unknown>;
-    return { name: templateNameOf(entry.name), description: text(entry.description, "category description") };
+    return { name: folderPathOf(entry.name), description: text(entry.description, "category description") };
   });
   if (draft.create !== undefined && typeof draft.create !== "boolean") throw invalid("create must be a boolean");
+  if (draft.target !== undefined && draft.target !== "resources" && draft.target !== "creative") {
+    throw invalid("template target is invalid");
+  }
   return {
     name: templateNameOf(draft.name),
     description: text(draft.description, "template description"),
     categories,
     create: draft.create === true,
     ...(draft.copyFrom !== undefined && draft.copyFrom !== "" ? { copyFrom: templateNameOf(draft.copyFrom) } : {}),
+    ...(draft.target ? { target: draft.target as "resources" | "creative" } : {}),
   };
 }
 
@@ -85,71 +93,7 @@ export function registerProjectResourcesIpc({
   openPath,
   openExternal,
   pickFile,
-  getSidecar,
-  prepareRuntime,
 }: ProjectResourcesIpcDependencies): void {
-  // mc-agent: estimated context use by kind for one session (sidecar-owned).
-  registrar.handle(IPC.invoke.sessionContextBreakdown, async (input: { sessionId?: unknown } = {}) => {
-    const sessionId = typeof input?.sessionId === "string" ? input.sessionId.trim() : "";
-    if (!sessionId || sessionId.length > MAX_GROUP_ID_LENGTH) throw invalid("session id required");
-    const sidecar = getSidecar?.();
-    if (!sidecar) return { breakdown: null };
-    const loaded = (await sidecar.call("agent.contextBreakdown", { sessionId })) as { breakdown: unknown };
-    if (loaded?.breakdown || !prepareRuntime) return loaded;
-    // No runtime yet (nothing sent since the app started): load it, so the
-    // breakdown does not wait for the next message.
-    try {
-      return (await prepareRuntime(sessionId)) ?? loaded;
-    } catch {
-      return loaded;
-    }
-  });
-
-  // mc-agent (MC-ADR-0011): token usage by model, project, day and conversation.
-  registrar.handle(IPC.invoke.mcUsageSummary, async (input: { fromMs?: unknown; toMs?: unknown } = {}) => {
-    const host = getHost();
-    if (!host) throw new Error("host unavailable");
-    const fromMs = typeof input?.fromMs === "number" && Number.isFinite(input.fromMs) ? input.fromMs : 0;
-    const toMs = typeof input?.toMs === "number" && Number.isFinite(input.toMs) ? input.toMs : Date.now();
-    return host.call("mcUsage.summary", { fromMs, toMs });
-  });
-
-  // mc-agent (MC-ADR-0010): system prompt templates, stored by host-core.
-  registrar.handle(IPC.invoke.mcPromptsGet, async () => {
-    const host = getHost();
-    if (!host) throw new Error("host unavailable");
-    return host.call("mcPrompts.get", {});
-  });
-  registrar.handle(IPC.invoke.mcPromptsSet, async (input: { config?: unknown } = {}) => {
-    const host = getHost();
-    if (!host) throw new Error("host unavailable");
-    if (!input?.config || typeof input.config !== "object") throw invalid("config required");
-    return host.call("mcPrompts.set", { config: input.config });
-  });
-
-  // mc-agent: the composed system prompt of one session, for the viewer.
-  registrar.handle(IPC.invoke.sessionSystemPrompt, async (input: { sessionId?: unknown } = {}) => {
-    const sessionId = typeof input?.sessionId === "string" ? input.sessionId.trim() : "";
-    if (!sessionId || sessionId.length > MAX_GROUP_ID_LENGTH) throw invalid("session id required");
-    const sidecar = getSidecar?.();
-    if (!sidecar) return { prompt: null };
-    // Re-run the launch first: it picks up template, SYSTEM.md, instruction and
-    // memory changes (retiring a runtime they no longer match), so the viewer
-    // shows what the next message will send. A running turn skips it.
-    if (prepareRuntime) {
-      try {
-        await prepareRuntime(sessionId);
-      } catch {
-        // Show what there is.
-      }
-    }
-    const loaded = (await sidecar.call("agent.systemPrompt", { sessionId })) as { prompt: unknown };
-    // Which template the launch applied (MC-ADR-0010).
-    return loaded?.prompt && typeof loaded.prompt === "object"
-      ? { prompt: { ...(loaded.prompt as object), template: promptMatchFor(sessionId) } }
-      : loaded;
-  });
-
   registrar.handle(IPC.invoke.projectResourcesTemplates, async () => {
     const host = getHost();
     if (!host) throw new Error("host unavailable");

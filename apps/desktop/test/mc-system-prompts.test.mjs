@@ -35,6 +35,29 @@ test("project beats model beats global, and the winner applies whole", () => {
   assert.equal(resolvePromptTemplate({ ...config, globalTemplateId: null }, { projectPaths: [], modelId: "grok-4.7" }), null);
 });
 
+test("project rules match folders: the start folder first, then the others in list order", () => {
+  const folders = {
+    ...config,
+    templates: [...config.templates, template("docs"), template("app2")],
+    projectRules: [
+      { path: "/work/docs", templateId: "docs" },
+      { path: "/work/app/", templateId: "proj" },
+    ],
+  };
+  // Started in app: its rule wins although docs is listed first.
+  const fromApp = resolvePromptTemplate(folders, { projectPaths: ["/work/app", "/work/docs"], modelId: null });
+  assert.deepEqual([fromApp.template.id, fromApp.match.path], ["proj", "/work/app/"]);
+  // Started in a folder without a rule: the first listed rule among the others.
+  const fromTests = resolvePromptTemplate(folders, {
+    projectPaths: ["/work/tests", "/work/app", "/work/docs"],
+    modelId: null,
+  });
+  assert.equal(fromTests.template.id, "docs");
+  // A rule whose template is gone is skipped, not matched.
+  const dangling = { ...folders, projectRules: [{ path: "/work/app", templateId: "gone" }] };
+  assert.equal(resolvePromptTemplate(dangling, { projectPaths: ["/work/app"], modelId: null }).match.kind, "global");
+});
+
 test("an exact model wins over a pattern", () => {
   const resolved = resolvePromptTemplate(config, { projectPaths: [], modelId: "claude-sonnet-5" });
   assert.equal(resolved.template.id, "sonnet");

@@ -25,3 +25,7 @@
 
 - 有了开发者证书后改为签名并公证。
 - 需要从 PI-Desktop 导入数据时，加导入功能。
+
+## 修订（2026-10-22）
+
+开发版的 bundle 改名为 `mc-agent Dev`、`com.kylinmac.mc-agent.dev`（`scripts/dev-electron.mjs`），系统设置和 Dock 不再显示上游的 PI-Desktop。只改 bundle：数据目录 `~/.pi-desktop-dev` 和 Electron 的 userData 名由代码设定，不变；改名后开发版需要重新授权一次，钥匙串可能询问一次访问。见 [MC-ADR-0015](mc-0015-macos-permissions.md)。

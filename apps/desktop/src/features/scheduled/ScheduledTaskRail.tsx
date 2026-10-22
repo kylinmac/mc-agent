@@ -43,7 +43,7 @@ export function ScheduledTaskRail({
   locale: string;
   onSelect: (taskId: string) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const total = tasks.length;
   return (
     <aside className="scheduled-rail">
@@ -59,7 +59,7 @@ export function ScheduledTaskRail({
           const latest = latestRuns.get(task.id) ?? null;
           const duration = runDurationMs(latest);
           const clock = cadenceHasClock(task.cadence) ? formatScheduleClock(task.schedule) : null;
-          const cadence = cadenceLabel(t, task);
+          const cadence = cadenceLabel(t, task, i18n.language);
           const running = latest?.status === "running";
           return (
             <li key={task.id}>

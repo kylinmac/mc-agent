@@ -21,6 +21,39 @@ pub struct AppInfo {
     pub frontmost: bool,
 }
 
+/// A system permission this program needs.
+#[derive(Debug, Clone, Copy, Serialize, serde::Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum PermissionItem {
+    /// Reading the UI and sending input (macOS: Accessibility).
+    Accessibility,
+    /// Taking screenshots (macOS: Screen Recording).
+    ScreenRecording,
+}
+
+/// What a `permissions` call should do besides checking.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct PermissionRequest {
+    /// Ask the system for these, each only if missing.
+    pub request: Vec<PermissionItem>,
+    /// Open the system settings page for this one.
+    pub open_settings: Option<PermissionItem>,
+}
+
+/// One permission as the system reports it to this process. The system only
+/// says granted or not: "never asked" and "denied" look the same.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PermissionCheck {
+    pub item: PermissionItem,
+    pub granted: bool,
+    /// Set when this call opened (or failed to open) its settings page.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub settings_opened: Option<bool>,
+    /// Where to turn it on by hand.
+    pub settings_path: String,
+}
+
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Permissions {
@@ -28,9 +61,32 @@ pub struct Permissions {
     pub accessibility: bool,
     /// Taking screenshots (macOS: Screen Recording).
     pub screen_recording: bool,
+    /// The same, one entry per permission, for the app's permission page.
+    pub items: Vec<PermissionCheck>,
+    /// The process that was checked: macOS attributes the grant to the app
+    /// that launched it.
+    pub checked_by: CheckedBy,
     /// What to do about a missing grant, in plain words.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub guidance: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckedBy {
+    pub pid: u32,
+    pub executable: String,
+}
+
+impl CheckedBy {
+    pub fn this_process() -> Self {
+        Self {
+            pid: std::process::id(),
+            executable: std::env::current_exe()
+                .map(|path| path.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+        }
+    }
 }
 
 /// One UI element as the platform reports it, before rendering.
@@ -101,7 +157,7 @@ pub enum Direction {
 }
 
 pub trait Backend {
-    fn permissions(&mut self, request: bool) -> Result<Permissions>;
+    fn permissions(&mut self, request: &PermissionRequest) -> Result<Permissions>;
     fn list_apps(&mut self) -> Result<Vec<AppInfo>>;
     /// The app's front window as an element tree. Launches the app when it is
     /// not running. Element indices stay valid until the next state.

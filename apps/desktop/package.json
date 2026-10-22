@@ -162,8 +162,8 @@
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
       "extendInfo": {
-        "NSLocalNetworkUsageDescription": "PI-Desktop needs local network access so agents can reach OpenAI-compatible providers, Ollama, and other AI endpoints running on your LAN. / PI-Desktop 需要本地网络访问权限，以便助手请求同一局域网中的 OpenAI 兼容服务、Ollama 等本地 AI 端点。",
-        "NSMicrophoneUsageDescription": "PI-Desktop uses the microphone for Live voice calls and authorized plugin audio access. / PI-Desktop 使用麦克风进行实时语音通话，以及你已授权的插件音频访问。",
+        "NSLocalNetworkUsageDescription": "mc-agent needs local network access so agents can reach OpenAI-compatible providers, Ollama, and other AI endpoints running on your LAN. / mc-agent 需要本地网络访问权限，以便助手请求同一局域网中的 OpenAI 兼容服务、Ollama 等本地 AI 端点。",
+        "NSMicrophoneUsageDescription": "mc-agent uses the microphone for Live voice calls and authorized plugin audio access. / mc-agent 使用麦克风进行实时语音通话，以及你已授权的插件音频访问。",
         "NSBonjourServices": [
           "_http._tcp",
           "_https._tcp"

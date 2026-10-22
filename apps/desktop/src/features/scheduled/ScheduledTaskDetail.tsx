@@ -62,12 +62,12 @@ export function ScheduledTaskDetail({
   /** Display name of the task's provider; the stored id is a UUID. */
   providerName?: string | null;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [instructionOpen, setInstructionOpen] = useState(false);
   const latest = runs[0] ?? null;
   const latestDuration = runDurationMs(latest);
   const clock = cadenceHasClock(task.cadence) ? formatScheduleClock(task.schedule) : null;
-  const cadence = cadenceLabel(t, task);
+  const cadence = cadenceLabel(t, task, i18n.language);
   const selectedRun = resolveSelectedRun(runs, selectedRunId);
   const selectedDuration = runDurationMs(selectedRun);
   const selectedSessionId = selectedRun?.sessionId ?? null;

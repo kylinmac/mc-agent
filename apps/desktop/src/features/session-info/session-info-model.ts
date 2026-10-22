@@ -105,6 +105,15 @@ export type BreakdownRowKey =
 export type BreakdownRow = { key: BreakdownRowKey; tokens: number; percent: number; count?: number };
 
 /**
+ * mc-agent (bugs.md B-002): the rows before the numbers arrive (the runtime
+ * has not estimated yet, or the request is in flight). The list is always
+ * drawn; unknown values read as "?".
+ */
+export const PENDING_BREAKDOWN_ROWS: readonly BreakdownRow[] = (
+  ["messages", "systemPrompt", "tools", "mcpTools", "skills", "projectInstructions", "memory", "buffer", "free"] as const
+).map((key) => ({ key, tokens: Number.NaN, percent: Number.NaN }));
+
+/**
  * Rows in the order the panel lists them, as shares of the model window:
  * each kind, then the auto-compact buffer (window above the compaction
  * threshold) and what is left free below it.

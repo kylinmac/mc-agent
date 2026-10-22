@@ -1,0 +1,28 @@
+/* mc-agent: transcript additions (features/chat/transcript). */
+
+/* A reply the user stopped: a quiet line with Continue, details folded (bugs.md B-007). */
+.message-stopped {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 4px 0;
+  color: var(--ds-text-muted);
+  font-size: var(--text-sm);
+}
+
+.message-stopped-details {
+  flex-basis: 100%;
+  color: var(--ds-text-faint);
+  font-size: var(--text-xs);
+}
+
+.message-stopped-details summary {
+  width: fit-content;
+  cursor: pointer;
+}
+
+.message-stopped-details pre {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+}

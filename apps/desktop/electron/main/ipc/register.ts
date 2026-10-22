@@ -20,6 +20,10 @@ import { registerPluginUiIpc } from "./plugin-ui-ipc";
 import { registerJevIpc } from "./jev-ipc";
 import { refreshProjectGroups } from "../workspace-roots";
 import { registerProjectResourcesIpc } from "./project-resources-ipc";
+import { registerSessionInsightIpc } from "./mc-session-insight-ipc";
+import { registerMcUsageIpc } from "./mc-usage-ipc";
+import { registerMcPermissionsIpc } from "./mc-permissions-ipc";
+import { registerMcPromptsIpc } from "./mc-prompts-ipc";
 import { registerMcTerminalIpc } from "./mc-terminal-ipc";
 import { registerMcBackgroundIpc } from "./mc-background-ipc";
 import { registerMcCreativeIpc } from "./mc-creative-ipc";
@@ -310,9 +314,8 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     onProviderInvalidated: (providerId) => liveCallService?.invalidateProvider(providerId),
   });
   registerJevIpc({ registrar, logger });
-  registerProjectResourcesIpc({
+  registerSessionInsightIpc({
     registrar,
-    getHost,
     getSidecar,
     // mc-agent session info: the context breakdown of a session nothing was
     // sent to since the app started. Only idle local sessions; the launch is
@@ -329,6 +332,13 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
       sidecar.setProjectInstructionRoot(sessionId, launch.workspaceRoot ?? launch.projectPath);
       return sidecar.call("agent.prepare", launch.sidecarParams) as Promise<{ breakdown: unknown }>;
     },
+  });
+  registerMcUsageIpc({ registrar, getHost });
+  registerMcPermissionsIpc({ registrar, plugins });
+  registerMcPromptsIpc({ registrar, getHost });
+  registerProjectResourcesIpc({
+    registrar,
+    getHost,
     refreshProjectGroups,
     openPath: (path) => shell.openPath(path),
     openExternal: (url) => shell.openExternal(url),

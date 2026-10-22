@@ -268,7 +268,7 @@ export function UpdatesRow({
             </div>
             <div className="about-update-copy">
               <div className="about-update-title">{t("updates.title")}</div>
-              <div className="about-update-desc">{t("updates.cardDesc")}</div>
+              <div className="about-update-desc">{t("mcProject.updateCardDesc")}</div>
             </div>
             <div className="about-update-actions">
               <Button

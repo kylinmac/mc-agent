@@ -186,7 +186,7 @@ export function ScheduledPage() {
             {filtered.map((task) => {
               const latest = latestRuns.get(task.id) ?? null;
               const clock = cadenceHasClock(task.cadence) ? formatScheduleClock(task.schedule) : null;
-              const cadence = cadenceLabel(t, task);
+              const cadence = cadenceLabel(t, task, i18n.language);
               const active =
                 !showOverview && task.id === selectedTaskId && (!editor || editor.kind === "edit");
               return (

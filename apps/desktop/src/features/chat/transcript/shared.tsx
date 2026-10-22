@@ -202,8 +202,33 @@ export function AssistantErrorMessage({ message }: { message: UiMessage }) {
   const dismissAssistantErrorMessage = useAppStore(
     (state) => state.dismissAssistantErrorMessage,
   );
+  const providerName = useAppStore((state) =>
+    message.providerId ? state.providers.find((provider) => provider.id === message.providerId)?.name : undefined,
+  );
   const error = message.error;
   if (!error || dismissed) return null;
+  // mc-agent (bugs.md B-007): the user pressed Stop. That is a state, not a
+  // failure: one quiet line with Continue; the codes stay in the folded detail.
+  if (error.code === "TURN_ABORTED") {
+    return (
+      <section className="message-stopped" aria-label={t("mcProject.turnStoppedLabel")}>
+        <span className="message-stopped-text">{t("errors.TURN_ABORTED")}</span>
+        <button
+          type="button"
+          className="copy-btn"
+          onClick={() => void useAppStore.getState().sendPrompt(t("chat.continueCurrentTaskPrompt"))}
+        >
+          {t("errors.action.continue")}
+        </button>
+        <details className="message-stopped-details">
+          <summary>{t("chat.showErrorDetails")}</summary>
+          <pre className="selectable">
+            {[error.code, error.message, providerName ?? message.providerId, message.modelId].filter(Boolean).join("\n")}
+          </pre>
+        </details>
+      </section>
+    );
+  }
   const networkDetails = error.details;
   const certificateFailure =
     error.code === "NETWORK_ERROR" &&
@@ -305,7 +330,7 @@ export function AssistantErrorMessage({ message }: { message: UiMessage }) {
           {message.providerId ? (
             <>
               <dt>{t("chat.errorProvider")}</dt>
-              <dd>{message.providerId}</dd>
+              <dd title={message.providerId}>{providerName ?? message.providerId}</dd>
             </>
           ) : null}
           {message.modelId ? (

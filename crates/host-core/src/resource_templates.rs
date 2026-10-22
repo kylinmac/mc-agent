@@ -20,13 +20,32 @@ const PROJECT_META_DIR: &str = ".mc-agent";
 const PROJECT_META_FILE: &str = "project.json";
 const MAX_FINGERPRINT_ENTRIES: usize = 2_000;
 
+/// What a template sets up: a project's resource folder (the default, and
+/// every template made before this field), or a creative folder's categories.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum TemplateTarget {
+    #[default]
+    Resources,
+    Creative,
+}
+
+impl TemplateTarget {
+    pub fn is_resources(&self) -> bool {
+        *self == TemplateTarget::Resources
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct TemplateMeta {
     pub version: u32,
     pub description: String,
-    /// Category folder → what belongs in it.
+    /// Folder (relative path) → what belongs in it.
     pub categories: BTreeMap<String, String>,
+    /// Omitted for resource templates, so older files read the same.
+    #[serde(skip_serializing_if = "TemplateTarget::is_resources")]
+    pub target: TemplateTarget,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { registerSessionHoldSource } from "./session-holds.ts";
 
 /*
   mc-agent split view (MC-ADR-0007): conversations side by side, after an
@@ -164,24 +165,6 @@ export function splitActive(): boolean {
   return useSplitView.getState().columns.length > 1;
 }
 
-/** Sessions a split keeps on screen; their panes must not be evicted. */
-/**
- * Other surfaces that show a background conversation live (the creative
- * studio's chat panel): their panes are kept and stream like a split column.
- */
-const extraPinned = new Set<string>();
-
-export function pinSessionPane(sessionId: string): () => void {
-  extraPinned.add(sessionId);
-  return () => {
-    extraPinned.delete(sessionId);
-  };
-}
-
-export function splitPinnedSessionIds(): readonly string[] {
-  return [...useSplitView.getState().columns.filter(Boolean), ...extraPinned];
-}
-
-export function isSplitColumn(sessionId: string): boolean {
-  return useSplitView.getState().columns.includes(sessionId) || extraPinned.has(sessionId);
-}
+// The columns on screen are held sessions: their panes are kept beyond the
+// retention bound and stream while another column has focus.
+registerSessionHoldSource(() => useSplitView.getState().columns);

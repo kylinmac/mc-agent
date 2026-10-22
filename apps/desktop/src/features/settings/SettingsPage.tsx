@@ -23,6 +23,8 @@ import {
   IconChevronLeft,
   IconFileText,
   IconActivity,
+  IconFolder,
+  IconShield,
   IconGlobe,
   IconInfo,
   IconKeyboard,
@@ -65,6 +67,8 @@ import { ConfigSyncPage } from "../../components/settings/ConfigSyncPage";
 import { StorageSettingsSection } from "./StorageSettingsSection";
 import { SystemPromptsPage } from "./SystemPromptsPage";
 import { UsagePage } from "./UsagePage";
+import { ProjectTemplatesPage } from "./ProjectTemplatesPage";
+import { SystemPermissionsPage } from "./SystemPermissionsPage";
 
 type SettingsTab = ReturnType<typeof useAppStore.getState>["settingsTab"];
 
@@ -244,6 +248,8 @@ export function SettingsPage() {
       subagents: <IconBot size={14} />,
       systemPrompts: <IconFileText size={14} />,
       mcUsage: <IconActivity size={14} />,
+      projectTemplates: <IconFolder size={14} />,
+      systemPermissions: <IconShield size={14} />,
       projects: <IconArchive size={14} />,
       sync: <IconCloudDown size={14} />,
       remoteHosts: <IconGlobe size={14} />,
@@ -576,6 +582,10 @@ export function SettingsPage() {
           {tab === "systemPrompts" && <SystemPromptsPage />}
 
           {tab === "mcUsage" && <UsagePage />}
+
+          {tab === "projectTemplates" && <ProjectTemplatesPage />}
+
+          {tab === "systemPermissions" && <SystemPermissionsPage />}
 
 
           {tab === "projects" && <ProjectsPage />}

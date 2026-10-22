@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   breakdownRows,
+  PENDING_BREAKDOWN_ROWS,
   clampPanelWidth,
   normalizePrefs,
   panelMode,
@@ -16,7 +17,7 @@ const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 const [card, shell, ipc] = await Promise.all([
   read("../src/features/session-info/SessionInfo.tsx"),
   read("../src/features/app/AppShell.tsx"),
-  read("../electron/main/ipc/project-resources-ipc.ts"),
+  read("../electron/main/ipc/mc-session-insight-ipc.ts"),
 ]);
 
 test("the session info panel lives in the conversation and gathers existing data", () => {
@@ -98,4 +99,24 @@ test("the docked panel sits in the margin and moves the conversation only by its
   assert.equal((1107 + offset - 760) / 2, 285 + DOCK_GAP);
   // Narrow pane: never more than the panel's own width plus the gap.
   assert.equal(conversationOffset(900, 300, 760), 300 + DOCK_GAP);
+});
+
+test("before an estimate arrives every row is still listed, with unknown values", () => {
+  // mc-agent B-002: no "send a message first" placeholder in place of the list.
+  assert.deepEqual(
+    PENDING_BREAKDOWN_ROWS.map((row) => row.key),
+    breakdownRows({
+      contextWindow: 100,
+      usedTokens: 0,
+      autoCompactAt: 90,
+      messageCount: 0,
+      toolCount: 0,
+      mcpToolCount: 0,
+      skillCount: 0,
+      categories: { messages: 0, systemPrompt: 0, tools: 0, mcpTools: 0, skills: 0, projectInstructions: 0, memory: 0 },
+    }).map((row) => row.key),
+  );
+  assert.ok(PENDING_BREAKDOWN_ROWS.every((row) => Number.isNaN(row.tokens) && Number.isNaN(row.percent)));
+  assert.match(card, /messageCount, isRunning\]/);
+  assert.doesNotMatch(card, /settledMessages/);
 });
