@@ -179,6 +179,7 @@ export function ConversationTopbar({
           <TooltipButton
             type="button"
             className="ct-icon-btn"
+            data-nav="search"
             tooltip={searchTooltip}
             ariaLabel={t("nav.search")}
             onClick={onOpenSearch}

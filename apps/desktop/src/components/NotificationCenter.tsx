@@ -63,10 +63,12 @@ function formatRelativeTime(value: string, locale: string, justNow: string): str
 export function NotificationCenter({
   onBeforeOpen,
   tooltipSide,
+  placement,
 }: {
   onBeforeOpen?: () => void;
   /** mc-agent: the app rail shows its tooltips to the right. */
   tooltipSide?: "right";
+  placement?: "below";
 }) {
   const { t, i18n } = useTranslation();
   const storedNotifications = useAppStore((state) => state.notifications);
@@ -121,6 +123,10 @@ export function NotificationCenter({
       const rect = triggerRef.current?.getBoundingClientRect();
       if (!rect) return;
       const width = Math.min(360, window.innerWidth - 24);
+      if (placement === "below") {
+        setPopoverPos({ top: rect.bottom + 6, left: Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)) });
+        return;
+      }
       // mc-agent: a trigger in the upper half opens the panel beside it,
       // top-aligned, or below it when it sits at the window's right edge.
       if (rect.top < window.innerHeight / 2) {
@@ -140,7 +146,7 @@ export function NotificationCenter({
     place();
     window.addEventListener("resize", place);
     return () => window.removeEventListener("resize", place);
-  }, [open]);
+  }, [open, placement]);
 
   useEffect(() => {
     if (!open) return;

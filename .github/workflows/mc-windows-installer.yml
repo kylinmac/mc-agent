@@ -32,6 +32,7 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm --filter @pi-desktop/shared build
       - run: node --test apps/desktop/test/updater-controller.test.mjs apps/desktop/test/update-preference.test.mjs apps/desktop/test/auto-update.test.mjs apps/desktop/test/update-timeout.test.mjs
+      - run: node scripts/test-windows-installer-paths.mjs
       - run: node scripts/e2e-windows-installer.mjs
         env:
           TEMP: ${{ runner.temp }}

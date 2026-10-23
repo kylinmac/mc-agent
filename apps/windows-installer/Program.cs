@@ -55,6 +55,10 @@ internal sealed class Setup
     {
         try
         {
+#if INSTALLER_TEST
+            var validatePath = args.FirstOrDefault(arg => arg.StartsWith("--test-validate-path="));
+            if (validatePath != null) return ValidDestination(validatePath.Substring("--test-validate-path=".Length)) ? 0 : 1;
+#endif
             var identity = new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(ReadResource("metadata.json"));
             var key = identity["registryKey"].Split('\\').Last();
             using (var mutex = new Mutex(false, "Local\\mc-agent-setup-" + key + (args.Contains("--preview") ? "-preview" : "")))
@@ -202,9 +206,16 @@ internal sealed class Setup
     }
     static bool ValidDestination(string path)
     {
-        return Path.IsPathRooted(path) && path.Length > 3 && Char.IsLetter(path[0]) && path[1] == ':' && (path[2] == '\\' || path[2] == '/') &&
-            !path.Any(c => Char.IsControl(c) || c == '"') &&
-            !String.Equals(Path.GetPathRoot(path).TrimEnd('\\'), path.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
+        if (String.IsNullOrWhiteSpace(path) || path.Length <= 3 || !Char.IsLetter(path[0]) || path[1] != ':' ||
+            (path[2] != '\\' && path[2] != '/') || path.Any(c => Char.IsControl(c) || c == '"')) return false;
+        try
+        {
+            string fullPath = Path.GetFullPath(path);
+            return !String.Equals(Path.GetPathRoot(fullPath).TrimEnd('\\'), fullPath.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
+        }
+        catch (ArgumentException) { return false; }
+        catch (NotSupportedException) { return false; }
+        catch (PathTooLongException) { return false; }
     }
     void ShowInstalling()
     {
@@ -237,6 +248,8 @@ internal sealed class Setup
     async Task Install()
     {
         if (!ValidDestination(destination)) { ShowError(Text("invalidPath")); return; }
+        destination = Path.GetFullPath(destination);
+        UpdateLocation();
         busy = true; ShowInstalling();
         string staging = Path.Combine(Path.GetTempPath(), "mc-agent-setup-" + Guid.NewGuid().ToString("N"));
         try

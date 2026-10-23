@@ -91,6 +91,28 @@ for (const platform of ["win32", "darwin"]) {
   });
 }
 
+for (const failure of ["event", "throw"]) {
+  test(`failed installer (${failure}) restores normal quit handling`, async () => {
+    const updater = new FakeUpdater();
+    const { controller } = createController({ updater, platform: "win32", distribution: "installed" });
+    try {
+      await controller.check();
+      updater.emit("update-downloaded", { version: "0.16.1" });
+      updater.quitAndInstall = () => {
+        if (failure === "throw") throw new Error("Installer unavailable");
+        updater.emit("error", new Error("Installer unavailable"));
+      };
+      if (failure === "throw") assert.throws(() => controller.install(), /Installer unavailable/);
+      else controller.install();
+      assert.equal(controller.isInstallingUpdate(), false);
+      assert.equal(controller.getState().status, "error");
+      assert.equal(updater.autoInstallOnAppQuit, false);
+    } finally {
+      controller.dispose();
+    }
+  });
+}
+
 for (const distribution of ["zip", "portable"]) {
   test(`Windows ${distribution} keeps manual updates by default`, async () => {
     const updater = new FakeUpdater();
