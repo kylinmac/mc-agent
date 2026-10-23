@@ -171,6 +171,9 @@ export default defineConfig({
   appearance: 'force-dark',
   cleanUrls: true,
   lastUpdated: true,
+  // docs/mc-agent/*.md 用 ../../ 链接到仓库里 docs/ 之外的源码(crates/、apps/、AGENTS.md),
+  // 这些文件不在站点内,VitePress 会判为死链并使构建失败;链接仍可在 GitHub 上正常打开。
+  ignoreDeadLinks: [(link) => link.includes('../../')],
   head: [
     ['meta', { name: 'theme-color', content: '#0d0d0d' }],
     ['meta', { name: 'color-scheme', content: 'dark light' }],
