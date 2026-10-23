@@ -1,6 +1,19 @@
 import { en, type EnglishCatalog } from "../en/index.js";
 
 export const zhCN = {
+  dictation: {
+    title: "语音输入", description: "把说的话填入草稿，检查后再发送。",
+    enabled: "启用语音输入", adapter: "识别服务", provider: "账号／服务商", chooseProvider: "选择已配置的服务商",
+    model: "转写模型", adapters: { codex: "Codex 登录", openai: "OpenAI／兼容服务", gemini: "Gemini", xai: "xAI（Grok）" },
+    hint: "复用已有服务商凭据。每次最多录音 3 分钟。请配置支持转写的模型，与聊天模型独立。",
+    codexHint: "通过已有 Codex 实时语音连接提取你说的话。是否可用取决于账号；不播放回复，不执行任务。",
+    start: "语音输入", stop: "停止并填入文字", cancel: "取消语音输入", starting: "正在连接…", transcribing: "正在识别…",
+    empty: "没有识别到语音。", permission: "麦克风权限被拒绝，请允许访问后重试。",
+    busy: "麦克风正在使用，请先结束另一段语音。", incomplete: "未收到最后一句的识别结果，本次没有填入文字，请重试。",
+    failed: "语音输入失败，请检查麦克风权限、服务商凭据、转写模型和网络后重试。",
+    releaseFailed: "本地录音已停止，但服务尚未确认清理，请稍后重试。",
+    providersFailed: "无法加载服务商，请重新打开此设置页重试。", saveFailed: "保存语音输入设置失败。",
+  },
   worktree: {
     newIsolatedSession: "新建隔离会话",
     uncommittedNotIncluded: "项目中未提交的改动不会带入隔离会话。",

@@ -1,5 +1,7 @@
 # 功能代码索引
 
+R17 语音输入：`packages/shared/src/dictation.ts` 定义配置和限额；`apps/desktop/electron/main/dictation/` 与 `ipc/dictation-ipc.ts` 负责鉴权和请求；`apps/desktop/src/features/voice/dictation/` 负责录音、取消和输入框；`features/settings/voice/DictationSettings.tsx` 提供设置。见[行为说明](voice-input.md)。
+
 对照仓库里的现有代码。路径相对仓库根。测试文件不列入，除非它是该功能唯一的入口说明。
 
 mc-agent 新增功能（R1–R10）的代码见文末“mc-agent 项目管理”一节。

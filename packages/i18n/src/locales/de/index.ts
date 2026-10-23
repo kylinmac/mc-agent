@@ -1,6 +1,7 @@
 import { en, type EnglishCatalog } from "../en/index.js";
 
 export const de = {
+  dictation: en.dictation,
   "worktree": {
     "newIsolatedSession": "Neue isolierte Sitzung",
     "uncommittedNotIncluded": "Nicht committete Änderungen im Projekt werden nicht in die isolierte Sitzung übernommen.",

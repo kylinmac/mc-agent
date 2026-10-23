@@ -5,6 +5,7 @@ import {
   isCommandShellId,
   validateNetworkProxy,
   validateSpeechSettings,
+  parseDictationSettings,
   type CommandShellId,
   type ModelBinding,
   type SessionThinkingLevel,
@@ -193,7 +194,9 @@ export function createProviderCatalogRuntime({
       updatePreference?: unknown;
       lastNotifiedUpdateVersion?: unknown;
       networkProxy?: unknown;
+      dictation?: unknown;
     };
+    if (Object.prototype.hasOwnProperty.call(value, "dictation")) parseDictationSettings(value.dictation);
     if (
       Object.prototype.hasOwnProperty.call(value, "defaultCommandShell") &&
       !isCommandShellId(value.defaultCommandShell)

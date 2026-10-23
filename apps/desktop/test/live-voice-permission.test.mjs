@@ -19,6 +19,8 @@ test("Live Voice media permission requires the trusted main frame and an active 
   });
   t.after(() => server.close());
   const { installLiveMicrophonePermissionHandlers } = await server.ssrLoadModule("/electron/main/live-voice/microphone-permissions.ts");
+  const { MicrophoneLeaseRegistry } = await server.ssrLoadModule("/electron/main/live-voice/microphone-lease.ts");
+  const leases = new MicrophoneLeaseRegistry(() => false);
 
   const trustedUrl = "http://localhost:5173/";
   const contents = {
@@ -36,7 +38,7 @@ test("Live Voice media permission requires the trusted main frame and an active 
       setPermissionCheckHandler: (handler) => { handlers.check = handler; },
     },
     getMainWindow: () => window,
-    hasReservation: () => leaseActive,
+    hasReservation: (owner) => leaseActive || leases.hasCloudDictationReservation(`${owner.webContentsId}:${owner.frameProcessId}:${owner.frameRoutingId}`),
   });
 
   const requestDecision = (details, permission = "media", requester = contents) => {
@@ -63,5 +65,14 @@ test("Live Voice media permission requires the trusted main frame and an active 
   assert.equal(requestDecision({ requestingUrl: trustedUrl, isMainFrame: true, mediaTypes: ["audio"] }, "media", {}), false);
   leaseActive = false;
   assert.equal(requestDecision({ requestingUrl: trustedUrl, isMainFrame: true, mediaTypes: ["audio"] }), false);
+  assert.equal(checkDecision({ mediaType: "audio" }), false);
+  const releaseOther = leases.acquire("cloud-dictation", "other", "4:5:999");
+  assert.equal(checkDecision({ mediaType: "audio" }), false, "another frame's dictation lease grants no permission");
+  releaseOther();
+  const release = leases.acquire("cloud-dictation", "recording", "4:5:6");
+  assert.equal(requestDecision({ requestingUrl: trustedUrl, isMainFrame: true, mediaTypes: ["audio"] }), true);
+  assert.equal(checkDecision({ mediaType: "audio" }), true);
+  assert.equal(requestDecision({ requestingUrl: trustedUrl, isMainFrame: true, mediaTypes: ["audio", "video"] }), false);
+  release();
   assert.equal(checkDecision({ mediaType: "audio" }), false);
 });

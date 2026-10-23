@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import type { Dispatch, SetStateAction, ReactNode } from "react";
 import type { TFunction } from "i18next";
 import {
   keybindingDisplayParts,
@@ -35,6 +35,7 @@ type ContextUsage = Parameters<typeof ContextUsageInspector>[0];
 
 export type ComposerToolbarProps = {
   t: TFunction;
+  dictation?: ReactNode;
   mode: Mode;
   planningLive: boolean;
   providerId?: string;
@@ -74,6 +75,7 @@ export type ComposerToolbarProps = {
 /** Composer controls: mode, permission, model, plugin actions, and send/stop. */
 export function ComposerToolbar({
   t,
+  dictation,
   mode,
   planningLive,
   providerId,
@@ -130,6 +132,7 @@ export function ComposerToolbar({
           </TooltipButton>
         </div>
         {localToolsAllowed ? <LiveVoiceControls t={t} workSessionId={workSessionId} /> : null}
+        {dictation}
         <TooltipButton
           type="button"
           className="icon-btn mode-chip composer-mode-chip"

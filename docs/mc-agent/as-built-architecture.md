@@ -1,5 +1,7 @@
 # 现状架构
 
+R17 增量：[语音输入](voice-input.md)由 Renderer 采集麦克风，Main 持有凭据并发起转写请求。Codex 仅由 Main 协商 SDP，媒体走 WebRTC；不挂载 Agent 工具。与实时通话共用麦克风租约，录音不落盘。
+
 本文描述仓库里已经在的代码。上游基线与 mc-agent 当前状态分开写：下面的进程与模块图是上游 0.20.1 的结构；mc-agent 新增的模块按功能列在[代码索引](code-index.md)，增量设计见[架构文档](architecture.md)和 [MC-ADR-0002](adr/mc-0002-fork-pi-desktop.md)。
 
 许可 LGPL-3.0-or-later。目录（2026-10-22 核对，见[工程结构评审](engineering-structure-review.md) 7.1）：

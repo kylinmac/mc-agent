@@ -24,6 +24,8 @@ export type LiveAdapterContext = {
   auth: LiveResolvedAuth;
   signal: AbortSignal;
   onEvent: (event: LiveWireEvent) => void;
+  /** Dictation has no work tools and never shares a work session. */
+  dictation?: boolean;
   workProfile?: { version: 1; instructions: string; startupContext: string };
   onWorkCandidate?: (
     candidate: { providerRequestId: string; toolName: string; arguments: unknown },

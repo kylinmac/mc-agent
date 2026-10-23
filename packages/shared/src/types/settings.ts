@@ -51,6 +51,8 @@ export type AppSettings = {
   speech?: SpeechSettings;
   /** App-owned real-time voice bindings; separate from local dictation. */
   liveVoice?: LiveVoiceSettings;
+  /** mc-agent: composer dictation, independent from live calls. */
+  dictation?: import("../dictation.js").DictationSettings;
   defaultMode: Mode;
   /**
    * Keep retryable provider/network failures retrying until the request succeeds.

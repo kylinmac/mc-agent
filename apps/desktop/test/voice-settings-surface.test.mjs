@@ -4,7 +4,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
 
-test("Voice settings render Live Voice only and preserve legacy settings", async (t) => {
+test("Voice settings render cloud dictation and Live Voice, preserving legacy settings", async (t) => {
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   Object.defineProperty(globalThis, "window", {
     configurable: true,
@@ -58,6 +58,8 @@ test("Voice settings render Live Voice only and preserve legacy settings", async
   );
 
   assert.match(html, /liveVoice\.title/);
+  assert.match(html, /dictation\.title/);
+  assert.match(html, /dictation\.enabled/);
   assert.match(html, /liveVoice\.enable/);
   for (const legacyLabel of [
     "settings.voiceEnable",
@@ -73,7 +75,7 @@ test("Voice settings render Live Voice only and preserve legacy settings", async
   assert.equal(savedPatch, undefined);
 });
 
-test("Composer keeps Live Voice and no longer mounts local Dictation controls", async () => {
+test("Composer adds cloud dictation alongside Live Voice without local model controls", async () => {
   const composer = await readFile(
     new URL("../src/components/Composer.tsx", import.meta.url),
     "utf8",
@@ -86,5 +88,6 @@ test("Composer keeps Live Voice and no longer mounts local Dictation controls", 
   assert.match(composer, /useVoiceInput/);
   assert.doesNotMatch(composer, /VoiceOverlay|voiceEnabled/);
   assert.match(toolbar, /<LiveVoiceControls\b/);
+  assert.match(composer, /<DictationButton\b/);
   assert.doesNotMatch(toolbar, /VoiceMicButton|voicePhase|onVoiceToggle|onVoiceCancel/);
 });
