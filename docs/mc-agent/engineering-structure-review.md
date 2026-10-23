@@ -57,7 +57,7 @@
 源码确认：
 
 - [CreativePage.tsx](../../apps/desktop/src/features/creative/CreativePage.tsx) 约 1,200 行，除页面组合外，还管理框选、拖放、移动／撤销、生成表单、分类和队列。
-- [mc_creative.rs](../../crates/host-core/src/mc_creative.rs) 约 2,250 行，含测试，覆盖素材、文件分类、任务、对比集、项目用途和账号模型设置。
+- [mc_creative.rs](../../crates/host-core/src/mc_creative/mod.rs) 约 2,250 行，含测试，覆盖素材、文件分类、任务、对比集、项目用途和账号模型设置。
 - `ensure_schema` 在业务模块内建表、探测字段并补列。
 
 影响：增加一种生成任务时，会进入同时包含素材文件操作、数据库结构和对比功能的模块；修改页面交互也需要处理大量不相关状态。
@@ -135,7 +135,7 @@
 | 应用数据目录 | host-core 数据库及日志、插件、缓存等运行数据 | 安装版 `~/.mc-agent`；开发版 `~/.pi-desktop-dev`；由 `PI_DESKTOP_DATA_DIR` 覆盖 |
 | 资料目录的归属标记 | 标记该资料目录所属项目及模板来源 | `<项目资料目录>/.mc-agent/project.json`；与主目录下的应用数据目录不同 |
 
-依据：[项目记录](../../crates/host-core/src/db/project_groups.rs)、[资料目录](../../crates/host-core/src/resource_dirs.rs)、[模板元数据](../../crates/host-core/src/resource_templates.rs)、[创作存储](../../crates/host-core/src/mc_creative.rs)、[桌面数据路径](../../apps/desktop/electron/main/data-paths.ts)。Electron 自己的 `userData` 是另一个运行状态目录，不应与项目资料或创作文件合并。
+依据：[项目记录](../../crates/host-core/src/db/project_groups.rs)、[资料目录](../../crates/host-core/src/resource_dirs.rs)、[模板元数据](../../crates/host-core/src/resource_templates.rs)、[创作存储](../../crates/host-core/src/mc_creative/mod.rs)、[桌面数据路径](../../apps/desktop/electron/main/data-paths.ts)。Electron 自己的 `userData` 是另一个运行状态目录，不应与项目资料或创作文件合并。
 
 示例：项目“游戏 A”关联代码工作区和资料目录，并选择代码工作区保存创作文件。以下是示意，不是本机已有目录清单。
 
@@ -241,7 +241,7 @@ D1–D4 不要求移动任何用户数据，不要求数据库迁移。遇到实
 | 模型能力 | shared 区分图像输入能力等模型属性；创作模块另有账号图片模型与生图链路 | “能看图”不等于“能生图”；可发现、已配置、可调用也不是同一种状态，不因目录里列出了模型就承诺调用成功 |
 | 插件、MCP、技能、工具 | 仓库分别有插件管理、MCP 接入、技能内容与 host 工具执行链路 | 建议解释为扩展包、连接器、操作指导、实际可执行动作；技能内容不构成权限授予，插件启用也不等于其所有连接器已连接。保留各自生命周期 |
 
-依据：[shared 工作区类型](../../packages/shared/src/types/workspace.ts)、[会话类型](../../packages/shared/src/types/sessions.ts)、[项目根类型](../../crates/host-core/src/db/project_groups.rs)、[项目类型入口](../../apps/desktop/src/features/project-workbench/ProjectKindPicker.tsx)、[项目任务](../../crates/host-core/src/project_tasks.rs)、[会话待办](../../crates/host-core/src/todos.rs)、[资料清单](../../crates/host-core/src/resource_catalog.rs)、[创作模块](../../crates/host-core/src/mc_creative.rs)、[模型类型](../../packages/shared/src/types/models.ts)、[服务商类型](../../packages/shared/src/types/providers.ts)。插件等这里只检查模块职责，不代表完成其权限链路安全审计。
+依据：[shared 工作区类型](../../packages/shared/src/types/workspace.ts)、[会话类型](../../packages/shared/src/types/sessions.ts)、[项目根类型](../../crates/host-core/src/db/project_groups.rs)、[项目类型入口](../../apps/desktop/src/features/project-workbench/ProjectKindPicker.tsx)、[项目任务](../../crates/host-core/src/project_tasks.rs)、[会话待办](../../crates/host-core/src/todos.rs)、[资料清单](../../crates/host-core/src/resource_catalog.rs)、[创作模块](../../crates/host-core/src/mc_creative/mod.rs)、[模型类型](../../packages/shared/src/types/models.ts)、[服务商类型](../../packages/shared/src/types/providers.ts)。插件等这里只检查模块职责，不代表完成其权限链路安全审计。
 
 ### 8.2 具体需要整理的位置
 
