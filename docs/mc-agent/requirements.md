@@ -1,4 +1,4 @@
-2026-10-23：[R16 云端发布](cloud-release.md)（P12；V52）：macOS 与 Windows 同标签构建、校验完成后公开。
+2026-10-23：[R16 云端发布与 R16.1 自动检测](cloud-release.md)（P12；V52–V53）：macOS 与 Windows 同标签构建、校验完成后公开；启动约 15 秒及每小时自动检测更新。
 
 # mc-agent 需求文档
 
