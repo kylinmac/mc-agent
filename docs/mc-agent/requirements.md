@@ -1,3 +1,5 @@
+2026-10-23：[R16 云端发布](cloud-release.md)（P12；V52）：macOS 与 Windows 同标签构建、校验完成后公开。
+
 # mc-agent 需求文档
 
 2026-10-23 澄清：[R11.12 Windows 左侧标题栏](windows-titlebar.md)，对应 P11、V51；Windows 通知移到左侧，保留竖栏小房子入口，去掉顶部 mc-agent 品牌按钮。

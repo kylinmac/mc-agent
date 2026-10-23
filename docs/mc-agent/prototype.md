@@ -1,3 +1,5 @@
+2026-10-23：[R16 云端发布](cloud-release.md)（P12；V52）：macOS 与 Windows 同标签构建、校验完成后公开。
+
 # mc-agent 项目工作台原型
 
 [P11 Windows 左侧标题栏](windows-titlebar.md)：收缩、通知、搜索固定在左侧；保留竖栏小房子，移除顶部 mc-agent 品牌按钮。macOS 保持原样（R11.12；V51；2026-10-23 澄清）。

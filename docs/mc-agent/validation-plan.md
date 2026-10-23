@@ -1,3 +1,5 @@
+2026-10-23：[R16 云端发布](cloud-release.md)（P12；V52）：macOS 与 Windows 同标签构建、校验完成后公开。
+
 # mc-agent 验收与开发计划
 
 2026-10-22：[Windows 整体回归与问题清单](windows-audit-2026-10-22.md)，记录本轮发现、修复和未通过项。

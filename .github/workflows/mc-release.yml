@@ -1,0 +1,119 @@
+name: mc-agent Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Existing tag version without v (for example 1.0.11)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mc-release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Validate tag and prepare draft
+        env:
+          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          git merge-base --is-ancestor "v$VERSION^{commit}" origin/main
+          if gh release view "v$VERSION" --json isDraft > release.json; then
+            test "$(jq -r .isDraft release.json)" = true
+          else
+            gh release create "v$VERSION" --verify-tag --draft --title "mc-agent $VERSION" --generate-notes
+          fi
+
+  windows:
+    needs: prepare
+    permissions:
+      contents: write
+    uses: ./.github/workflows/mc-windows.yml
+    with:
+      version: ${{ inputs.version }}
+      upload: false
+
+  macos:
+    needs: prepare
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: v${{ inputs.version }}
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: pnpm install --frozen-lockfile
+      - name: Build and verify macOS arm64 with ad-hoc signing
+        env:
+          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = arm64
+          node scripts/mc-release.mjs "$VERSION" --dry-run --arch arm64
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mc-agent-macos-arm64-${{ inputs.version }}
+          if-no-files-found: error
+          compression-level: 0
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/latest-mac.yml
+
+  publish:
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: node --test scripts/mc-verify-release.test.mjs
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: mc-agent-*-${{ inputs.version }}
+          merge-multiple: true
+          path: dist
+      - name: Verify both feeds and publish complete release
+        env:
+          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          node scripts/mc-verify-release.mjs "$VERSION" dist
+          test "$(gh release view "v$VERSION" --json isDraft --jq .isDraft)" = true
+          gh release upload "v$VERSION" dist/* --clobber
+          gh release view "v$VERSION" --json assets > assets.json
+          node scripts/mc-verify-release.mjs "$VERSION" dist assets.json
+          gh release edit "v$VERSION" --draft=false --latest
