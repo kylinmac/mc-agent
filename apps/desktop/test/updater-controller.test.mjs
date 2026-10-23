@@ -70,6 +70,38 @@ function createController({ updater, settings = {}, persist = async () => {}, pl
   return { controller, sent };
 }
 
+test("auto-check runs after startup and every hour, survives failure, and stops on disposal", async t => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const { controller } = createController({ updater: new FakeUpdater(), platform: "win32", distribution: "installed" });
+  let checks = 0;
+  controller.check = async () => {
+    checks++;
+    if (checks === 2) throw new Error("temporary network failure");
+    return controller.getState();
+  };
+  try {
+    controller.startAutoCheck();
+    controller.startAutoCheck();
+    await new Promise(setImmediate);
+    t.mock.timers.tick(14_999);
+    assert.equal(checks, 0);
+    t.mock.timers.tick(1);
+    assert.equal(checks, 1);
+    t.mock.timers.tick(60 * 60_000 - 15_001);
+    assert.equal(checks, 1);
+    t.mock.timers.tick(1);
+    assert.equal(checks, 2);
+    await new Promise(setImmediate);
+    t.mock.timers.tick(60 * 60_000);
+    assert.equal(checks, 3);
+    controller.dispose();
+    t.mock.timers.tick(60 * 60_000);
+    assert.equal(checks, 3);
+  } finally {
+    controller.dispose();
+  }
+});
+
 for (const platform of ["win32", "darwin"]) {
   test(`${platform}: download, progress, restart uses the correct installer mode`, async () => {
     const updater = new FakeUpdater();
