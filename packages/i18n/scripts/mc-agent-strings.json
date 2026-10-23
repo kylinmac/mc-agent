@@ -1634,6 +1634,11 @@
     "zh-CN": "模板「{{name}}」· 全局默认",
     "zh-TW": "範本「{{name}}」· 全域預設"
   },
+  "promptAppliedSession": {
+    "en": "template “{{name}}” · chosen for this conversation",
+    "zh-CN": "模板「{{name}}」· 本对话指定",
+    "zh-TW": "範本「{{name}}」· 本對話指定"
+  },
   "promptEdit": {
     "en": "Edit",
     "zh-CN": "编辑",
@@ -3448,6 +3453,16 @@
     "en": "Follow the defaults",
     "zh-CN": "跟随默认",
     "zh-TW": "跟隨預設"
+  },
+  "sessionPromptLabel": {
+    "en": "System prompt",
+    "zh-CN": "系统提示词",
+    "zh-TW": "系統提示詞"
+  },
+  "sessionPromptTooltip": {
+    "en": "System prompt template for this conversation (new conversations only)",
+    "zh-CN": "本对话使用的系统提示词模板（仅新对话可选）",
+    "zh-TW": "本對話使用的系統提示詞範本（僅新對話可選）"
   },
   "projectPromptLoading": {
     "en": "Loading templates…",
