@@ -1,167 +1,33 @@
-# mc-agent: build the Windows x64 packages of a release and attach them to it.
-#
-# The macOS build is made locally by scripts/mc-release.mjs, which creates the
-# tag and the GitHub Release. This workflow is started by hand afterwards
-# (Actions → "mc-agent Windows" → Run workflow, or
-# `gh workflow run mc-windows.yml -f version=1.0.4`), builds on a native
-# Windows runner from that tag, and uploads the installer, the portable exe,
-# the zip and the updater feed (latest.yml) to the same release.
-#
-# Computer Use includes its Windows helper and stays off until enabled.
-# Builds are unsigned, so Windows SmartScreen warns on first launch.
-
-name: mc-agent Windows
-
+name: Carry unchanged macOS release assets
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release version without the v, e.g. 1.0.4 (the tag v<version> must exist)'
-        required: true
-        type: string
-      ref:
-        description: 'Build this branch or commit instead of the tag (for a test build; leave upload off)'
-        required: false
-        default: ''
-        type: string
-      upload:
-        description: 'Attach the packages to the release (off: build only, keep them as a workflow artifact)'
-        required: false
-        default: true
-        type: boolean
-
 permissions:
-  contents: read
-
-concurrency:
-  group: mc-windows-${{ inputs.version }}
-  cancel-in-progress: false
-
+  contents: write
 jobs:
-  build:
-    name: Build Windows x64
-    runs-on: windows-latest
-    timeout-minutes: 60
-    defaults:
-      run:
-        shell: bash
-    env:
-      VERSION: ${{ inputs.version }}
-    steps:
-      - name: Check the version
-        run: |
-          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::version must look like 1.0.4, got '$VERSION'"
-            exit 1
-          fi
-
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.ref || format('v{0}', inputs.version) }}
-
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Build host-core and workspace packages
-        run: |
-          set -euo pipefail
-          cargo build --release --locked -p host-core &
-          host_build_pid=$!
-          trap 'kill "$host_build_pid" 2>/dev/null || true' EXIT
-          pnpm install --frozen-lockfile
-          pnpm --filter '@pi-desktop/desktop^...' --fail-if-no-match build
-          wait "$host_build_pid"
-          trap - EXIT
-
-      - name: Build and test Windows Computer Use helper
-        run: |
-          node scripts/build-mc-computer.mjs --release
-          cargo test -p mc-computer --locked
-
-      - name: Verify the Windows installer and silent upgrade
-        run: node scripts/e2e-windows-installer.mjs
-
-      - name: Bundle the runtime and the app
-        working-directory: apps/desktop
-        run: |
-          set -euo pipefail
-          pnpm run bundle:runtime
-          pnpm exec electron-vite build
-
-      - name: Package (installer, zip, portable)
-        working-directory: apps/desktop
-        # Branded Setup is the primary download; NSIS handles in-app updates.
-        # Portable EXE / ZIP remain separate optional distributions.
-        run: |
-          set -euo pipefail
-          node ../../scripts/build-desktop-release.mjs win --x64 \
-            "-c.extraMetadata.version=$VERSION"
-
-      - name: Verify the packages
-        working-directory: apps/desktop/release
-        run: |
-          set -euo pipefail
-          ls -la
-          for file in "mc-agent-Setup-$VERSION.exe" "mc-agent-Update-$VERSION.exe" "mc-agent-Update-$VERSION.exe.blockmap" \
-                      "mc-agent-Portable-$VERSION.exe" "mc-agent-Portable-$VERSION.zip" latest.yml; do
-            [[ -f "$file" ]] || { echo "::error::missing $file"; exit 1; }
-          done
-          grep -q "^version: $VERSION$" latest.yml || { echo "::error::latest.yml is not at $VERSION"; exit 1; }
-          [[ -f win-unpacked/mc-agent.exe ]] || { echo "::error::win-unpacked/mc-agent.exe missing"; exit 1; }
-          [[ -f win-unpacked/resources/bin/pi-desktop-host-core.exe ]] || { echo "::error::host-core missing"; exit 1; }
-          [[ -f win-unpacked/resources/plugins/mc.computer-use/bin/mc-computer.exe ]] || { echo "::error::Computer Use helper missing"; exit 1; }
-          win-unpacked/resources/plugins/mc.computer-use/bin/mc-computer.exe --version
-          node -e '
-            const asar = require("module").createRequire(require("path").resolve("../package.json"))("@electron/asar");
-            const pkg = JSON.parse(asar.extractFile("win-unpacked/resources/app.asar", "package.json").toString());
-            if (pkg.version !== process.env.VERSION) throw new Error("app reports " + pkg.version);
-            if (pkg.mcUpdateDelivery === "notify") throw new Error("Windows must use NSIS updates");
-            const requireDesktop = require("module").createRequire(require("path").resolve("../package.json"));
-            const requireUpdater = require("module").createRequire(requireDesktop.resolve("electron-updater"));
-            const feed = requireUpdater("js-yaml").load(require("fs").readFileSync("latest.yml", "utf8"));
-            const expected = `mc-agent-Update-${process.env.VERSION}.exe`;
-            const digest = require("crypto").createHash("sha512").update(require("fs").readFileSync(expected)).digest("base64");
-            if (feed.path !== expected || feed.sha512 !== digest || !feed.files.some(file => file.url === expected && file.sha512 === digest)) throw new Error("Invalid Windows update feed");
-            console.log("app.asar at", pkg.version, pkg.piDistribution);
-          '
-
-      - name: Keep the packages as a workflow artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: mc-agent-windows-x64-${{ inputs.version }}
-          if-no-files-found: error
-          compression-level: 0
-          path: |
-            apps/desktop/release/*.exe
-            apps/desktop/release/*.exe.blockmap
-            apps/desktop/release/*.zip
-            apps/desktop/release/latest.yml
-
-  upload:
-    name: Attach to release v${{ inputs.version }}
-    needs: build
-    if: inputs.upload && inputs.ref == ''
+  copy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    timeout-minutes: 15
     steps:
-      - uses: actions/download-artifact@v8
-        with:
-          name: mc-agent-windows-x64-${{ inputs.version }}
-          path: dist
-
-      - name: Upload
+      - name: Copy verified original macOS assets into the draft release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: kylinmac/mc-agent
         run: |
           set -euo pipefail
-          ls -la dist
-          gh release upload "v${{ inputs.version }}" dist/* --repo "${{ github.repository }}" --clobber
+          test "$(gh release view v1.0.11 --json isDraft --jq .isDraft)" = true
+          mkdir assets
+          gh release view v1.0.10 --json assets > manifest.json
+          gh release download v1.0.10 --dir assets --pattern 'latest-mac.yml' --pattern '*arm64*'
+          python3 - <<'PY'
+          import hashlib, json, pathlib
+          manifest = json.loads(pathlib.Path('manifest.json').read_text())['assets']
+          paths = list(pathlib.Path('assets').iterdir())
+          assert len(paths) == 5, paths
+          for path in paths:
+              expected = next(a for a in manifest if a['name'] == path.name)
+              digest = 'sha256:' + hashlib.sha256(path.read_bytes()).hexdigest()
+              assert path.stat().st_size == expected['size'], path.name
+              assert digest == expected['digest'], path.name
+              print(path.name, digest)
+          PY
+          gh release upload v1.0.11 assets/*
