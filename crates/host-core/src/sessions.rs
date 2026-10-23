@@ -1922,6 +1922,7 @@ pub fn delete_session(db: &Database, id: &str) -> Result<bool> {
         // Here rather than in the RPC handler so every deletion path (UI,
         // failed scheduled-run cleanup) also drops the transcript files.
         transcripts::remove_session_files(db.data_dir(), id);
+        crate::mc_prompts::clear_session_template(db, id);
     }
     Ok(n > 0)
 }

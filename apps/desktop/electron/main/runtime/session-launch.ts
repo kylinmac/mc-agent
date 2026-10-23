@@ -505,11 +505,19 @@ export function createSessionLaunchRuntime({
         }
       }
     }
-    // mc-agent (MC-ADR-0010): a matching template (project, else model, else
-    // global) applies whole, in place of SYSTEM.md / APPEND_SYSTEM.md.
+    // mc-agent (MC-ADR-0010): a matching template (the one picked for this
+    // conversation, else project, else model, else global) applies whole, in
+    // place of SYSTEM.md / APPEND_SYSTEM.md.
     try {
       const { config } = await runtimeState.host!.call<{ config: PromptConfig }>("mcPrompts.get", {});
-      const resolved = resolvePromptTemplate(config, { projectPaths: projectRoots, modelId });
+      const sessionTemplateId = await runtimeState
+        .host!.call<{ templateId?: string | null }>("mcPrompts.sessionGet", { sessionId })
+        .then((result) => result.templateId ?? null, () => null);
+      const resolved = resolvePromptTemplate(config, {
+        projectPaths: projectRoots,
+        modelId,
+        sessionTemplateId,
+      });
       rememberPromptMatch(sessionId, resolved);
       if (resolved) customSystemPrompt = templatePrompt(resolved.template);
     } catch {

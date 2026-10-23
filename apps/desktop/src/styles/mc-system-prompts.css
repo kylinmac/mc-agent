@@ -95,3 +95,21 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* Composer chip that picks the template for a new conversation. */
+.composer-prompt-template .composer-prompt-template-label {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-permission-menu.composer-prompt-template-menu {
+  width: min(240px, calc(100vw - 24px));
+}
+
+.composer-prompt-template-menu .composer-plus-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

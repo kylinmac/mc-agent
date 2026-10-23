@@ -15,6 +15,8 @@ use crate::db::{now_ms, Database};
 
 const NAMESPACE: &str = "mc.systemPrompts";
 const KEY: &str = "config";
+/// One entry per conversation: the template chosen when it was started.
+const SESSION_NAMESPACE: &str = "mc.sessionPrompt";
 
 pub const MAX_TEMPLATES: usize = 50;
 pub const MAX_RULES: usize = 200;
@@ -162,6 +164,56 @@ pub fn set(db: &Database, value: Value) -> Result<PromptConfig> {
     Ok(config)
 }
 
+/// The template a conversation was started with. `None` when none was chosen
+/// or the template has since been deleted, so the project, model and global
+/// rules apply as before.
+pub fn session_template(db: &Database, session_id: &str) -> Result<Option<String>> {
+    let Some(value) = db.kv_get(SESSION_NAMESPACE, session_id)? else {
+        return Ok(None);
+    };
+    let Some(id) = value.get("templateId").and_then(Value::as_str) else {
+        return Ok(None);
+    };
+    Ok(get(db)?
+        .templates
+        .iter()
+        .any(|template| template.id == id)
+        .then(|| id.to_string()))
+}
+
+/// Chooses (or with `None` clears) the template for one local conversation.
+pub fn set_session_template(
+    db: &Database,
+    session_id: &str,
+    template_id: Option<&str>,
+) -> Result<Option<String>> {
+    if session_id.is_empty() || session_id.len() > 128 {
+        return Err(invalid("invalid session id"));
+    }
+    if crate::sessions::session_summary(db, session_id)?.is_none() {
+        return Err(invalid("session not found"));
+    }
+    let Some(id) = template_id.map(str::trim).filter(|id| !id.is_empty()) else {
+        db.kv_delete(SESSION_NAMESPACE, session_id)?;
+        return Ok(None);
+    };
+    if !get(db)?.templates.iter().any(|template| template.id == id) {
+        return Err(invalid(format!("unknown template {id}")));
+    }
+    db.kv_set(
+        SESSION_NAMESPACE,
+        session_id,
+        &serde_json::json!({ "templateId": id, "updatedAt": now_ms() }),
+    )?;
+    Ok(Some(id.to_string()))
+}
+
+/// Drops the choice of a deleted conversation. Best effort: a leftover entry
+/// is harmless because it is only read through an existing session.
+pub fn clear_session_template(db: &Database, session_id: &str) {
+    let _ = db.kv_delete(SESSION_NAMESPACE, session_id);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -220,5 +272,86 @@ mod tests {
         )
         .is_err());
         assert!(set(&db, json!({ "templates": [{ "id": "x", "name": "" }] })).is_err());
+    }
+
+    #[test]
+    fn a_conversation_keeps_its_own_template_choice() {
+        let (_dir, db) = db();
+        set(
+            &db,
+            json!({ "templates": [{ "id": "terse", "name": "Terse" }, { "id": "wordy", "name": "Wordy" }] }),
+        )
+        .unwrap();
+        let session = crate::sessions::create_session_with_options(
+            &db,
+            crate::sessions::SessionCreateOptions::default(),
+        )
+        .unwrap();
+        let other = crate::sessions::create_session_with_options(
+            &db,
+            crate::sessions::SessionCreateOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(session_template(&db, &session.id).unwrap(), None);
+        assert_eq!(
+            set_session_template(&db, &session.id, Some("terse")).unwrap(),
+            Some("terse".to_string())
+        );
+        assert_eq!(
+            session_template(&db, &session.id).unwrap(),
+            Some("terse".to_string())
+        );
+        assert_eq!(session_template(&db, &other.id).unwrap(), None);
+        // Changing the choice replaces it; an empty id goes back to the defaults.
+        set_session_template(&db, &session.id, Some("wordy")).unwrap();
+        assert_eq!(
+            session_template(&db, &session.id).unwrap(),
+            Some("wordy".to_string())
+        );
+        assert_eq!(
+            set_session_template(&db, &session.id, Some("")).unwrap(),
+            None
+        );
+        assert_eq!(session_template(&db, &session.id).unwrap(), None);
+    }
+
+    #[test]
+    fn rejects_unknown_templates_and_sessions_and_ignores_deleted_templates() {
+        let (_dir, db) = db();
+        set(
+            &db,
+            json!({ "templates": [{ "id": "terse", "name": "Terse" }] }),
+        )
+        .unwrap();
+        let session = crate::sessions::create_session_with_options(
+            &db,
+            crate::sessions::SessionCreateOptions::default(),
+        )
+        .unwrap();
+        assert!(set_session_template(&db, &session.id, Some("missing")).is_err());
+        assert!(set_session_template(&db, "no-such-session", Some("terse")).is_err());
+        assert!(set_session_template(&db, "", None).is_err());
+        set_session_template(&db, &session.id, Some("terse")).unwrap();
+        // Deleting the template makes the stored choice inert.
+        set(&db, json!({ "templates": [] })).unwrap();
+        assert_eq!(session_template(&db, &session.id).unwrap(), None);
+    }
+
+    #[test]
+    fn deleting_a_conversation_drops_its_template_choice() {
+        let (_dir, db) = db();
+        set(
+            &db,
+            json!({ "templates": [{ "id": "terse", "name": "Terse" }] }),
+        )
+        .unwrap();
+        let session = crate::sessions::create_session_with_options(
+            &db,
+            crate::sessions::SessionCreateOptions::default(),
+        )
+        .unwrap();
+        set_session_template(&db, &session.id, Some("terse")).unwrap();
+        assert!(crate::sessions::delete_session(&db, &session.id).unwrap());
+        assert_eq!(db.kv_get(SESSION_NAMESPACE, &session.id).unwrap(), None);
     }
 }

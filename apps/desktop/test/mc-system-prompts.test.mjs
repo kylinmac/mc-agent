@@ -69,3 +69,17 @@ test("an empty template part keeps the default", () => {
   assert.deepEqual(templatePrompt(template("y", "persona", "")), { replace: "persona" });
   assert.deepEqual(templatePrompt(template("z")), {});
 });
+
+test("the template chosen for a conversation beats project, model and global rules", () => {
+  const context = { projectPaths: ["/work/app"], modelId: "claude-opus-5" };
+  const chosen = resolvePromptTemplate(config, { ...context, sessionTemplateId: "sonnet" });
+  assert.deepEqual([chosen.template.id, chosen.match.kind], ["sonnet", "session"]);
+  // No choice, or a choice whose template was deleted: the rules decide as before.
+  assert.equal(resolvePromptTemplate(config, { ...context, sessionTemplateId: null }).match.kind, "project");
+  assert.equal(resolvePromptTemplate(config, { ...context, sessionTemplateId: "gone" }).match.kind, "project");
+  // It applies even where no rule would match at all.
+  assert.equal(
+    resolvePromptTemplate({ ...config, globalTemplateId: null }, { projectPaths: [], sessionTemplateId: "claude" }).template.id,
+    "claude",
+  );
+});
