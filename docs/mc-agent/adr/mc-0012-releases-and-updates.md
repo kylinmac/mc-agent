@@ -28,3 +28,5 @@
 
 - 取得 Developer ID 证书后：签名、公证，并恢复应用内自动更新。
 - 需要 Intel 或其他平台安装包时扩展脚本。
+
+2026-10-23：[R16 云端发布](../cloud-release.md) 将正式发布迁移到 GitHub Actions。原本机脚本保留为构建、验证及应急工具；云端沿用其 ad-hoc 打包校验，统一等待 Windows 和 macOS 完成后发布。

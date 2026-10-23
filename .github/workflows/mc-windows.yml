@@ -1,7 +1,7 @@
 # mc-agent: build the Windows x64 packages of a release and attach them to it.
 #
-# The macOS build is made locally by scripts/mc-release.mjs, which creates the
-# tag and the GitHub Release. This workflow is started by hand afterwards
+# The unified mc-release.yml workflow calls this build without uploading.
+# This workflow can also be started by hand for a standalone Windows build
 # (Actions → "mc-agent Windows" → Run workflow, or
 # `gh workflow run mc-windows.yml -f version=1.0.4`), builds on a native
 # Windows runner from that tag, and uploads the installer, the portable exe,
@@ -13,6 +13,17 @@
 name: mc-agent Windows
 
 on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      ref:
+        default: ''
+        type: string
+      upload:
+        default: false
+        type: boolean
   workflow_dispatch:
     inputs:
       version:
