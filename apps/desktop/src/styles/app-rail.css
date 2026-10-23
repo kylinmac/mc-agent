@@ -24,7 +24,7 @@
   background: var(--mc-chrome-bg);
 }
 
-:root[data-platform="win32"] .app-rail [data-nav="rail-home"],
+:root[data-platform="win32"] .sidebar-header > .brand,
 :root[data-platform="win32"] .sidebar-header-actions,
 :root[data-platform="win32"] .conversation-topbar .ct-lead,
 :root[data-platform="win32"] .conversation-topbar [data-nav="search"],
@@ -34,12 +34,23 @@
 }
 
 :root[data-platform="win32"] .sidebar-header {
-  padding-left: 60px;
+  /* Padding leaves a draggable rectangle behind the search button. Move the
+     rectangle itself, so native caption hit testing cannot eat the click. */
+  margin-left: 60px;
+  min-width: 0;
+  padding-left: 0;
 }
 
 :root[data-platform="win32"] .app-shell.sidebar-collapsed .conversation-topbar,
 :root[data-platform="win32"] .app-shell.sidebar-collapsed .main-titlebar {
-  padding-left: 60px;
+  inset-inline-start: 60px;
+  padding-left: 0;
+}
+
+:root[data-platform="win32"] .app-rail-drag,
+:root[data-platform="win32"] .mc-windows-titlebar-actions button {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
 :root[data-platform="win32"] .app-shell.sidebar-collapsed > .app-chat-shell > .window-chrome-row {

@@ -1,6 +1,6 @@
 # mc-agent 项目工作台原型
 
-[P11 Windows 左侧标题栏](windows-titlebar.md)：收缩、通知、搜索固定在左侧；移除竖栏首页小块。macOS 保持原样（R11.12；V51）。
+[P11 Windows 左侧标题栏](windows-titlebar.md)：收缩、通知、搜索固定在左侧；保留竖栏小房子，移除顶部 mc-agent 品牌按钮。macOS 保持原样（R11.12；V51；2026-10-23 澄清）。
 
 状态：低保真评审草案，不是可运行页面。继承 PI-Desktop 现有会话、设置、审批和 Work Panel；下面只画新增项目管理入口。对应[需求文档](requirements.md) R1–R9。
 

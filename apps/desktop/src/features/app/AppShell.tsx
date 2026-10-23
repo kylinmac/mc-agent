@@ -156,10 +156,6 @@ export function AppShell() {
             className="app-chat-shell"
           >
             <AppRail />
-            {window.piDesktop?.platform === "win32" && (
-              <WindowsTitlebarActions collapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar}
-                onOpenSearch={() => setSearchOpen(true)} />
-            )}
             {!sidebarCollapsed || sidebarExiting ? (
               <Sidebar
                 className={cx(sidebarEntering && "is-entering", sidebarExiting && "is-exiting")}
@@ -356,6 +352,10 @@ export function AppShell() {
               </Suspense>
             )}
 
+            {window.piDesktop?.platform === "win32" && (
+              <WindowsTitlebarActions collapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar}
+                onOpenSearch={() => setSearchOpen(true)} />
+            )}
             <TooltipButton
               type="button"
               className="app-work-panel-toggle no-drag"
