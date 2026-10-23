@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { IPC } from "@pi-desktop/shared";
@@ -101,7 +101,7 @@ test("concurrent starts for one tab share a shell, and quitting kills every shel
   assert.equal(manager.size, 0);
 });
 
-test("the login shell comes from $SHELL", { skip: process.platform === "win32" }, () => {
+test("the login shell comes from $SHELL", { skip: process.platform === "win32" || !existsSync("/bin/zsh") }, () => {
   assert.deepEqual(resolveShell({ SHELL: "/bin/zsh" }), { shell: "/bin/zsh", args: ["-l"] });
 });
 

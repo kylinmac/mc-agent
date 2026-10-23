@@ -33,7 +33,7 @@ test("mc-agent: the running bundle is found from the executable path", () => {
   assert.equal(bundleOf("/usr/local/bin/node"), null);
 });
 
-test("mc-agent: the install script waits for the app, swaps the bundle and keeps the old one on failure", () => {
+test("mc-agent: the install script waits for the app, swaps the bundle and keeps the old one on failure", { skip: process.platform !== "darwin" || !existsSync("/usr/bin/ditto") }, () => {
   const root = mkdtempSync(join(tmpdir(), "mc-self-update-"));
   try {
     const target = join(root, "Apps", "mc-agent.app");
