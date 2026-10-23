@@ -108,7 +108,7 @@ describe("createHeadlessLaunchResolver", () => {
     expect(folders?.split("\n").slice(0, 4)).toEqual([
       "Project folders:",
       '- Start folder. Workspace "server": /work/server — 后端 API',
-      "- Resource folder (project documents): /docs/App",
+      "- Resource folder (project documents): /docs/App — read RESOURCES.md there first; it lists every document with a summary and its status",
       '- Workspace "web": /work/web — 前端',
     ]);
   });
