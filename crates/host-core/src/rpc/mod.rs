@@ -3145,6 +3145,37 @@ async fn handle_request(
                 .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
             Ok(json!({ "config": config }))
         }
+        // The template chosen for one conversation when it was started.
+        "mcPrompts.sessionGet" => {
+            let session_id = params
+                .get("sessionId")
+                .and_then(Value::as_str)
+                .ok_or_else(|| rpc_err(1002, "sessionId required", "INVALID_PARAMS"))?;
+            let st = state.lock().await;
+            let template_id = crate::mc_prompts::session_template(&st.db, session_id)
+                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
+            Ok(json!({ "templateId": template_id }))
+        }
+        "mcPrompts.sessionSet" => {
+            let session_id = params
+                .get("sessionId")
+                .and_then(Value::as_str)
+                .ok_or_else(|| rpc_err(1002, "sessionId required", "INVALID_PARAMS"))?;
+            let template_id = params.get("templateId").and_then(Value::as_str);
+            let st = state.lock().await;
+            let template_id =
+                crate::mc_prompts::set_session_template(&st.db, session_id, template_id).map_err(
+                    |e| {
+                        let message = e.to_string();
+                        if message.starts_with("INVALID_PARAMS") {
+                            rpc_err(1002, message, "INVALID_PARAMS")
+                        } else {
+                            rpc_err(1000, message, "INTERNAL")
+                        }
+                    },
+                )?;
+            Ok(json!({ "templateId": template_id }))
+        }
         "mcPrompts.set" => {
             let value = params
                 .get("config")

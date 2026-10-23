@@ -26,4 +26,24 @@ export function registerMcPromptsIpc({
     if (!input?.config || typeof input.config !== "object") throw invalid("config required");
     return host.call("mcPrompts.set", { config: input.config });
   });
+  // The template chosen for one conversation; the id is checked by host-core.
+  registrar.handle(IPC.invoke.mcPromptsSessionGet, async (input: { sessionId?: unknown } = {}) => {
+    const host = getHost();
+    if (!host) throw new Error("host unavailable");
+    if (typeof input?.sessionId !== "string" || !input.sessionId) throw invalid("sessionId required");
+    return host.call("mcPrompts.sessionGet", { sessionId: input.sessionId });
+  });
+  registrar.handle(
+    IPC.invoke.mcPromptsSessionSet,
+    async (input: { sessionId?: unknown; templateId?: unknown } = {}) => {
+      const host = getHost();
+      if (!host) throw new Error("host unavailable");
+      if (typeof input?.sessionId !== "string" || !input.sessionId) throw invalid("sessionId required");
+      if (input.templateId != null && typeof input.templateId !== "string") throw invalid("templateId must be a string");
+      return host.call("mcPrompts.sessionSet", {
+        sessionId: input.sessionId,
+        templateId: input.templateId ?? null,
+      });
+    },
+  );
 }

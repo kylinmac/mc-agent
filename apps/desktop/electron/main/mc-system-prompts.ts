@@ -2,8 +2,9 @@
   mc-agent: which system prompt template a conversation uses (MC-ADR-0010).
 
   Templates and their rules live in host-core (`mcPrompts.get`). Exactly one
-  template applies, whole, to a conversation: the project's, else the model's,
-  else the global default. "Project" rules match folders, not project ids: a
+  template applies, whole, to a conversation: the one chosen for that
+  conversation when it was started (`mcPrompts.sessionGet`), else the
+  project's, else the model's, else the global default. "Project" rules match folders, not project ids: a
   rule for the conversation's start folder wins, then a rule for any other
   folder of its project, each in the order the rules are listed. Without one, the pi-compatible SYSTEM.md /
   APPEND_SYSTEM.md files and then the built-in prompt apply as before. A
@@ -22,6 +23,7 @@ export type PromptConfig = {
 };
 
 export type PromptMatch =
+  | { kind: "session" }
   | { kind: "project"; path: string }
   | { kind: "model"; pattern: string }
   | { kind: "global" };
@@ -57,10 +59,14 @@ export function resolvePromptTemplate(
      */
     projectPaths: readonly string[];
     modelId?: string | null;
+    /** The template picked for this conversation; ignored once it is deleted. */
+    sessionTemplateId?: string | null;
   },
 ): ResolvedPromptTemplate | null {
   if (!config) return null;
   const byId = new Map(config.templates.map((template) => [template.id, template]));
+  const chosen = context.sessionTemplateId ? byId.get(context.sessionTemplateId) : undefined;
+  if (chosen) return { template: chosen, match: { kind: "session" } };
   const [start = "", ...others] = context.projectPaths.map(normalizePath);
   const rest = new Set(others.filter(Boolean));
   const usable = config.projectRules.filter((rule) => byId.has(rule.templateId));

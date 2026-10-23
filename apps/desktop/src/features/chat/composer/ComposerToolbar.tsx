@@ -12,6 +12,7 @@ import type { AppState } from "../../../stores/app-store";
 import { ComposerPermissionPicker } from "./ComposerPermissionPicker";
 import { ContextUsageInspector } from "../../../components/ContextUsageInspector";
 import { ComposerControlSlots } from "./ComposerControlSlots";
+import { ComposerPromptTemplatePicker } from "./ComposerPromptTemplatePicker";
 import { TooltipButton } from "../../../components/ui";
 import {
   IconArrowUp,
@@ -181,6 +182,16 @@ export function ComposerToolbar({
                   });
                 }
           }} />
+        {localToolsAllowed && workSessionId ? (
+          <ComposerPromptTemplatePicker
+            sessionId={workSessionId}
+            controlsBlocked={controlsBlocked}
+            onCloseOtherMenus={() => {
+              modelMenu.setOpen(false);
+              setPermissionOpen(false);
+            }}
+          />
+        ) : null}
         {localToolsAllowed ? <ComposerControlSlots side="left" /> : null}
       </div>
 

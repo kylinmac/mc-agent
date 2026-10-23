@@ -268,7 +268,11 @@ export type SessionSystemPrompt = {
   /** The template the conversation's launch applied, if any (MC-ADR-0010). */
   template?: {
     templateName: string;
-    match: { kind: "project"; path: string } | { kind: "model"; pattern: string } | { kind: "global" };
+    match:
+      | { kind: "session" }
+      | { kind: "project"; path: string }
+      | { kind: "model"; pattern: string }
+      | { kind: "global" };
   } | null;
 };
 

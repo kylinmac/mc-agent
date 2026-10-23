@@ -922,6 +922,11 @@ export const api = {
   getSystemPromptConfig: () => invoke<{ config: SystemPromptConfig }>(IPC.invoke.mcPromptsGet),
   setSystemPromptConfig: (config: SystemPromptConfig) =>
     invoke<{ config: SystemPromptConfig }>(IPC.invoke.mcPromptsSet, { config }),
+  /** The system prompt template chosen for one conversation (null = follow the rules). */
+  getSessionPromptTemplate: (sessionId: string) =>
+    invoke<{ templateId: string | null }>(IPC.invoke.mcPromptsSessionGet, { sessionId }),
+  setSessionPromptTemplate: (sessionId: string, templateId: string | null) =>
+    invoke<{ templateId: string | null }>(IPC.invoke.mcPromptsSessionSet, { sessionId, templateId }),
   sessionSuggestPrompt: (sessionId: string) =>
     invoke<{ text: string | null }>(IPC.invoke.sessionSuggestPrompt, { sessionId }),
   sessionSystemPrompt: (sessionId: string) =>

@@ -203,6 +203,9 @@ export const IPC = {
     sessionSuggestPrompt: "pi-desktop/session-info/suggest-prompt",
     mcPromptsGet: "pi-desktop/mc-prompts/get",
     mcPromptsSet: "pi-desktop/mc-prompts/set",
+    // mc-agent: the template chosen for one conversation when it was started.
+    mcPromptsSessionGet: "pi-desktop/mc-prompts/session-get",
+    mcPromptsSessionSet: "pi-desktop/mc-prompts/session-set",
     mcUsageSummary: "pi-desktop/mc-usage/summary",
     // mc-agent: macOS system permissions page (X-PERM-02).
     macPermissionsCheck: "pi-desktop/mac-permissions/check",

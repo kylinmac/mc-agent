@@ -60,7 +60,7 @@ mc-agent 新增功能（R1–R10）的代码见文末“mc-agent 项目管理”
 | 传输重试、代理 | `packages/agent-runtime/src/provider-retry.ts`、`packages/agent-runtime/src/provider-transport-recovery.ts`、`packages/agent-runtime/src/socks5.ts`、`packages/agent-runtime/src/system-proxy-relay.ts` |
 | 从 Claude / Codex / OpenCode / Pi 导入 | `apps/desktop/electron/main/importers/` |
 | 导入项目与对话（mc） | 界面 `apps/desktop/src/features/project-import/`（`ProjectImportDialog.tsx`、`import-model.ts`），入口在 `components/Sidebar.tsx`；PI-Desktop 来源 `electron/main/importers/pi-desktop.ts` → host-core `src/mc_import.rs`（`mcImport.*`）；通道 `ipc/session-ipc.ts` 的 `sessionImportScan/Run` |
-| 系统提示词（mc） | 查看器 `apps/desktop/src/features/session-info/SystemPromptDialog.tsx`（运行时 `systemPromptView`、sidecar `agent.systemPrompt`）；模板设置页 `src/features/settings/SystemPromptsPage.tsx`；存储 host-core `src/mc_prompts.rs`（`mcPrompts.*`）；匹配 `electron/main/mc-system-prompts.ts`，在 `runtime/session-launch.ts` 应用 |
+| 系统提示词（mc） | 查看器 `apps/desktop/src/features/session-info/SystemPromptDialog.tsx`（运行时 `systemPromptView`、sidecar `agent.systemPrompt`）；模板设置页 `src/features/settings/SystemPromptsPage.tsx`；存储 host-core `src/mc_prompts.rs`（`mcPrompts.*`）；匹配 `electron/main/mc-system-prompts.ts`，在 `runtime/session-launch.ts` 应用；新建对话的模板选择器 `src/features/chat/composer/ComposerPromptTemplatePicker.tsx`（`mcPrompts.sessionGet / sessionSet`） |
 | 用量统计（mc） | host-core `src/mc_usage.rs`（`mcUsage.summary`）；页面 `apps/desktop/src/features/settings/UsagePage.tsx`、`usage-model.ts`；通道在 `ipc/mc-usage-ipc.ts` |
 
 ## 工具、权限、工作区

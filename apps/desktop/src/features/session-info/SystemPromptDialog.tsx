@@ -108,7 +108,9 @@ export function SystemPromptDialog({ sessionId, onClose }: { sessionId: string; 
                 ? [
                     t("mcProject.systemPromptSize", { chars: full.length.toLocaleString() }),
                     prompt.template
-                      ? prompt.template.match.kind === "project"
+                      ? prompt.template.match.kind === "session"
+                        ? t("mcProject.promptAppliedSession", { name: prompt.template.templateName })
+                        : prompt.template.match.kind === "project"
                         ? t("mcProject.promptAppliedProject", {
                             name: prompt.template.templateName,
                             path: prompt.template.match.path,
