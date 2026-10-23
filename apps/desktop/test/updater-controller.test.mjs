@@ -184,3 +184,35 @@ test("a restored dismissal blocks that release and a newer release resumes autom
   assert.deepEqual(persisted, [null]);
   controller.dispose();
 });
+
+// mc-agent: a downloaded update must not stop later checks, or a restart
+// installs an older release than the newest one.
+test("a newer release replaces an update that is waiting for a restart", async () => {
+  const updater = new FakeUpdater();
+  const { controller } = createController({ updater, platform: "win32", distribution: "installed" });
+  try {
+    await controller.check();
+    updater.emit("update-downloaded", { version: "0.16.1" });
+    assert.equal(controller.getState().status, "downloaded");
+
+    // The same release again: still ready to install, nothing downloaded twice.
+    await controller.check();
+    assert.equal(controller.getState().status, "downloaded");
+    assert.equal(controller.getState().availableVersion, "0.16.1");
+
+    // A failed re-check leaves it installable.
+    updater.emit("error", new Error("offline"));
+    assert.equal(controller.getState().status, "downloaded");
+
+    updater.nextVersion = "0.16.3";
+    await controller.check();
+    assert.equal(controller.getState().availableVersion, "0.16.3");
+    assert.equal(controller.getState().status, "downloading");
+    assert.equal(updater.downloadStarts.at(-1), "0.16.3");
+    updater.emit("update-downloaded", { version: "0.16.3" });
+    controller.install();
+    assert.deepEqual(updater.installs, [[true, true]]);
+  } finally {
+    controller.dispose();
+  }
+});

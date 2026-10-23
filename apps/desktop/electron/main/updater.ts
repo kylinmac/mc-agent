@@ -550,9 +550,15 @@ export class AppUpdaterController {
     };
 
     this.autoUpdater.on("checking-for-update", () => {
+      // mc-agent: a downloaded update stays ready while the feed is re-read.
+      if (this.state.status === "downloaded") return;
       this.setState({ status: "checking", error: undefined });
     });
     this.autoUpdater.on("update-available", (info: UpdateInfo) => {
+      // mc-agent: the version already downloaded; it stays ready to install.
+      // A newer one replaces it below, so a restart installs the latest.
+      if (this.state.status === "downloaded" && info.version === this.state.availableVersion) return;
+      const replacingDownload = this.state.status === "downloaded";
       // A newly discovered version supersedes any earlier dismissal.
       if (this.dismissedVersion && this.dismissedVersion !== info.version) {
         this.dismissedVersion = undefined;
@@ -572,8 +578,12 @@ export class AppUpdaterController {
           ? false
           : this.manualReminderFor(info.version),
       });
+      // The macOS self-updater was already asked to download: fetch the newer
+      // version in place of the one waiting for a restart.
+      if (replacingDownload && this.selfUpdate && !dismissed) void this.selfDownload(this.selfUpdate);
     });
     this.autoUpdater.on("update-not-available", () => {
+      if (this.state.status === "downloaded") return;
       this.setState({
         status: "up-to-date",
         availableVersion: undefined,
@@ -627,6 +637,7 @@ export class AppUpdaterController {
       });
     });
     this.autoUpdater.on("error", (error: Error) => {
+      const installing = this.installRequested;
       if (this.installRequested) {
         this.installRequested = false;
         this.autoUpdater.autoInstallOnAppQuit = false;
@@ -634,6 +645,8 @@ export class AppUpdaterController {
       // Auto checks fail quietly (offline, private repo, rate limits);
       // the renderer only surfaces errors when `manual` is set.
       this.logger.app("updater", "warn", "updater error", { data: String(error) });
+      // mc-agent: a failed re-check leaves a downloaded update installable.
+      if (this.state.status === "downloaded" && !installing) return;
       this.setState({ status: "error", error: error.message });
     });
   }
@@ -665,11 +678,10 @@ export class AppUpdaterController {
     if (this.state.mode === "disabled") {
       throw new Error("updates are disabled in development builds");
     }
-    if (
-      this.state.status === "checking" ||
-      this.state.status === "downloading" ||
-      this.state.status === "downloaded"
-    ) {
+    // mc-agent: a downloaded update does not stop the checks. A release that
+    // came out after it replaces it, so the restart installs the newest one
+    // instead of stepping through every version in between.
+    if (this.state.status === "checking" || this.state.status === "downloading") {
       return this.state;
     }
     this.manualRequested = Boolean(options.manual);
