@@ -58,7 +58,7 @@ function setResizing(surface: HTMLElement | null, on: boolean) {
 }
 
 /**
- * Dual edge handles for the centered conversation band (D439). Both sides
+ * Dual panel-edge handles for the centered conversation band (R11.13). Both sides
  * change one preferred max-width; the live band is `min(100%, preferred)`.
  */
 export function ConversationWidthHandles() {

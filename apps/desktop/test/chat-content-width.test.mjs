@@ -22,10 +22,17 @@ test("chat surface mounts dual width handles", () => {
   assert.match(handleSource, /nav\.resizeChatWidth/);
 });
 
-test("chat width handles are invisible at rest and show a quiet capsule on hover", () => {
+test("chat width handles stay on the outer panel edges and highlight the boundary", () => {
+  const left = styles.match(/\.chat-width-handle-left\s*\{[\s\S]*?\}/)?.[0] ?? "";
+  const right = styles.match(/\.chat-width-handle-right\s*\{[\s\S]*?\}/)?.[0] ?? "";
+  assert.match(left, /left:\s*0/);
+  assert.match(right, /right:\s*0/);
+  assert.doesNotMatch(left + right, /chat-content-max-width/);
   const handle = styles.match(/\.chat-width-handle::before\s*\{[\s\S]*?\}/)?.[0] ?? "";
   assert.match(handle, /opacity:\s*0/);
-  assert.match(handle, /height:\s*40px/);
+  assert.match(handle, /top:\s*0/);
+  assert.match(handle, /bottom:\s*0/);
+  assert.doesNotMatch(handle, /height:\s*40px|top:\s*50%/);
   assert.match(handle, /var\(--ds-text-primary\) 18%/);
   assert.doesNotMatch(handle, /box-shadow:\s*0 0 12px/);
   assert.match(styles, /\.chat-width-handle:hover::before/);
