@@ -73,6 +73,13 @@ test("Voice settings render cloud dictation and Live Voice, preserving legacy se
     assert.equal(html.includes(legacyLabel), false, `legacy UI leaked: ${legacyLabel}`);
   }
   assert.equal(savedPatch, undefined);
+  const { visibleSettingsNav, searchSettings } = await server.ssrLoadModule("/src/lib/settings-search.ts");
+  const voiceEntry = visibleSettingsNav(false).find((entry) => entry.id === "voice");
+  assert.equal(voiceEntry.labelKey, "settings.nav.voice");
+  assert.equal(voiceEntry.titleKey, "settings.voice");
+  for (const key of ["dictation.title", "dictation.model", "dictation.adapters.xai", "liveVoice.title"]) {
+    assert.ok(searchSettings(key, (value) => value).some((hit) => hit.tab === "voice"));
+  }
 });
 
 test("Composer adds cloud dictation alongside Live Voice without local model controls", async () => {

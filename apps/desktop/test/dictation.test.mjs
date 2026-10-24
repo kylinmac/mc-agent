@@ -10,7 +10,9 @@ test("dictation protocols, ownership and cancellation", async (t) => {
   const { encodeDictationWav } = await server.ssrLoadModule("/src/features/voice/dictation/audio.ts");
   const { validateDictationAudio, dictationRequest, readDictationResponse } = await server.ssrLoadModule("/electron/main/dictation/transcribe.ts");
   const { DictationService } = await server.ssrLoadModule("/electron/main/dictation/service.ts");
-  const { buildCodexCallBody } = await server.ssrLoadModule("/electron/main/live-voice/codex-adapter.ts");
+  const { buildCodexCallBody, createCodexAdapter } = await server.ssrLoadModule("/electron/main/live-voice/codex-adapter.ts");
+  const { LiveAuthResolver } = await server.ssrLoadModule("/electron/main/live-voice/auth-resolver.ts");
+  const { dictationProviderMatches } = await import("@pi-desktop/shared");
   const { MicrophoneLeaseRegistry } = await server.ssrLoadModule("/electron/main/live-voice/microphone-lease.ts");
   const audio = encodeDictationWav(new Float32Array([0, 0.5, -0.5]));
   const settings = { enabled: true, adapter: "openai", providerId: "account", modelId: "gpt-transcribe" };
@@ -60,6 +62,50 @@ test("dictation protocols, ownership and cancellation", async (t) => {
       fetch: async (url, init) => { requests.push({ url, init }); return Response.json({ text: "hello" }); }, ...overrides });
     return { service, leases, requests, changeProvider: (patch) => { currentProvider = { ...currentProvider, ...patch }; } };
   }
+  await t.test("all four provider choices enforce their authentication contracts", () => {
+    const codex = { ...provider, vendorKey: "openai-codex", authKind: "oauth" };
+    assert.equal(dictationProviderMatches("codex", codex), true);
+    assert.equal(dictationProviderMatches("codex", { ...codex, enabled: false }), false);
+    assert.equal(dictationProviderMatches("codex", { ...codex, authKind: "api_key" }), false);
+    assert.equal(dictationProviderMatches("openai", codex), false);
+    assert.equal(dictationProviderMatches("xai", { ...provider, vendorKey: "xai", authKind: "oauth" }), true);
+    assert.equal(dictationProviderMatches("xai", { ...provider, vendorKey: "xai" }), true);
+    assert.equal(dictationProviderMatches("gemini", { ...provider, vendorKey: "google", apiStyle: "google_generative_ai" }), true);
+    assert.equal(dictationProviderMatches("gemini", { ...provider, vendorKey: "google", apiStyle: "google_generative_ai", authKind: "oauth" }), false);
+  });
+  await t.test("Codex login refresh, account identity and SDP reach dictation without exposing credentials", async () => {
+    const codexProvider = { ...provider, vendorKey: "openai-codex", authKind: "oauth" };
+    const binding = { id: "dictation", adapterId: "codex-live", providerId: "account", voice: "cove" };
+    const hostCalls = []; const networkCalls = []; let refreshes = 0;
+    const resolver = new LiveAuthResolver({
+      callHost: async (method) => { hostCalls.push(method); assert.equal(method, "providers.get"); return { provider: codexProvider }; },
+      vendorOAuth: { resolveAuth: async (id) => {
+        assert.equal(id, "account"); refreshes++;
+        return { apiKey: "fixture-codex-access", headers: { "chatgpt-account-id": "fixture-account-id" } };
+      } },
+    });
+    const { service, leases } = fixture({
+      settings: async () => ({ dictation: { ...settings, adapter: "codex", modelId: "" } }),
+      provider: async () => ({ provider: codexProvider }),
+      codex: async (_settings, signal) => createCodexAdapter({ callId: "dictation", binding, ...await resolver.resolve(binding), signal, onEvent() {}, dictation: true }, {
+        assertEndpoint: async () => {},
+        fetchImpl: async (url, init) => { networkCalls.push({ url, init }); return new Response("v=0\r\n", { status: 201 }); },
+      }),
+    });
+    try {
+      assert.deepEqual(await service.begin("owner", "recording"), { adapter: "codex" });
+      const result = await service.connect("owner", "recording", "v=0\r\n");
+      assert.deepEqual(result, { answerSdp: "v=0\r\n" });
+      assert.equal(refreshes, 1);
+      assert.ok(hostCalls.length >= 2);
+      const request = networkCalls[0];
+      assert.equal(new URL(request.url).origin, "https://chatgpt.com");
+      assert.equal(request.init.headers.Authorization, "Bearer fixture-codex-access");
+      assert.equal(request.init.headers["chatgpt-account-id"], "fixture-account-id");
+      assert.equal(JSON.parse(request.init.body).session.delegation, undefined);
+    } finally { await service.end("owner"); }
+    assert.equal(leases.isHeld(), false);
+  });
   await t.test("signed-in xAI accounts resolve refreshed OAuth auth, not an API-key secret", async () => {
     const oauthSettings = { ...settings, adapter: "xai", modelId: "grok-voice-transcribe-2.0" };
     let resolved = 0;

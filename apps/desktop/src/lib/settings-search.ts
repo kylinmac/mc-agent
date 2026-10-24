@@ -129,10 +129,16 @@ export const SETTINGS_NAV: SettingsNavEntry[] = [
   },
   {
     id: "voice",
-    labelKey: "liveVoice.title",
-    titleKey: "liveVoice.title",
+    labelKey: "settings.nav.voice",
+    titleKey: "settings.voice",
     group: "preferences",
     keywordKeys: [
+      "dictation.title",
+      "dictation.model",
+      "dictation.adapters.codex",
+      "dictation.adapters.openai",
+      "dictation.adapters.gemini",
+      "dictation.adapters.xai",
       "liveVoice.title",
       "liveVoice.description",
       "liveVoice.enable",
