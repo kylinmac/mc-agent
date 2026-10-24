@@ -420,12 +420,11 @@
 }
 
 
-/* Conversation width handles (D439). Rest: invisible. Hover/drag: a short
- * capsule, not a full-height glow. Dark uses a faint white ink mix; light
- * uses a fainter black mix so the same rule does not read as a bright seam. */
+/* R11.13: resize from the panel boundary, never an invisible strip through
+ * the prose. Keep the titlebar clear and highlight the edge on interaction. */
 .chat-width-handles {
   position: absolute;
-  inset: 0 0 var(--composer-dock-height, 168px);
+  inset: var(--ds-toolbar-height) 0 0;
   z-index: 7;
   pointer-events: none;
 }
@@ -434,7 +433,7 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 12px;
+  width: 6px;
   pointer-events: auto;
   cursor: col-resize;
   touch-action: none;
@@ -444,29 +443,33 @@
 }
 
 .chat-width-handle-left {
-  left: max(0px, calc((100% - min(100%, var(--chat-content-max-width))) / 2 - 6px));
+  left: 0;
 }
 
 .chat-width-handle-right {
-  right: max(0px, calc((100% - min(100%, var(--chat-content-max-width))) / 2 - 6px));
+  right: 0;
 }
 
 .chat-width-handle::before {
   content: "";
   position: absolute;
-  top: 50%;
-  left: 50%;
+  top: 0;
+  bottom: 0;
   width: 2px;
-  height: 40px;
-  border-radius: var(--radius-full);
   background: color-mix(in oklab, var(--ds-text-primary) 18%, transparent);
   box-shadow: none;
   opacity: 0;
-  transform: translate(-50%, -50%);
   transition:
     opacity var(--motion-duration-fast) var(--motion-ease-out),
-    height var(--motion-duration-fast) var(--motion-ease-out),
     background var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.chat-width-handle-left::before {
+  left: 0;
+}
+
+.chat-width-handle-right::before {
+  right: 0;
 }
 
 :root[data-theme="light"] .chat-width-handle::before {
@@ -489,7 +492,6 @@
 .chat-width-handle.is-resizing::before,
 .chat-surface[data-chat-resizing="true"] .chat-width-handle::before {
   opacity: 1;
-  height: 56px;
   background: color-mix(in oklab, var(--ds-text-primary) 32%, transparent);
 }
 
