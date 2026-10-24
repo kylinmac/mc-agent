@@ -132,7 +132,6 @@ export function ComposerToolbar({
           </TooltipButton>
         </div>
         {localToolsAllowed ? <LiveVoiceControls t={t} workSessionId={workSessionId} /> : null}
-        {dictation}
         <TooltipButton
           type="button"
           className="icon-btn mode-chip composer-mode-chip"
@@ -249,6 +248,7 @@ export function ComposerToolbar({
             <IconUndo2 size={15} aria-hidden="true" />
           </TooltipButton>
         ) : null}
+        {dictation}
         {runActive && !hasDraftContent ? (
           <TooltipButton
             type="button"

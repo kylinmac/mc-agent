@@ -2,6 +2,15 @@ import { en, type EnglishCatalog } from "../en/index.js";
 
 export const zhCN = {
   dictation: {
+    requestRejected: "转写服务拒绝了请求参数（HTTP 400／422），请检查转写模型或更新应用后重试。",
+    authFailed: "语音服务凭据不可用或已失效，请重新登录所选账号，或检查 API Key。",
+    accessDenied: "当前账号无权访问此语音服务（HTTP 403），请检查账号的语音服务权限。",
+    endpointNotFound: "未找到转写接口或模型（HTTP 404），请检查服务地址和转写模型。",
+    rateLimited: "语音服务返回限流或额度错误（HTTP 429），请检查额度或稍后重试。",
+    serviceUnavailable: "转写服务暂时不可用（HTTP 5xx），请稍后重试。",
+    timedOut: "转写请求超时或已中止，请检查网络后重试。",
+    requestFailed: "转写请求未能完成，请检查网络、服务地址和账号连接后重试。",
+    deviceFailed: "所选麦克风不可用，请检查设备连接、是否被占用，或重新选择麦克风。",
     chooseAccountHint: "请先在下方选择账号／服务商，再启用语音输入。xAI 支持已有 Grok/X 登录或 API Key。",
     title: "语音输入", description: "把说的话填入草稿，检查后再发送。",
     enabled: "启用语音输入", adapter: "识别服务", provider: "账号／服务商", chooseProvider: "选择已配置的服务商",

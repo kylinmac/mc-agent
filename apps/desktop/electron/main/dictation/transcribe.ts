@@ -34,7 +34,8 @@ export function dictationRequest(settings: DictationSettings, baseUrl: string, a
   if (settings.adapter !== "openai" && settings.adapter !== "xai") throw new Error("DICTATION_NOT_CONFIGURED");
   const body = new FormData();
   if (settings.modelId) body.append("model", settings.modelId);
-  if (settings.adapter === "xai") body.append("format", "true");
+  // xAI format=true requires an explicit language. Omit both to auto-detect
+  // speech, including recordings that switch languages.
   // xAI requires the file after all scalar fields.
   body.append("file", new Blob([bytes], { type: "audio/wav" }), "dictation.wav");
   return { url: `${root}/${settings.adapter === "xai" ? "stt" : "audio/transcriptions"}`, init: {
