@@ -1,4 +1,18 @@
 export const en = {
+  dictation: {
+    title: "Voice input", description: "Dictate into your draft. Review the text before sending.",
+    enabled: "Enable voice input", adapter: "Recognition service", provider: "Account / provider", chooseProvider: "Choose a configured provider",
+    model: "Transcription model", adapters: { codex: "Codex login", openai: "OpenAI / compatible", gemini: "Gemini", xai: "xAI (Grok)" },
+    hint: "Uses existing provider credentials. Up to 3 minutes per recording. Configure a transcription-capable model; your chat model is independent.",
+    codexHint: "Uses the existing Codex real-time voice connection to capture your words. Availability depends on your account; no replies are played and no tasks are executed.",
+    start: "Voice input", stop: "Stop and insert text", cancel: "Cancel voice input", starting: "Connecting…", transcribing: "Transcribing…",
+    empty: "No speech was recognized.", permission: "Microphone permission was denied. Allow microphone access and try again.",
+    busy: "The microphone is already in use. End the other voice session first.",
+    incomplete: "The final transcript did not arrive. No text was inserted; please try again.",
+    failed: "Voice input failed. Check microphone access, provider credentials, transcription model and network, then retry.",
+    releaseFailed: "Voice input stopped locally, but the service did not confirm cleanup. Wait before retrying.",
+    providersFailed: "Could not load providers. Reopen this settings page to retry.", saveFailed: "Could not save voice input settings.",
+  },
   worktree: {
     newIsolatedSession: "New isolated session",
     uncommittedNotIncluded: "Uncommitted changes in the project are not included in the isolated session.",

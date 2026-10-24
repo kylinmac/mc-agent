@@ -1,6 +1,7 @@
 import { en, type EnglishCatalog } from "../en/index.js";
 
 export const tr = {
+  dictation: en.dictation,
   worktree: {
     newIsolatedSession: "Yeni yalıtılmış oturum",
     uncommittedNotIncluded: "Projedeki commit edilmemiş değişiklikler yalıtılmış oturuma dahil edilmez.",

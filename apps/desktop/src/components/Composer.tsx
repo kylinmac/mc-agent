@@ -56,6 +56,7 @@ import { ComposerInput } from "../features/chat/composer/ComposerInput";
 import { useComposerModelMenu } from "../features/chat/composer/hooks/useComposerModelMenu";
 import { useVoiceInput } from "../features/voice/useVoiceInput";
 import { ComposerToolbar } from "../features/chat/composer/ComposerToolbar";
+import { DictationButton } from "../features/voice/dictation/DictationButton";
 import { ComposerStatus } from "../features/chat/composer/ComposerStatus";
 
 const EMPTY_QUEUED_PROMPTS: QueuedPrompt[] = [];
@@ -618,6 +619,12 @@ export function Composer({
           />
           <ComposerToolbar
             t={t}
+            dictation={localToolsAllowed ? <DictationButton t={t} scope={activeSessionId ?? null} disabled={inputBlocked}
+              onText={(text) => {
+                const current = readLiveDraft();
+                const next = current + (current && !/\s$/.test(current) ? " " : "") + text;
+                applyEditorDraft(next, fileReferencesRef.current, next.length);
+              }} /> : undefined}
             mode={mode}
             planningLive={planningLive}
             providerId={provider?.id}

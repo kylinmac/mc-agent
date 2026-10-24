@@ -942,6 +942,7 @@ function registerIpc() {
     isDeveloperMode: () => mainState.developerMode,
     sendToRenderer,
     voiceService,
+    microphoneLeases,
     liveCallService,
     liveVoiceWidget,
   });
@@ -982,7 +983,7 @@ void app.whenReady().then(() => {
   installLiveMicrophonePermissionHandlers({
     targetSession: session.defaultSession,
     getMainWindow,
-    hasReservation: (owner) => liveCallService.hasMicrophoneReservation(owner),
+    hasReservation: (owner) => liveCallService.hasMicrophoneReservation(owner) || microphoneLeases.hasCloudDictationReservation(`${owner.webContentsId}:${owner.frameProcessId}:${owner.frameRoutingId}`),
   });
   powerMonitor.on("suspend", () => void liveCallService.endForLifecycle("app-suspended"));
   powerMonitor.on("lock-screen", () => void liveCallService.endForLifecycle("app-suspended"));

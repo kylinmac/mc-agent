@@ -1,3 +1,5 @@
+2026-10-23：[R17 语音输入](voice-input.md)（P13；V54）：复用 Codex、OpenAI／兼容、Gemini、xAI 凭据；录音转文字回填草稿，不自动发送。
+
 2026-10-23：[R16 云端发布与 R16.1 自动检测](cloud-release.md)（P12；V52–V53）：macOS 与 Windows 同标签构建、校验完成后公开；启动约 15 秒及每小时自动检测更新。
 
 # mc-agent 需求文档

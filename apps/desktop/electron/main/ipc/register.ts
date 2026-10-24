@@ -45,6 +45,7 @@ import { createComposerTemplateLoader, registerWorkspaceIpc } from "./workspace-
 import { registerComposerIpc } from "./composer-ipc";
 import { registerSpeechIpc } from "./speech-ipc";
 import { registerVoiceIpc } from "./voice-ipc";
+import { registerDictationIpc } from "./dictation-ipc";
 import { registerLiveVoiceIpc } from "./live-voice-ipc";
 import type { LiveCallService } from "../live-voice/call-service";
 import type { LiveVoiceWidget } from "../live-voice/widget-window";
@@ -75,6 +76,7 @@ export type RegisterIpcDependencies = {
   disabledBuiltinSkills: () => Promise<string[]>;
   liveCallService?: LiveCallService;
   liveVoiceWidget?: LiveVoiceWidget;
+  microphoneLeases?: import("../live-voice/microphone-lease").MicrophoneLeaseRegistry;
   restartForStorage: () => void;
   mcpOAuth?: McpOAuthManager;
   [name: string]: any;
@@ -575,6 +577,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
   if (voiceService) {
     registerVoiceIpc({ registrar, voiceService });
   }
+  if (dependencies.microphoneLeases) registerDictationIpc({ registrar, getHost, getMainWindow, vendorOAuth, microphoneLeases: dependencies.microphoneLeases });
   if (liveCallService && liveVoiceWidget) {
     registerLiveVoiceIpc({ registrar, service: liveCallService, getMainWindow, widget: liveVoiceWidget });
   }
