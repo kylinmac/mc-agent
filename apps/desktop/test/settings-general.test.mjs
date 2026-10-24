@@ -180,7 +180,9 @@ test("Basics and AI tabs expose their respective app and AI controls", () => {
   // Voice owns a separate destination; the AI tab does not duplicate it.
   assert.doesNotMatch(aiSource, /VoiceSettingsCard|VoiceSettingsSection|voice-settings/);
   assert.match(settingsPageSource, /tab === "voice" && !tabHidden && settings && [\s\S]*?<VoiceSettingsSection/);
-  assert.match(voiceSettingsSource, /LiveVoiceSettings as VoiceSettingsSection/);
+  // Voice hosts dictation first, then the existing Live Voice settings.
+  assert.match(voiceSettingsSource, /export function VoiceSettingsSection\b/);
+  assert.match(voiceSettingsSource, /<DictationSettings \{\.\.\.props\} \/>\s*<LiveVoiceSettings \{\.\.\.props\} \/>/);
   assert.doesNotMatch(voiceSettingsSource, /voiceIpc|voiceEnable|voiceMicrophone|voiceModel/);
   assert.doesNotMatch(settingsSearchSource, /settings\.voiceEnable|settings\.voiceMicrophone|settings\.voiceModel/);
   assert.match(settingsSearchSource, /liveVoice\.enable/);
