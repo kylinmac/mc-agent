@@ -99,11 +99,86 @@ mod tests {
     }
 
     #[test]
+    fn bundled_computer_use_registers_with_native_executable_name() {
+        let ship = tempdir().unwrap();
+        let data = tempdir().unwrap();
+        let root = ship.path().join("mc.computer-use");
+        let manifest: Value = serde_json::from_str(include_str!(
+            "../../../../apps/desktop/resources/plugins/mc.computer-use/manifest.json"
+        ))
+        .unwrap();
+        write_manifest(&root, manifest);
+        fs::write(root.join("main.js"), "module.exports = {};").unwrap();
+        fs::create_dir_all(root.join("skills")).unwrap();
+        fs::write(root.join("skills/computer-use.md"), "# Computer Use").unwrap();
+        fs::create_dir_all(root.join("bin")).unwrap();
+        let executable = if cfg!(windows) {
+            "bin/mc-computer.exe"
+        } else {
+            "bin/mc-computer"
+        };
+        fs::write(root.join(executable), "test fixture; never executed").unwrap();
+        PluginManager::read_manifest(&root).unwrap();
+        let mut manager = PluginManager::new(data.path(), MarketChannel::Official, None);
+        manager.sync_builtin(Some(ship.path())).unwrap();
+        let plugin = manager.get("mc.computer-use").unwrap();
+        assert!(plugin.bundled);
+        assert!(!plugin.enabled);
+        assert_eq!(plugin.status, "disabled");
+
+        fs::remove_file(root.join(executable)).unwrap();
+        assert!(PluginManager::read_manifest(&root).is_err());
+        fs::create_dir(root.join(executable)).unwrap();
+        assert!(PluginManager::read_manifest(&root).is_err());
+    }
+
+    #[test]
     fn a_missing_main_entry_fails_the_load() {
         let dir = tempdir().unwrap();
         write_manifest(dir.path(), base());
         let error = PluginManager::read_manifest(dir.path()).unwrap_err();
         assert_eq!(error.to_string(), "PLUGIN_LOAD_FAILED: main entry missing");
+    }
+
+    #[test]
+    fn mcp_executable_suffix_resolution_stays_platform_specific_and_confined() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("main.js"), "module.exports = {};").unwrap();
+        fs::create_dir(dir.path().join("bin")).unwrap();
+        fs::write(dir.path().join("bin/helper.exe"), "fixture").unwrap();
+        fs::write(dir.path().join("bin/helper.cmd"), "fixture").unwrap();
+        fs::write(dir.path().join("bin/helper.js.exe"), "fixture").unwrap();
+        for (command, valid) in [
+            ("bin/helper.exe", true),
+            ("bin/helper", cfg!(windows)),
+            ("bin/helper.js", false),
+            ("bin/missing", false),
+            ("../helper", false),
+            ("C:/helper", false),
+        ] {
+            let mut manifest = base();
+            manifest["permissions"] = json!(["mcp.server.local"]);
+            manifest["contributes"] = json!({"mcpServers": [{
+                "id": "computer", "transport": "stdio", "command": command
+            }]});
+            write_manifest(dir.path(), manifest);
+            assert_eq!(
+                PluginManager::read_manifest(dir.path()).is_ok(),
+                valid,
+                "{command}"
+            );
+        }
+        fs::remove_file(dir.path().join("bin/helper.exe")).unwrap();
+        let mut manifest = base();
+        manifest["permissions"] = json!(["mcp.server.local"]);
+        manifest["contributes"] = json!({"mcpServers": [{
+            "id": "computer", "transport": "stdio", "command": "bin/helper"
+        }]});
+        write_manifest(dir.path(), manifest);
+        assert!(
+            PluginManager::read_manifest(dir.path()).is_err(),
+            "no implicit cmd fallback"
+        );
     }
 
     #[test]

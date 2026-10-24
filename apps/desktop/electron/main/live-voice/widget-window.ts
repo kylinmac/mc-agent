@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { IPC, type LiveCallView, type LiveVoiceWidgetAction } from "@pi-desktop/shared";
 import { getModuleDirectory } from "../module-path";
+import { MC_INSTALLATION_NAME } from "../data-paths";
 import { suppressLinuxFramelessSystemMenu } from "../frameless-system-menu";
 
 /**
@@ -137,7 +138,7 @@ export function createLiveVoiceWidget(input: {
     const promise = (async () => {
       const created = new BrowserWindow({
         ...initialBounds(),
-        title: "PI-Desktop Live Voice",
+        title: `${MC_INSTALLATION_NAME} Live Voice`,
         show: false,
         frame: false,
         transparent: true,

@@ -539,7 +539,13 @@ pub(crate) fn validate_contributions(root: &Path, manifest: &PluginManifest) -> 
                         })?;
                     if command.contains('/') || command.contains('\\') {
                         let resolved = safe_join(root, command)?;
-                        if !resolved.exists() {
+                        // Windows spawn resolves extensionless native commands to .exe.
+                        // Keep the same package confinement and never infer shell scripts.
+                        let native_exe = cfg!(windows)
+                            && !resolved.exists()
+                            && resolved.extension().is_none()
+                            && safe_join(root, &format!("{command}.exe"))?.is_file();
+                        if !resolved.is_file() && !native_exe {
                             bail!("PLUGIN_INVALID: mcp server {id} command missing: {command}");
                         }
                     } else if !command

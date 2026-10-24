@@ -56,6 +56,17 @@ test("Windows packages pin mc-agent executable and shortcut names", () => {
   assert.equal(packageJson.build.nsis.shortcutName, "mc-agent");
 });
 
+test("native and document window titles use the packaged product name", async () => {
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const dataPaths = await readMainModule("data-paths.ts");
+  const widget = await readMainModule("live-voice/widget-window.ts");
+  const productName = packageJson.build.productName;
+  assert.equal(html.match(/<title>([^<]+)<\/title>/)?.[1], productName);
+  assert.equal(dataPaths.match(/MC_INSTALLATION_NAME = "([^"]+)"/)?.[1], productName);
+  assert.match(windowSource, /title: MC_INSTALLATION_NAME,/);
+  assert.match(widget, /title: `\$\{MC_INSTALLATION_NAME\} Live Voice`,/);
+});
+
 test("Windows packages and windows use the canonical PI-Desktop icon", () => {
   assert.equal(packageJson.build.win.icon, "build/icon.ico");
   assert.deepEqual(
