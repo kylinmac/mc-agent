@@ -10,6 +10,7 @@ test("dictation protocols, ownership and cancellation", async (t) => {
   const { encodeDictationWav } = await server.ssrLoadModule("/src/features/voice/dictation/audio.ts");
   const { validateDictationAudio, dictationRequest, readDictationResponse } = await server.ssrLoadModule("/electron/main/dictation/transcribe.ts");
   const { DictationService } = await server.ssrLoadModule("/electron/main/dictation/service.ts");
+  const { dictationErrorKey } = await server.ssrLoadModule("/src/features/voice/dictation/errors.ts");
   const { buildCodexCallBody, createCodexAdapter } = await server.ssrLoadModule("/electron/main/live-voice/codex-adapter.ts");
   const { LiveAuthResolver } = await server.ssrLoadModule("/electron/main/live-voice/auth-resolver.ts");
   const { dictationProviderMatches } = await import("@pi-desktop/shared");
@@ -17,6 +18,21 @@ test("dictation protocols, ownership and cancellation", async (t) => {
   const audio = encodeDictationWav(new Float32Array([0, 0.5, -0.5]));
   const settings = { enabled: true, adapter: "openai", providerId: "account", modelId: "gpt-transcribe" };
   const provider = { id: "account", enabled: true, hasSecret: true, authKind: "api_key", vendorKey: "openai", baseUrl: "https://example.com/v1" };
+
+  await t.test("provider failures keep safe status codes and distinguish actionable causes", async () => {
+    for (const [status, key] of [[400, "requestRejected"], [401, "authFailed"], [403, "accessDenied"], [404, "endpointNotFound"], [422, "requestRejected"], [429, "rateLimited"], [503, "serviceUnavailable"]]) {
+      const response = new Response("fixture-sensitive-provider-body", { status });
+      await assert.rejects(readDictationResponse(response, "xai"), (error) => {
+        assert.equal(error.message, `DICTATION_HTTP_${status}`);
+        assert.equal(dictationErrorKey(error), key);
+        return true;
+      });
+    }
+    assert.equal(dictationErrorKey(new DOMException("private-device-detail", "NotAllowedError")), "permission");
+    assert.equal(dictationErrorKey(new Error("DICTATION_CANCELLED_OR_TIMEOUT")), "timedOut");
+    assert.equal(dictationErrorKey(new Error("fixture-secret-DICTATION_HTTP_401")), "failed");
+    assert.equal(dictationErrorKey({ message: "DICTATION_HTTP_401" }), "failed");
+  });
 
   await t.test("recording produces bounded mono PCM WAV; malformed input fails before upload", () => {
     assert.deepEqual(validateDictationAudio(audio), audio);
@@ -32,7 +48,10 @@ test("dictation protocols, ownership and cancellation", async (t) => {
     assert.equal(openai.init.body.get("file").type, "audio/wav");
     const xai = dictationRequest({ ...settings, adapter: "xai", modelId: "grok-voice-transcribe-2.0" }, "https://api.x.ai/v1/", "fixture-key", audio);
     assert.equal(xai.url, "https://api.x.ai/v1/stt");
-    assert.deepEqual([...xai.init.body.keys()], ["model", "format", "file"]);
+    assert.deepEqual([...xai.init.body.keys()], ["model", "file"]);
+    // xAI rejects format=true without language. Keep automatic detection.
+    assert.equal(xai.init.body.has("format"), false);
+    assert.equal(xai.init.body.has("language"), false);
     const gemini = dictationRequest({ ...settings, adapter: "gemini", modelId: "gemini-3.8-flash" }, "https://generativelanguage.googleapis.com/v1beta", "fixture-key", audio);
     assert.match(gemini.url, /\/models\/gemini-3.8-flash:generateContent$/);
     const body = JSON.parse(gemini.init.body);

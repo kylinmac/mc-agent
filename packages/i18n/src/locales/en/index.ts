@@ -1,5 +1,14 @@
 export const en = {
   dictation: {
+    requestRejected: "The transcription service rejected the request parameters (HTTP 400/422). Check the model or update the app and retry.",
+    authFailed: "Voice credentials are unavailable or expired. Sign in to the selected account again or check the API key.",
+    accessDenied: "This account cannot access the voice service (HTTP 403). Check its voice service permissions.",
+    endpointNotFound: "Transcription endpoint or model not found (HTTP 404). Check the service address and model.",
+    rateLimited: "The voice service reported a rate or quota limit (HTTP 429). Check your quota or retry later.",
+    serviceUnavailable: "The transcription service is temporarily unavailable (HTTP 5xx). Try again later.",
+    timedOut: "Transcription timed out or was aborted. Check your connection and retry.",
+    requestFailed: "The transcription request could not complete. Check the network, service address and account connection.",
+    deviceFailed: "The selected microphone is unavailable. Check its connection, whether it is busy, or select another device.",
     chooseAccountHint: "Select an account / provider below to enable voice input. xAI supports an existing Grok/X login or an API key.",
     title: "Voice input", description: "Dictate into your draft. Review the text before sending.",
     enabled: "Enable voice input", adapter: "Recognition service", provider: "Account / provider", chooseProvider: "Choose a configured provider",

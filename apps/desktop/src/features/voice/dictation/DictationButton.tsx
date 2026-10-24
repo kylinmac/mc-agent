@@ -5,6 +5,7 @@ import { TooltipButton } from "../../../components/ui";
 import { IconMic, IconStop, IconX } from "../../../components/icons";
 import { useAppStore } from "../../../stores/app-store";
 import { DictationSession } from "./session";
+import { dictationErrorKey } from "./errors";
 import { PortalVisibilityContext } from "../../../lib/portal-visibility";
 
 export function DictationButton({ t, scope, disabled, onText }: {
@@ -22,9 +23,7 @@ export function DictationButton({ t, scope, disabled, onText }: {
   const [seconds, setSeconds] = useState(0);
   const stopRef = useRef<() => void>(() => undefined);
   const report = (error: unknown) => {
-    const code = error instanceof Error ? error.message : "";
-    const key = error instanceof DOMException && error.name === "NotAllowedError" ? "permission"
-      : code.includes("BUSY") ? "busy" : code.includes("FINAL_TRANSCRIPT") ? "incomplete" : "failed";
+    const key = dictationErrorKey(error);
     showToast(t(`dictation.${key}`), { variant: "error" });
   };
   const cancel = async () => {
