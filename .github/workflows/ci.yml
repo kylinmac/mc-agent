@@ -109,6 +109,11 @@ jobs:
       - name: Test transcript module on Windows
         run: "cargo test -p host-core --locked transcripts::"
 
+      - name: Test native plugin executable registration on Windows
+        run: |
+          cargo test -p host-core --locked plugins::manifest::tests
+          cargo test -p host-core --locked stdio_mcp_commands_may_not_escape_the_plugin
+
       - name: Build host-core
         run: cargo build -p host-core --locked
 
