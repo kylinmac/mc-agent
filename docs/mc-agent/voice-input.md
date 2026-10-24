@@ -9,6 +9,10 @@
 
 ## 实现约束
 
+R17 修正：xAI 的 Grok/X 登录账号与 API Key 均可选择。登录账号通过现有 `VendorOAuth.resolveAuth` 刷新并获取访问令牌，只发送到官方 `https://api.x.ai/v1/stt`；不读取 API Key 存储，也不向 Renderer 返回令牌。未选择账号时显示启用条件。
+
+本次修正先用已登录 xAI 账号的模拟用例复现 `DICTATION_PROVIDER_UNAVAILABLE`，修复后相关协议／设置测试 13 项通过，包含登录刷新失败不回退凭据、令牌固定发送到官方地址。未调用真实账号测试转写。
+
 - 密钥仅由 Main 读取；Renderer 只传录音或 SDP，不接收凭据。
 - OpenAI／兼容服务调用 audio/transcriptions；xAI 调用 stt；Gemini 使用音频理解模型，仅要求逐字转写。
 - Codex 复用已有实时语音协议，但不挂载任务工具、不共享会话内容、不播放回复。此接口的服务端兼容性需账号实测。

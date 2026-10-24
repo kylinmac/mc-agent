@@ -1,5 +1,6 @@
 export const en = {
   dictation: {
+    chooseAccountHint: "Select an account / provider below to enable voice input. xAI supports an existing Grok/X login or an API key.",
     title: "Voice input", description: "Dictate into your draft. Review the text before sending.",
     enabled: "Enable voice input", adapter: "Recognition service", provider: "Account / provider", chooseProvider: "Choose a configured provider",
     model: "Transcription model", adapters: { codex: "Codex login", openai: "OpenAI / compatible", gemini: "Gemini", xai: "xAI (Grok)" },

@@ -60,6 +60,35 @@ test("dictation protocols, ownership and cancellation", async (t) => {
       fetch: async (url, init) => { requests.push({ url, init }); return Response.json({ text: "hello" }); }, ...overrides });
     return { service, leases, requests, changeProvider: (patch) => { currentProvider = { ...currentProvider, ...patch }; } };
   }
+  await t.test("signed-in xAI accounts resolve refreshed OAuth auth, not an API-key secret", async () => {
+    const oauthSettings = { ...settings, adapter: "xai", modelId: "grok-voice-transcribe-2.0" };
+    let resolved = 0;
+    const { service, requests } = fixture({
+      settings: async () => ({ dictation: oauthSettings }),
+      provider: async () => ({ provider: { ...provider, vendorKey: "xai", authKind: "oauth", baseUrl: "https://custom.example/v1" } }),
+      secret: async () => { throw new Error("OAuth must never read API-key storage"); },
+      resolveXaiAuth: async (id) => { assert.equal(id, "account"); resolved++; return { apiKey: "fixture-access-token" }; },
+    });
+    try {
+      await service.begin("owner", "recording");
+      assert.deepEqual(await service.transcribe("owner", "recording", audio), { text: "hello" });
+      assert.equal(resolved, 1);
+      assert.equal(requests[0].url, "https://api.x.ai/v1/stt");
+      assert.equal(requests[0].init.headers.Authorization, "Bearer fixture-access-token");
+    } finally { await service.end("owner"); }
+  });
+  await t.test("failed xAI login refresh never falls back to an API key or uploads audio", async () => {
+    const { service, requests, leases } = fixture({
+      settings: async () => ({ dictation: { ...settings, adapter: "xai" } }),
+      provider: async () => ({ provider: { ...provider, vendorKey: "xai", authKind: "oauth" } }),
+      secret: async () => { assert.fail("must not fall back to another credential"); },
+      resolveXaiAuth: async () => { throw new Error("fixture-sensitive-provider-error"); },
+    });
+    await service.begin("owner", "recording");
+    await assert.rejects(service.transcribe("owner", "recording", audio), { message: "DICTATION_REQUEST_FAILED" });
+    assert.equal(requests.length, 0);
+    assert.equal(leases.isHeld(), false);
+  });
   await t.test("successful transcription enforces ownership and microphone exclusivity", async () => {
     const { service, leases, requests } = fixture();
     assert.deepEqual(await service.begin("owner", "recording"), { adapter: "openai" });

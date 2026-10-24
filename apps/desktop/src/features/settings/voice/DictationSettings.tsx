@@ -32,6 +32,7 @@ export function DictationSettings({ t, settings, saveSettings }: ComponentProps<
     <SettingsRow title={t("dictation.enabled")}>
       <SettingsToggle label={t("dictation.enabled")} checked={value.enabled} disabled={saving || (!value.enabled && !choices.some((p) => p.id === value.providerId))} onChange={() => { void save({ enabled: !value.enabled }); }} />
     </SettingsRow>
+    {!value.enabled && !choices.some((p) => p.id === value.providerId) ? <p className="live-voice-hint">{t("dictation.chooseAccountHint")}</p> : null}
     <SettingsRow title={t("dictation.adapter")}>
       <SettingsMenuSelect label={t("dictation.adapter")} value={value.adapter} disabled={saving}
         options={(["codex", "openai", "gemini", "xai"] as const).map((id) => ({ id, label: t(`dictation.adapters.${id}`) }))}

@@ -2,6 +2,7 @@ import { en, type EnglishCatalog } from "../en/index.js";
 
 export const zhCN = {
   dictation: {
+    chooseAccountHint: "请先在下方选择账号／服务商，再启用语音输入。xAI 支持已有 Grok/X 登录或 API Key。",
     title: "语音输入", description: "把说的话填入草稿，检查后再发送。",
     enabled: "启用语音输入", adapter: "识别服务", provider: "账号／服务商", chooseProvider: "选择已配置的服务商",
     model: "转写模型", adapters: { codex: "Codex 登录", openai: "OpenAI／兼容服务", gemini: "Gemini", xai: "xAI（Grok）" },
