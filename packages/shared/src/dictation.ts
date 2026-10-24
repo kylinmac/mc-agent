@@ -16,9 +16,9 @@ export const DICTATION_DEFAULT_MODELS: Record<DictationAdapter, string> = {
 export function dictationProviderMatches(adapter: DictationAdapter, provider: ProviderPublic): boolean {
   if (!provider.enabled) return false;
   if (adapter === "codex") return provider.vendorKey === "openai-codex" && provider.authKind === OAUTH_AUTH_KIND;
+  if (adapter === "xai") return provider.vendorKey === "xai";
   if (provider.authKind === OAUTH_AUTH_KIND) return false;
   if (adapter === "gemini") return provider.vendorKey === "google" && provider.apiStyle === "google_generative_ai";
-  if (adapter === "xai") return provider.vendorKey === "xai";
   return Boolean(provider.baseUrl) && provider.apiStyle !== "google_generative_ai";
 }
 export function parseDictationSettings(raw: unknown): DictationSettings {

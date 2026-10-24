@@ -25,6 +25,7 @@ export function registerDictationIpc(input: {
     settings: () => callHost("settings.get"),
     provider: (id) => callHost("providers.get", { id }),
     secret: (id) => callHost("providers.getSecret", { id }),
+    resolveXaiAuth: (id) => input.vendorOAuth.resolveAuth(id),
     acquire: (id, owner) => input.microphoneLeases.acquire("cloud-dictation", id, owner),
     onCancelled: (owner, id) => {
       const window = input.getMainWindow();

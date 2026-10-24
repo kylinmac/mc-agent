@@ -1,4 +1,4 @@
-import { dictationProviderMatches, parseDictationSettings, type AppSettings, type DictationSettings, type ProviderPublic } from "@pi-desktop/shared";
+import { OAUTH_AUTH_KIND, dictationProviderMatches, parseDictationSettings, type AppSettings, type DictationSettings, type ProviderPublic } from "@pi-desktop/shared";
 import type { LiveAdapter } from "../live-voice/types";
 import { dictationRequest, readDictationResponse, validateDictationAudio } from "./transcribe";
 
@@ -10,6 +10,7 @@ export type DictationDeps = {
   settings: () => Promise<AppSettings>;
   provider: (id: string) => Promise<{ provider?: ProviderPublic }>;
   secret: (id: string) => Promise<{ value?: string }>;
+  resolveXaiAuth?: (id: string) => Promise<{ apiKey?: string }>;
   acquire: (id: string, owner: string) => () => void;
   onCancelled?: (owner: string, id: string) => void;
   codex: (settings: DictationSettings, signal: AbortSignal) => Promise<LiveAdapter>;
@@ -68,10 +69,15 @@ export class DictationService {
     const timeout = setTimeout(() => slot.abort.abort(), 60_000);
     try {
       const provider = await this.revalidate(slot);
-      const { value } = await this.deps.secret(slot.settings.providerId);
+      const xaiLogin = slot.settings.adapter === "xai" && provider.authKind === OAUTH_AUTH_KIND;
+      // OAuth credentials live in a separate store and must pass through refresh.
+      const value = xaiLogin
+        ? (await this.deps.resolveXaiAuth?.(slot.settings.providerId))?.apiKey
+        : (await this.deps.secret(slot.settings.providerId)).value;
       this.assertCurrent(slot);
       if (!value) throw new Error("DICTATION_PROVIDER_UNAVAILABLE");
-      const base = provider.baseUrl || (slot.settings.adapter === "gemini" ? "https://generativelanguage.googleapis.com/v1beta" : slot.settings.adapter === "xai" ? "https://api.x.ai/v1" : "");
+      // Subscription access tokens only go to the official speech service.
+      const base = xaiLogin ? "https://api.x.ai/v1" : provider.baseUrl || (slot.settings.adapter === "gemini" ? "https://generativelanguage.googleapis.com/v1beta" : slot.settings.adapter === "xai" ? "https://api.x.ai/v1" : "");
       const request = dictationRequest(slot.settings, base, value, bytes);
       await this.deps.assertEndpoint(request.url);
       await this.revalidate(slot);
