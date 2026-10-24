@@ -102,6 +102,9 @@ Windows 原生 API 依据：[UI Automation 超时](https://learn.microsoft.com/e
 
 ## 验证
 
+- R12 / P9 / V49 修补（2026-10-24）：Windows 安装包已包含 helper，但注册插件时按无扩展名命令检查文件，导致插件被跳过。校验仅在 Windows、相对命令无扩展名且原路径不存在时兼容 `.exe`；仍拒绝绝对路径、目录穿越和缺失文件。增加从实际 Computer Use manifest 注册内置插件的回归检查，确认插件出现在注册表且默认关闭；不操作安装版或桌面。
+- 本次修补验证：先复现 `command missing: bin/mc-computer`；修复后 4 项 manifest 测试与 1 项 MCP 路径边界测试通过。`cargo fmt --check`、Clippy（有非本次改动的警告）、文档检查通过。完整 host-core 测试为 978 通过、27 失败、1 忽略；失败涉及资源目录、配置同步、远程工具与工作树（其中多项是 CRLF/LF 断言差异），未处理这些范围外失败，不能视为完整测试通过。安装版界面验收和 macOS 实机未跑。
+
 - 单元测试：MCP 协议、参数解析、按键解析、元素树渲染与 diff、等待稳定、`run` 批量、坐标换算（不依赖系统权限）；`toolRisk` 只对应用自带插件生效。
 - 手动：开发版里启用插件，授权后让 Agent 打开“计算器”算一道题、在“文本编辑”里输入一段话。
 - Windows 自动：`cargo test -p mc-computer --locked`、`cargo clippy -p mc-computer --all-targets --locked -- -D warnings`；`pnpm test:e2e:mc-computer-windows` 构建 helper，并用系统 .NET Framework C# 编译器创建专用 WinForms 窗口，经真实 MCP 测试输入、截图及失败路径，不调用模型、不使用安装版实例。需 x64 Windows 已解锁且可交互桌面；测试准备阶段会将专用窗口临时置顶，并只在确认标题栏命中该窗口后点击激活。

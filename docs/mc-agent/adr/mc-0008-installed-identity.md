@@ -29,3 +29,9 @@
 ## 修订（2026-10-22）
 
 开发版的 bundle 改名为 `mc-agent Dev`、`com.kylinmac.mc-agent.dev`（`scripts/dev-electron.mjs`），系统设置和 Dock 不再显示上游的 PI-Desktop。只改 bundle：数据目录 `~/.pi-desktop-dev` 和 Electron 的 userData 名由代码设定，不变；改名后开发版需要重新授权一次，钥匙串可能询问一次访问。见 [MC-ADR-0015](mc-0015-macos-permissions.md)。
+
+## 修订（2026-10-24）：窗口显示名称
+
+修复既有安装版身份的遗漏：主窗口原生标题与 HTML 文档标题统一为 `mc-agent`，语音浮窗原生标题使用 `mc-agent Live Voice`。开发版同样显示该产品名，避免 Windows 任务栏预览仍显示 PI-Desktop。沿用现有账号、数据目录、userData 和协议名称，不迁移数据。
+
+源码回归检查覆盖原生窗口标题、HTML 标题与打包产品名的一致性；系统任务栏显示需在更新版本后人工确认。
