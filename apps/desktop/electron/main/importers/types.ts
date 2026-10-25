@@ -1,7 +1,7 @@
 import { redactValue } from "../logger";
 
 // mc-agent (MC-ADR-0009): "pi-desktop" is an installed PI-Desktop.
-export type ExternalSource = "claude-code" | "opencode" | "codex" | "pi" | "pi-desktop";
+export type ExternalSource = "claude-code" | "opencode" | "codex" | "pi" | "pi-desktop" | "grok";
 
 export interface ExternalSessionSummary {
   source: ExternalSource;
