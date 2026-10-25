@@ -35,6 +35,7 @@ export function candidateKey(candidate: Pick<ImportCandidate, "source" | "extern
 
 /** The session id host-core gives an imported conversation (stable across imports). */
 export function importedSessionId(candidate: Pick<ImportCandidate, "source" | "externalId">): string {
+  if (candidate.source === "codex") return `import-codex-v2-${candidate.externalId}`;
   return `import-${candidate.source}-${candidate.externalId}`;
 }
 

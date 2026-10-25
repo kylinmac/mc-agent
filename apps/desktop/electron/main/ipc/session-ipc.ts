@@ -606,7 +606,7 @@ export function registerSessionIpc({
       sessions.map((session) => [`${session.source}:${session.externalId}`, session]),
     );
     return {
-      sessions: sessions.map(({ filePath: _filePath, ...candidate }) => candidate),
+      sessions: sessions.map(({ filePath: _filePath, filePaths: _filePaths, ...candidate }) => candidate),
       ...(Object.keys(truncated).length > 0 ? { truncated } : {}),
     };
   });

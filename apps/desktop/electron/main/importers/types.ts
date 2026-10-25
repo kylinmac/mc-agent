@@ -18,6 +18,8 @@ export interface ExternalSessionSummary {
    */
   messageCount: number | null;
   filePath: string;
+  /** Main-process-only ordered segments; never supplied by the renderer. */
+  filePaths?: string[];
 }
 
 export interface ImportedUiMessage {
@@ -56,6 +58,7 @@ export interface SessionImporter {
 
 /** Deterministic session id so re-importing the same source session is a no-op. */
 export function importedSessionId(source: ExternalSource, externalId: string): string {
+  if (source === "codex") return `import-codex-v2-${externalId}`;
   return `import-${source}-${externalId}`;
 }
 

@@ -3157,6 +3157,7 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     importSessionCount: "{{count}} conversations",
     importMessageCount: "{{count}} messages",
     importAlready: "Imported",
+    importCompleteCopy: "Re-import a complete copy (keep existing conversation)",
     importNote: "Imported conversations can be continued here. The other agents' data is only read.",
     importCancel: "Cancel",
     importRun: "Import {{count}}",

@@ -3090,6 +3090,7 @@ sklm: {
     importSessionCount: "{{count}} 个对话",
     importMessageCount: "{{count}} 条消息",
     importAlready: "已导入",
+    importCompleteCopy: "重新导入完整副本（保留原会话）",
     importNote: "导入的对话可以在这里接着聊；其他智能体的数据只读取、不修改。",
     importCancel: "取消",
     importRun: "导入 {{count}} 个",

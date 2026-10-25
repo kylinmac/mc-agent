@@ -3018,6 +3018,7 @@ sklm: {
     importSessionCount: "{{count}} 個對話",
     importMessageCount: "{{count}} 則訊息",
     importAlready: "已匯入",
+    importCompleteCopy: "重新匯入完整副本（保留原對話）",
     importNote: "匯入的對話可以在這裡接著聊；其他智能體的資料只讀取、不修改。",
     importCancel: "取消",
     importRun: "匯入 {{count}} 個",
