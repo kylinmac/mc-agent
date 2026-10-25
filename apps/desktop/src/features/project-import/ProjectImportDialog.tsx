@@ -227,6 +227,8 @@ function ProjectImportDialogContent() {
                         <span className="mc-import-meta">
                           {done
                             ? t("mcProject.importAlready")
+                            : (item.source === "codex" || item.source === "claude-code") && imported.has(`import-${item.source}-${item.externalId}`)
+                              ? t("mcProject.importCompleteCopy")
                             : [
                                 item.messageCount !== null
                                   ? t("mcProject.importMessageCount", { count: item.messageCount })

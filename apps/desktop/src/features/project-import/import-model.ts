@@ -8,12 +8,13 @@ import type { ImportCandidate, ImportSource } from "../../lib/api";
 */
 
 /** Sources this dialog offers, in display order. */
-export const IMPORT_SOURCES: readonly ImportSource[] = ["claude-code", "codex", "pi-desktop"];
+export const IMPORT_SOURCES: readonly ImportSource[] = ["claude-code", "codex", "pi-desktop", "grok"];
 
 export const SOURCE_LABELS: Record<ImportSource, string> = {
   "claude-code": "Claude Code",
   codex: "Codex",
   "pi-desktop": "PI-Desktop",
+  grok: "Grok",
   opencode: "OpenCode",
   pi: "Pi",
 };
@@ -34,6 +35,7 @@ export function candidateKey(candidate: Pick<ImportCandidate, "source" | "extern
 
 /** The session id host-core gives an imported conversation (stable across imports). */
 export function importedSessionId(candidate: Pick<ImportCandidate, "source" | "externalId">): string {
+  if (candidate.source === "codex" || candidate.source === "claude-code") return `import-${candidate.source}-v2-${candidate.externalId}`;
   return `import-${candidate.source}-${candidate.externalId}`;
 }
 

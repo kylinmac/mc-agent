@@ -27,6 +27,7 @@ interface PiEntry {
   };
   // session header fields
   id?: string;
+  parentId?: string | null;
   cwd?: string;
 }
 
@@ -68,6 +69,23 @@ async function parseFile(filePath: string): Promise<ParsedPiFile | null> {
     } catch {
       // skip malformed lines
     }
+  }
+  // Modern Pi files are trees, not a linear transcript. Follow the current (last) leaf.
+  if (entries.some((entry) => entry.parentId !== undefined)) {
+    const index = new Map(entries.filter((entry) => entry.id).map((entry) => [entry.id, entry]));
+    const branch: PiEntry[] = [];
+    const seen = new Set<string>();
+    let current = entries.filter((entry) => entry.id).at(-1);
+    while (current) {
+      if (!current.id || seen.has(current.id)) throw new Error("PI_IMPORT_INVALID_BRANCH");
+      seen.add(current.id);
+      branch.push(current);
+      if (!current.parentId) break;
+      const parent = index.get(current.parentId);
+      if (!parent) throw new Error("PI_IMPORT_MISSING_PARENT");
+      current = parent;
+    }
+    return { header, entries: branch.reverse() };
   }
   return { header, entries };
 }
@@ -128,6 +146,7 @@ export const piImporter: SessionImporter = {
 
   async convert(summary: ExternalSessionSummary): Promise<ImportedSession> {
     const parsed = await parseFile(summary.filePath);
+    if (!parsed || parsed.header.id !== summary.externalId) throw new Error("PI_IMPORT_INVALID_SESSION");
     const messages: ImportedUiMessage[] = [];
     const pendingCalls = new Map<string, { name: string; args: unknown }>();
     let providerId: string | null = null;

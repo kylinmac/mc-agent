@@ -7,7 +7,7 @@ import type {
   ImportedUiMessage,
   SessionImporter,
 } from "./types";
-import { importedSessionId, toIso, truncateTitle } from "./types";
+import { importedSessionId, toIso } from "./types";
 
 const STORAGE_DIR = path.join(os.homedir(), ".local", "share", "opencode", "storage");
 
@@ -35,7 +35,7 @@ interface OpenCodePart {
   synthetic?: boolean;
   tool?: string;
   callID?: string;
-  state?: { input?: unknown; output?: unknown; status?: string };
+  state?: { input?: unknown; output?: unknown; error?: string; status?: string };
 }
 
 async function readJson<T>(filePath: string): Promise<T | null> {
@@ -54,8 +54,8 @@ async function listJsonFiles(dir: string): Promise<string[]> {
   }
 }
 
-async function loadMessages(sessionId: string): Promise<OpenCodeMessage[]> {
-  const dir = path.join(STORAGE_DIR, "message", sessionId);
+async function loadMessages(sessionId: string, storageDir: string): Promise<OpenCodeMessage[]> {
+  const dir = path.join(storageDir, "message", sessionId);
   const out: OpenCodeMessage[] = [];
   for (const file of await listJsonFiles(dir)) {
     const msg = await readJson<OpenCodeMessage>(path.join(dir, file));
@@ -65,11 +65,11 @@ async function loadMessages(sessionId: string): Promise<OpenCodeMessage[]> {
   return out;
 }
 
-export const opencodeImporter: SessionImporter = {
+export function createOpenCodeImporter(storageDir = STORAGE_DIR): SessionImporter { return {
   source: "opencode",
 
   async scan(): Promise<ExternalSessionSummary[]> {
-    const sessionRoot = path.join(STORAGE_DIR, "session");
+    const sessionRoot = path.join(storageDir, "session");
     let projectDirs: string[] = [];
     try {
       projectDirs = await fs.readdir(sessionRoot);
@@ -92,7 +92,7 @@ export const opencodeImporter: SessionImporter = {
         let messageCount = 0;
         try {
           messageCount = (
-            await fs.readdir(path.join(STORAGE_DIR, "message", session.id))
+            await fs.readdir(path.join(storageDir, "message", session.id))
           ).filter((f) => f.endsWith(".json")).length;
         } catch {
           continue;
@@ -101,7 +101,7 @@ export const opencodeImporter: SessionImporter = {
         summaries.push({
           source: "opencode",
           externalId: session.id,
-          title: truncateTitle(session.title ?? "") || session.id,
+          title: session.title?.trim() || session.id,
           projectPath: session.directory ?? null,
           model: null,
           createdAt: toIso(session.time?.created),
@@ -115,18 +115,19 @@ export const opencodeImporter: SessionImporter = {
   },
 
   async convert(summary: ExternalSessionSummary): Promise<ImportedSession> {
-    const ocMessages = await loadMessages(summary.externalId);
+    const ocMessages = await loadMessages(summary.externalId, storageDir);
     const messages: ImportedUiMessage[] = [];
     let modelId: string | null = null;
     let providerId: string | null = null;
 
     for (const msg of ocMessages) {
+      if (msg.role !== "user" && msg.role !== "assistant") continue;
       if (msg.role === "assistant") {
         modelId = msg.modelID ?? modelId;
         providerId = msg.providerID ?? providerId;
       }
       const createdAt = toIso(msg.time?.created);
-      const partDir = path.join(STORAGE_DIR, "part", msg.id);
+      const partDir = path.join(storageDir, "part", msg.id);
       const texts: string[] = [];
       const toolMessages: ImportedUiMessage[] = [];
       for (const file of await listJsonFiles(partDir)) {
@@ -135,7 +136,7 @@ export const opencodeImporter: SessionImporter = {
         if (part.type === "text" && part.text && part.synthetic !== true) {
           texts.push(part.text);
         } else if (part.type === "tool") {
-          const output = part.state?.output;
+          const output = part.state?.output ?? part.state?.error;
           const outputText =
             typeof output === "string" ? output : output ? JSON.stringify(output) : "";
           toolMessages.push({
@@ -145,7 +146,8 @@ export const opencodeImporter: SessionImporter = {
             createdAt,
             toolName: part.tool,
             toolCallId: part.callID,
-            toolStatus: part.state?.status === "error" ? "error" : "success",
+            toolStatus: part.state?.status === "error" ? "error"
+              : part.state?.status === "completed" ? "success" : "interrupted",
             toolArgs: part.state?.input,
             toolResult: outputText,
             isError: part.state?.status === "error" || undefined,
@@ -180,4 +182,6 @@ export const opencodeImporter: SessionImporter = {
       messages,
     };
   },
-};
+}; }
+
+export const opencodeImporter = createOpenCodeImporter();

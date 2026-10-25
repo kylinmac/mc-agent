@@ -1,7 +1,7 @@
 import { redactValue } from "../logger";
 
 // mc-agent (MC-ADR-0009): "pi-desktop" is an installed PI-Desktop.
-export type ExternalSource = "claude-code" | "opencode" | "codex" | "pi" | "pi-desktop";
+export type ExternalSource = "claude-code" | "opencode" | "codex" | "pi" | "pi-desktop" | "grok";
 
 export interface ExternalSessionSummary {
   source: ExternalSource;
@@ -18,6 +18,8 @@ export interface ExternalSessionSummary {
    */
   messageCount: number | null;
   filePath: string;
+  /** Main-process-only ordered segments; never supplied by the renderer. */
+  filePaths?: string[];
 }
 
 export interface ImportedUiMessage {
@@ -56,6 +58,7 @@ export interface SessionImporter {
 
 /** Deterministic session id so re-importing the same source session is a no-op. */
 export function importedSessionId(source: ExternalSource, externalId: string): string {
+  if (source === "codex" || source === "claude-code") return `import-${source}-v2-${externalId}`;
   return `import-${source}-${externalId}`;
 }
 

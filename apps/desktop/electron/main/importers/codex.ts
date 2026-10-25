@@ -11,6 +11,7 @@ import type {
   SessionImporter,
 } from "./types";
 import { importedSessionId, toIso, truncateTitle } from "./types";
+import { groupCodexSegments, mergeCodexRecords, readCodexTitles } from "./codex-segments";
 
 const SESSIONS_DIR = path.join(os.homedir(), ".codex", "sessions");
 
@@ -79,7 +80,7 @@ interface ParsedCodexFile {
 
 function itemText(item: CodexItem): string {
   if (!Array.isArray(item.content)) return "";
-  return item.content
+  const text = item.content
     .filter(
       (c) =>
         (c.type === "input_text" || c.type === "output_text" || c.type === "text") &&
@@ -88,6 +89,12 @@ function itemText(item: CodexItem): string {
     .map((c) => c.text)
     .join("\n")
     .trim();
+  // Attachment wrappers also contain the user's actual request; don't discard that turn.
+  if (item.role === "user" && text.startsWith("# Files mentioned by the user:")) {
+    const request = text.match(/(?:^|\n)## My request:\s*([\s\S]*)$/);
+    if (request) return request[1].trim();
+  }
+  return text;
 }
 
 // Codex prepends synthetic user messages carrying repo instructions, IDE
@@ -438,7 +445,7 @@ export async function scanCodexSessionsResult(
   const sessions: ExternalSessionSummary[] = [];
   for (const filePath of files) {
     const meta = await scanFile(filePath);
-    if (!meta || meta.firstUserText === null) continue;
+    if (!meta) continue;
     // A corrupt or out-of-range stored timestamp must not rewrite the
     // session's history to the import moment (#265): the file's own mtime is
     // the honest fallback for both ends.
@@ -446,7 +453,7 @@ export async function scanCodexSessionsResult(
     sessions.push({
       source: "codex",
       externalId: meta.externalId,
-      title: truncateTitle(meta.firstUserText) || meta.externalId,
+      title: meta.firstUserText === null ? "" : truncateTitle(meta.firstUserText),
       projectPath: meta.cwd,
       model: null,
       createdAt: toIso(meta.startedAt, fileTime),
@@ -455,7 +462,7 @@ export async function scanCodexSessionsResult(
       filePath,
     });
   }
-  return { sessions, truncated };
+  return { sessions: groupCodexSegments(sessions, await readCodexTitles(dir)), truncated };
 }
 
 export async function scanCodexSessions(
@@ -474,11 +481,16 @@ export const codexImporter: SessionImporter = {
   },
 
   async convert(summary: ExternalSessionSummary): Promise<ImportedSession> {
-    const parsed = await parseFile(summary.filePath);
+    const segments: ParsedCodexFile[] = [];
+    for (const file of summary.filePaths ?? [summary.filePath]) {
+      const parsed = await parseFile(file);
+      if (!parsed || parsed.externalId !== summary.externalId) throw new Error("CODEX_IMPORT_INVALID_SEGMENT");
+      segments.push(parsed);
+    }
     const messages: ImportedUiMessage[] = [];
     const pendingCalls = new Map<string, { name: string; args: unknown }>();
 
-    for (const { item, timestamp } of parsed?.items ?? []) {
+    for (const { item, timestamp } of mergeCodexRecords(segments.map((segment) => segment.items))) {
       const createdAt = toIso(timestamp, summary.createdAt);
       if (item.type === "message") {
         // mc-agent (MC-ADR-0009): developer/system messages are Codex's own
