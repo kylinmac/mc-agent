@@ -2285,6 +2285,7 @@ sklm: {
     "fsAsksEachTime": "demande vous à chaque fois",
     "legacyFsDowngraded": "Ce plugin déclare les autorisations de fichiers antérieures à l'existence des scopes, sa portée a donc été réduite. Mettez-le à jour pour restaurer toutes les fonctions.",
     "permissions": {
+      "ui.view": "Show a view in the work panel",
       "ui.panel": "Afficher un panneau de plug-in",
       "ui.microphone": "Utiliser le microphone",
       "clipboard.read": "Lire le presse-papiers et son historique",
@@ -2327,6 +2328,7 @@ sklm: {
       "session.autoTitle": "Lire le contexte du premier tour et modifier les titres automatiques"
     },
     "permissionHelp": {
+      "ui.view": "Lets the plugin list its views in the work panel and open them there.",
       "ui.panel": "Permet au plugin d'afficher son propre panneau dans l'application.",
       "ui.microphone": "Permet au panneau isolé de demander l'audio du microphone, sans accès à la caméra.",
       "clipboard.read": "Peut lire tout ce qui se trouve actuellement dans votre presse-papiers et l'historique conservé du presse-papiers.",
@@ -3441,6 +3443,19 @@ sklm: {
     promptSuggestions: "Input suggestions",
     promptSuggestionsDesc: "After a reply, suggest your likely next message as gray text in the empty input; press Tab to use it. Each reply makes one extra request with the conversation's model, mostly read from its prompt cache.",
     suggestionTabHint: "Tab",
+    pluginCategory_community: "Community",
+    pluginCategory_creative: "Creative",
+    pluginCategory_developer_tools: "Developer tools",
+    pluginCategory_integrations: "Integrations",
+    pluginCategory_knowledge: "Knowledge",
+    pluginCategory_productivity: "Productivity",
+    pluginCategory_security: "Security",
+    pluginCategory_themes: "Themes",
+    pluginCategory_official: "Official",
+    permSettingsPath_accessibility: "System Settings → Privacy & Security → Accessibility",
+    permSettingsPath_screenRecording: "System Settings → Privacy & Security → Screen & System Audio Recording",
+    permSettingsPath_microphone: "System Settings → Privacy & Security → Microphone",
+    sessionInfoRemaining: "{{percent}}% left",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

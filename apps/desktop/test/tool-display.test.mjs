@@ -102,3 +102,12 @@ test("formats processing time in the compact transcript style", () => {
   assert.equal(formatToolDuration(3_665), "1h 1m 5s");
   assert.equal(formatToolDuration(5_400), "1h 30m");
 });
+
+test("tools without a summary argument read as their name, not JSON (mc-agent)", () => {
+  assert.equal(getToolSummary("Skill", { id: "mc.computer-use/computer-use" }), "Skill · mc.computer-use/computer-use");
+  assert.equal(
+    getToolSummary("plugin_mc_computer_use_computer_get_app_state", { app: "计算器", screenshot: true }),
+    "Get App State · 计算器",
+  );
+  assert.equal(getToolSummary("plugin_mc_computer_use_computer_permissions", { request: true }), "Permissions");
+});

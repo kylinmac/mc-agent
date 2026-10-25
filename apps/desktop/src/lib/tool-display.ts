@@ -126,7 +126,11 @@ export function getToolAction(toolName?: string): ToolAction {
 }
 
 export function getToolDisplayName(toolName?: string) {
-  const raw = (toolName || "").replace(/^plugin[_-]/i, "");
+  // mc-agent: plugin tools are named plugin_<plugin>_<server>_<tool>; the
+  // Computer Use helper's tools read as their own name (`Get App State`).
+  const raw = (toolName || "")
+    .replace(/^plugin[_-]mc[_-]computer[_-]use[_-]computer[_-]/i, "")
+    .replace(/^plugin[_-]/i, "");
   const spaced = raw
     .replace(/[_-]+/g, " ")
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
@@ -193,6 +197,16 @@ export function getToolSummary(toolName: string | undefined, args: unknown) {
     }
     const key = getToolSummaryKey(toolName, args);
     if (key) return compact(summaryText(record[key]));
+    // mc-agent: a tool without a known summary argument reads as its name and
+    // its first short text argument (`Skill · mc.computer-use/computer-use`),
+    // never as raw JSON; the arguments stay in the expanded detail.
+    if (action === "use") {
+      const name = getToolDisplayName(toolName);
+      const hint = Object.values(record).find(
+        (value): value is string => typeof value === "string" && Boolean(value.trim()) && value.length <= 120,
+      );
+      if (name) return compact(hint ? `${name} · ${hint}` : name);
+    }
     const fallback = formatToolValue(record);
     if (fallback && fallback !== "{}") return compact(fallback);
   }

@@ -3508,5 +3508,70 @@
     "en": "Tab",
     "zh-CN": "Tab",
     "zh-TW": "Tab"
+  },
+  "pluginCategory_community": {
+    "en": "Community",
+    "zh-CN": "社区",
+    "zh-TW": "社群"
+  },
+  "pluginCategory_creative": {
+    "en": "Creative",
+    "zh-CN": "创意",
+    "zh-TW": "創意"
+  },
+  "pluginCategory_developer_tools": {
+    "en": "Developer tools",
+    "zh-CN": "开发工具",
+    "zh-TW": "開發工具"
+  },
+  "pluginCategory_integrations": {
+    "en": "Integrations",
+    "zh-CN": "集成",
+    "zh-TW": "整合"
+  },
+  "pluginCategory_knowledge": {
+    "en": "Knowledge",
+    "zh-CN": "知识",
+    "zh-TW": "知識"
+  },
+  "pluginCategory_productivity": {
+    "en": "Productivity",
+    "zh-CN": "效率",
+    "zh-TW": "效率"
+  },
+  "pluginCategory_security": {
+    "en": "Security",
+    "zh-CN": "安全",
+    "zh-TW": "安全"
+  },
+  "pluginCategory_themes": {
+    "en": "Themes",
+    "zh-CN": "主题",
+    "zh-TW": "主題"
+  },
+  "pluginCategory_official": {
+    "en": "Official",
+    "zh-CN": "官方",
+    "zh-TW": "官方"
+  },
+  "permSettingsPath_accessibility": {
+    "en": "System Settings → Privacy & Security → Accessibility",
+    "zh-CN": "系统设置 → 隐私与安全性 → 辅助功能",
+    "zh-TW": "系統設定 → 隱私權與安全性 → 輔助使用"
+  },
+  "permSettingsPath_screenRecording": {
+    "en": "System Settings → Privacy & Security → Screen & System Audio Recording",
+    "zh-CN": "系统设置 → 隐私与安全性 → 录屏与系统录音",
+    "zh-TW": "系統設定 → 隱私權與安全性 → 螢幕與系統錄音"
+  },
+  "permSettingsPath_microphone": {
+    "en": "System Settings → Privacy & Security → Microphone",
+    "zh-CN": "系统设置 → 隐私与安全性 → 麦克风",
+    "zh-TW": "系統設定 → 隱私權與安全性 → 麥克風"
+  },
+  "sessionInfoRemaining": {
+    "en": "{{percent}}% left",
+    "zh-CN": "剩余 {{percent}}%",
+    "zh-TW": "剩餘 {{percent}}%"
   }
 }
