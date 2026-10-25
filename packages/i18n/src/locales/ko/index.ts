@@ -3027,7 +3027,7 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
     importSelected: "{{sessions}} conversations in {{projects}} projects selected",
     importScanning: "Looking for conversations…",
     importScanFailed: "Could not look for conversations: {{message}}",
-    importEmpty: "No conversations from Claude Code, Codex or PI-Desktop were found.",
+    importEmpty: "No conversations from Claude Code, Codex, PI-Desktop or Grok were found.",
     importNoMatch: "Nothing matches.",
     importNoProject: "Not in a project",
     importSessionCount: "{{count}} conversations",
