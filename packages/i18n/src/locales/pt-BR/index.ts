@@ -2251,6 +2251,7 @@ export const ptBR = {
     fsAsksEachTime: "solicita sua permissão a cada vez",
     legacyFsDowngraded: "As permissões de arquivos declaradas por este plugin são anteriores à existência de escopos, por isso seu alcance foi reduzido. Atualize o plugin para restaurar o funcionamento completo.",
     permissions: {
+      "ui.view": "Show a view in the work panel",
       "ui.panel": "Exibir painéis de interface",
       "ui.microphone": "Usar o microfone",
       "clipboard.read": "Ler a área de transferência e seu histórico",
@@ -2293,6 +2294,7 @@ export const ptBR = {
       "session.autoTitle": "Ler o contexto do primeiro turno e atualizar títulos automáticos"
     },
     permissionHelp: {
+      "ui.view": "Lets the plugin list its views in the work panel and open them there.",
       "ui.panel": "Permite que o plugin exiba seu próprio painel no aplicativo.",
       "ui.microphone": "Permite que o painel isolado solicite áudio do microfone. Não dá acesso à câmera.",
       "clipboard.read": "Pode ler o conteúdo atual da área de transferência e o histórico retido.",
@@ -3411,6 +3413,19 @@ export const ptBR = {
     promptSuggestions: "Input suggestions",
     promptSuggestionsDesc: "After a reply, suggest your likely next message as gray text in the empty input; press Tab to use it. Each reply makes one extra request with the conversation's model, mostly read from its prompt cache.",
     suggestionTabHint: "Tab",
+    pluginCategory_community: "Community",
+    pluginCategory_creative: "Creative",
+    pluginCategory_developer_tools: "Developer tools",
+    pluginCategory_integrations: "Integrations",
+    pluginCategory_knowledge: "Knowledge",
+    pluginCategory_productivity: "Productivity",
+    pluginCategory_security: "Security",
+    pluginCategory_themes: "Themes",
+    pluginCategory_official: "Official",
+    permSettingsPath_accessibility: "System Settings → Privacy & Security → Accessibility",
+    permSettingsPath_screenRecording: "System Settings → Privacy & Security → Screen & System Audio Recording",
+    permSettingsPath_microphone: "System Settings → Privacy & Security → Microphone",
+    sessionInfoRemaining: "{{percent}}% left",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

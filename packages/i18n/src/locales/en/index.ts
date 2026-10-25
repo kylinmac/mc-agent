@@ -2327,6 +2327,7 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     legacyFsDowngraded:
       "This plugin declares file permissions from before scopes existed, so its reach has been reduced. Update it to restore full function.",
     permissions: {
+      "ui.view": "Show a view in the work panel",
       "ui.panel": "Show a plugin panel",
       "ui.microphone": "Use the microphone",
       "clipboard.read": "Read the clipboard and its history",
@@ -2371,6 +2372,7 @@ importConfirm: "Imported extensions run inside the agent process with the same a
       "session.autoTitle": "Read first-turn title context and update automatic titles",
     },
     permissionHelp: {
+      "ui.view": "Lets the plugin list its views in the work panel and open them there.",
       "ui.panel": "Lets the plugin show its own panel inside the app.",
       "ui.microphone":
         "Lets the isolated panel request microphone audio. It does not grant camera access.",
@@ -3606,6 +3608,19 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     promptSuggestions: "Input suggestions",
     promptSuggestionsDesc: "After a reply, suggest your likely next message as gray text in the empty input; press Tab to use it. Each reply makes one extra request with the conversation's model, mostly read from its prompt cache.",
     suggestionTabHint: "Tab",
+    pluginCategory_community: "Community",
+    pluginCategory_creative: "Creative",
+    pluginCategory_developer_tools: "Developer tools",
+    pluginCategory_integrations: "Integrations",
+    pluginCategory_knowledge: "Knowledge",
+    pluginCategory_productivity: "Productivity",
+    pluginCategory_security: "Security",
+    pluginCategory_themes: "Themes",
+    pluginCategory_official: "Official",
+    permSettingsPath_accessibility: "System Settings → Privacy & Security → Accessibility",
+    permSettingsPath_screenRecording: "System Settings → Privacy & Security → Screen & System Audio Recording",
+    permSettingsPath_microphone: "System Settings → Privacy & Security → Microphone",
+    sessionInfoRemaining: "{{percent}}% left",
   },
   // mc-agent:end
 } as const;

@@ -56,7 +56,7 @@ export function MarketplacePanel({
                     aria-pressed={category === value}
                     onClick={() => setCategory(category === value ? "" : value)}
                   >
-                    {value}
+                    {t(`mcProject.pluginCategory_${value.replace(/-/g, "_")}`, { defaultValue: value })}
                   </button>
                 ))}
               </div>
@@ -136,10 +136,14 @@ export function MarketplacePanel({
                               ) : null}
                             </span>
                             <span className="plugins-card-meta">
-                              <span className="plugins-card-author">{authorParts(item.author).name}</span>
-                              <span className="plugins-dot" aria-hidden>
-                                ·
-                              </span>
+                              {authorParts(item.author).name ? (
+                                <>
+                                  <span className="plugins-card-author">{authorParts(item.author).name}</span>
+                                  <span className="plugins-dot" aria-hidden>
+                                    ·
+                                  </span>
+                                </>
+                              ) : null}
                               <span>v{item.latestVersion}</span>
                               {item.downloads != null ? (
                                 <>

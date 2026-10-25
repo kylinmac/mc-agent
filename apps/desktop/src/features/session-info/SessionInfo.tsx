@@ -4,7 +4,7 @@ import type { SessionCollaborationSummary, SessionContextBreakdown } from "@pi-d
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { latestTurnContextInspector } from "../../lib/latest-turn-context";
-import { calculateContextUsage } from "../../lib/context-usage";
+import { calculateContextUsage, resolveContextUsageDisplay } from "../../lib/context-usage";
 import { reviewChangesFromMessages, summarizeReviewChanges } from "../../lib/workspace-review";
 import { toolWorkPanelTab } from "../../lib/work-panel-tabs";
 import { normalizeProjectPath } from "../../lib/sidebar-session-groups";
@@ -133,6 +133,7 @@ export function SessionInfo({
   const container = scope === "column" ? ".mc-split-chat" : ".main-pane";
   const sessions = useAppStore((s) => s.sessions);
   const activeWorkspace = useAppStore((s) => s.workspace);
+  const contextUsageDisplay = useAppStore((s) => s.settings?.contextUsageDisplay);
   const messages = useAppStore((s) =>
     s.activeSessionId === sessionId
       ? s.messages
@@ -386,6 +387,9 @@ export function SessionInfo({
   const model = session?.modelId ?? "";
   const workers = collaboration?.createdSessions ?? [];
   const usedTone = !context ? "" : context.usedPercent >= 85 ? " is-high" : context.usedPercent >= 65 ? " is-mid" : "";
+  // mc-agent: the same reading as the composer's context ring (Settings → AI).
+  const showRemaining = resolveContextUsageDisplay(contextUsageDisplay) === "remaining";
+  const shownPercent = context ? (showRemaining ? Math.max(0, 100 - context.usedPercent) : context.usedPercent) : 0;
   const rows = breakdown ? breakdownRows(breakdown) : PENDING_BREAKDOWN_ROWS;
 
   const sectionTitle: Record<SectionId, string> = {
@@ -447,7 +451,7 @@ export function SessionInfo({
         {context ? (
           <div className="mc-session-info-row">
             <span className={`mc-session-info-percent${usedTone}`}>
-              {t("mcProject.sessionInfoUsed", { percent: context.usedPercent })}
+              {t(showRemaining ? "mcProject.sessionInfoRemaining" : "mcProject.sessionInfoUsed", { percent: shownPercent })}
             </span>
             <span className="mc-session-info-muted">
               {compact(context.usedTokens)} / {compact(context.window)}
@@ -767,7 +771,7 @@ export function SessionInfo({
         onContextMenu={openCustomize}
       >
         <IconInfo size={13} aria-hidden />
-        {context ? <span className={`mc-session-info-percent${usedTone}`}>{context.usedPercent}%</span> : null}
+        {context ? <span className={`mc-session-info-percent${usedTone}`}>{shownPercent}%</span> : null}
       </button>
       {open && menuOpen ? (
         <div className="mc-session-info-menu" role="menu">

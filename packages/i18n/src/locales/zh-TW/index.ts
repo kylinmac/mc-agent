@@ -2277,6 +2277,7 @@ sklm: {
     fsAsksEachTime: "每次都會詢問",
     legacyFsDowngraded: "此外掛宣告的是舊版檔案許可權，實際範圍已被收窄。更新外掛可恢復完整功能。",
     permissions: {
+      "ui.view": "在工作面板顯示視圖",
       "ui.panel": "顯示外掛面板",
       "ui.microphone": "使用麥克風",
       "clipboard.read": "讀取剪貼簿及其歷史",
@@ -2321,6 +2322,7 @@ sklm: {
       "session.autoTitle": "讀取首輪標題內容並更新自動標題",
     },
     permissionHelp: {
+      "ui.view": "允許外掛在工作面板中列出並開啟它的視圖。",
       "ui.panel": "允許外掛在應用內顯示獨立面板。",
       "ui.microphone": "允許隔離面板請求麥克風音訊，不授予相機權限。",
       "clipboard.read": "可能讀取當前剪貼簿內容以及應用執行期間保留的剪貼簿歷史。",
@@ -3467,6 +3469,19 @@ sklm: {
     promptSuggestions: "輸入建議",
     promptSuggestionsDesc: "回覆結束後，在空的輸入框裡用灰字給出你可能要送出的下一句，按 Tab 採用。每次回覆會多一次請求，用目前對話的模型，大部分內容走提示詞快取。",
     suggestionTabHint: "Tab",
+    pluginCategory_community: "社群",
+    pluginCategory_creative: "創意",
+    pluginCategory_developer_tools: "開發工具",
+    pluginCategory_integrations: "整合",
+    pluginCategory_knowledge: "知識",
+    pluginCategory_productivity: "效率",
+    pluginCategory_security: "安全",
+    pluginCategory_themes: "主題",
+    pluginCategory_official: "官方",
+    permSettingsPath_accessibility: "系統設定 → 隱私權與安全性 → 輔助使用",
+    permSettingsPath_screenRecording: "系統設定 → 隱私權與安全性 → 螢幕與系統錄音",
+    permSettingsPath_microphone: "系統設定 → 隱私權與安全性 → 麥克風",
+    sessionInfoRemaining: "剩餘 {{percent}}%",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

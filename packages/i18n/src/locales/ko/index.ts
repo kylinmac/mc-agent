@@ -2300,6 +2300,7 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
     legacyFsDowngraded:
       "이 플러그인은 범위 기능이 생기기 전의 파일 권한을 선언했으므로 접근 범위가 줄었습니다. 전체 기능을 복원하려면 업데이트하세요.",
     permissions: {
+      "ui.view": "Show a view in the work panel",
       "ui.panel": "플러그인 패널 표시",
       "ui.microphone": "마이크 사용",
       "clipboard.read": "클립보드와 기록 읽기",
@@ -2344,6 +2345,7 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
       "session.autoTitle": "첫 턴 제목 맥락 읽기 및 자동 제목 업데이트",
     },
     permissionHelp: {
+      "ui.view": "Lets the plugin list its views in the work panel and open them there.",
       "ui.panel": "플러그인이 앱 안에 자체 패널을 표시할 수 있습니다.",
       "ui.microphone": "격리된 패널이 마이크 오디오를 요청할 수 있습니다. 카메라 권한은 부여하지 않습니다.",
       "clipboard.read":
@@ -3482,6 +3484,19 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
     promptSuggestions: "Input suggestions",
     promptSuggestionsDesc: "After a reply, suggest your likely next message as gray text in the empty input; press Tab to use it. Each reply makes one extra request with the conversation's model, mostly read from its prompt cache.",
     suggestionTabHint: "Tab",
+    pluginCategory_community: "Community",
+    pluginCategory_creative: "Creative",
+    pluginCategory_developer_tools: "Developer tools",
+    pluginCategory_integrations: "Integrations",
+    pluginCategory_knowledge: "Knowledge",
+    pluginCategory_productivity: "Productivity",
+    pluginCategory_security: "Security",
+    pluginCategory_themes: "Themes",
+    pluginCategory_official: "Official",
+    permSettingsPath_accessibility: "System Settings → Privacy & Security → Accessibility",
+    permSettingsPath_screenRecording: "System Settings → Privacy & Security → Screen & System Audio Recording",
+    permSettingsPath_microphone: "System Settings → Privacy & Security → Microphone",
+    sessionInfoRemaining: "{{percent}}% left",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

@@ -105,7 +105,9 @@ export function SystemPermissionsPage() {
           <div className="mc-perm-purpose">{t(PURPOSE_KEYS[entry.item])}</div>
           {entry.detail ? <div className="mc-perm-detail">{entry.detail}</div> : null}
           {entry.state !== "granted" && entry.state !== "unsupported" ? (
-            <div className="mc-perm-detail">{t("mcProject.permManualPath", { path: entry.settingsPath })}</div>
+            <div className="mc-perm-detail">{t("mcProject.permManualPath", {
+                path: t(`mcProject.permSettingsPath_${entry.item}`, { defaultValue: entry.settingsPath }),
+              })}</div>
           ) : null}
           {stillMissing ? <div className="mc-perm-detail">{t("mcProject.permRestartHint")}</div> : null}
         </div>

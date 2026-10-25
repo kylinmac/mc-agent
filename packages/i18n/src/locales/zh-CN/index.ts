@@ -2299,6 +2299,7 @@ sklm: {
     fsAsksEachTime: "每次都会询问",
     legacyFsDowngraded: "此插件声明的是旧版文件权限，实际范围已被收窄。更新插件可恢复完整功能。",
     permissions: {
+      "ui.view": "在工作面板显示视图",
       "ui.panel": "显示插件面板",
       "ui.microphone": "使用麦克风",
       "clipboard.read": "读取剪贴板及其历史",
@@ -2343,6 +2344,7 @@ sklm: {
       "session.autoTitle": "读取首轮标题上下文并更新自动标题",
     },
     permissionHelp: {
+      "ui.view": "允许插件在工作面板中列出并打开它的视图。",
       "ui.panel": "允许插件在应用内显示独立面板。",
       "ui.microphone": "允许隔离面板请求麦克风音频，不授予摄像头权限。",
       "clipboard.read": "可能读取当前剪贴板内容以及应用运行期间保留的剪贴板历史。",
@@ -3539,6 +3541,19 @@ sklm: {
     promptSuggestions: "输入建议",
     promptSuggestionsDesc: "回复结束后，在空的输入框里用灰字给出你可能要发的下一句，按 Tab 采用。每次回复会多一次请求，用当前对话的模型，大部分内容走提示词缓存。",
     suggestionTabHint: "Tab",
+    pluginCategory_community: "社区",
+    pluginCategory_creative: "创意",
+    pluginCategory_developer_tools: "开发工具",
+    pluginCategory_integrations: "集成",
+    pluginCategory_knowledge: "知识",
+    pluginCategory_productivity: "效率",
+    pluginCategory_security: "安全",
+    pluginCategory_themes: "主题",
+    pluginCategory_official: "官方",
+    permSettingsPath_accessibility: "系统设置 → 隐私与安全性 → 辅助功能",
+    permSettingsPath_screenRecording: "系统设置 → 隐私与安全性 → 录屏与系统录音",
+    permSettingsPath_microphone: "系统设置 → 隐私与安全性 → 麦克风",
+    sessionInfoRemaining: "剩余 {{percent}}%",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;
