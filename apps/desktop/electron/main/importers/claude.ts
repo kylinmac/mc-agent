@@ -16,6 +16,7 @@ interface ClaudeLine {
   isSidechain?: boolean;
   timestamp?: string;
   uuid?: string;
+  customTitle?: string;
   cwd?: string;
   message?: {
     role?: string;
@@ -36,7 +37,15 @@ async function readLines(filePath: string): Promise<ClaudeLine[]> {
       // skip malformed lines
     }
   }
-  return out;
+  // Replayed snapshots retain their UUID; keep the latest copy, without merging distinct messages.
+  const latest = new Map(out.filter((line) => line.uuid).map((line) => [line.uuid, line]));
+  const seen = new Set<string>();
+  return out.flatMap((line) => {
+    if (!line.uuid) return [line];
+    if (seen.has(line.uuid)) return [];
+    seen.add(line.uuid);
+    return [latest.get(line.uuid)!];
+  });
 }
 
 function isConversationLine(line: ClaudeLine): boolean {
@@ -61,22 +70,23 @@ function blockText(content: string | Array<Record<string, any>> | undefined): st
 // slash-command transcripts) that all start with an XML-ish tag.
 function isSyntheticUserText(text: string): boolean {
   // mc-agent (MC-ADR-0009): also the "[Request interrupted by user…]" markers.
-  return text.startsWith("<") || text.startsWith("[Request interrupted by user");
+  return /^<(?:local-command-caveat|command-name|command-message|local-command-stdout|system-reminder)(?:\s|>)/.test(text)
+    || text.startsWith("[Request interrupted by user");
 }
 
-export const claudeImporter: SessionImporter = {
+export function createClaudeImporter(projectsDir = PROJECTS_DIR): SessionImporter { return {
   source: "claude-code",
 
   async scan(): Promise<ExternalSessionSummary[]> {
     let projectDirs: string[] = [];
     try {
-      projectDirs = await fs.readdir(PROJECTS_DIR);
+      projectDirs = await fs.readdir(projectsDir);
     } catch {
       return [];
     }
     const summaries: ExternalSessionSummary[] = [];
     for (const dir of projectDirs) {
-      const dirPath = path.join(PROJECTS_DIR, dir);
+      const dirPath = path.join(projectsDir, dir);
       let files: string[] = [];
       try {
         files = (await fs.readdir(dirPath)).filter((f) => f.endsWith(".jsonl"));
@@ -101,6 +111,7 @@ export const claudeImporter: SessionImporter = {
             source: "claude-code",
             externalId: path.basename(file, ".jsonl"),
             title:
+              lines.filter((line) => line.type === "custom-title" && line.customTitle?.trim()).at(-1)?.customTitle?.trim() ||
               truncateTitle(blockText(firstUser?.message?.content) || "") ||
               path.basename(file, ".jsonl"),
             projectPath: convo[0]?.cwd ?? null,
@@ -169,7 +180,8 @@ export const claudeImporter: SessionImporter = {
               status: "complete",
             });
           }
-        } else {
+        }
+        {
           const text = blockText(content);
           if (text && !isSyntheticUserText(text)) {
             messages.push({
@@ -197,4 +209,6 @@ export const claudeImporter: SessionImporter = {
       messages,
     };
   },
-};
+}; }
+
+export const claudeImporter = createClaudeImporter();
