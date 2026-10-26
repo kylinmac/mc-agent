@@ -110,9 +110,46 @@ pub async fn read_new(
 ) -> Result<Value, (String, String)> {
     let id = background_id(args)?;
     let st = state.lock().await;
-    background_tasks::read_new_for_agent(&st.background_tasks, session_id, id, READ_LIMIT_BYTES)
-        .await
-        .ok_or_else(not_found)
+    let task = st
+        .background_tasks
+        .tasks
+        .get(id)
+        .filter(|task| task.session_id == session_id)
+        .ok_or_else(not_found)?;
+    let mut shared = task.shared.lock().await;
+    let (stdout, stderr, skipped) = shared.take_unread();
+    let (state, exit_code) = shared.status();
+    let (stdout, stdout_cut) = newest(&stdout, READ_LIMIT_BYTES);
+    let (stderr, stderr_cut) = newest(&stderr, READ_LIMIT_BYTES);
+    let mut result = json!({
+        "backgroundId": task.id,
+        "command": task.command,
+        "status": state,
+        "output": stdout,
+    });
+    if !stderr.is_empty() {
+        result["stderr"] = json!(stderr);
+    }
+    // Only a finished command has a code; a missing one must not read as a failure.
+    if let Some(code) = exit_code {
+        result["exitCode"] = json!(code);
+    }
+    if skipped || stdout_cut || stderr_cut {
+        result["note"] = json!("earlier output was dropped; only the latest output is shown");
+    }
+    Ok(result)
+}
+
+/// The last `limit` bytes of `text`, cut on a character boundary.
+fn newest(text: &str, limit: usize) -> (&str, bool) {
+    if text.len() <= limit {
+        return (text, false);
+    }
+    let mut start = text.len() - limit;
+    while start < text.len() && !text.is_char_boundary(start) {
+        start += 1;
+    }
+    (&text[start..], true)
 }
 
 fn summary(st: &AppState, session_id: &str, id: &str) -> Option<Value> {

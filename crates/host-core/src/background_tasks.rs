@@ -89,6 +89,30 @@ impl TaskShared {
         Self::push_text(&mut self.stderr, &mut self.stderr_bytes, text)
     }
 
+    /// mc-agent (MC-ADR-0006): stdout and stderr the agent has not read yet
+    /// (`BashOutput`), moving its cursor, and whether some was dropped first.
+    pub(crate) fn take_unread(&mut self) -> (String, String, bool) {
+        let (stdout, stdout_skipped) = Self::unread(
+            &self.stdout,
+            self.stdout_bytes,
+            self.stdout_written,
+            self.stdout_read,
+        );
+        let (stderr, stderr_skipped) = Self::unread(
+            &self.stderr,
+            self.stderr_bytes,
+            self.stderr_written,
+            self.stderr_read,
+        );
+        self.stdout_read = self.stdout_written;
+        self.stderr_read = self.stderr_written;
+        (stdout, stderr, stdout_skipped || stderr_skipped)
+    }
+
+    pub(crate) fn status(&self) -> (BackgroundTaskState, Option<i32>) {
+        (self.state, self.exit_code)
+    }
+
     /// Output after `cursor` that the ring still holds, and whether some of
     /// it was already dropped from the front.
     fn unread(
@@ -546,67 +570,6 @@ pub async fn task_output(
         "stderr": TaskShared::render(&shared.stderr),
         "truncated": shared.truncated,
     })))
-}
-
-/// mc-agent (MC-ADR-0006): output the agent has not read yet (`BashOutput`),
-/// at most `limit` bytes per stream (the newest). `None` when the id is not a
-/// task of this session.
-pub(crate) async fn read_new_for_agent(
-    registry: &BackgroundTaskRegistry,
-    session_id: &str,
-    id: &str,
-    limit: usize,
-) -> Option<serde_json::Value> {
-    let task = registry
-        .tasks
-        .get(id)
-        .filter(|task| task.session_id == session_id)?;
-    let mut shared = task.shared.lock().await;
-    let (stdout, stdout_skipped) = TaskShared::unread(
-        &shared.stdout,
-        shared.stdout_bytes,
-        shared.stdout_written,
-        shared.stdout_read,
-    );
-    let (stderr, stderr_skipped) = TaskShared::unread(
-        &shared.stderr,
-        shared.stderr_bytes,
-        shared.stderr_written,
-        shared.stderr_read,
-    );
-    shared.stdout_read = shared.stdout_written;
-    shared.stderr_read = shared.stderr_written;
-    let (stdout, stdout_cut) = newest(&stdout, limit);
-    let (stderr, stderr_cut) = newest(&stderr, limit);
-    let mut result = serde_json::json!({
-        "backgroundId": task.id,
-        "command": task.command,
-        "status": shared.state,
-        "output": stdout,
-    });
-    if !stderr.is_empty() {
-        result["stderr"] = serde_json::json!(stderr);
-    }
-    // Only a finished command has a code; a missing one must not read as a failure.
-    if let Some(code) = shared.exit_code {
-        result["exitCode"] = serde_json::json!(code);
-    }
-    if stdout_skipped || stderr_skipped || stdout_cut || stderr_cut {
-        result["note"] =
-            serde_json::json!("earlier output was dropped; only the latest output is shown");
-    }
-    Some(result)
-}
-
-fn newest(text: &str, limit: usize) -> (&str, bool) {
-    if text.len() <= limit {
-        return (text, false);
-    }
-    let mut start = text.len() - limit;
-    while start < text.len() && !text.is_char_boundary(start) {
-        start += 1;
-    }
-    (&text[start..], true)
 }
 
 /// Best-effort stop used by `AppState::shutdown`, which cannot await. The
