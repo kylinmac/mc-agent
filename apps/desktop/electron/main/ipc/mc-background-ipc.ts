@@ -1,6 +1,7 @@
 import { ErrorCodes, IPC, type BackgroundShell } from "@pi-desktop/shared";
 import type { HostProcess } from "../host-process";
 import type { IpcRegistrar } from "./types";
+import { createBackgroundWake, onBackgroundTasksChanged, type WakeTask } from "../mc-background-wake";
 
 /**
  * mc-agent background commands (MC-ADR-0006): the desktop panel lists, views
@@ -103,4 +104,33 @@ export function registerMcBackgroundIpc({ registrar, getHost }: McBackgroundIpcD
     await host().call("backgroundTasks.stop", { id: task.id });
     return shellOf(task, Date.now());
   });
+}
+
+/** Wakes the agent when one of its background commands ends (MC-ADR-0018). */
+export function registerMcBackgroundWake({ getHost, activeTurn, invoke, log }: {
+  getHost: () => HostProcess | null;
+  activeTurn: (sessionId: string) => string | undefined;
+  invoke: (channel: string, args: readonly unknown[]) => Promise<unknown>;
+  log: (message: string, error?: unknown) => void;
+}): () => void {
+  const host = () => {
+    const current = getHost();
+    if (!current) throw new Error("host unavailable");
+    return current;
+  };
+  const wake = createBackgroundWake({
+    listTasks: async () => ((await host().call("backgroundTasks.list", {})) as { tasks?: WakeTask[] }).tasks ?? [],
+    output: async (id) => (await host().call("backgroundTasks.output", { id })) as TaskOutput,
+    activeTurn,
+    steer: async (sessionId, expectedTurnId, content) =>
+      (await invoke(IPC.invoke.agentSteer, [{ sessionId, expectedTurnId, content }])) as { accepted: boolean },
+    prompt: (sessionId, content) => invoke(IPC.invoke.agentPrompt, [{ sessionId, content }]),
+    queue: (sessionId, content) => invoke(IPC.invoke.agentQueuePush, [{ sessionId, content }]),
+    log,
+  });
+  const unsubscribe = onBackgroundTasksChanged(() => void wake.changed());
+  return () => {
+    unsubscribe();
+    wake.dispose();
+  };
 }

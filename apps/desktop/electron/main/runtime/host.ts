@@ -1,4 +1,5 @@
 import { ErrorCodes, IPC, type AgentEventEnvelope, type PlanExecutionFinishStatus, type Risk } from "@pi-desktop/shared";
+import { emitBackgroundTasksChanged } from "../mc-background-wake";
 import { assertLinuxGlibcSupported } from "../linux-glibc";
 import { HostProcess } from "../host-process";
 import type { Logger } from "../logger";
@@ -105,6 +106,7 @@ export function createHostRuntime({
       // Fan-out only: the renderer re-lists on the event and renders the
       // running-tasks bar above the composer. No main-process decisions.
       sendToRenderer(IPC.event.backgroundTasksChanged, params);
+      emitBackgroundTasksChanged();
       return;
     }
     if (method === "permissions.request") {

@@ -123,6 +123,9 @@ impl PermissionManager {
             // mc-agent: copies an image the session made into the project's
             // creative library (docs/mc-agent/creative-studio.md).
             "SaveCreativeAsset" => Risk::Low,
+            // mc-agent: a note in the project's memory, which the user can
+            // edit or delete (MC-ADR-0019).
+            "Remember" => Risk::Low,
             "Write" | "Edit" | "Bash" | "GenerateImages" => Risk::High,
             name if name.starts_with("plugin_") => match declared {
                 Some("low") => Risk::Low,

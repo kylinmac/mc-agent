@@ -3504,6 +3504,16 @@
     "zh-CN": "回复结束后，在空的输入框里用灰字给出你可能要发的下一句，按 Tab 采用。每次回复会多一次请求，用当前对话的模型，大部分内容走提示词缓存。",
     "zh-TW": "回覆結束後，在空的輸入框裡用灰字給出你可能要送出的下一句，按 Tab 採用。每次回覆會多一次請求，用目前對話的模型，大部分內容走提示詞快取。"
   },
+  "dictationHoldHint": {
+    "en": "hold {{keys}} to talk",
+    "zh-CN": "按住 {{keys}} 说话",
+    "zh-TW": "按住 {{keys}} 說話"
+  },
+  "dictationHoldSettingsHint": {
+    "en": "Hold {{keys}} to talk and release to transcribe; a quick tap is ignored. Change or turn it off under Shortcuts. Works while the app window is focused.",
+    "zh-CN": "按住 {{keys}} 说话，松开后识别；轻点一下不算。可在“快捷键”里修改或关闭。应用窗口在前台时可用。",
+    "zh-TW": "按住 {{keys}} 說話，放開後辨識；輕按一下不算。可在「快捷鍵」裡修改或關閉。應用程式視窗在前景時可用。"
+  },
   "pluginCategory_community": {
     "en": "Community",
     "zh-CN": "社区",
@@ -3568,6 +3578,56 @@
     "en": "{{percent}}% left",
     "zh-CN": "剩余 {{percent}}%",
     "zh-TW": "剩餘 {{percent}}%"
+  },
+  "quotaTitle": {
+    "en": "Subscription quota left",
+    "zh-CN": "订阅剩余额度",
+    "zh-TW": "訂閱剩餘額度"
+  },
+  "quotaRemaining": {
+    "en": "{{percent}}% left",
+    "zh-CN": "剩余 {{percent}}%",
+    "zh-TW": "剩餘 {{percent}}%"
+  },
+  "quotaResets": {
+    "en": "resets {{time}}",
+    "zh-CN": "{{time}} 重置",
+    "zh-TW": "{{time}} 重置"
+  },
+  "quotaWindowHours": {
+    "en": "{{count}}h",
+    "zh-CN": "{{count}}h",
+    "zh-TW": "{{count}}h"
+  },
+  "quotaWindowDays": {
+    "en": "{{count}}d",
+    "zh-CN": "{{count}} 天",
+    "zh-TW": "{{count}} 天"
+  },
+  "quotaWindow_day": {
+    "en": "Day",
+    "zh-CN": "日",
+    "zh-TW": "日"
+  },
+  "quotaWindow_week": {
+    "en": "Week",
+    "zh-CN": "周",
+    "zh-TW": "週"
+  },
+  "quotaWindow_month": {
+    "en": "Month",
+    "zh-CN": "月",
+    "zh-TW": "月"
+  },
+  "quotaWindowPlan": {
+    "en": "Plan",
+    "zh-CN": "套餐",
+    "zh-TW": "方案"
+  },
+  "memoryByAgent": {
+    "en": "Saved by the agent. Edit or delete it like any other note.",
+    "zh-CN": "Agent 记下的，可以像其他条目一样修改或删除。",
+    "zh-TW": "Agent 記下的，可以像其他條目一樣修改或刪除。"
   },
   "hooksNav": {
     "en": "Hooks",

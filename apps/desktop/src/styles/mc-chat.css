@@ -26,3 +26,50 @@
   margin: 6px 0 0;
   white-space: pre-wrap;
 }
+
+/* mc-agent (MC-ADR-0019): project memory notes the agent saved. */
+.project-memory-entry-index[data-agent="true"] {
+  background: color-mix(in oklab, var(--ds-text-muted) 14%, transparent);
+  color: var(--ds-text-muted);
+  font-weight: var(--font-weight-strong);
+/* mc-agent: remaining subscription quota beside the context ring. */
+.mc-quota-chip {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  border-radius: var(--radius-full);
+  padding: 0 6px;
+  outline: none;
+}
+
+.mc-quota-chip:focus-visible {
+  box-shadow: 0 0 0 2px var(--ds-focus-ring);
+}
+
+.mc-quota-chip-body {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.mc-quota-window {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.mc-quota-window-value {
+  color: var(--ds-text-secondary);
+}
+
+.mc-quota-window[data-low="true"] .mc-quota-window-value {
+  color: var(--ds-warning);
+}
+
+.mc-quota-tooltip {
+  white-space: pre-line;
+}

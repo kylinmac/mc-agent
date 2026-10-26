@@ -20,6 +20,7 @@ import {
 } from "./image-generation/tool.js";
 import type { McUserHook } from "@pi-desktop/shared";
 import { runUserHooks, hookFeedbackText, MAX_STOP_CONTINUATIONS } from "./mc-user-hooks.js";
+import { REMEMBER_TOOL_NAME, rememberDescription, rememberParameters } from "./mc-memory-tool.js";
 import { todoWriteDescription, todoWriteParameters } from "./todo-tool.js";
 import { createJevClassifierTool } from "./jev-classifier-tool.js";
 import { scheduledToolParameters, scheduledToolDescriptions } from "./scheduled-tools.js";
@@ -1410,7 +1411,7 @@ function commandShellToolDescription(
     shellSyntaxGuidance(shell),
     `The session scratch directory variable is ${shellScratchVariable(shell)}.`,
     `An optional timeout from 1 to ${MAX_COMMAND_TIMEOUT_SECONDS} seconds may be supplied; without it, the command defaults to a 60-second timeout.`,
-    `Set runInBackground: true for long-lived processes the user needs after the turn ends (dev servers, watchers, builds). A background call returns a backgroundTaskId immediately, survives turn aborts and timeouts, and its output is visible in the composer's running-tasks bar; do not set it for commands whose output the current turn depends on.`,
+    `Set runInBackground: true for long-lived processes the user needs after the turn ends (dev servers, watchers, builds). A background call returns a backgroundTaskId immediately, survives turn aborts and timeouts, and its output is visible in the composer's running-tasks bar; do not set it for commands whose output the current turn depends on. When a background command exits on its own you get an automatic notice with its exit code and last output, even after your turn has ended, so never sleep or poll in a loop waiting for one to finish.`,
     ...(formattedScratch ? [`The session scratch directory is ${formattedScratch}.`] : []),
   ].join(" ");
 }
@@ -3434,6 +3435,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       if (toolName === "GenerateImages") return imageGenerationDescription;
       // mc-agent creative studio (docs/mc-agent/creative-studio.md).
       if (toolName === "SaveCreativeAsset") return saveCreativeAssetDescription;
+      // mc-agent project memory notes (MC-ADR-0019).
+      if (toolName === REMEMBER_TOOL_NAME) return rememberDescription;
       if (scheduledToolDescriptions[toolName]) return scheduledToolDescriptions[toolName];
       switch (toolName) {
         case "BrowserPreview":
@@ -3472,7 +3475,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         case "Bash":
           return `${commandShellToolDescription(this.commandShell, this.scratchDir)} Use Edit or Write instead of apply_patch, git apply, or patch; do not retry a failed shell patch command repeatedly.${this.mode === "agent" ? " Read a background command's new output with BashOutput and stop it with KillBash once it is no longer needed; both take the backgroundTaskId the call returned as backgroundId." : ""}`;
         case "BashOutput":
-          return "Read the new output of a background command started with Bash runInBackground, since your last read, plus its status (running, exited, failed with exitCode, stopped). stdout is in output and stderr in stderr; when much was printed only the latest part is returned. Poll sparingly: check after doing other work rather than in a tight loop.";
+          return "Read the new output of a background command started with Bash runInBackground, since your last read, plus its status (running, exited, failed with exitCode, stopped). stdout is in output and stderr in stderr; when much was printed only the latest part is returned. You are notified automatically when a background command exits, so use this to check progress or read the full output, not to wait for the end.";
         case "KillBash":
           return "Stop a background command started with Bash runInBackground, including the processes it started. Stop servers and watchers you started once the task no longer needs them.";
         case "TodoWrite":
@@ -3494,6 +3497,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     const parameters: Record<string, Parameters<typeof Type.Object>[0]> = {
       GenerateImages: imageGenerationParameters,
       SaveCreativeAsset: saveCreativeAssetParameters,
+      [REMEMBER_TOOL_NAME]: rememberParameters,
       TodoWrite: todoWriteParameters,
       Read: {
         path: pathParam(
@@ -4126,6 +4130,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         : ["Read", "Glob", "Grep", "BrowserPreview", "Bash", "Write", "Edit"];
     if (this.mode === "agent") {
       tools.push("PluginScaffold", "PluginPack", "GenerateImages", "SaveCreativeAsset", ...Object.keys(scheduledToolParameters));
+      // mc-agent: only a conversation in a project has a memory to write.
+      if (this.projectPath && !this.remoteWorkspace) tools.push(REMEMBER_TOOL_NAME);
     }
     const builtins = tools.map(exec);
     const jevTools: AgentTool[] =

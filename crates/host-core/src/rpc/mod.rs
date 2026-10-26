@@ -13,6 +13,8 @@ mod window_corner_rpc;
 mod worktree_rpc;
 
 #[cfg(test)]
+mod mc_auto_guard_tests;
+#[cfg(test)]
 mod plugin_reviews_rpc_tests;
 #[cfg(test)]
 mod visualization_tests;
@@ -4353,6 +4355,16 @@ async fn handle_request(
                     {
                         auto = Some(PermissionDecision::AllowOnce);
                     }
+                    // mc-agent (MC-ADR-0020): a few outward or irreversible
+                    // commands still get a card in Auto mode.
+                    let auto_guard = if effective_pm == "auto" {
+                        crate::mc_auto_guard::auto_mode_reason(&p.tool_name, &p.args)
+                    } else {
+                        None
+                    };
+                    if auto_guard.is_some() {
+                        auto = None;
+                    }
                     if let Some(decision) = auto {
                         (
                             Some(decision),
@@ -4364,7 +4376,9 @@ async fn handle_request(
                             command_shell_id.clone(),
                         )
                     } else {
-                        let reason = if external_path_permission {
+                        let reason = if let Some(reason) = auto_guard {
+                            reason
+                        } else if external_path_permission {
                             "Accesses a path outside the session workspace"
                         } else {
                             match p.tool_name.as_str() {
@@ -5007,7 +5021,7 @@ async fn handle_request(
                         &args,
                     )
                 };
-            let decision = st
+            let mut decision = st
                 .permissions
                 .evaluate_auto_with_permission_mode_and_risk_and_path(PermissionEvaluationParams {
                     session_id,
@@ -5019,6 +5033,12 @@ async fn handle_request(
                     requires_external_path_permission: external_path_permission,
                     plan_safe_actions: plan_safe_actions.as_deref(),
                 });
+            // mc-agent (MC-ADR-0020): the same Auto-mode exceptions as tools.execute.
+            if effective_pm == "auto"
+                && crate::mc_auto_guard::auto_mode_reason(tool_name, &args).is_some()
+            {
+                decision = None;
+            }
             Ok(json!({
                 "decision": decision,
                 "risk": PermissionManager::tool_risk_with_declared(tool_name, declared_risk),

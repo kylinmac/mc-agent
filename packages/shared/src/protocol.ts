@@ -221,6 +221,8 @@ export const IPC = {
     mcPromptsSessionGet: "pi-desktop/mc-prompts/session-get",
     mcPromptsSessionSet: "pi-desktop/mc-prompts/session-set",
     mcUsageSummary: "pi-desktop/mc-usage/summary",
+    // mc-agent: remaining subscription quota of the conversation's provider.
+    mcSubscriptionQuota: "pi-desktop/mc-usage/subscription-quota",
     // mc-agent: macOS system permissions page (X-PERM-02).
     macPermissionsCheck: "pi-desktop/mac-permissions/check",
     macPermissionsRequest: "pi-desktop/mac-permissions/request",

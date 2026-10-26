@@ -21,12 +21,14 @@ import { registerJevIpc } from "./jev-ipc";
 import { refreshProjectGroups } from "../workspace-roots";
 import { registerProjectResourcesIpc } from "./project-resources-ipc";
 import { registerSessionInsightIpc } from "./mc-session-insight-ipc";
+import { registerMcQuotaIpc } from "./mc-quota-ipc";
 import { registerMcUsageIpc } from "./mc-usage-ipc";
 import { registerMcPermissionsIpc } from "./mc-permissions-ipc";
 import { registerMcPromptsIpc } from "./mc-prompts-ipc";
 import { registerMcTerminalIpc } from "./mc-terminal-ipc";
 import { registerMcBackgroundIpc } from "./mc-background-ipc";
 import { loadUserHooks, saveUserHooks } from "../mc-user-hooks-store";
+import { registerMcBackgroundIpc, registerMcBackgroundWake } from "./mc-background-ipc";
 import { registerMcCreativeIpc } from "./mc-creative-ipc";
 import { imageDataUrl, measureImage } from "../creative/measure-image";
 import { TerminalManager } from "../mc-terminal";
@@ -346,6 +348,8 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     onProviderInvalidated: (providerId) => liveCallService?.invalidateProvider(providerId),
   });
   registerJevIpc({ registrar, logger });
+  // mc-agent: remaining subscription quota beside the composer.
+  registerMcQuotaIpc({ registrar, getHost, vendorOAuth });
   registerSessionInsightIpc({
     registrar,
     getSidecar,
@@ -402,6 +406,16 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
   // mc-agent user hooks (MC-ADR-0021).
   registrar.handle(IPC.invoke.mcHooksGet, async () => ({ hooks: await loadUserHooks(dataDir) }));
   registrar.handle(IPC.invoke.mcHooksSet, async (hooks: unknown) => ({ hooks: await saveUserHooks(dataDir, hooks) }));
+  registerMcBackgroundWake({
+    getHost,
+    activeTurn: (sessionId) => activeTurns.get(sessionId),
+    invoke: async (channel, args) => {
+      const handler = ipcHandlers.get(channel);
+      if (!handler) throw new Error("agent handler unavailable");
+      return handler(...args);
+    },
+    log: (message, error) => logger.app("tool", "warn", message, error === undefined ? undefined : { data: String(error) }),
+  });
   registerMcCreativeIpc({
     registrar,
     getHost,
