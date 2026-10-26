@@ -1,21 +1,22 @@
 import { describe, expect, it } from "vitest";
-import type { ChangelogEntry } from "./changelog.js";
 import {
   compareMcVersions,
   getMcChangelogEntry,
   MC_CHANGELOG,
+  mcChangeSections,
   mcChangelogEntries,
   mcReleaseNotesSince,
   resolveMcChangelogLocale,
+  type McReleaseNotes,
 } from "./mc-changelog.js";
 
-const catalog: Record<"zh-CN" | "en", readonly ChangelogEntry[]> = {
+const catalog: Record<"zh-CN" | "en", readonly McReleaseNotes[]> = {
   "zh-CN": [
-    { version: "1.0.22", highlights: ["新功能 C"] },
-    { version: "1.0.21", highlights: [] },
-    { version: "1.0.20", highlights: ["新功能 A", "修复 B"] },
+    { version: "1.0.22", features: ["新功能 C"] },
+    { version: "1.0.21", fixes: [] },
+    { version: "1.0.20", fixes: ["修复 B"], features: ["新功能 A"] },
   ],
-  en: [{ version: "1.0.20", highlights: ["Feature A", "Fix B"] }],
+  en: [{ version: "1.0.20", features: ["Feature A"], fixes: ["Fix B"] }],
 };
 
 describe("mc changelog", () => {
@@ -25,6 +26,16 @@ describe("mc changelog", () => {
       const versions = entries.map((entry) => entry.version);
       expect([...versions].sort((a, b) => compareMcVersions(b, a))).toEqual(versions);
     }
+  });
+
+  it("groups lines as features, improvements, fixes and flattens them in that order", () => {
+    expect(mcChangeSections({ version: "1.0.30", fixes: ["F"], improvements: [], features: ["N"] })).toEqual([
+      { kind: "features", items: ["N"] },
+      { kind: "fixes", items: ["F"] },
+    ]);
+    const [entry] = mcReleaseNotesSince("1.0.19", "1.0.20", { locale: "en", catalog });
+    expect(entry.highlights).toEqual(["Feature A", "Fix B"]);
+    expect(entry.sections.map((section) => section.kind)).toEqual(["features", "fixes"]);
   });
 
   it("compares semver numerically", () => {

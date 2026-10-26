@@ -3799,8 +3799,11 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     hookCommandPlaceholder_Stop: "e.g. pnpm test >&2 || exit 2",
     whatsNewTitle: "What's new",
     whatsNewVersion: "mc-agent {{version}}",
-    whatsNewWhere: "All versions: Settings → About → Release notes",
+    whatsNewWhere: "Earlier versions: Settings → About → Release notes",
     whatsNewDone: "Got it",
+    changeKind_features: "New",
+    changeKind_improvements: "Improved",
+    changeKind_fixes: "Fixed",
   },
   // mc-agent:end
 } as const;

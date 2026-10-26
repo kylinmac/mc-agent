@@ -3674,8 +3674,11 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
     hookCommandPlaceholder_Stop: "e.g. pnpm test >&2 || exit 2",
     whatsNewTitle: "What's new",
     whatsNewVersion: "mc-agent {{version}}",
-    whatsNewWhere: "All versions: Settings → About → Release notes",
+    whatsNewWhere: "Earlier versions: Settings → About → Release notes",
     whatsNewDone: "Got it",
+    changeKind_features: "New",
+    changeKind_improvements: "Improved",
+    changeKind_fixes: "Fixed",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

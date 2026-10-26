@@ -119,9 +119,20 @@
   font-variant-numeric: tabular-nums;
 }
 
+.mc-whats-new-group + .mc-whats-new-group {
+  margin-top: 12px;
+}
+
+.mc-whats-new-group h4 {
+  margin: 0 0 6px;
+  color: var(--ds-text-primary);
+  font-size: var(--text-xs-plus);
+  font-weight: var(--font-weight-semibold);
+}
+
 .mc-whats-new-version ul {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;

@@ -439,6 +439,22 @@
   color: var(--ds-text-muted);
 }
 
+/* mc-agent (MC-ADR-0017): 新功能 / 优化 / 修复 groups. */
+.release-notes-group {
+  margin-top: 12px;
+}
+
+.release-notes-group h4 {
+  margin: 0;
+  color: var(--ds-text-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.release-notes-group ul {
+  margin-top: 6px;
+}
+
 @media (max-width: 560px) {
   .release-notes-overlay {
     padding: 12px;

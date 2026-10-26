@@ -1,40 +1,38 @@
-import type { ChangelogEntry } from "./changelog.js";
+import type { McReleaseNotes } from "./mc-changelog-types.js";
 
 /**
  * English mirror of mc-changelog-zh-CN.ts (zh-CN is the source of truth).
  * Optional per version: a missing version falls back to the zh-CN entry.
- * When present, an entry must have the same number of highlights as zh-CN.
+ * When present, each category must have the same number of lines as zh-CN.
+ * Plain release-note English: one line per change, what the user gets.
  * Type-only imports only (the release check runs this file with Node directly).
  */
-export const mcEnEntries: ChangelogEntry[] = [
+export const mcEnEntries: McReleaseNotes[] = [
   {
     version: "1.0.22",
     date: "2026-10-26",
-    highlights: [
-      "The \"what's new\" popup after an update is now compact and easier to read; release notes show their bullets again and no longer touch the bottom edge.",
-      "A window closed maximized reopens maximized; un-maximizing returns to the size you had.",
-    ],
+    fixes: ["A window closed while maximized now reopens maximized, and restores to its previous size."],
   },
   {
     version: "1.0.21",
     date: "2026-10-26",
-    highlights: [
-      "After an update, the first launch shows what's new; Settings → About → Release notes lists every mc-agent version.",
-      "The window reopens at the size and place you closed it, instead of shrinking to one side when it was closed with the work panel open.",
-    ],
+    features: ["See what changed on the first launch after an update. All versions are in Settings → About → Release notes."],
+    fixes: ["The window reopens at its last size and position instead of shrinking to the right half when closed with the work panel open."],
   },
   {
     version: "1.0.20",
     date: "2026-10-26",
-    highlights: [
-      "Hold ⌘⇧Space (Ctrl+Shift+Space on Windows) to talk; on release your speech is typed into the composer, not sent. Change or turn off the key in Settings → Shortcuts.",
-      "With a subscription account (ChatGPT/Codex, Claude, GitHub Copilot, Kimi, GLM, MiniMax), the composer shows the quota left, only for the windows the service has; hover for reset times.",
-      "When a command the agent ran in the background ends, the agent is told and carries on with the result, without you having to nudge it.",
-      "The agent saves your preferences, corrections and project constraints to project memory, so later conversations know them; its notes are marked “AI” in the memory panel and can be edited or deleted.",
-      "New Settings → Agent → Hooks: shell commands that run before or after tool calls and when the agent would finish, e.g. a format check after edits or tests before finishing.",
-      "In Full auto permission mode, force-pushes, pushes to the main branch, merging PRs, releases, publishing packages, deleting outside the project and sudo still ask first.",
-      "When the agent delegates, a subagent can start from the current conversation instead of a fresh briefing.",
-      "Remaining “PI-Desktop” labels in the app now say “mc-agent”.",
+    features: [
+      "Voice input: hold ⌘⇧Space (Ctrl+Shift+Space on Windows) to talk; your words are typed into the composer, not sent. Change or turn it off in Settings → Shortcuts.",
+      "With a subscription account (ChatGPT/Codex, Claude, GitHub Copilot, Kimi, GLM, MiniMax), the composer shows your remaining quota. Hover for reset times.",
+      "Project memory: the agent remembers your preferences, corrections and project rules for later conversations. Entries marked “AI” in the memory panel can be edited or deleted.",
+      "Hooks (Settings → Agent → Hooks): run commands before or after tool calls or before the agent finishes, e.g. a format check after edits or tests before finishing.",
+      "Subagents can start with the current conversation's context.",
     ],
+    improvements: [
+      "When a background command finishes, the agent picks up the result on its own.",
+      "In Full auto mode, force-pushes, pushes to the main branch, merging PRs, releases, publishing packages, deleting files outside the project and sudo still ask first.",
+    ],
+    fixes: ["Remaining “PI-Desktop” labels now say “mc-agent”."],
   },
 ];
