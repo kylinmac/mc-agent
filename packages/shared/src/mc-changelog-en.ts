@@ -8,6 +8,14 @@ import type { ChangelogEntry } from "./changelog.js";
  */
 export const mcEnEntries: ChangelogEntry[] = [
   {
+    version: "1.0.22",
+    date: "2026-10-26",
+    highlights: [
+      "The \"what's new\" popup after an update is now compact and easier to read; release notes show their bullets again and no longer touch the bottom edge.",
+      "A window closed maximized reopens maximized; un-maximizing returns to the size you had.",
+    ],
+  },
+  {
     version: "1.0.21",
     date: "2026-10-26",
     highlights: [
