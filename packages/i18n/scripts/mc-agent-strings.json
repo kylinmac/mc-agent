@@ -3504,6 +3504,16 @@
     "zh-CN": "回复结束后，在空的输入框里用灰字给出你可能要发的下一句，按 Tab 采用。每次回复会多一次请求，用当前对话的模型，大部分内容走提示词缓存。",
     "zh-TW": "回覆結束後，在空的輸入框裡用灰字給出你可能要送出的下一句，按 Tab 採用。每次回覆會多一次請求，用目前對話的模型，大部分內容走提示詞快取。"
   },
+  "dictationHoldHint": {
+    "en": "hold {{keys}} to talk",
+    "zh-CN": "按住 {{keys}} 说话",
+    "zh-TW": "按住 {{keys}} 說話"
+  },
+  "dictationHoldSettingsHint": {
+    "en": "Hold {{keys}} to talk and release to transcribe; a quick tap is ignored. Change or turn it off under Shortcuts. Works while the app window is focused.",
+    "zh-CN": "按住 {{keys}} 说话，松开后识别；轻点一下不算。可在“快捷键”里修改或关闭。应用窗口在前台时可用。",
+    "zh-TW": "按住 {{keys}} 說話，放開後辨識；輕按一下不算。可在「快捷鍵」裡修改或關閉。應用程式視窗在前景時可用。"
+  },
   "pluginCategory_community": {
     "en": "Community",
     "zh-CN": "社区",
