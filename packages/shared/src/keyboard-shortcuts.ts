@@ -17,6 +17,8 @@ export const KEYBOARD_SHORTCUT_IDS = [
   "toggleFullScreen",
   "voiceToggle",
   "voiceCancel",
+  // mc-agent: hold to record voice input, release to transcribe.
+  "dictationHold",
 ] as const;
 
 export type KeyboardShortcutId = (typeof KEYBOARD_SHORTCUT_IDS)[number];
@@ -75,6 +77,7 @@ export const KEYBOARD_SHORTCUTS: readonly KeyboardShortcutDefinition[] = [
     group: "agent",
     defaultBinding: "Escape",
   },
+  { id: "dictationHold", group: "agent", defaultBinding: "Mod+Shift+Space" },
 ] as const;
 
 /**
