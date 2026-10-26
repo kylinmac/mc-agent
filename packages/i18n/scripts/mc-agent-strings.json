@@ -3728,5 +3728,10 @@
     "en": "e.g. pnpm test >&2 || exit 2",
     "zh-CN": "例如：pnpm test >&2 || exit 2",
     "zh-TW": "例如：pnpm test >&2 || exit 2"
+  },
+  "whatsNewTitle": {
+    "en": "What's new in {{version}}",
+    "zh-CN": "{{version}} 更新了什么",
+    "zh-TW": "{{version}} 更新了什麼"
   }
 }

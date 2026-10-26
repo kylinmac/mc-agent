@@ -8,6 +8,14 @@ import type { ChangelogEntry } from "./changelog.js";
  */
 export const mcEnEntries: ChangelogEntry[] = [
   {
+    version: "1.0.21",
+    date: "2026-10-26",
+    highlights: [
+      "After an update, the first launch shows what's new; Settings → About → Release notes lists every mc-agent version.",
+      "The window reopens at the size and place you closed it, instead of shrinking to one side when it was closed with the work panel open.",
+    ],
+  },
+  {
     version: "1.0.20",
     date: "2026-10-26",
     highlights: [

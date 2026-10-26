@@ -4,6 +4,7 @@ import {
   compareMcVersions,
   getMcChangelogEntry,
   MC_CHANGELOG,
+  mcChangelogEntries,
   mcReleaseNotesSince,
   resolveMcChangelogLocale,
 } from "./mc-changelog.js";
@@ -69,5 +70,14 @@ describe("mc changelog", () => {
     expect(mcReleaseNotesSince(null, "1.0.22", { locale: "zh-CN", catalog })).toEqual([]);
     expect(mcReleaseNotesSince("1.0.22", "1.0.22", { locale: "zh-CN", catalog })).toEqual([]);
     expect(mcReleaseNotesSince("1.0.22", "1.0.20", { locale: "zh-CN", catalog })).toEqual([]);
+  });
+
+  it("lists every version in the reader's language where written", () => {
+    expect(mcChangelogEntries("en", catalog).map((e) => e.highlights[0])).toEqual([
+      "新功能 C",
+      undefined,
+      "Feature A",
+    ]);
+    expect(mcChangelogEntries("zh-CN", catalog).map((e) => e.version)).toEqual(["1.0.22", "1.0.21", "1.0.20"]);
   });
 });

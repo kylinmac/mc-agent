@@ -2145,6 +2145,10 @@ export const api = {
     invoke<BackgroundShell & { output: string; truncated: boolean }>(IPC.invoke.backgroundShellsView, { sessionId, id }),
   backgroundShellsKill: (sessionId: string, id: string) =>
     invoke<BackgroundShell>(IPC.invoke.backgroundShellsKill, { sessionId, id }),
+  // mc-agent release notes after an update (MC-ADR-0017).
+  mcReleaseNotesState: () =>
+    invoke<{ version: string | null; lastSeen: string | null; existingInstall: boolean }>(IPC.invoke.mcReleaseNotesState),
+  mcReleaseNotesSeen: (version: string) => invoke<{ ok: boolean }>(IPC.invoke.mcReleaseNotesSeen, version),
   // mc-agent user hooks (MC-ADR-0021).
   mcHooksGet: () => invoke<{ hooks: McUserHook[] }>(IPC.invoke.mcHooksGet),
   mcHooksSet: (hooks: McUserHook[]) => invoke<{ hooks: McUserHook[] }>(IPC.invoke.mcHooksSet, hooks),

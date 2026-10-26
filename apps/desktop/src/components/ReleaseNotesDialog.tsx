@@ -12,10 +12,15 @@ import { IconClose } from "./icons";
 export function ReleaseNotesDialog({
   currentVersion,
   availableVersion,
+  entries: givenEntries,
+  title,
   onClose,
 }: {
   currentVersion?: string;
   availableVersion?: string;
+  /** mc-agent (MC-ADR-0017): show these notes instead of the upstream catalog. */
+  entries?: readonly ChangelogEntry[];
+  title?: string;
   onClose: () => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -28,11 +33,12 @@ export function ReleaseNotesDialog({
   const locale = resolveChangelogLocale(
     i18n.resolvedLanguage ?? i18n.language,
   );
-  const entries = loadedCatalog?.locale === locale ? loadedCatalog.entries : null;
+  const entries = givenEntries ?? (loadedCatalog?.locale === locale ? loadedCatalog.entries : null);
   const normalizedCurrent = normalizeChangelogVersion(currentVersion);
   const normalizedAvailable = normalizeChangelogVersion(availableVersion);
 
   useEffect(() => {
+    if (givenEntries) return;
     let cancelled = false;
     void loadChangelogCatalog(locale).then(
       (catalog) => {
@@ -51,7 +57,7 @@ export function ReleaseNotesDialog({
     return () => {
       cancelled = true;
     };
-  }, [locale]);
+  }, [locale, givenEntries]);
 
   const dateFormatter = useMemo(
     () =>
@@ -119,7 +125,7 @@ export function ReleaseNotesDialog({
       >
         <header className="release-notes-header">
           <div className="release-notes-heading">
-            <h2 id="release-notes-title">{t("updates.releaseNotes")}</h2>
+            <h2 id="release-notes-title">{title ?? t("updates.releaseNotes")}</h2>
             <p id="release-notes-summary">
               {entries
                 ? t("updates.releaseCount", { count: entries.length })

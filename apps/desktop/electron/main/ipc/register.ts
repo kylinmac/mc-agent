@@ -27,6 +27,7 @@ import { registerMcPermissionsIpc } from "./mc-permissions-ipc";
 import { registerMcPromptsIpc } from "./mc-prompts-ipc";
 import { registerMcTerminalIpc } from "./mc-terminal-ipc";
 import { loadUserHooks, saveUserHooks } from "../mc-user-hooks-store";
+import { registerMcReleaseNotesIpc } from "./mc-release-notes-ipc";
 import { registerMcBackgroundIpc, registerMcBackgroundWake } from "./mc-background-ipc";
 import { registerMcCreativeIpc } from "./mc-creative-ipc";
 import { imageDataUrl, measureImage } from "../creative/measure-image";
@@ -402,6 +403,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     }),
   });
   registerMcBackgroundIpc({ registrar, getHost });
+  registerMcReleaseNotesIpc({ registrar, dataDir });
   // mc-agent user hooks (MC-ADR-0021).
   registrar.handle(IPC.invoke.mcHooksGet, async () => ({ hooks: await loadUserHooks(dataDir) }));
   registrar.handle(IPC.invoke.mcHooksSet, async (hooks: unknown) => ({ hooks: await saveUserHooks(dataDir, hooks) }));

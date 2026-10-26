@@ -11,7 +11,7 @@ import { mcZhCNEntries } from "./mc-changelog-zh-CN.js";
  * 简体中文是源语言，英文可选。中文界面读中文，其他界面语言读英文，
  * 缺英文时回落到中文。
  *
- * 目前只有数据结构和查询函数，安装后自动弹出「更新了什么」的界面在后续 PR。
+ * 安装版启动时由 apps/desktop 的 McWhatsNew 弹出「更新了什么」。
  */
 
 export type McChangelogLocale = "zh-CN" | "en";
@@ -99,4 +99,15 @@ export function mcReleaseNotesSince(
     if (entry?.highlights.length) result.push(entry);
   }
   return result;
+}
+
+/** Every mc-agent version's notes, newest first, in the reader's language where written. */
+export function mcChangelogEntries(
+  localeInput?: string | null,
+  catalog: Record<McChangelogLocale, readonly ChangelogEntry[]> = MC_CHANGELOG,
+): ChangelogEntry[] {
+  const locale = resolveMcChangelogLocale(localeInput);
+  return catalog["zh-CN"].map(
+    (entry) => catalog[locale].find((item) => item.version === entry.version) ?? entry,
+  );
 }

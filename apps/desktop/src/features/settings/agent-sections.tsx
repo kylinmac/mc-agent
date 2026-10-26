@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import type { AgentInstructionFile, AppSettings, UpdatePreference } from "@pi-desktop/shared";
+import { mcChangelogEntries, type AgentInstructionFile, type AppSettings, type UpdatePreference } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { useUpdateState } from "../../hooks/use-update-state";
@@ -93,7 +93,7 @@ export function UpdatesRow({
   settings: AppSettings | null;
   saveSettings: (patch: Partial<AppSettings>) => Promise<void>;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const update = useUpdateState();
   const showToast = useAppStore((state) => state.showToast);
   const [releaseNotesOpen, setReleaseNotesOpen] = useState(false);
@@ -346,6 +346,8 @@ export function UpdatesRow({
             <ReleaseNotesDialog
               currentVersion={update?.currentVersion ?? currentVersion}
               availableVersion={update?.availableVersion}
+              // mc-agent (MC-ADR-0017): mc-agent's own versions, not upstream's 0.x notes.
+              entries={mcChangelogEntries(i18n.resolvedLanguage ?? i18n.language)}
               onClose={closeReleaseNotes}
             />
           </Suspense>

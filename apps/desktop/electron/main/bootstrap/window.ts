@@ -1017,8 +1017,17 @@ export async function createWindow({
         windowState.workPanelUserMovePending = false;
       }
     }
-    if (bounds.width >= windowMinWidth && bounds.height >= windowMinHeight) {
-      writeWindowState(dataDir, bounds);
+    // mc-agent: relaunch restores the window the user last saw. The work panel
+    // starts closed, so restoring the base (the window minus the panel's
+    // reservation) reopened a narrower window shifted to where the
+    // conversation sat. A later panel open only grows into free room, so the
+    // full rect is safe to restore.
+    const visible =
+      displayTransition === "user-moved"
+        ? clampBoundsOriginToWorkArea(normalBounds, display.workArea)
+        : normalBounds;
+    if (visible.width >= windowMinWidth && visible.height >= windowMinHeight) {
+      writeWindowState(dataDir, visible);
     }
   };
   const scheduleStateSave = () => {
