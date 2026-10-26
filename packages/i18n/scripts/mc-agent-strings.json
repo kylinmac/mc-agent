@@ -3731,8 +3731,8 @@
   },
   "whatsNewTitle": {
     "en": "What's new",
-    "zh-CN": "更新了什么",
-    "zh-TW": "更新了什麼"
+    "zh-CN": "更新内容",
+    "zh-TW": "更新內容"
   },
   "whatsNewVersion": {
     "en": "mc-agent {{version}}",
@@ -3740,9 +3740,9 @@
     "zh-TW": "mc-agent {{version}}"
   },
   "whatsNewWhere": {
-    "en": "All versions: Settings → About → Release notes",
-    "zh-CN": "所有版本：设置 → 信息 → 发版日志",
-    "zh-TW": "所有版本：設定 → 資訊 → 發版日誌"
+    "en": "Earlier versions: Settings → About → Release notes",
+    "zh-CN": "历史版本：设置 → 信息 → 发版日志",
+    "zh-TW": "歷史版本：設定 → 資訊 → 發版日誌"
   },
   "whatsNewDone": {
     "en": "Got it",
@@ -4158,5 +4158,20 @@
     "en": "Project “{{name}}” was created; the reply had already stopped, so tell the agent if you want it to continue.",
     "zh-CN": "项目「{{name}}」已创建；这一轮回复已经停止，需要的话告诉 Agent 继续。",
     "zh-TW": "專案「{{name}}」已建立；這一輪回覆已經停止，需要的話告訴 Agent 繼續。"
+  },
+  "changeKind_features": {
+    "en": "New",
+    "zh-CN": "新功能",
+    "zh-TW": "新功能"
+  },
+  "changeKind_improvements": {
+    "en": "Improved",
+    "zh-CN": "优化",
+    "zh-TW": "改進"
+  },
+  "changeKind_fixes": {
+    "en": "Fixed",
+    "zh-CN": "修复",
+    "zh-TW": "修正"
   }
 }

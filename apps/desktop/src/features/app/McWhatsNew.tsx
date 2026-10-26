@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { mcReleaseNotesSince, type ChangelogEntry } from "@pi-desktop/shared";
+import { mcReleaseNotesSince, type McChangelogEntry } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { Button, OverlayBackdrop, portalOverlay } from "../../components/ui";
 
@@ -12,7 +12,7 @@ import { Button, OverlayBackdrop, portalOverlay } from "../../components/ui";
 */
 export function McWhatsNew() {
   const { i18n } = useTranslation();
-  const [notes, setNotes] = useState<{ version: string; entries: ChangelogEntry[] } | null>(null);
+  const [notes, setNotes] = useState<{ version: string; entries: McChangelogEntry[] } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -47,7 +47,7 @@ export function McWhatsNew() {
 
 function WhatsNewDialog({ version, entries, onClose }: {
   version: string;
-  entries: ChangelogEntry[];
+  entries: McChangelogEntry[];
   onClose: () => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -91,11 +91,16 @@ function WhatsNewDialog({ version, entries, onClose }: {
           {entries.map((entry) => (
             <section key={entry.version} className="mc-whats-new-version">
               {single ? null : <h3>{entry.version}</h3>}
-              <ul>
-                {entry.highlights.map((highlight) => (
-                  <li key={highlight}>{highlight}</li>
-                ))}
-              </ul>
+              {entry.sections.map((section) => (
+                <div key={section.kind} className="mc-whats-new-group">
+                  <h4>{t(`mcProject.changeKind_${section.kind}`)}</h4>
+                  <ul>
+                    {section.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </section>
           ))}
         </div>

@@ -3674,7 +3674,7 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
     hookCommandPlaceholder_Stop: "e.g. pnpm test >&2 || exit 2",
     whatsNewTitle: "What's new",
     whatsNewVersion: "mc-agent {{version}}",
-    whatsNewWhere: "All versions: Settings → About → Release notes",
+    whatsNewWhere: "Earlier versions: Settings → About → Release notes",
     whatsNewDone: "Got it",
     npKicker: "New project",
     npStep: "Step {{current}} of {{total}}",
@@ -3758,6 +3758,9 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
     npDefaultLocationMakeDefault: "Make default",
     npDefaultLocationRemove: "Remove",
     npCreatedAfterStop: "Project “{{name}}” was created; the reply had already stopped, so tell the agent if you want it to continue.",
+    changeKind_features: "New",
+    changeKind_improvements: "Improved",
+    changeKind_fixes: "Fixed",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;
