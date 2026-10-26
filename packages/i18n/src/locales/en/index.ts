@@ -3797,7 +3797,10 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     hookCommandPlaceholder_PreToolUse: "e.g. a script that exits 2 to refuse a command",
     hookCommandPlaceholder_PostToolUse: "e.g. pnpm exec prettier --check . >&2 || exit 2",
     hookCommandPlaceholder_Stop: "e.g. pnpm test >&2 || exit 2",
-    whatsNewTitle: "What's new in {{version}}",
+    whatsNewTitle: "What's new",
+    whatsNewVersion: "mc-agent {{version}}",
+    whatsNewWhere: "All versions: Settings → About → Release notes",
+    whatsNewDone: "Got it",
   },
   // mc-agent:end
 } as const;

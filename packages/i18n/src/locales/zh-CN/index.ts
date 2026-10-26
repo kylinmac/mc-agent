@@ -3728,7 +3728,10 @@ sklm: {
     hookCommandPlaceholder_PreToolUse: "例如：拒绝某些命令时以退出码 2 结束的脚本",
     hookCommandPlaceholder_PostToolUse: "例如：pnpm exec prettier --check . >&2 || exit 2",
     hookCommandPlaceholder_Stop: "例如：pnpm test >&2 || exit 2",
-    whatsNewTitle: "{{version}} 更新了什么",
+    whatsNewTitle: "更新了什么",
+    whatsNewVersion: "mc-agent {{version}}",
+    whatsNewWhere: "所有版本：设置 → 信息 → 发版日志",
+    whatsNewDone: "知道了",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

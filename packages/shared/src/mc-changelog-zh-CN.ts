@@ -12,6 +12,14 @@ import type { ChangelogEntry } from "./changelog.js";
  */
 export const mcZhCNEntries: ChangelogEntry[] = [
   {
+    version: "1.0.22",
+    date: "2026-10-26",
+    highlights: [
+      "更新后弹出的“更新了什么”改为更紧凑清晰的样式；发版日志的条目前恢复了圆点，底部不再贴边。",
+      "关闭时窗口是最大化的，下次打开也会最大化；取消最大化后回到原来的大小。",
+    ],
+  },
+  {
     version: "1.0.21",
     date: "2026-10-26",
     highlights: [

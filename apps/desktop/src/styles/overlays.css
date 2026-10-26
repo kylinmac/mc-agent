@@ -372,7 +372,8 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 0 20px;
+  /* mc-agent: room under the last version instead of running into the edge. */
+  padding: 0 20px 18px;
 }
 
 /* Versions are stacked with a gap; the highlighted one sits on a soft tile
@@ -427,6 +428,8 @@
   gap: 6px;
   margin: 10px 0 0;
   padding-inline-start: 18px;
+  /* mc-agent: the reset stylesheet drops list markers; keep the bullets. */
+  list-style: disc;
   color: var(--ds-text-secondary);
   font-size: var(--text-md);
   line-height: var(--leading-body);
