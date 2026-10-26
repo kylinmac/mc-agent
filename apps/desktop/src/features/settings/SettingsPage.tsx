@@ -54,6 +54,7 @@ import { AgentSkillsPage } from "../../components/settings/AgentSkillsPage";
 import { AgentMcpPage } from "../../components/settings/AgentMcpPage";
 import { AgentSubagentsPage } from "../../components/settings/AgentSubagentsPage";
 import { HooksPage } from "./HooksPage";
+import { MemoryPage } from "./MemoryPage";
 import { RemoteHostsPage } from "../../components/settings/RemoteHostsPage";
 import { VoiceSettingsSection } from "./voice/VoiceSettingsSection";
 import {
@@ -252,6 +253,7 @@ export function SettingsPage() {
       subagents: <IconBot size={14} />,
       systemPrompts: <IconFileText size={14} />,
       hooks: <IconHook size={14} />,
+      memory: <IconSparkles size={14} />,
       mcUsage: <IconActivity size={14} />,
       projectTemplates: <IconFolder size={14} />,
       systemPermissions: <IconShield size={14} />,
@@ -664,6 +666,7 @@ export function SettingsPage() {
           {tab === "systemPrompts" && <SystemPromptsPage />}
 
           {tab === "hooks" && <HooksPage />}
+          {tab === "memory" && <MemoryPage />}
 
           {tab === "mcUsage" && <UsagePage />}
 

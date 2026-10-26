@@ -2155,6 +2155,20 @@ export const api = {
   mcReleaseNotesState: () =>
     invoke<{ version: string | null; lastSeen: string | null; existingInstall: boolean }>(IPC.invoke.mcReleaseNotesState),
   mcReleaseNotesSeen: (version: string) => invoke<{ ok: boolean }>(IPC.invoke.mcReleaseNotesSeen, version),
+  /** mc-agent: memory about the user, the review switch and Tidy up (MC-ADR-0024). */
+  mcMemory: {
+    get: () => invoke<{ user: ProjectMemoryEntry[]; review: boolean }>(IPC.invoke.mcMemoryGet),
+    set: (patch: { user?: ProjectMemoryEntry[]; review?: boolean }) =>
+      invoke<{ user: ProjectMemoryEntry[]; review: boolean }>(IPC.invoke.mcMemorySet, patch),
+    consolidate: (sessionId: string) =>
+      invoke<{ result: { added: number } | null }>(IPC.invoke.mcMemoryConsolidate, { sessionId }),
+    onSuggestions: (listener: (event: { sessionId: string; added: number }) => void) => {
+      if (!window.piDesktop?.on) return () => undefined;
+      return window.piDesktop.on(IPC.event.mcMemorySuggestions, (payload) =>
+        listener(payload as { sessionId: string; added: number }),
+      );
+    },
+  },
   /** mc-agent: creating a project from the conversation (MC-ADR-0023). */
   mcProjectCreate: {
     proposals: () => invoke<{ proposals: ProjectProposal[] }>(IPC.invoke.mcProjectProposals),

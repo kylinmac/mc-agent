@@ -1,3 +1,4 @@
+import { noteTurnEndedForMemory } from "../mc-memory";
 import { ErrorCodes, IPC, type AgentEventEnvelope, type AppNotification, type PlanExecution, type PlanExecutionFinishStatus, type UiMessage } from "@pi-desktop/shared";
 import { executionFromResponse, executionListFromResponse, planExecutionFromUnknown } from "@pi-desktop/host-runtime";
 import type { RuntimeState } from "./context";
@@ -270,6 +271,8 @@ function finishTurn(
     // still holds the queue, so the announcement observes a settled turn. Every
     // delivery failure is isolated inside the announcement itself.
     announceTurnEnded({ sessionId: id, turnId, reason });
+    // mc-agent (MC-ADR-0024): review the conversation for memory once idle.
+    noteTurnEndedForMemory(id, reason);
   };
 
   let record: Promise<void> | undefined;

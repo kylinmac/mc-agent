@@ -11,7 +11,7 @@ describe("projectMemoryPrompt", () => {
 
   it("marks memory as user-provided context", () => {
     const prompt = projectMemoryPrompt("Use the staging database.");
-    expect(prompt).toContain("# Project memory");
+    expect(prompt).toContain("# Memory");
     expect(prompt).toContain("user-provided context");
     expect(prompt).toContain("Use the staging database.");
   });

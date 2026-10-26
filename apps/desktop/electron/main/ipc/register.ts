@@ -31,6 +31,7 @@ import { registerMcReleaseNotesIpc } from "./mc-release-notes-ipc";
 import { registerMcBackgroundIpc, registerMcBackgroundWake } from "./mc-background-ipc";
 import { registerMcCreativeIpc } from "./mc-creative-ipc";
 import { registerMcProjectCreateIpc } from "./mc-project-create-ipc";
+import { registerMcMemoryIpc } from "./mc-memory-ipc";
 import { imageDataUrl, measureImage } from "../creative/measure-image";
 import { TerminalManager } from "../mc-terminal";
 import { registerProviderIpc } from "./provider-ipc";
@@ -405,6 +406,15 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
   });
   registerMcBackgroundIpc({ registrar, getHost });
   registerMcReleaseNotesIpc({ registrar, dataDir });
+  // mc-agent memory curation (MC-ADR-0024).
+  registerMcMemoryIpc({
+    registrar,
+    getHost,
+    getSidecar,
+    dataDir,
+    sendToRenderer,
+    log: (message, error) => logger.app("tool", "warn", message, error === undefined ? undefined : { data: String(error) }),
+  });
   // mc-agent project creation from the conversation (MC-ADR-0023).
   registerMcProjectCreateIpc({
     registrar,

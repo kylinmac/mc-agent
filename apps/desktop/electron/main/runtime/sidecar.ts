@@ -39,6 +39,7 @@ import type { FinishTurn } from "./plans";
 import { formatSkillToolContent, type LoadedSkillDocument } from "../skill-document";
 import { currentSystemProxyRelayUrl } from "../network-proxy";
 import { createRememberTool } from "../mc-agent-memory";
+import { createRecallTool, userMemoryStore } from "../mc-memory";
 import { createCreateProjectTool, createProjectTemplatesTool, loadProjectLocations } from "../mc-project-create";
 
 export type SidecarRuntimeDependencies = {
@@ -601,7 +602,9 @@ export function createSidecarRuntime({
   }));
   s.setLocalTool("SaveCreativeAsset", creative.saveAssetTool);
   // mc-agent: the agent's notes in project memory (MC-ADR-0019).
-  s.setLocalTool("Remember", createRememberTool(() => runtimeState.host));
+  s.setLocalTool("Remember", createRememberTool(() => runtimeState.host, userMemoryStore(dataDir)));
+  // mc-agent: read a memory note named in the memory index (MC-ADR-0024).
+  s.setLocalTool("Recall", createRecallTool(() => runtimeState.host, dataDir));
   // mc-agent: project creation from the conversation (MC-ADR-0023).
   s.setLocalTool(
     "ProjectTemplates",

@@ -39,6 +39,18 @@ export type ProjectMemoryEntry = {
   id: string;
   title: string;
   content: string;
+  /** mc-agent (MC-ADR-0024): what kind of note it is. */
+  kind?: "user" | "feedback" | "project" | "reference";
+  /** mc-agent: one line saying what the note is about, for the index. */
+  hook?: string;
+  /** mc-agent: the conversation it came from. */
+  source?: { sessionId: string; title?: string; at: number };
+  /**
+   * mc-agent: a suggestion waiting for the user. `replaces` names the note it
+   * would update; `remove` proposes deleting that note instead.
+   */
+  pending?: { reason?: string; replaces?: string; remove?: boolean };
+  updatedAt?: number;
 };
 
 /** Workspace-relative entry of the `fs/index` snapshot for the "@" menu (D124). */

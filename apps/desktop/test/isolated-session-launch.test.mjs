@@ -113,7 +113,8 @@ test("an isolated session launches in its worktree with its project's configurat
     assert.doesNotMatch(isolatedText, /MAIN CHECKOUT RULES/);
     assert.match(isolatedText, /GROUP NOTES/);
     assert.doesNotMatch(isolatedText, /Project folders:/);
-    assert.equal(isolated.sidecarParams.projectMemory, "PROJECT MEMORY");
+    // mc-agent (MC-ADR-0024): the memory text wraps the project's notes in a section.
+    assert.match(isolated.sidecarParams.projectMemory, /PROJECT MEMORY/);
     assert.deepEqual(groupContextPaths, [project]);
 
     const ordinary = await launch({});

@@ -647,6 +647,15 @@ async function handle(method: string, params: any): Promise<unknown> {
       if (sessionId.startsWith(NATIVE_PI_SESSION_PREFIX)) return { text: null };
       return { text: (await runtimes.get(sessionId)?.suggestNextPrompt()) ?? null };
     }
+    // mc-agent (MC-ADR-0024): suggest memory notes after a conversation went
+    // idle, from the session's own model and prompt cache.
+    case "agent.reviewMemory": {
+      const sessionId = String(params.sessionId);
+      if (sessionId.startsWith(NATIVE_PI_SESSION_PREFIX)) return { suggestions: null };
+      const mode = params.mode === "consolidate" ? "consolidate" : "auto";
+      const memory = typeof params.memory === "string" ? params.memory : "";
+      return { suggestions: (await runtimes.get(sessionId)?.reviewMemory(memory, mode)) ?? null };
+    }
     // mc-agent: load a session's runtime without prompting, so the session
     // info panel can show its context breakdown right after the app starts
     // (MC-ADR-0005 follow-up). Same launch path as a manual compaction.

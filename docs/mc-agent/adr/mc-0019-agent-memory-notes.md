@@ -1,6 +1,6 @@
 # MC-ADR-0019: Agent 自己记到项目记忆
 
-**Status:** Accepted
+**Status:** Accepted（2026-10-26 由 [MC-ADR-0024](mc-0024-memory-curation.md) 扩展：类型、摘要、关于我、回顾）
 **Date:** 2026-10-26
 **Deciders:** 产品负责人
 

@@ -259,6 +259,10 @@ export const IPC = {
     mcProjectMakeFolder: "pi-desktop/mc-project-create/make-folder",
     mcProjectRemoveFolder: "pi-desktop/mc-project-create/remove-folder",
     mcProjectEnsureDraft: "pi-desktop/mc-project-create/ensure-draft",
+    // mc-agent memory curation (MC-ADR-0024).
+    mcMemoryGet: "pi-desktop/mc-memory/get",
+    mcMemorySet: "pi-desktop/mc-memory/set",
+    mcMemoryConsolidate: "pi-desktop/mc-memory/consolidate",
     mcProjectLocationsGet: "pi-desktop/mc-project-create/locations/get",
     mcProjectLocationsSet: "pi-desktop/mc-project-create/locations/set",
     projectFoldersMissing: "pi-desktop/project-resources/missing-folders",
@@ -525,6 +529,8 @@ export const IPC = {
     // mc-agent creative studio: a generation job changed.
     creativeJob: "pi-desktop/mc-creative/event/job",
     // mc-agent: the project proposals waiting for the user (MC-ADR-0023).
+    // mc-agent: memory suggestions are waiting for the user (MC-ADR-0024).
+    mcMemorySuggestions: "pi-desktop/mc-memory/event/suggestions",
     mcProjectProposalsChanged: "pi-desktop/mc-project-create/event/proposals",
     /** Progress of an install or update, while it is still running. */
     pluginInstallProgress: "pi-desktop/plugin/event/installProgress",

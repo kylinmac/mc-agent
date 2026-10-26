@@ -26,6 +26,10 @@ pub struct ProjectMemoryEntryRecord {
     pub id: String,
     pub title: String,
     pub content: String,
+    /// mc-agent (MC-ADR-0024): kind, hook, source, pending and updatedAt,
+    /// kept as given so older readers and writers pass them through.
+    #[serde(flatten)]
+    pub extra: serde_json::Map<String, serde_json::Value>,
 }
 
 pub struct Database {

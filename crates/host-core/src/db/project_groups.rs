@@ -550,6 +550,7 @@ impl Database {
                             id: format!("root-{root_index}-{}", entry.id),
                             title: entry.title,
                             content: entry.content,
+                            extra: entry.extra,
                         }
                     }));
                 } else if !memory.content.is_empty() {
@@ -557,6 +558,7 @@ impl Database {
                         id: format!("root-{root_index}-legacy"),
                         title: project_display_name(path),
                         content: memory.content,
+                        extra: Default::default(),
                     });
                 }
             }

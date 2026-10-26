@@ -4173,5 +4173,155 @@
     "en": "Fixed",
     "zh-CN": "修复",
     "zh-TW": "修正"
+  },
+  "memoryNav": {
+    "en": "Memory",
+    "zh-CN": "记忆",
+    "zh-TW": "記憶"
+  },
+  "memoryPageTitle": {
+    "en": "Memory",
+    "zh-CN": "记忆",
+    "zh-TW": "記憶"
+  },
+  "memoryReviewCard": {
+    "en": "Review conversations",
+    "zh-CN": "对话回顾",
+    "zh-TW": "對話回顧"
+  },
+  "memoryReview": {
+    "en": "Suggest notes after a conversation",
+    "zh-CN": "对话结束后建议记忆",
+    "zh-TW": "對話結束後建議記憶"
+  },
+  "memoryReviewHelp": {
+    "en": "When a conversation has been idle for a while, its model looks back once and suggests notes to add, update or remove (one extra model request, using the prompt cache). Suggestions wait for you in the memory panels.",
+    "zh-CN": "对话闲置一会儿后，用该对话的模型回顾一次，建议新增、更新或删除记忆（多一次模型请求，走提示词缓存）。建议进记忆面板的“待确认”，你确认后才生效。",
+    "zh-TW": "對話閒置一會兒後，用該對話的模型回顧一次，建議新增、更新或刪除記憶（多一次模型請求，走提示詞快取）。建議進記憶面板的「待確認」，你確認後才生效。"
+  },
+  "memoryUserCard": {
+    "en": "About you (all projects)",
+    "zh-CN": "关于我（所有项目）",
+    "zh-TW": "關於我（所有專案）"
+  },
+  "memoryUserHelp": {
+    "en": "Notes every conversation loads, in any project or none: your preferences and how you like to work. The agent can add to them; you can edit or remove anything.",
+    "zh-CN": "每段对话都会带上的记忆，不分项目：你的偏好和习惯。Agent 也会往里记，你可以随时修改或删除。",
+    "zh-TW": "每段對話都會帶上的記憶，不分專案：你的偏好和習慣。Agent 也會往裡記，你可以隨時修改或刪除。"
+  },
+  "memoryUserEmpty": {
+    "en": "No notes about you yet.",
+    "zh-CN": "还没有关于你的记忆。",
+    "zh-TW": "還沒有關於你的記憶。"
+  },
+  "memoryKindLabel": {
+    "en": "Kind",
+    "zh-CN": "类型",
+    "zh-TW": "類型"
+  },
+  "memoryKind_user": {
+    "en": "About you",
+    "zh-CN": "关于我",
+    "zh-TW": "關於我"
+  },
+  "memoryKind_feedback": {
+    "en": "How to work",
+    "zh-CN": "做法",
+    "zh-TW": "做法"
+  },
+  "memoryKind_project": {
+    "en": "Project",
+    "zh-CN": "项目约定",
+    "zh-TW": "專案約定"
+  },
+  "memoryKind_reference": {
+    "en": "Reference",
+    "zh-CN": "外部资料",
+    "zh-TW": "外部資料"
+  },
+  "memoryFrom": {
+    "en": "from {{title}}, {{date}}",
+    "zh-CN": "来自「{{title}}」，{{date}}",
+    "zh-TW": "來自「{{title}}」，{{date}}"
+  },
+  "memoryAConversation": {
+    "en": "a conversation",
+    "zh-CN": "一段对话",
+    "zh-TW": "一段對話"
+  },
+  "memorySuggestionsTitle": {
+    "en": "Waiting for you",
+    "zh-CN": "待确认",
+    "zh-TW": "待確認"
+  },
+  "memorySuggestionsHint": {
+    "en": "Suggested by the agent; nothing changes until you keep it.",
+    "zh-CN": "Agent 的建议，确认前不生效。",
+    "zh-TW": "Agent 的建議，確認前不生效。"
+  },
+  "memorySuggest_add": {
+    "en": "New note",
+    "zh-CN": "新增",
+    "zh-TW": "新增"
+  },
+  "memorySuggest_update": {
+    "en": "Update “{{title}}”",
+    "zh-CN": "更新「{{title}}」",
+    "zh-TW": "更新「{{title}}」"
+  },
+  "memorySuggest_remove": {
+    "en": "Remove “{{title}}”",
+    "zh-CN": "删除「{{title}}」",
+    "zh-TW": "刪除「{{title}}」"
+  },
+  "memoryAccept": {
+    "en": "Keep",
+    "zh-CN": "记下",
+    "zh-TW": "記下"
+  },
+  "memoryAcceptRemove": {
+    "en": "Remove",
+    "zh-CN": "删除",
+    "zh-TW": "刪除"
+  },
+  "memoryDecline": {
+    "en": "Dismiss",
+    "zh-CN": "不要",
+    "zh-TW": "不要"
+  },
+  "memoryTidy": {
+    "en": "Tidy up",
+    "zh-CN": "整理",
+    "zh-TW": "整理"
+  },
+  "memoryTidying": {
+    "en": "Tidying…",
+    "zh-CN": "整理中…",
+    "zh-TW": "整理中…"
+  },
+  "memoryTidyHint": {
+    "en": "Ask the model of this project's latest conversation to suggest merges, rewrites and removals",
+    "zh-CN": "让这个项目最近一段对话的模型建议合并、改写和删除",
+    "zh-TW": "讓這個專案最近一段對話的模型建議合併、改寫和刪除"
+  },
+  "memoryTidied": {
+    "en": "{{count}} suggestion(s) waiting below",
+    "zh-CN": "有 {{count}} 条建议待确认",
+    "zh-TW": "有 {{count}} 條建議待確認"
+  },
+  "memoryTidyNothing": {
+    "en": "Nothing to tidy",
+    "zh-CN": "没有需要整理的",
+    "zh-TW": "沒有需要整理的"
+  },
+  "memoryTidyNeedsChat": {
+    "en": "Send a message in this project first; tidying uses a conversation that has run since the app started.",
+    "zh-CN": "先在这个项目里发一条消息再整理：整理要用到本次启动后跑过的对话。",
+    "zh-TW": "先在這個專案裡發一條訊息再整理：整理要用到本次啟動後跑過的對話。"
+  },
+  "memorySuggestedToast": {
+    "en": "The agent suggested {{count}} memory note(s); review them in the project memory or Settings → Memory.",
+    "zh-CN": "Agent 提了 {{count}} 条记忆建议，在项目记忆或 设置 → 记忆 里确认。",
+    "zh-TW": "Agent 提了 {{count}} 條記憶建議，在專案記憶或 設定 → 記憶 裡確認。"
   }
 }

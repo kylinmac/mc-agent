@@ -16,6 +16,7 @@ export type SettingsTabId =
   | "subagents"
   | "systemPrompts"
   | "hooks"
+  | "memory"
   | "projectTemplates"
   | "systemPermissions"
   | "mcUsage"
@@ -266,6 +267,14 @@ export const SETTINGS_NAV: SettingsNavEntry[] = [
     titleKey: "mcProject.hooksTitle",
     group: "agent",
     keywordKeys: ["mcProject.hooksDesc", "mcProject.hookEvent_PreToolUse", "mcProject.hookEvent_PostToolUse", "mcProject.hookEvent_Stop"],
+  },
+  {
+    // mc-agent (MC-ADR-0024): memory about the user and the review switch.
+    id: "memory",
+    labelKey: "mcProject.memoryNav",
+    titleKey: "mcProject.memoryPageTitle",
+    group: "agent",
+    keywordKeys: ["mcProject.memoryUserCard", "mcProject.memoryReview"],
   },
   {
     id: "subagents",
