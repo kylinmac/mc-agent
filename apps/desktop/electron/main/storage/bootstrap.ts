@@ -39,7 +39,7 @@ export async function prepareStorage(defaultData: string, overridden: boolean): 
       const canRecoverMissingDefault = missingData && hasPersistedPreferences && !preferences.pending;
       const canResumeEmptyInstallMigration = missingData && !missingBrowser && preferences.pending?.kind === "migrate";
       if (!isDefaultStorage || !(isFirstLaunch || canRecoverMissingDefault || canResumeEmptyInstallMigration)) {
-        throw new Error("The selected storage directory is unavailable. Reconnect its drive before starting PI-Desktop.");
+        throw new Error("The selected storage directory is unavailable. Reconnect its drive before starting mc-agent.");
       }
       if (canRecoverMissingDefault) {
         const recovered = await recoverMissingDefaultStorage(file, defaults, preferences);

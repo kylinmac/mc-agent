@@ -3,8 +3,8 @@
   "version": "0.21.0",
   "desktopName": "pi-desktop.desktop",
   "private": true,
-  "description": "PI-Desktop Electron application",
-  "homepage": "https://github.com/vastsa/PI-Desktop",
+  "description": "mc-agent Electron application",
+  "homepage": "https://github.com/kylinmac/mc-agent",
   "author": {
     "name": "vastsa",
     "email": "hhxk666@gmail.com"
@@ -284,7 +284,7 @@
     "linux": {
       "executableName": "pi-desktop",
       "syncDesktopName": true,
-      "artifactName": "PI-Desktop-${version}-linux-${arch}.${ext}",
+      "artifactName": "mc-agent-${version}-linux-${arch}.${ext}",
       "target": [
         {
           "target": "AppImage"

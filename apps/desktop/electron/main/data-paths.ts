@@ -1,6 +1,5 @@
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
-import { APP_NAME } from "@pi-desktop/shared";
 
 /**
  * The two directories that define an installation, and the development split
@@ -27,7 +26,7 @@ import { APP_NAME } from "@pi-desktop/shared";
  */
 
 /** `userData` directory of a development installation, beside the shipped one. */
-export const DEVELOPMENT_INSTALLATION_NAME = `${APP_NAME} Dev`;
+export const DEVELOPMENT_INSTALLATION_NAME = "PI-Desktop Dev";
 
 /**
  * mc-agent (MC-ADR-0008): a shipped mc-agent is its own installation beside
