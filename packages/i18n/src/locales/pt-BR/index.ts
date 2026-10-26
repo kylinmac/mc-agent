@@ -3579,6 +3579,7 @@ export const ptBR = {
     quotaWindow_week: "Week",
     quotaWindow_month: "Month",
     quotaWindowPlan: "Plan",
+    memoryByAgent: "Saved by the agent. Edit or delete it like any other note.",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

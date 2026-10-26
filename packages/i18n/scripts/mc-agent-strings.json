@@ -3623,5 +3623,10 @@
     "en": "Plan",
     "zh-CN": "套餐",
     "zh-TW": "方案"
+  },
+  "memoryByAgent": {
+    "en": "Saved by the agent. Edit or delete it like any other note.",
+    "zh-CN": "Agent 记下的，可以像其他条目一样修改或删除。",
+    "zh-TW": "Agent 記下的，可以像其他條目一樣修改或刪除。"
   }
 }

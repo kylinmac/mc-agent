@@ -3635,6 +3635,7 @@ sklm: {
     quotaWindow_week: "週",
     quotaWindow_month: "月",
     quotaWindowPlan: "方案",
+    memoryByAgent: "Agent 記下的，可以像其他條目一樣修改或刪除。",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

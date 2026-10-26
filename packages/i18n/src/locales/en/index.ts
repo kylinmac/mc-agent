@@ -3776,6 +3776,7 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     quotaWindow_week: "Week",
     quotaWindow_month: "Month",
     quotaWindowPlan: "Plan",
+    memoryByAgent: "Saved by the agent. Edit or delete it like any other note.",
   },
   // mc-agent:end
 } as const;
