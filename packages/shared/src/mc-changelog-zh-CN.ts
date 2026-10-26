@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.23",
+    date: "2026-10-26",
+    highlights: [
+      "用 xAI 账号登录 Grok 订阅时，输入框右侧也会显示本周剩余额度（如“周 94%”），悬停可看重置时间。",
+    ],
+  },
+  {
     version: "1.0.22",
     date: "2026-10-26",
     fixes: ["关闭时若窗口最大化，下次启动仍保持最大化；还原后回到原来的大小。"],

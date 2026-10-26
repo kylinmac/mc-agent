@@ -208,3 +208,22 @@ export function codexAccountId(accessToken: string): string | undefined {
     return undefined;
   }
 }
+
+/**
+ * xAI (Grok subscription, signed in with an xAI account):
+ * `GET cli-chat-proxy.grok.com/v1/billing?format=credits`, the credit pool
+ * the Grok Build CLI reads. One window: `creditUsagePercent` of the period
+ * between `billingPeriodStart` and `billingPeriodEnd` (or `currentPeriod`).
+ */
+export function parseXaiUsage(body: unknown): SubscriptionQuotaWindow[] {
+  const root = record(body);
+  const config = record(root?.config) ?? root;
+  if (!config) return [];
+  const used = number(config.creditUsagePercent);
+  if (used === undefined) return [];
+  const period = record(config.currentPeriod);
+  const start = time(config.billingPeriodStart ?? period?.start);
+  const end = time(config.billingPeriodEnd ?? period?.end);
+  const seconds = start !== undefined && end !== undefined && end > start ? Math.round((end - start) / 1000) : undefined;
+  return bySeconds([window(100 - used, seconds, end)]);
+}

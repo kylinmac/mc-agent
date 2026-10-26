@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.23",
+    date: "2026-10-26",
+    highlights: [
+      "With a Grok subscription signed in through your xAI account, the composer now shows the week's remaining quota (for example \"Week 94%\"); hover for the reset time.",
+    ],
+  },
+  {
     version: "1.0.22",
     date: "2026-10-26",
     fixes: ["A window closed while maximized now reopens maximized, and restores to its previous size."],

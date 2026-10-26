@@ -7,6 +7,7 @@ import {
   parseGlmUsage,
   parseKimiUsage,
   parseMinimaxUsage,
+  parseXaiUsage,
 } from "./parse.ts";
 
 /*
@@ -98,6 +99,20 @@ export function quotaReaderFor(provider: ProviderPublic, deps: SubscriptionQuota
         const token = await deps.copilotGithubToken(provider.id);
         return token
           ? { url: "https://api.github.com/copilot_internal/user", headers: { Authorization: `token ${token}` } }
+          : null;
+      },
+    };
+  }
+  if (oauth && vendor === "xai") {
+    return {
+      source: "xai", ttlMs: 5 * MINUTE, parse: parseXaiUsage,
+      request: async () => {
+        const headers = bearer(await access());
+        return headers
+          ? {
+              url: "https://cli-chat-proxy.grok.com/v1/billing?format=credits",
+              headers: { ...headers, "x-grok-client-mode": "cli" },
+            }
           : null;
       },
     };
