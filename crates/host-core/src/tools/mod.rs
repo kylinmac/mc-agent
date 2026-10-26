@@ -1223,6 +1223,8 @@ pub async fn execute_tool_with_path_access(
         "CanvasRead" | "CanvasWrite" | "CanvasComment" => {
             Ok(serde_json::json!({ "authorized": true }))
         }
+        // mc-agent: the desktop lists templates and shows the project card.
+        "ProjectTemplates" | "CreateProject" => Ok(serde_json::json!({ "authorized": true })),
         "Read" | "Glob" | "Grep" | "Write" | "Edit" => {
             run_file_tool(
                 workspace,

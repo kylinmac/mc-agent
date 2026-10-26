@@ -40,6 +40,7 @@ import type { FinishTurn } from "./plans";
 import { formatSkillToolContent, type LoadedSkillDocument } from "../skill-document";
 import { currentSystemProxyRelayUrl } from "../network-proxy";
 import { createRememberTool } from "../mc-agent-memory";
+import { createCreateProjectTool, createProjectTemplatesTool, loadProjectLocations } from "../mc-project-create";
 
 export type SidecarRuntimeDependencies = {
   runtimeState: RuntimeState;
@@ -607,6 +608,12 @@ export function createSidecarRuntime({
   s.setLocalTool("CanvasComment", canvasTools.comment);
   // mc-agent: the agent's notes in project memory (MC-ADR-0019).
   s.setLocalTool("Remember", createRememberTool(() => runtimeState.host));
+  // mc-agent: project creation from the conversation (MC-ADR-0023).
+  s.setLocalTool(
+    "ProjectTemplates",
+    createProjectTemplatesTool(() => runtimeState.host, () => loadProjectLocations(dataDir)),
+  );
+  s.setLocalTool("CreateProject", createCreateProjectTool(() => runtimeState.host));
   s.setLocalTool("BrowserPreview", async ({ args, sessionId }) => {
     const raw = String((args as { path?: unknown })?.path ?? "").trim();
     if (!raw) {

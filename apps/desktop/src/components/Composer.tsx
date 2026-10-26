@@ -30,6 +30,9 @@ import {
 } from "../lib/session-thinking";
 import { ComposerAutocomplete } from "./ComposerAutocomplete";
 import { AskToolCard } from "./AskToolCard";
+import { ProjectProposalSlot } from "../features/project-create/ProjectProposalSlot";
+import { NewProjectIntentBar } from "../features/project-create/NewProjectIntentBar";
+import { NEW_PROJECT_PREFIX, useNewProjectIntent } from "../features/project-create/new-project-intent";
 import { PlanApprovalBar } from "./PlanApprovalBar";
 import { TaskDock } from "./TaskDock";
 import {
@@ -476,6 +479,36 @@ export function Composer({
     return submit(steering);
   };
 
+  // mc-agent (MC-ADR-0023): a project request is the draft behind the
+  // new-project skill alias, sent through the ordinary skill path. An entry
+  // point arms the home composer with the alias; the suggestion bar adds it
+  // and sends once the draft carries it.
+  const newProjectArmed = useNewProjectIntent((state) => state.armed);
+  const newProjectSendRef = useRef(false);
+  const withNewProjectPrefix = () => {
+    // The project tools exist only in Agent mode.
+    if (mode !== "agent") {
+      void configureActiveSession({ mode: "agent", providerId: provider?.id, modelId, thinkingLevel }).catch(
+        (error: unknown) => showToast(error instanceof Error ? error.message : String(error), { variant: "error" }),
+      );
+    }
+    const current = readLiveDraft();
+    if (current.startsWith(NEW_PROJECT_PREFIX)) return current;
+    const next = NEW_PROJECT_PREFIX + current;
+    applyEditorDraft(next, fileReferencesRef.current, next.length);
+    return next;
+  };
+  useEffect(() => {
+    if (variant !== "home" || !newProjectArmed || !localToolsAllowed) return;
+    useNewProjectIntent.getState().disarm();
+    withNewProjectPrefix();
+  }, [variant, newProjectArmed, localToolsAllowed]);
+  useEffect(() => {
+    if (!newProjectSendRef.current || !value.startsWith(NEW_PROJECT_PREFIX)) return;
+    newProjectSendRef.current = false;
+    void submitFromComposer();
+  }, [value]);
+
   // Keep the legacy listener for already-started or IPC-owned Dictation, but
   // the Composer no longer exposes a Dictation control or overlay.
   useVoiceInput({
@@ -567,6 +600,23 @@ export function Composer({
         ) : null}
         {pendingAsk ? (
           <AskToolCard key={pendingAsk.requestId} request={pendingAsk} queued={queuedAsks} />
+        ) : null}
+        {localToolsAllowed ? <ProjectProposalSlot sessionId={activeSessionId} /> : null}
+        {variant === "home" && localToolsAllowed ? (
+          <NewProjectIntentBar
+            draft={value}
+            onCreate={() => {
+              newProjectSendRef.current = true;
+              if (withNewProjectPrefix() === value) {
+                newProjectSendRef.current = false;
+                void submitFromComposer();
+              }
+            }}
+            onLeave={() => {
+              const rest = readLiveDraft().slice(NEW_PROJECT_PREFIX.length);
+              applyEditorDraft(rest, fileReferencesRef.current, rest.length);
+            }}
+          />
         ) : null}
         {nativeReadOnly ? (
           <div className="composer-status" role="status">

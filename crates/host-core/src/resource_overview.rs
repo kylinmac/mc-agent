@@ -158,6 +158,11 @@ pub fn template_descriptions(resource_root: &Path) -> BTreeMap<String, String> {
     let Ok(Some(meta)) = crate::resource_templates::read_project_meta(resource_root) else {
         return BTreeMap::new();
     };
+    if meta.one_off {
+        return crate::resource_templates::one_off_template_meta(resource_root)
+            .map(|meta| meta.categories)
+            .unwrap_or_default();
+    }
     let Ok(home) = crate::resource_dirs::home_dir() else {
         return BTreeMap::new();
     };

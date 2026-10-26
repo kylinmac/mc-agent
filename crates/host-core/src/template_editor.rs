@@ -203,7 +203,7 @@ fn apply(
 
 /// The folders asked for, by relative path. A nested folder brings its
 /// parents along, so the tree never has a gap.
-fn wanted_categories(input: &[CategoryInput]) -> Result<BTreeMap<String, String>> {
+pub(crate) fn wanted_categories(input: &[CategoryInput]) -> Result<BTreeMap<String, String>> {
     if input.len() > MAX_FOLDERS {
         return Err(anyhow!("a template can have at most {MAX_FOLDERS} folders"));
     }
@@ -254,7 +254,7 @@ fn check_folders_for(target: TemplateTarget, wanted: &BTreeMap<String, String>) 
     Ok(())
 }
 
-fn bounded(text: &str, what: &str) -> Result<String> {
+pub(crate) fn bounded(text: &str, what: &str) -> Result<String> {
     let text = text.trim();
     if text.chars().count() > MAX_DESCRIPTION_CHARS {
         return Err(anyhow!("{what} is too long"));

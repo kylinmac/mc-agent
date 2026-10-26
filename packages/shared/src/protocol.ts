@@ -251,6 +251,16 @@ export const IPC = {
     // mc-agent user hooks (MC-ADR-0021).
     mcHooksGet: "pi-desktop/mc-hooks/get",
     mcHooksSet: "pi-desktop/mc-hooks/set",
+    // mc-agent project creation from the conversation (MC-ADR-0023).
+    mcProjectProposals: "pi-desktop/mc-project-create/proposals",
+    mcProjectProposalResolve: "pi-desktop/mc-project-create/resolve",
+    mcProjectLocationCheck: "pi-desktop/mc-project-create/location-check",
+    mcProjectPickParent: "pi-desktop/mc-project-create/pick-parent",
+    mcProjectMakeFolder: "pi-desktop/mc-project-create/make-folder",
+    mcProjectRemoveFolder: "pi-desktop/mc-project-create/remove-folder",
+    mcProjectEnsureDraft: "pi-desktop/mc-project-create/ensure-draft",
+    mcProjectLocationsGet: "pi-desktop/mc-project-create/locations/get",
+    mcProjectLocationsSet: "pi-desktop/mc-project-create/locations/set",
     projectFoldersMissing: "pi-desktop/project-resources/missing-folders",
     projectResourcesTemplateSave: "pi-desktop/project-resources/templates/save",
     projectResourcesTemplateDelete: "pi-desktop/project-resources/templates/delete",
@@ -516,6 +526,8 @@ export const IPC = {
     creativeJob: "pi-desktop/mc-creative/event/job",
     // mc-agent creative canvas: a canvas or its comments changed.
     creativeCanvas: "pi-desktop/mc-creative/event/canvas",
+    // mc-agent: the project proposals waiting for the user (MC-ADR-0023).
+    mcProjectProposalsChanged: "pi-desktop/mc-project-create/event/proposals",
     /** Progress of an install or update, while it is still running. */
     pluginInstallProgress: "pi-desktop/plugin/event/installProgress",
     /** Host-originated app settings mutation (e.g. plugin `app.setTheme`). */

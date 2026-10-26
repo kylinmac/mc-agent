@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ChangelogEntry } from "@pi-desktop/shared";
+import type { ChangelogEntry, McChangeSection } from "@pi-desktop/shared";
 import {
   loadChangelogCatalog,
   normalizeChangelogVersion,
@@ -180,11 +180,25 @@ export function ReleaseNotesDialog({
                     ) : null}
                   </div>
                 </div>
-                <ul>
-                  {entry.highlights.map((highlight) => (
-                    <li key={highlight}>{highlight}</li>
-                  ))}
-                </ul>
+                {/* mc-agent (MC-ADR-0017): mc-agent notes are grouped as 新功能 / 优化 / 修复. */}
+                {"sections" in entry ? (
+                  (entry.sections as McChangeSection[]).map((section) => (
+                    <div key={section.kind} className="release-notes-group">
+                      <h4>{t(`mcProject.changeKind_${section.kind}`)}</h4>
+                      <ul>
+                        {section.items.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))
+                ) : (
+                  <ul>
+                    {entry.highlights.map((highlight) => (
+                      <li key={highlight}>{highlight}</li>
+                    ))}
+                  </ul>
+                )}
               </article>
             );
             })

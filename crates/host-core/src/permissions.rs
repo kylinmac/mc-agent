@@ -129,6 +129,9 @@ impl PermissionManager {
             // mc-agent: the creative canvas, which writes only its own files
             // under creative/canvas (docs/mc-agent/creative-canvas.md).
             "CanvasRead" | "CanvasWrite" | "CanvasComment" => Risk::Low,
+            // mc-agent: lists templates, and proposes a project the user
+            // confirms on a card before anything is written (MC-ADR-0023).
+            "ProjectTemplates" | "CreateProject" => Risk::Low,
             "Write" | "Edit" | "Bash" | "GenerateImages" => Risk::High,
             name if name.starts_with("plugin_") => match declared {
                 Some("low") => Risk::Low,

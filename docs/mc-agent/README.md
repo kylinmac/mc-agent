@@ -46,7 +46,7 @@
 | [MC-ADR-0010](adr/mc-0010-system-prompt-templates.md) | 系统提示词查看与模板 |
 | [MC-ADR-0011](adr/mc-0011-usage-statistics.md) | 用量统计 |
 | [MC-ADR-0012](adr/mc-0012-releases-and-updates.md) | 发布到 GitHub Releases 与更新提醒 |
-| [MC-ADR-0017](adr/mc-0017-post-update-whats-new.md) | 更新后的“更新了什么”与版本更新说明 |
+| [MC-ADR-0017](adr/mc-0017-post-update-whats-new.md) | 更新后的“更新内容”与版本更新说明 |
 | [MC-ADR-0013](adr/mc-0013-creative-studio.md) | 创作工作台（一期：图片） |
 | [MC-ADR-0024](adr/mc-0024-creative-canvas.md) | 创作画布（二期 A 档） |
 | [MC-ADR-0014](adr/mc-0014-computer-use.md) | 电脑操作（Computer Use）内置插件 |

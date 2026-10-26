@@ -21,6 +21,7 @@ mod plans;
 mod plugin_sessions;
 mod plugin_usage;
 mod plugins;
+mod project_draft_template;
 mod project_tasks;
 mod providers;
 mod resource_catalog;

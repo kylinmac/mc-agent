@@ -93,6 +93,7 @@ import {
   useWorktreeSessionMenuItems,
 } from "../features/worktree/WorktreeSidebarParts";
 import { WorktreeBehindWatcher } from "../features/worktree/WorktreeBehind";
+import { startConversationalProject } from "../features/project-create/start-conversational-project";
 import { SidebarMenuPanel, sidebarMenuKeyDown } from "./SidebarMenuPanel";
 import {
   sidebarMenuAction,
@@ -119,6 +120,7 @@ import {
   IconFolder,
   IconMore,
   IconNewProject,
+  IconSparkles,
   IconDownload,
   IconPin,
   IconPencil,
@@ -2515,6 +2517,20 @@ export function Sidebar({
                   else void openProjectPicker();
                 },
               }),
+              // mc-agent (MC-ADR-0023): describe the project in a chat instead.
+              ...(isSessions
+                ? []
+                : [
+                    sidebarMenuAction({
+                      id: "new-project-by-conversation",
+                      label: t("mcProject.npSidebarAction"),
+                      icon: <IconSparkles size={14} />,
+                      onSelect: () => {
+                        closeMenus(false);
+                        void startConversationalProject();
+                      },
+                    }),
+                  ]),
             ],
           }}
         />,

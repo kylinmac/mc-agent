@@ -2140,6 +2140,10 @@ async fn handle_request(
             let st = state.lock().await;
             resource_dirs_rpc::ensure(&st, &params)
         }
+        "project.resources.ensureDraft" => {
+            let st = state.lock().await;
+            resource_dirs_rpc::ensure_draft(&st, &params)
+        }
         method if method.starts_with("project.resources.home.") => {
             let mut st = state.lock().await;
             resource_dirs_rpc::home(&mut st, method, &params)
