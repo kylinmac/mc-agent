@@ -8,7 +8,8 @@ import { mcZhCNEntries } from "./mc-changelog-zh-CN.js";
  *
  * 与上游 `CHANGELOG`（changelog-*.ts，PI-Desktop 0.x 版本）分开：
  * 上游文件随同步上游原样合入，mc-agent 1.x 版本的说明只写在这里。
- * 简体中文是源语言，英文可选；缺英文时回落到中文。
+ * 简体中文是源语言，英文可选。中文界面读中文，其他界面语言读英文，
+ * 缺英文时回落到中文。
  *
  * 目前只有数据结构和查询函数，安装后自动弹出「更新了什么」的界面在后续 PR。
  */
@@ -23,7 +24,7 @@ export const MC_CHANGELOG: Record<McChangelogLocale, readonly ChangelogEntry[]> 
 
 export function resolveMcChangelogLocale(input?: string | null): McChangelogLocale {
   const value = (input || "").replaceAll("_", "-").toLowerCase();
-  return value === "en" || value.startsWith("en-") ? "en" : "zh-CN";
+  return !value || value === "zh" || value.startsWith("zh-") ? "zh-CN" : "en";
 }
 
 /** Compare two `x.y.z` versions (leading `v` allowed). Non-semver sorts first. */
@@ -56,27 +57,39 @@ export function getMcChangelogEntry(
   );
 }
 
+export type McReleaseNotesOptions = {
+  locale?: string | null;
+  /**
+   * 没有 `lastSeen` 记录时，本机是否已经装过（例如已有设置）。第一次带上
+   * 这项功能的版本对所有老用户都没有记录，靠它区分升级和新安装。
+   */
+  existingInstall?: boolean;
+  catalog?: Record<McChangelogLocale, readonly ChangelogEntry[]>;
+};
+
 /**
  * 计划中的弹窗触发规则（MC-ADR-0017）：返回「上次看过的版本」之后、
  * 到当前版本为止、且有用户可见内容的条目，新版本在前。
  *
- * - `lastSeen` 为空（新安装或首次带上这项功能）时返回空：只记录版本，不弹。
+ * - `lastSeen` 为空时：新安装返回空（只记录版本，不弹）；已有安装视为
+ *   从上一个版本升级，只返回当前版本这一条。
  * - 降级或版本相同时返回空。
  * - `highlights` 为空的版本（无用户可见变化）跳过。
  */
 export function mcReleaseNotesSince(
   lastSeen: string | null | undefined,
   current: string | null | undefined,
-  localeInput?: string | null,
-  catalog: Record<McChangelogLocale, readonly ChangelogEntry[]> = MC_CHANGELOG,
+  { locale: localeInput, existingInstall = false, catalog = MC_CHANGELOG }: McReleaseNotesOptions = {},
 ): ChangelogEntry[] {
   const from = normalizeChangelogVersion(lastSeen);
   const to = normalizeChangelogVersion(current);
-  if (!from || !to || compareMcVersions(to, from) <= 0) return [];
+  if (!to || (!from && !existingInstall) || (from && compareMcVersions(to, from) <= 0)) return [];
   const locale = resolveMcChangelogLocale(localeInput);
   const versions = catalog["zh-CN"]
     .map((entry) => entry.version)
-    .filter((version) => compareMcVersions(version, from) > 0 && compareMcVersions(version, to) <= 0)
+    .filter((version) =>
+      from ? compareMcVersions(version, from) > 0 && compareMcVersions(version, to) <= 0 : compareMcVersions(version, to) === 0,
+    )
     .sort((a, b) => compareMcVersions(b, a));
   const result: ChangelogEntry[] = [];
   for (const version of versions) {

@@ -16,10 +16,10 @@
 
 ## 决定
 
-1. **独立的 mc-agent 更新说明。** `packages/shared/src/mc-changelog-zh-CN.ts`（源语言）和 `mc-changelog-en.ts`（可选，缺则回落中文），类型沿用上游的 `ChangelogEntry`，由 `mc-changelog.ts` 汇总并从 `@pi-desktop/shared` 导出。只写 mc-agent 1.x 版本，不改上游 `changelog-*.ts`，同步上游时不冲突。每个版本一条，`highlights: []` 表示本版没有用户可见变化。
+1. **独立的 mc-agent 更新说明。** `packages/shared/src/mc-changelog-zh-CN.ts`（源语言）和 `mc-changelog-en.ts`（可选；中文界面读中文，其他界面语言读英文，缺英文则回落中文），类型沿用上游的 `ChangelogEntry`，由 `mc-changelog.ts` 汇总并从 `@pi-desktop/shared` 导出。只写 mc-agent 1.x 版本，不改上游 `changelog-*.ts`，同步上游时不冲突。每个版本一条，`highlights: []` 表示本版没有用户可见变化。
 2. **PR 模板。** `.github/pull_request_template.md` 固定四节：改动 / 更新说明（用户可见）/ 刻意未改 / 验证。「更新说明」写给最终用户，没有就写「无」。PR 合入时不改 `mc-changelog`；发版前把该版本所有 PR 的「更新说明」汇总成一条（流程见[更新说明流程](../release-notes.md)）。
-3. **发布门禁。** `scripts/check-mc-changelog.mjs`：Docs check 校验已有条目的格式；`mc-agent Release` 的 prepare 在版本标签的 worktree 上加 `--require <版本>`，没有条目就失败，不建草稿、不构建。从 `1.0.20` 起生效（`REQUIRED_FROM`），之前的标签不追溯、不补条目。
-4. **计划中的弹窗触发（下一个 PR）。** 本机记录 `lastSeenReleaseNotesVersion`。安装版启动后若当前版本比它新，取两者之间有内容的条目（`mcReleaseNotesSince()`，已在本 PR 提供并测试）弹一次“更新了什么”，关闭即把记录更新为当前版本；全是空条目则静默更新记录。没有记录（新安装、或第一次带上此功能的版本）只写入当前版本、不弹窗；降级不弹；开发版不弹。设置“关于”里的“更新说明”也改为读这份目录。
+3. **发布门禁。** `scripts/check-mc-changelog.mjs`：Docs check 校验已有条目的格式；`mc-agent Release` 的 prepare 在校验版本号和标签之后、建草稿之前，在版本标签的 worktree 上加 `--require <版本>`，没有条目就失败，不建草稿、不构建。从 `1.0.20` 起生效（`REQUIRED_FROM`），之前的标签不追溯、不补条目。
+4. **计划中的弹窗触发（下一个 PR）。** 本机记录 `lastSeenReleaseNotesVersion`。安装版启动后若当前版本比它新，取两者之间有内容的条目（`mcReleaseNotesSince()`，已在本 PR 提供并测试）弹一次“更新了什么”，关闭即把记录更新为当前版本；全是空条目则静默更新记录。没有记录时：新安装只写入当前版本、不弹窗；已有安装（本机已有设置，例如第一次带上此功能的版本）视为从上一个版本升级，只弹当前版本这一条；降级不弹；开发版不弹。设置“关于”里的“更新说明”也改为读这份目录。
 
 与 MC-ADR-0012 的界线：0012 仍不在“有新版本可下载”时弹窗；本 ADR 只在**已经装好**新版本后的首次启动弹一次，且内容来自打包进应用的目录，不联网。
 

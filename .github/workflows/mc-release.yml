@@ -27,6 +27,13 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
+      - name: Validate tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          git merge-base --is-ancestor "v$VERSION^{commit}" origin/main
       # MC-ADR-0017: the tag must carry this version's entry in
       # packages/shared/src/mc-changelog-zh-CN.ts (highlights: [] = no user-visible change).
       # Versions before REQUIRED_FROM in the script predate the rule and are skipped.
@@ -37,15 +44,13 @@ jobs:
           set -euo pipefail
           git worktree add --detach "$RUNNER_TEMP/release-tag" "v$VERSION"
           node scripts/check-mc-changelog.mjs --root "$RUNNER_TEMP/release-tag" --require "$VERSION"
-      - name: Validate tag and prepare draft
+      - name: Prepare draft
         env:
           VERSION: ${{ inputs.version }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
-          git merge-base --is-ancestor "v$VERSION^{commit}" origin/main
           if gh release view "v$VERSION" --json isDraft > release.json; then
             test "$(jq -r .isDraft release.json)" = true
           else

@@ -32,29 +32,42 @@ describe("mc changelog", () => {
     expect(compareMcVersions("1.0.0", "1.0.0")).toBe(0);
   });
 
-  it("defaults to zh-CN and only uses en for English locales", () => {
+  it("uses zh-CN for Chinese and en for every other language", () => {
     expect(resolveMcChangelogLocale("zh-TW")).toBe("zh-CN");
-    expect(resolveMcChangelogLocale("de")).toBe("zh-CN");
+    expect(resolveMcChangelogLocale(undefined)).toBe("zh-CN");
+    expect(resolveMcChangelogLocale("de")).toBe("en");
     expect(resolveMcChangelogLocale("en-US")).toBe("en");
     expect(getMcChangelogEntry("1.0.0")).toBeUndefined();
   });
 
   it("returns visible notes after the last seen version up to the current one", () => {
-    expect(mcReleaseNotesSince("1.0.19", "1.0.22", "zh-CN", catalog).map((e) => e.version)).toEqual([
+    expect(mcReleaseNotesSince("1.0.19", "1.0.22", { locale: "zh-CN", catalog }).map((e) => e.version)).toEqual([
       "1.0.22",
       "1.0.20",
     ]);
-    expect(mcReleaseNotesSince("1.0.20", "1.0.21", "zh-CN", catalog)).toEqual([]);
+    expect(mcReleaseNotesSince("1.0.20", "1.0.21", { locale: "zh-CN", catalog })).toEqual([]);
   });
 
   it("falls back to zh-CN when the English entry is missing", () => {
-    const notes = mcReleaseNotesSince("1.0.19", "1.0.22", "en", catalog);
+    const notes = mcReleaseNotesSince("1.0.19", "1.0.22", { locale: "en", catalog });
     expect(notes.map((e) => e.highlights[0])).toEqual(["新功能 C", "Feature A"]);
   });
 
-  it("does not pop up on first run, same version or downgrade", () => {
-    expect(mcReleaseNotesSince(null, "1.0.22", "zh-CN", catalog)).toEqual([]);
-    expect(mcReleaseNotesSince("1.0.22", "1.0.22", "zh-CN", catalog)).toEqual([]);
-    expect(mcReleaseNotesSince("1.0.22", "1.0.20", "zh-CN", catalog)).toEqual([]);
+  it("falls back to zh-CN for other languages without an English entry", () => {
+    const notes = mcReleaseNotesSince("1.0.19", "1.0.22", { locale: "de", catalog });
+    expect(notes.map((e) => e.highlights[0])).toEqual(["新功能 C", "Feature A"]);
+  });
+
+  it("shows only the current version to an existing install with no record yet", () => {
+    expect(mcReleaseNotesSince(null, "1.0.20", { existingInstall: true, catalog }).map((e) => e.version)).toEqual([
+      "1.0.20",
+    ]);
+    expect(mcReleaseNotesSince(null, "1.0.21", { existingInstall: true, catalog })).toEqual([]);
+  });
+
+  it("does not pop up on a fresh install, same version or downgrade", () => {
+    expect(mcReleaseNotesSince(null, "1.0.22", { locale: "zh-CN", catalog })).toEqual([]);
+    expect(mcReleaseNotesSince("1.0.22", "1.0.22", { locale: "zh-CN", catalog })).toEqual([]);
+    expect(mcReleaseNotesSince("1.0.22", "1.0.20", { locale: "zh-CN", catalog })).toEqual([]);
   });
 });
