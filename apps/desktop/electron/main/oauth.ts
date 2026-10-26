@@ -759,6 +759,19 @@ export class VendorOAuth {
   }
 
   /**
+   * mc-agent: the GitHub token behind a Copilot login, which GitHub's quota
+   * endpoint takes instead of the exchanged Copilot token. Main process only.
+   * Enterprise logins are left out: their quota lives on another host.
+   */
+  async copilotGithubToken(providerId: string): Promise<string | undefined> {
+    const row = (await this.rows()).find((candidate) => candidate.id === providerId);
+    if (row?.authKind !== OAUTH_AUTH_KIND || row.vendorKey !== "github-copilot" || row.ownerPluginId) return undefined;
+    const credential = (await this.readCredential(providerId)) as { refresh?: unknown; enterpriseUrl?: unknown } | undefined;
+    if (credential?.enterpriseUrl) return undefined;
+    return typeof credential?.refresh === "string" && credential.refresh ? credential.refresh : undefined;
+  }
+
+  /**
    * Models the signed-in account may actually use.
    *
    * The account's own model list is the authority. pi-ai (`getAvailable`,

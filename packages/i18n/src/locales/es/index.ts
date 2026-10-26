@@ -1199,7 +1199,8 @@ sklm: {
       "zoomOut": "Zoom out",
       "toggleFullScreen": "Alternar pantalla completa",
       "voiceToggle": "Alternar entrada de voz",
-      "voiceCancel": "Cancelar entrada de voz"
+      "voiceCancel": "Cancelar entrada de voz",
+      "dictationHold": "Mantener para dictar"
     },
     "skills": "Habilidades",
     "skillsGlobalPath": "Ruta de habilidades globales",
@@ -3584,6 +3585,8 @@ sklm: {
     projectPromptDefaultHintGlobal: "Model rules apply; with none, the global default “{{name}}”.",
     promptSuggestions: "Input suggestions",
     promptSuggestionsDesc: "After a reply, suggest your likely next message as gray text in the empty input; press Tab to use it. Each reply makes one extra request with the conversation's model, mostly read from its prompt cache.",
+    dictationHoldHint: "hold {{keys}} to talk",
+    dictationHoldSettingsHint: "Hold {{keys}} to talk and release to transcribe; a quick tap is ignored. Change or turn it off under Shortcuts. Works while the app window is focused.",
     pluginCategory_community: "Community",
     pluginCategory_creative: "Creative",
     pluginCategory_developer_tools: "Developer tools",
@@ -3597,6 +3600,16 @@ sklm: {
     permSettingsPath_screenRecording: "System Settings → Privacy & Security → Screen & System Audio Recording",
     permSettingsPath_microphone: "System Settings → Privacy & Security → Microphone",
     sessionInfoRemaining: "{{percent}}% left",
+    quotaTitle: "Subscription quota left",
+    quotaRemaining: "{{percent}}% left",
+    quotaResets: "resets {{time}}",
+    quotaWindowHours: "{{count}}h",
+    quotaWindowDays: "{{count}}d",
+    quotaWindow_day: "Day",
+    quotaWindow_week: "Week",
+    quotaWindow_month: "Month",
+    quotaWindowPlan: "Plan",
+    memoryByAgent: "Saved by the agent. Edit or delete it like any other note.",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

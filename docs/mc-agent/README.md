@@ -2,6 +2,8 @@
 
 [R17 语音输入：配置、行为与验证范围](voice-input.md)（P13；V54）。
 
+[订阅剩余额度：来源、约束与验证范围](subscription-quota.md)。
+
 当前方向已确定：**Fork PI-Desktop，继承 Agent 能力，重点完善项目文档、资源与开发任务管理。** 已进入开发阶段：R1–R12 已合入 `main`，R13、R14 等 2026-10-22 转正的需求代码已完成、待发版。需求是否确认、代码是否合入、是否验收通过分别记录，见[需求文档](requirements.md)和[验收与开发计划](validation-plan.md)第 2.1 节。
 
 ## 阅读顺序
@@ -27,17 +29,21 @@
 | [macOS 权限归属与授权体验](macos-permissions.md) | 权限调用进程、签名身份、分步授权、复检；2026-10-22 已实施，结果见第 9 节 |
 | [电脑操作方案](computer-use.md) | 内置 Computer Use 插件：macOS 与 Windows 后端、权限及验证边界 |
 | [Windows 安装与更新](windows-install-update.md) | R15：暗色单页安装、后台下载、原目录静默更新 |
+| [更新说明流程](release-notes.md) | PR 模板「更新说明」、多个 PR 汇总成一个版本条目、发布门禁 |
 | [M1 基线记录](m1-baseline.md) | 构建、冒烟和 B1–B8 实测结果 |
  | [问题记录](bugs.md) | 开发阶段缺陷，编号 B，不占用 R / X |
 | [MC-ADR-0005](adr/mc-0005-work-panel-terminal-and-tools.md) | 工作面板终端与工具栏 |
 | [MC-ADR-0006](adr/mc-0006-background-commands.md) | 后台命令与后台任务面板 |
 | [MC-ADR-0020](adr/mc-0020-auto-mode-guard.md) | 全自动模式下仍要询问的命令 |
+| [MC-ADR-0019](adr/mc-0019-agent-memory-notes.md) | Agent 自己记到项目记忆 |
+| [MC-ADR-0018](adr/mc-0018-background-command-wake.md) | 后台命令结束时通知 Agent |
 | [MC-ADR-0007](adr/mc-0007-split-view.md) | 并列对话（分栏） |
 | [MC-ADR-0008](adr/mc-0008-installed-identity.md) | 安装版使用独立身份 |
 | [MC-ADR-0009](adr/mc-0009-import-from-other-agents.md) | 从其他智能体导入项目和对话 |
 | [MC-ADR-0010](adr/mc-0010-system-prompt-templates.md) | 系统提示词查看与模板 |
 | [MC-ADR-0011](adr/mc-0011-usage-statistics.md) | 用量统计 |
 | [MC-ADR-0012](adr/mc-0012-releases-and-updates.md) | 发布到 GitHub Releases 与更新提醒 |
+| [MC-ADR-0017](adr/mc-0017-post-update-whats-new.md) | 更新后的“更新了什么”与版本更新说明（待确认） |
 | [MC-ADR-0013](adr/mc-0013-creative-studio.md) | 创作工作台（一期：图片） |
 | [MC-ADR-0014](adr/mc-0014-computer-use.md) | 电脑操作（Computer Use）内置插件 |
 | [MC-ADR-0015](adr/mc-0015-macos-permissions.md) | macOS 系统权限页与授权归属 |

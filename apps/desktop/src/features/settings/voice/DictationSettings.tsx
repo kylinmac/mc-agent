@@ -7,6 +7,7 @@ import { SettingsCard, SettingsRow } from "../primitives";
 import { api } from "../../../lib/api";
 import { useAppStore } from "../../../stores/app-store";
 import type { LiveVoiceSettings } from "./LiveVoiceSettings";
+import { dictationHoldKeys } from "../../voice/dictation/dictation-hold";
 
 export function DictationSettings({ t, settings, saveSettings }: ComponentProps<typeof LiveVoiceSettings>) {
   const value = settings.dictation ?? { enabled: false, adapter: "codex", providerId: "", modelId: "" };
@@ -52,5 +53,7 @@ export function DictationSettings({ t, settings, saveSettings }: ComponentProps<
         onChange={(event) => setModel(event.currentTarget.value)} onBlur={() => { if (model.trim()) void save({ modelId: model.trim() }); else setModel(value.modelId); }} />
     </SettingsRow> : <p className="live-voice-hint">{t("dictation.codexHint")}</p>}
     <p className="live-voice-hint">{t("dictation.hint")}</p>
+    {/* mc-agent: hold-to-talk, set under Settings → Shortcuts. */}
+    {dictationHoldKeys(settings.keybindings) ? <p className="live-voice-hint">{t("mcProject.dictationHoldSettingsHint", { keys: dictationHoldKeys(settings.keybindings) })}</p> : null}
   </SettingsCard>;
 }
