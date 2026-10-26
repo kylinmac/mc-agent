@@ -743,9 +743,13 @@ export function CanvasView({
         >
           <div className="mc-canvas-strip" style={{ fontSize: 12 * ink, top: -22 * ink, height: 20 * ink }}>
             <span>{element.title || element.id}</span>
-            <span className="mc-canvas-strip-size">
-              {element.w}×{element.h}
-            </span>
+            {isEntered ? (
+              <span className="mc-canvas-entered-hint">{t("mcProject.canvasEnteredHint")}</span>
+            ) : (
+              <span className="mc-canvas-strip-size">
+                {element.w}×{element.h}
+              </span>
+            )}
             {element.hasPrev ? (
               <button
                 type="button"
@@ -797,8 +801,17 @@ export function CanvasView({
               />
             ))}
           {boardErrors.length ? (
-            <div className="mc-canvas-board-error" style={{ fontSize: 12 * ink, padding: `${6 * ink}px ${8 * ink}px` }}>
-              <IconCircleAlert size={13 * ink} />
+            // Under the artboard, so it never covers what it reports on;
+            // readable when zoomed out.
+            <div
+              className="mc-canvas-board-error"
+              style={{
+                fontSize: 12 * Math.min(ink, 2.5),
+                marginTop: 4 * ink,
+                padding: `${6 * Math.min(ink, 2.5)}px ${8 * Math.min(ink, 2.5)}px`,
+              }}
+            >
+              <IconCircleAlert size={13 * Math.min(ink, 2.5)} />
               <span className="mc-canvas-board-error-text">{t("mcProject.canvasBoardError", { message: boardErrors[0] })}</span>
               <button
                 type="button"
@@ -807,11 +820,6 @@ export function CanvasView({
               >
                 {t("mcProject.canvasFixWithAgent")}
               </button>
-            </div>
-          ) : null}
-          {isEntered ? (
-            <div className="mc-canvas-entered-hint" style={{ fontSize: 11 * ink, top: -22 * ink }}>
-              {t("mcProject.canvasEnteredHint")}
             </div>
           ) : null}
         </div>
