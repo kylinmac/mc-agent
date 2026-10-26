@@ -1,7 +1,7 @@
 export const PROTOCOL_VERSION = 11 as const;
 export const SCHEMA_VERSION = 16 as const;
 export const APP_ID = "com.kylinmac.mc-agent";
-export const APP_NAME = "PI-Desktop";
+export const APP_NAME = "mc-agent";
 export const APP_VERSION = "0.20.1";
 
 export const APP_MENU_COMMANDS = [
