@@ -46,7 +46,7 @@ test("startup plugin restore notifies the renderer after every enabled plugin lo
     "node:fs": { mkdirSync() {} },
     "node:path": { join: (...parts) => parts.join("/") },
     "@pi-desktop/shared": {
-      APP_NAME: "PI Desktop",
+      APP_NAME: "mc-agent",
       APP_VERSION: "0.0.0-test",
       ErrorCodes: { HOST_UNAVAILABLE: "HOST_UNAVAILABLE" },
       IPC: { event: { hostStatus: "hostStatus", pluginChanged: "pluginChanged" } },
