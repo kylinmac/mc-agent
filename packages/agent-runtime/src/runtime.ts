@@ -1405,7 +1405,7 @@ function commandShellToolDescription(
     shellSyntaxGuidance(shell),
     `The session scratch directory variable is ${shellScratchVariable(shell)}.`,
     `An optional timeout from 1 to ${MAX_COMMAND_TIMEOUT_SECONDS} seconds may be supplied; without it, the command defaults to a 60-second timeout.`,
-    `Set runInBackground: true for long-lived processes the user needs after the turn ends (dev servers, watchers, builds). A background call returns a backgroundTaskId immediately, survives turn aborts and timeouts, and its output is visible in the composer's running-tasks bar; do not set it for commands whose output the current turn depends on.`,
+    `Set runInBackground: true for long-lived processes the user needs after the turn ends (dev servers, watchers, builds). A background call returns a backgroundTaskId immediately, survives turn aborts and timeouts, and its output is visible in the composer's running-tasks bar; do not set it for commands whose output the current turn depends on. When a background command exits on its own you get an automatic notice with its exit code and last output, even after your turn has ended, so never sleep or poll in a loop waiting for one to finish.`,
     ...(formattedScratch ? [`The session scratch directory is ${formattedScratch}.`] : []),
   ].join(" ");
 }
@@ -3402,7 +3402,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         case "Bash":
           return `${commandShellToolDescription(this.commandShell, this.scratchDir)} Use Edit or Write instead of apply_patch, git apply, or patch; do not retry a failed shell patch command repeatedly.${this.mode === "agent" ? " Read a background command's new output with BashOutput and stop it with KillBash once it is no longer needed; both take the backgroundTaskId the call returned as backgroundId." : ""}`;
         case "BashOutput":
-          return "Read the new output of a background command started with Bash runInBackground, since your last read, plus its status (running, exited, failed with exitCode, stopped). stdout is in output and stderr in stderr; when much was printed only the latest part is returned. Poll sparingly: check after doing other work rather than in a tight loop.";
+          return "Read the new output of a background command started with Bash runInBackground, since your last read, plus its status (running, exited, failed with exitCode, stopped). stdout is in output and stderr in stderr; when much was printed only the latest part is returned. You are notified automatically when a background command exits, so use this to check progress or read the full output, not to wait for the end.";
         case "KillBash":
           return "Stop a background command started with Bash runInBackground, including the processes it started. Stop servers and watchers you started once the task no longer needs them.";
         case "TodoWrite":
