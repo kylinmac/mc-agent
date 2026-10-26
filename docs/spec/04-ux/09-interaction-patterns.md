@@ -764,6 +764,9 @@ may be retained while exactly one workspace supplies the visible shell context.
   Keeping its reading bookmark does not mean the turn has finished. Rejoining
   live output preserves the viewport rather than acting like a new turn.
   Explicit search, unread later pages, and disjoint snapshots remain historical.
+  Reading ranges require a non-empty canonical message identity, compared by
+  message id across history object copies. The ordinary canonical surface still
+  shows the first-event wait before its first message arrives.
 
 ### 2.5 Turn outcome closure
 

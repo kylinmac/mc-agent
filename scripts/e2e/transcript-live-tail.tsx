@@ -67,6 +67,19 @@ globalThis.transcriptLiveTailProbe = async () => {
     await frame();
     assert(activeLabel(), "ordinary live process must be running");
     assert(stop(), "the running composer must offer Stop");
+    set({ messages: [], selectingSessionId: undefined });
+    await frame();
+    assert(host.querySelector('[data-session-pane="live-tail"] [data-testid="working-indicator"]'),
+      "an empty canonical transcript still shows the initial model wait");
+    set({ transcriptViews: { "live-tail": {
+      messages: [], messageStart: 0, hasMoreBefore: false, hasMoreAfter: false,
+      focus: null, restored: true, loading: null,
+    } } });
+    await frame();
+    assert(!host.querySelector('[data-session-pane="live-tail"] .transcript-runtime-status > *'),
+      "an empty restored range cannot prove it reaches a canonical live tail");
+    set({ messages, transcriptViews: {}, selectingSessionId: "live-tail" });
+    await frame();
     const bookmark = { pinned: false, messageId: user.id, offset: 0, scrollTop: 0, windowSize: 60 };
     // Public restore action used by a retained pane during selection revalidation.
     await useAppStore.getState().restoreTranscriptReading("live-tail", bookmark, new AbortController().signal);
@@ -123,6 +136,13 @@ globalThis.transcriptLiveTailProbe = async () => {
     ] } } });
     await frame();
     assert(!activeLabel(), "a disjoint range must not claim the canonical live turn");
+    const copiedTool = { ...tool };
+    set({ messages: [tool], transcriptViews: { "live-tail": {
+      ...view, messages: [copiedTool], parentMessage: copiedTool,
+    } } });
+    await frame();
+    assert(activeLabel(), "a restored canonical message keeps its identity across history object copies");
+    set({ messages });
     set({ transcriptViews: { "live-tail": view }, runningSessions: {}, isRunning: false });
     await frame();
     assert(label()?.textContent === i18n.t("chat.processCompleted") && !activeLabel(), "only settled run state shows Finished");

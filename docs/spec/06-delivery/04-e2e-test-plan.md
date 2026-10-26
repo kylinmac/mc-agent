@@ -2116,6 +2116,9 @@ identify the platform validation still needed.
   Finished. The restored range and scroll offset remain owned by the reader.
   Another session, unread pages, and explicit search do not inherit live
   status. Terminal completion and abort show Finished and Stopped respectively.
+  An empty restored range stays historical, an ordinary empty canonical range
+  shows the initial wait, and a restored navigation-parent copy with the same
+  message id keeps the running presentation.
 - **Automation**: `node scripts/e2e-transcript-reading-position.mjs`
   (`transcriptLiveTailProbe`).
 - **Specs linked**: `04-ux/09-interaction-patterns.md` §2.4
