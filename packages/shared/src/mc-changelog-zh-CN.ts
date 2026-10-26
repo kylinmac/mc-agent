@@ -8,7 +8,21 @@ import type { ChangelogEntry } from "./changelog.js";
  * - `highlights: []` 表示「本版没有用户可见变化」，安装后不弹「更新了什么」。
  * - 这里只放 mc-agent 的版本（1.x），上游 0.x 的说明在 changelog-*.ts，不要混写。
  * - 本文件只允许 `import type`：发布检查直接用 Node 运行它，不经过构建。
- *
- * 第一条真实条目随 1.0.20（或之后的第一个版本）发布时补上。
+
  */
-export const mcZhCNEntries: ChangelogEntry[] = [];
+export const mcZhCNEntries: ChangelogEntry[] = [
+  {
+    version: "1.0.20",
+    date: "2026-10-26",
+    highlights: [
+      "按住 ⌘⇧Space（Windows 为 Ctrl+Shift+Space）说话，松开后转成文字填进输入框，不会自动发送；可在设置 → 快捷键里改键或关闭。",
+      "使用订阅账号（ChatGPT/Codex、Claude、GitHub Copilot、Kimi、GLM、MiniMax）时，输入框左侧显示剩余额度，只显示该服务实际有的窗口；悬停可看重置时间。",
+      "Agent 放到后台的命令结束后会自动通知 Agent，它会接着处理结果，不用再发一句话提醒。",
+      "Agent 会把你给出的偏好、纠正和项目约束记到项目记忆里，下次对话自动带上；记忆面板里标为 “AI” 的条目就是它记的，可以修改或删除。",
+      "新增 设置 → 智能体 → 钩子：让 shell 命令在工具调用前后、Agent 要结束时自动运行，例如改完文件跑格式检查、结束前先跑测试。",
+      "“全自动”权限模式下，强制推送、推到主分支、合并 PR、发版、发布包、删除项目以外的文件、sudo 等操作仍会弹出确认。",
+      "Agent 委派子任务时可以让子代理直接继承当前对话的上下文，不用再从头复述背景。",
+      "界面里剩余的 “PI-Desktop” 文案改为 “mc-agent”。",
+    ],
+  },
+];
