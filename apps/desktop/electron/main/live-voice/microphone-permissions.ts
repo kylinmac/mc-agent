@@ -1,5 +1,5 @@
 import type { BrowserWindow, Session, WebContents } from "electron";
-import { GEN_UI_SCHEME } from "@pi-desktop/shared";
+import { CANVAS_SCHEME, GEN_UI_SCHEME } from "@pi-desktop/shared";
 import { liveOwnerFromWebContents, isTrustedRendererUrl } from "./owner";
 import type { LiveOwner } from "./call-service";
 
@@ -21,6 +21,8 @@ export function allowsLiveMicrophonePermission(input: PermissionDecision): boole
 }
 
 const GEN_UI_PREFIX = `${GEN_UI_SCHEME}:`;
+// mc-agent: creative canvas artboards are model-written code too.
+const CANVAS_PREFIX = `${CANVAS_SCHEME}:`;
 
 /**
  * Visualization frames (ADR gen-ui-inline-visualization) run model-written
@@ -30,7 +32,11 @@ const GEN_UI_PREFIX = `${GEN_UI_SCHEME}:`;
  * the frame URL still carries the scheme, so both are checked.
  */
 export function isGenUiPermissionRequester(...urls: ReadonlyArray<string | undefined>): boolean {
-  return urls.some((url) => typeof url === "string" && url.toLowerCase().startsWith(GEN_UI_PREFIX));
+  return urls.some(
+    (url) =>
+      typeof url === "string" &&
+      (url.toLowerCase().startsWith(GEN_UI_PREFIX) || url.toLowerCase().startsWith(CANVAS_PREFIX)),
+  );
 }
 
 export function installLiveMicrophonePermissionHandlers(input: {

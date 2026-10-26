@@ -9,6 +9,7 @@ import {
   type CreativeReference,
   type FileFacts,
 } from "../creative/creative-generation";
+import { onCanvasChanged } from "../creative/canvas-tools";
 
 /**
  * mc-agent creative studio IPC (docs/mc-agent/creative-studio.md). Records
@@ -60,6 +61,8 @@ export function registerMcCreativeIpc({
     return current;
   };
   onCreativeJob((job) => sendToRenderer(IPC.event.creativeJob, { job }));
+  // The agent changed a canvas or its comments: the open canvas reloads.
+  onCanvasChanged((change) => sendToRenderer(IPC.event.creativeCanvas, change));
 
   registrar.handle(IPC.invoke.creativeCall, async (input: { method?: unknown; params?: unknown } = {}) => {
     const method = text(input?.method, "method", 64);

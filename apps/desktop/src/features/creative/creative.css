@@ -1506,3 +1506,51 @@
   margin: 2px 0 4px;
   font-size: var(--text-xs);
 }
+
+/* What the canvas adds to the next chat message (docs/mc-agent/creative-canvas.md). */
+.mc-creative-chat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 6px;
+}
+
+.mc-creative-chat-chip {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 2px 8px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--ds-bg-secondary);
+  color: var(--ds-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.mc-creative-chat-chip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mc-creative-chat-chip button {
+  display: inline-flex;
+  padding: 2px;
+  border: 0;
+  border-radius: var(--radius-round);
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.mc-creative-chat-chip button:hover {
+  background: var(--ds-bg-hover);
+}
+
+.mc-creative-chat-carried {
+  display: block;
+  margin-top: 4px;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-xs);
+}

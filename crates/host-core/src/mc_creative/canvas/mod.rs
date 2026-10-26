@@ -1,0 +1,1335 @@
+//! mc-agent: the creative canvas (docs/mc-agent/creative-canvas.md, tier A).
+//!
+//! A canvas is a folder of real files under the project's creative storage,
+//! so it can be committed and opened by path from any conversation:
+//!
+//! ```text
+//! creative/canvas/<canvas id>/
+//!   canvas.json            elements, back to front, and a version number
+//!   comments.json          comment threads
+//!   frames/<board id>.html one HTML fragment per artboard
+//!   frames/<board id>.prev.html   the artboard before the agent's last change
+//! ```
+//!
+//! Layout changes are batches of element operations pinned to the version
+//! they were made against; a batch made against an older version is refused
+//! so the agent and the user never overwrite each other silently. Comments
+//! are appended one at a time and need no version.
+//!
+//! No database table: the canvas list is the folder listing.
+
+pub mod html;
+
+use anyhow::{anyhow, Context, Result};
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashSet};
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+
+use super::{get_asset, storage};
+use crate::db::{now_ms, Database, ProjectGroupRecord};
+
+/// The canvas folder inside `creative/`; categories cannot use the name.
+pub const CANVAS_DIR: &str = "canvas";
+const INDEX_FILE: &str = "canvas.json";
+const COMMENTS_FILE: &str = "comments.json";
+const FRAMES_DIR: &str = "frames";
+const FORMAT: u32 = 1;
+
+const MAX_ELEMENTS: usize = 300;
+const MAX_OPS: usize = 100;
+const MAX_TITLE: usize = 200;
+const MAX_NOTE: usize = 4_000;
+const MAX_COORD: f64 = 1_000_000.0;
+const MAX_THREADS: usize = 500;
+const MAX_MESSAGES: usize = 200;
+const MAX_COMMENT: usize = 4_000;
+pub const NOTE_COLORS: &[&str] = &[
+    "yellow", "blue", "green", "pink", "purple", "orange", "gray",
+];
+
+/// Writes to one canvas happen one at a time across every caller.
+static CANVAS_LOCK: Mutex<()> = Mutex::new(());
+
+fn lock() -> std::sync::MutexGuard<'static, ()> {
+    CANVAS_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+// ---- records ----------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ElementKind {
+    Frame,
+    Image,
+    Note,
+    Title,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Element {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub kind: ElementKind,
+    pub x: f64,
+    pub y: f64,
+    pub w: f64,
+    /// 0 for a note or title that grows with its text.
+    #[serde(default)]
+    pub h: f64,
+    /// A frame's name strip.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub title: String,
+    /// A note's or title's text.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub text: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub asset_id: Option<String>,
+    /// The frame a note is attached to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub board_id: Option<String>,
+    /// A frame's HTML revision, raised on every change of its source.
+    #[serde(default)]
+    pub rev: u64,
+    /// Whether `<id>.prev.html` holds the version before the last change.
+    #[serde(default)]
+    pub has_prev: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Canvas {
+    pub v: u32,
+    pub id: String,
+    pub title: String,
+    pub version: u64,
+    pub created_at: i64,
+    pub updated_at: i64,
+    /// Back to front.
+    pub elements: Vec<Element>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CanvasSummary {
+    pub id: String,
+    pub title: String,
+    pub version: u64,
+    pub updated_at: i64,
+    pub boards: usize,
+    pub path: PathBuf,
+}
+
+/// An element as an operation describes it; missing ids are generated.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ElementInput {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(rename = "type")]
+    pub kind: Option<ElementKind>,
+    pub x: Option<f64>,
+    pub y: Option<f64>,
+    pub w: Option<f64>,
+    pub h: Option<f64>,
+    pub title: Option<String>,
+    pub text: Option<String>,
+    /// Empty clears it.
+    pub color: Option<String>,
+    pub asset_id: Option<String>,
+    /// Empty detaches the note.
+    pub board_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "op", rename_all = "camelCase", deny_unknown_fields)]
+pub enum Op {
+    /// A new element; a frame needs `html`.
+    Add {
+        element: ElementInput,
+        #[serde(default)]
+        html: Option<String>,
+    },
+    /// Change fields of an element and, for a frame, its source.
+    Update {
+        id: String,
+        #[serde(default)]
+        set: ElementInput,
+        #[serde(default)]
+        html: Option<String>,
+    },
+    Remove {
+        id: String,
+    },
+    /// Swap a frame's source with the version before its last change.
+    Restore {
+        id: String,
+    },
+    /// Bring to the front or send to the back.
+    Reorder {
+        id: String,
+        to: Layer,
+    },
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Layer {
+    Front,
+    Back,
+}
+
+/// Who changes a frame's source: only the agent's changes keep the previous
+/// version, since the user's own edits are undone in the editor.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Actor {
+    User,
+    Agent { session_id: String },
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Applied {
+    pub canvas: Canvas,
+    /// The id of each element an `add` created, in operation order.
+    pub added: Vec<String>,
+    pub warnings: Vec<String>,
+}
+
+// ---- paths ------------------------------------------------------------------
+
+fn valid_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 40
+        && id.chars().next().is_some_and(|c| c.is_ascii_alphanumeric())
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
+fn check_id(kind: &str, id: &str) -> Result<()> {
+    if valid_id(id) {
+        Ok(())
+    } else {
+        Err(anyhow!(
+            "INVALID_ARGUMENT: {kind} id {id:?}: use 1 to 40 letters, digits, - or _, starting with a letter or digit"
+        ))
+    }
+}
+
+fn short_id(prefix: &str) -> String {
+    let raw = uuid::Uuid::new_v4().simple().to_string();
+    format!("{prefix}{}", &raw[..10])
+}
+
+/// `creative/canvas/` of the project's current storage.
+pub fn canvas_root(db: &Database, group: &ProjectGroupRecord) -> Result<PathBuf> {
+    Ok(storage(db, group)?.base.join(CANVAS_DIR))
+}
+
+fn canvas_dir(db: &Database, group: &ProjectGroupRecord, id: &str) -> Result<PathBuf> {
+    check_id("canvas", id)?;
+    let dir = canvas_root(db, group)?.join(id);
+    if !dir.join(INDEX_FILE).is_file() {
+        return Err(anyhow!("NOT_FOUND: canvas not found: {id}"));
+    }
+    Ok(dir)
+}
+
+fn frame_path(dir: &Path, board: &str) -> PathBuf {
+    dir.join(FRAMES_DIR).join(format!("{board}.html"))
+}
+
+fn prev_path(dir: &Path, board: &str) -> PathBuf {
+    dir.join(FRAMES_DIR).join(format!("{board}.prev.html"))
+}
+
+/// Write through a temporary file and a rename, so a crash never leaves half
+/// a file behind.
+fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| anyhow!("no parent folder for {}", path.display()))?;
+    fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
+    let temp = parent.join(format!(
+        ".{}.{}.tmp",
+        path.file_name()
+            .map(|n| n.to_string_lossy())
+            .unwrap_or_default(),
+        uuid::Uuid::new_v4().simple()
+    ));
+    fs::write(&temp, bytes).with_context(|| format!("write {}", temp.display()))?;
+    fs::rename(&temp, path).with_context(|| format!("replace {}", path.display()))?;
+    Ok(())
+}
+
+fn read_canvas(dir: &Path) -> Result<Canvas> {
+    let raw = fs::read_to_string(dir.join(INDEX_FILE))
+        .with_context(|| format!("read {}", dir.join(INDEX_FILE).display()))?;
+    serde_json::from_str(&raw).map_err(|error| {
+        anyhow!(
+            "PRECONDITION: {} is not a readable canvas ({error}); fix or remove the file",
+            dir.join(INDEX_FILE).display()
+        )
+    })
+}
+
+fn write_canvas(dir: &Path, canvas: &Canvas) -> Result<()> {
+    write_atomic(&dir.join(INDEX_FILE), &serde_json::to_vec_pretty(canvas)?)
+}
+
+// ---- canvases ---------------------------------------------------------------
+
+pub fn list(db: &Database, group: &ProjectGroupRecord) -> Result<Vec<CanvasSummary>> {
+    let root = canvas_root(db, group)?;
+    let Ok(entries) = fs::read_dir(&root) else {
+        return Ok(Vec::new());
+    };
+    let mut out = Vec::new();
+    for entry in entries.flatten() {
+        let dir = entry.path();
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if !valid_id(&name) || !dir.join(INDEX_FILE).is_file() {
+            continue;
+        }
+        // A canvas file someone broke by hand is left out, not fatal.
+        let Ok(canvas) = read_canvas(&dir) else {
+            continue;
+        };
+        out.push(CanvasSummary {
+            boards: canvas
+                .elements
+                .iter()
+                .filter(|element| element.kind == ElementKind::Frame)
+                .count(),
+            id: name,
+            title: canvas.title,
+            version: canvas.version,
+            updated_at: canvas.updated_at,
+            path: dir,
+        });
+    }
+    out.sort_by(|a, b| b.updated_at.cmp(&a.updated_at).then(a.id.cmp(&b.id)));
+    Ok(out)
+}
+
+fn clean_title(raw: &str) -> Result<String> {
+    let title = raw.trim();
+    if title.is_empty() {
+        return Err(anyhow!("INVALID_ARGUMENT: a canvas needs a title"));
+    }
+    Ok(title.chars().take(MAX_TITLE).collect())
+}
+
+pub fn create(db: &Database, group: &ProjectGroupRecord, title: &str) -> Result<Canvas> {
+    let title = clean_title(title)?;
+    let _guard = lock();
+    let root = canvas_root(db, group)?;
+    let id = short_id("c");
+    let dir = root.join(&id);
+    let now = now_ms();
+    let canvas = Canvas {
+        v: FORMAT,
+        id,
+        title,
+        version: 1,
+        created_at: now,
+        updated_at: now,
+        elements: Vec::new(),
+    };
+    fs::create_dir_all(dir.join(FRAMES_DIR))
+        .with_context(|| format!("create {}", dir.display()))?;
+    write_canvas(&dir, &canvas)?;
+    Ok(canvas)
+}
+
+pub fn get(db: &Database, group: &ProjectGroupRecord, id: &str) -> Result<Canvas> {
+    read_canvas(&canvas_dir(db, group, id)?)
+}
+
+/// The sources of some (or all) frames, for the agent to read.
+pub fn board_sources(
+    db: &Database,
+    group: &ProjectGroupRecord,
+    id: &str,
+    boards: Option<&[String]>,
+) -> Result<BTreeMap<String, String>> {
+    let dir = canvas_dir(db, group, id)?;
+    let canvas = read_canvas(&dir)?;
+    let mut out = BTreeMap::new();
+    for element in canvas
+        .elements
+        .iter()
+        .filter(|element| element.kind == ElementKind::Frame)
+    {
+        if boards.is_some_and(|wanted| !wanted.contains(&element.id)) {
+            continue;
+        }
+        let source = fs::read_to_string(frame_path(&dir, &element.id)).unwrap_or_default();
+        out.insert(element.id.clone(), source);
+    }
+    if let Some(wanted) = boards {
+        if let Some(missing) = wanted.iter().find(|board| !out.contains_key(*board)) {
+            return Err(anyhow!("NOT_FOUND: no artboard {missing} on this canvas"));
+        }
+    }
+    Ok(out)
+}
+
+pub fn rename(db: &Database, group: &ProjectGroupRecord, id: &str, title: &str) -> Result<Canvas> {
+    let title = clean_title(title)?;
+    let _guard = lock();
+    let dir = canvas_dir(db, group, id)?;
+    let mut canvas = read_canvas(&dir)?;
+    canvas.title = title;
+    canvas.version += 1;
+    canvas.updated_at = now_ms();
+    write_canvas(&dir, &canvas)?;
+    Ok(canvas)
+}
+
+/// Delete the canvas folder: its index, artboards and comments. The images it
+/// shows stay in the library.
+pub fn delete(db: &Database, group: &ProjectGroupRecord, id: &str) -> Result<()> {
+    let _guard = lock();
+    let dir = canvas_dir(db, group, id)?;
+    let root = canvas_root(db, group)?;
+    // Never follow a link out of the canvas folder.
+    let real = dir.canonicalize()?;
+    if !real.starts_with(root.canonicalize()?)
+        || fs::symlink_metadata(&dir)?.file_type().is_symlink()
+    {
+        return Err(anyhow!(
+            "PERMISSION_DENIED: the canvas folder is not inside creative/canvas"
+        ));
+    }
+    fs::remove_dir_all(&real).with_context(|| format!("delete {}", real.display()))?;
+    Ok(())
+}
+
+// ---- operations -------------------------------------------------------------
+
+fn finite(value: f64, label: &str, min: f64, max: f64) -> Result<f64> {
+    if value.is_finite() && value >= min && value <= max {
+        Ok(value.round())
+    } else {
+        Err(anyhow!(
+            "INVALID_ARGUMENT: {label} must be between {min} and {max}"
+        ))
+    }
+}
+
+fn limits(kind: ElementKind) -> (f64, f64) {
+    match kind {
+        ElementKind::Frame => (40.0, 8000.0),
+        ElementKind::Image => (16.0, 8000.0),
+        ElementKind::Note => (80.0, 1200.0),
+        ElementKind::Title => (80.0, 8000.0),
+    }
+}
+
+/// Validate and apply one element's fields onto `element`.
+fn set_fields(
+    db: &Database,
+    group: &ProjectGroupRecord,
+    element: &mut Element,
+    input: &ElementInput,
+    frames: &HashSet<String>,
+) -> Result<()> {
+    let kind = element.kind;
+    if let Some(x) = input.x {
+        element.x = finite(x, "x", -MAX_COORD, MAX_COORD)?;
+    }
+    if let Some(y) = input.y {
+        element.y = finite(y, "y", -MAX_COORD, MAX_COORD)?;
+    }
+    let (min, max) = limits(kind);
+    if let Some(w) = input.w {
+        element.w = finite(w, "w", min, max)?;
+    }
+    if let Some(h) = input.h {
+        element.h = match kind {
+            // Notes and titles may grow with their text.
+            ElementKind::Note | ElementKind::Title if h == 0.0 => 0.0,
+            _ => finite(h, "h", min.min(40.0), max)?,
+        };
+    }
+    if let Some(title) = &input.title {
+        element.title = title.trim().chars().take(MAX_TITLE).collect();
+    }
+    if let Some(text) = &input.text {
+        let limit = if kind == ElementKind::Title {
+            MAX_TITLE
+        } else {
+            MAX_NOTE
+        };
+        if text.chars().count() > limit {
+            return Err(anyhow!(
+                "INVALID_ARGUMENT: text is longer than {limit} characters"
+            ));
+        }
+        element.text = text.trim_end().to_string();
+    }
+    if let Some(color) = &input.color {
+        element.color = match color.trim() {
+            "" => None,
+            color if NOTE_COLORS.contains(&color) => Some(color.to_string()),
+            color => {
+                return Err(anyhow!(
+                    "INVALID_ARGUMENT: color {color:?}: one of {}",
+                    NOTE_COLORS.join(", ")
+                ))
+            }
+        };
+    }
+    if let Some(asset) = &input.asset_id {
+        if kind != ElementKind::Image {
+            return Err(anyhow!("INVALID_ARGUMENT: only an image shows an asset"));
+        }
+        let found = get_asset(db, asset.trim())?
+            .filter(|found| found.group_id == group.id && found.removed_at.is_none())
+            .ok_or_else(|| anyhow!("NOT_FOUND: no asset {asset} in this project's library"))?;
+        element.asset_id = Some(found.id);
+    }
+    if let Some(board) = &input.board_id {
+        if kind != ElementKind::Note {
+            return Err(anyhow!(
+                "INVALID_ARGUMENT: only a note attaches to an artboard"
+            ));
+        }
+        element.board_id = match board.trim() {
+            "" => None,
+            board if frames.contains(board) => Some(board.to_string()),
+            board => return Err(anyhow!("NOT_FOUND: no artboard {board} on this canvas")),
+        };
+    }
+    Ok(())
+}
+
+enum FileChange {
+    Write {
+        board: String,
+        html: String,
+        keep_prev: bool,
+    },
+    Restore {
+        board: String,
+    },
+    Remove {
+        board: String,
+    },
+}
+
+/// Apply a batch of operations made against `base_version`. Everything is
+/// checked before any file changes; a stale version is refused with the
+/// current one so the caller re-reads.
+pub fn apply(
+    db: &Database,
+    group: &ProjectGroupRecord,
+    id: &str,
+    base_version: u64,
+    ops: &[Op],
+    actor: &Actor,
+) -> Result<Applied> {
+    if ops.is_empty() {
+        return Err(anyhow!("INVALID_ARGUMENT: no operations"));
+    }
+    if ops.len() > MAX_OPS {
+        return Err(anyhow!(
+            "INVALID_ARGUMENT: at most {MAX_OPS} operations at once"
+        ));
+    }
+    let _guard = lock();
+    let dir = canvas_dir(db, group, id)?;
+    let mut canvas = read_canvas(&dir)?;
+    if canvas.version != base_version {
+        return Err(anyhow!(
+            "CONFLICT: the canvas changed (version {} now, {} given); read it again and redo the change on the current version",
+            canvas.version,
+            base_version
+        ));
+    }
+    let mut frames: HashSet<String> = canvas
+        .elements
+        .iter()
+        .filter(|element| element.kind == ElementKind::Frame)
+        .map(|element| element.id.clone())
+        .collect();
+    let mut changes: Vec<FileChange> = Vec::new();
+    let mut added = Vec::new();
+    let mut warnings = Vec::new();
+    let keep_prev = matches!(actor, Actor::Agent { .. });
+    let position = |canvas: &Canvas, id: &str| {
+        canvas
+            .elements
+            .iter()
+            .position(|element| element.id == id)
+            .ok_or_else(|| anyhow!("NOT_FOUND: no element {id} on this canvas"))
+    };
+    for (index, op) in ops.iter().enumerate() {
+        let context = |error: anyhow::Error| anyhow!("{error:#} (operation {})", index + 1);
+        match op {
+            Op::Add {
+                element: input,
+                html,
+            } => (|| -> Result<()> {
+                let kind = input
+                    .kind
+                    .ok_or_else(|| anyhow!("INVALID_ARGUMENT: an added element needs a type"))?;
+                let element_id = match &input.id {
+                    Some(given) => {
+                        check_id("element", given)?;
+                        given.clone()
+                    }
+                    None => short_id(match kind {
+                        ElementKind::Frame => "b",
+                        ElementKind::Image => "i",
+                        ElementKind::Note => "n",
+                        ElementKind::Title => "t",
+                    }),
+                };
+                if canvas
+                    .elements
+                    .iter()
+                    .any(|element| element.id == element_id)
+                {
+                    return Err(anyhow!("CONFLICT: element {element_id} already exists"));
+                }
+                if canvas.elements.len() >= MAX_ELEMENTS {
+                    return Err(anyhow!(
+                        "INVALID_ARGUMENT: a canvas holds at most {MAX_ELEMENTS} elements"
+                    ));
+                }
+                let (min, _) = limits(kind);
+                let mut element = Element {
+                    id: element_id.clone(),
+                    kind,
+                    x: 0.0,
+                    y: 0.0,
+                    w: if kind == ElementKind::Note {
+                        240.0
+                    } else {
+                        min.max(320.0)
+                    },
+                    h: match kind {
+                        ElementKind::Note | ElementKind::Title => 0.0,
+                        _ => 240.0,
+                    },
+                    title: String::new(),
+                    text: String::new(),
+                    color: (kind == ElementKind::Note).then(|| "yellow".to_string()),
+                    asset_id: None,
+                    board_id: None,
+                    rev: 0,
+                    has_prev: false,
+                };
+                set_fields(db, group, &mut element, input, &frames)?;
+                match kind {
+                    ElementKind::Frame => {
+                        let html = html
+                            .as_deref()
+                            .ok_or_else(|| anyhow!("INVALID_ARGUMENT: an artboard needs html"))?;
+                        let (_, checked) = html::check(html).map_err(|problem| {
+                            anyhow!("INVALID_ARGUMENT: artboard {element_id}: {problem}")
+                        })?;
+                        warnings.extend(
+                            checked
+                                .warnings
+                                .into_iter()
+                                .map(|w| format!("{element_id}: {w}")),
+                        );
+                        element.rev = 1;
+                        frames.insert(element_id.clone());
+                        changes.push(FileChange::Write {
+                            board: element_id.clone(),
+                            html: html.to_string(),
+                            keep_prev: false,
+                        });
+                    }
+                    ElementKind::Image if element.asset_id.is_none() => {
+                        return Err(anyhow!("INVALID_ARGUMENT: an image needs assetId"))
+                    }
+                    _ if html.is_some() => {
+                        return Err(anyhow!("INVALID_ARGUMENT: only an artboard has html"))
+                    }
+                    _ => {}
+                }
+                canvas.elements.push(element);
+                added.push(element_id);
+                Ok(())
+            })()
+            .map_err(context)?,
+            Op::Update {
+                id: target,
+                set,
+                html,
+            } => (|| -> Result<()> {
+                if set.id.is_some() || set.kind.is_some() {
+                    return Err(anyhow!(
+                        "INVALID_ARGUMENT: an element's id and type cannot change"
+                    ));
+                }
+                let at = position(&canvas, target)?;
+                let mut element = canvas.elements[at].clone();
+                set_fields(db, group, &mut element, set, &frames)?;
+                if let Some(html) = html {
+                    if element.kind != ElementKind::Frame {
+                        return Err(anyhow!("INVALID_ARGUMENT: only an artboard has html"));
+                    }
+                    let (_, checked) = html::check(html).map_err(|problem| {
+                        anyhow!("INVALID_ARGUMENT: artboard {target}: {problem}")
+                    })?;
+                    warnings.extend(
+                        checked
+                            .warnings
+                            .into_iter()
+                            .map(|w| format!("{target}: {w}")),
+                    );
+                    element.rev += 1;
+                    if keep_prev {
+                        element.has_prev = true;
+                    }
+                    changes.push(FileChange::Write {
+                        board: target.clone(),
+                        html: html.clone(),
+                        keep_prev,
+                    });
+                }
+                canvas.elements[at] = element;
+                Ok(())
+            })()
+            .map_err(context)?,
+            Op::Remove { id: target } => {
+                let at = position(&canvas, target).map_err(context)?;
+                let removed = canvas.elements.remove(at);
+                if removed.kind == ElementKind::Frame {
+                    frames.remove(target);
+                    // Notes on it stay where they are, no longer attached.
+                    for element in &mut canvas.elements {
+                        if element.board_id.as_deref() == Some(target.as_str()) {
+                            element.board_id = None;
+                        }
+                    }
+                    changes.push(FileChange::Remove {
+                        board: target.clone(),
+                    });
+                }
+            }
+            Op::Restore { id: target } => {
+                let at = position(&canvas, target).map_err(context)?;
+                let element = &mut canvas.elements[at];
+                if element.kind != ElementKind::Frame || !element.has_prev {
+                    return Err(context(anyhow!(
+                        "PRECONDITION: artboard {target} has no previous version"
+                    )));
+                }
+                element.rev += 1;
+                changes.push(FileChange::Restore {
+                    board: target.clone(),
+                });
+            }
+            Op::Reorder { id: target, to } => {
+                let at = position(&canvas, target).map_err(context)?;
+                let element = canvas.elements.remove(at);
+                match to {
+                    Layer::Front => canvas.elements.push(element),
+                    Layer::Back => canvas.elements.insert(0, element),
+                }
+            }
+        }
+    }
+    // Files first, then the index that points at them.
+    for change in changes {
+        match change {
+            FileChange::Write {
+                board,
+                html,
+                keep_prev,
+            } => {
+                let path = frame_path(&dir, &board);
+                if keep_prev && path.is_file() {
+                    fs::copy(&path, prev_path(&dir, &board))
+                        .with_context(|| format!("keep the previous version of {board}"))?;
+                }
+                write_atomic(&path, html.as_bytes())?;
+            }
+            FileChange::Restore { board } => {
+                let current = frame_path(&dir, &board);
+                let previous = prev_path(&dir, &board);
+                let now = fs::read(&current).unwrap_or_default();
+                let before = fs::read(&previous)
+                    .with_context(|| format!("read the previous version of {board}"))?;
+                // Swapped, so restoring again brings the newer version back.
+                write_atomic(&current, &before)?;
+                write_atomic(&previous, &now)?;
+            }
+            FileChange::Remove { board } => {
+                for path in [frame_path(&dir, &board), prev_path(&dir, &board)] {
+                    match fs::remove_file(&path) {
+                        Ok(()) => {}
+                        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                        Err(error) => {
+                            return Err(error).with_context(|| format!("delete {}", path.display()))
+                        }
+                    }
+                }
+            }
+        }
+    }
+    canvas.version += 1;
+    canvas.updated_at = now_ms();
+    write_canvas(&dir, &canvas)?;
+    Ok(Applied {
+        canvas,
+        added,
+        warnings,
+    })
+}
+
+// ---- serving and element addresses -------------------------------------------
+
+fn frame_source(dir: &Path, canvas: &Canvas, board: &str) -> Result<(String, u64)> {
+    let element = canvas
+        .elements
+        .iter()
+        .find(|element| element.id == board && element.kind == ElementKind::Frame)
+        .ok_or_else(|| anyhow!("NOT_FOUND: no artboard {board} on this canvas"))?;
+    let path = frame_path(dir, board);
+    // An artboard is a file the canvas wrote; a link elsewhere is not served.
+    if fs::symlink_metadata(&path).is_ok_and(|meta| !meta.is_file()) {
+        return Err(anyhow!(
+            "PERMISSION_DENIED: artboard {board} is not a plain file"
+        ));
+    }
+    let source = fs::read_to_string(&path).with_context(|| format!("read artboard {board}"))?;
+    Ok((source, element.rev))
+}
+
+/// An artboard as the frame shows it: numbered, with library images resolved
+/// by `asset_url` (only assets of this project are offered to it).
+pub fn board_document(
+    db: &Database,
+    group: &ProjectGroupRecord,
+    id: &str,
+    board: &str,
+    asset_url: impl Fn(&str) -> String,
+) -> Result<(String, u64)> {
+    let dir = canvas_dir(db, group, id)?;
+    let canvas = read_canvas(&dir)?;
+    let (source, rev) = frame_source(&dir, &canvas, board)?;
+    // A file edited by hand may no longer read strictly; it is still shown,
+    // just without element numbers.
+    let served = match html::parse(&source) {
+        Ok(parsed) => html::annotate(&source, &parsed, |asset| {
+            get_asset(db, asset)
+                .ok()
+                .flatten()
+                .filter(|found| found.group_id == group.id && found.removed_at.is_none())
+                .map(|found| asset_url(&found.id))
+        }),
+        Err(_) => source,
+    };
+    Ok((served, rev))
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct NodeInfo {
+    pub board_id: String,
+    /// `<board>#<n>:<path>`.
+    pub address: String,
+    pub tid: usize,
+    pub path: Vec<usize>,
+    pub mc_id: Option<String>,
+    pub label: Option<String>,
+    pub kind: &'static str,
+    pub tag: String,
+    pub rev: u64,
+}
+
+fn node_info(board: &str, rev: u64, node: &html::Node) -> NodeInfo {
+    NodeInfo {
+        board_id: board.to_string(),
+        address: format!("{board}#{}:{}", node.tid, node.path_string()),
+        tid: node.tid,
+        path: node.path.clone(),
+        mc_id: node.mc_id.clone(),
+        label: node.label(),
+        kind: node.kind(),
+        tag: node.tag.clone(),
+        rev,
+    }
+}
+
+/// What the frame's element number `tid` is in the source. The frame only
+/// sends the number; the address and label come from here.
+pub fn resolve_node(
+    db: &Database,
+    group: &ProjectGroupRecord,
+    id: &str,
+    board: &str,
+    tid: usize,
+) -> Result<NodeInfo> {
+    let dir = canvas_dir(db, group, id)?;
+    let canvas = read_canvas(&dir)?;
+    let (source, rev) = frame_source(&dir, &canvas, board)?;
+    let parsed = html::parse(&source).map_err(|error| {
+        anyhow!("PRECONDITION: artboard {board} no longer reads strictly: {error}")
+    })?;
+    let node = parsed
+        .addressable(tid)
+        .ok_or_else(|| anyhow!("NOT_FOUND: artboard {board} has no element {tid}"))?;
+    Ok(node_info(board, rev, node))
+}
+
+// ---- comments ---------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum AnchorKind {
+    Element,
+    Board,
+    Canvas,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Anchor {
+    pub kind: AnchorKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub board_id: Option<String>,
+    /// Element anchors: what the element was when the comment was made.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub address: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mc_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rev: Option<u64>,
+    /// Inside the artboard for element and board anchors, canvas coordinates
+    /// for canvas anchors. An element anchor that is lost falls back here.
+    pub x: f64,
+    pub y: f64,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Author {
+    User,
+    Agent,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Message {
+    pub id: String,
+    pub author: Author,
+    pub text: String,
+    pub at: i64,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ThreadStatus {
+    Open,
+    Resolved,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Thread {
+    pub id: String,
+    pub anchor: Anchor,
+    pub status: ThreadStatus,
+    /// The conversation the thread was sent to; only it may answer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_session: Option<String>,
+    pub created_at: i64,
+    pub updated_at: i64,
+    pub messages: Vec<Message>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct CommentsFile {
+    v: u32,
+    version: u64,
+    threads: Vec<Thread>,
+}
+
+/// Where an element anchor is now.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Located {
+    /// `ok`: the element was found; `moved`: it is not where it was and the
+    /// comment shows on its artboard instead; `boardMissing`: the artboard
+    /// was removed; `canvas`/`board`: not an element anchor.
+    pub state: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub node: Option<NodeInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreadView {
+    #[serde(flatten)]
+    pub thread: Thread,
+    pub located: Located,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Comments {
+    pub version: u64,
+    pub threads: Vec<ThreadView>,
+}
+
+fn read_comments(dir: &Path) -> Result<CommentsFile> {
+    let path = dir.join(COMMENTS_FILE);
+    match fs::read_to_string(&path) {
+        Ok(raw) => serde_json::from_str(&raw).map_err(|error| {
+            anyhow!(
+                "PRECONDITION: {} is not readable ({error}); fix or remove the file",
+                path.display()
+            )
+        }),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(CommentsFile {
+            v: FORMAT,
+            ..CommentsFile::default()
+        }),
+        Err(error) => Err(error).with_context(|| format!("read {}", path.display())),
+    }
+}
+
+fn write_comments(dir: &Path, file: &mut CommentsFile) -> Result<()> {
+    file.v = FORMAT;
+    file.version += 1;
+    write_atomic(&dir.join(COMMENTS_FILE), &serde_json::to_vec_pretty(file)?)
+}
+
+/// Find an element anchor again: by `data-mc-id`, else by its address when
+/// the label still matches; never on a different element.
+fn locate(anchor: &Anchor, boards: &BTreeMap<String, (u64, Option<html::Parsed>)>) -> Located {
+    let Some(board) = anchor.board_id.as_deref() else {
+        return Located {
+            state: "canvas",
+            node: None,
+        };
+    };
+    let Some((rev, parsed)) = boards.get(board) else {
+        return Located {
+            state: "boardMissing",
+            node: None,
+        };
+    };
+    if anchor.kind == AnchorKind::Board {
+        return Located {
+            state: "board",
+            node: None,
+        };
+    }
+    let found = parsed.as_ref().and_then(|parsed| {
+        anchor
+            .mc_id
+            .as_deref()
+            .and_then(|id| parsed.by_mc_id(id))
+            .or_else(|| {
+                let (tid, path) = anchor
+                    .address
+                    .as_deref()
+                    .and_then(|address| address.split_once('#'))
+                    .and_then(|(_, rest)| html::parse_address(rest))?;
+                parsed
+                    .by_address(tid, &path)
+                    .filter(|node| node.label() == anchor.label)
+            })
+    });
+    match found {
+        Some(node) => Located {
+            state: "ok",
+            node: Some(node_info(board, *rev, node)),
+        },
+        None => Located {
+            state: "moved",
+            node: None,
+        },
+    }
+}
+
+fn views(dir: &Path, file: CommentsFile) -> Result<Comments> {
+    let canvas = read_canvas(dir)?;
+    let mut boards = BTreeMap::new();
+    for element in canvas
+        .elements
+        .iter()
+        .filter(|element| element.kind == ElementKind::Frame)
+    {
+        let parsed = fs::read_to_string(frame_path(dir, &element.id))
+            .ok()
+            .and_then(|source| html::parse(&source).ok());
+        boards.insert(element.id.clone(), (element.rev, parsed));
+    }
+    Ok(Comments {
+        version: file.version,
+        threads: file
+            .threads
+            .into_iter()
+            .map(|thread| ThreadView {
+                located: locate(&thread.anchor, &boards),
+                thread,
+            })
+            .collect(),
+    })
+}
+
+pub fn comments(db: &Database, group: &ProjectGroupRecord, id: &str) -> Result<Comments> {
+    let dir = canvas_dir(db, group, id)?;
+    views(&dir, read_comments(&dir)?)
+}
+
+/// Where a new comment goes, as the caller says it: an element by its
+/// number in the served frame, a point on an artboard, or a canvas point.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AnchorInput {
+    pub kind: AnchorKind,
+    #[serde(default)]
+    pub board_id: Option<String>,
+    #[serde(default)]
+    pub node: Option<usize>,
+    /// For the agent: an element by its `data-mc-id` instead of a number.
+    #[serde(default)]
+    pub mc_id: Option<String>,
+    #[serde(default)]
+    pub x: f64,
+    #[serde(default)]
+    pub y: f64,
+}
+
+fn clean_comment(text: &str) -> Result<String> {
+    let text = text.trim();
+    if text.is_empty() {
+        return Err(anyhow!("INVALID_ARGUMENT: the comment is empty"));
+    }
+    if text.chars().count() > MAX_COMMENT {
+        return Err(anyhow!(
+            "INVALID_ARGUMENT: a comment is at most {MAX_COMMENT} characters"
+        ));
+    }
+    Ok(text.to_string())
+}
+
+fn resolve_anchor(dir: &Path, input: &AnchorInput) -> Result<Anchor> {
+    let x = finite(input.x, "x", -MAX_COORD, MAX_COORD)?;
+    let y = finite(input.y, "y", -MAX_COORD, MAX_COORD)?;
+    let mut anchor = Anchor {
+        kind: input.kind,
+        board_id: None,
+        address: None,
+        mc_id: None,
+        label: None,
+        rev: None,
+        x,
+        y,
+    };
+    if input.kind == AnchorKind::Canvas {
+        return Ok(anchor);
+    }
+    let board = input
+        .board_id
+        .as_deref()
+        .ok_or_else(|| anyhow!("INVALID_ARGUMENT: the comment needs boardId"))?;
+    let canvas = read_canvas(dir)?;
+    let (source, rev) = frame_source(dir, &canvas, board)?;
+    anchor.board_id = Some(board.to_string());
+    anchor.rev = Some(rev);
+    if input.kind == AnchorKind::Element {
+        let parsed = html::parse(&source).map_err(|error| {
+            anyhow!("PRECONDITION: artboard {board} no longer reads strictly: {error}")
+        })?;
+        let node = match (&input.mc_id, input.node) {
+            (Some(id), _) => parsed.by_mc_id(id).ok_or_else(|| {
+                anyhow!(
+                    "NOT_FOUND: artboard {board} has no {} {id}",
+                    html::ID_ATTRIBUTE
+                )
+            })?,
+            (None, Some(tid)) => parsed
+                .addressable(tid)
+                .ok_or_else(|| anyhow!("NOT_FOUND: artboard {board} has no element {tid}"))?,
+            (None, None) => {
+                return Err(anyhow!(
+                    "INVALID_ARGUMENT: an element comment needs node or mcId"
+                ))
+            }
+        };
+        let info = node_info(board, rev, node);
+        anchor.address = Some(info.address);
+        anchor.mc_id = info.mc_id;
+        anchor.label = info.label;
+    }
+    Ok(anchor)
+}
+
+fn message(author: Author, text: String) -> Message {
+    Message {
+        id: short_id("m"),
+        author,
+        text,
+        at: now_ms(),
+    }
+}
+
+/// Start a thread. One the agent starts is its own to answer.
+pub fn add_comment(
+    db: &Database,
+    group: &ProjectGroupRecord,
+    id: &str,
+    anchor: &AnchorInput,
+    text: &str,
+    actor: &Actor,
+) -> Result<(String, Comments)> {
+    let text = clean_comment(text)?;
+    let _guard = lock();
+    let dir = canvas_dir(db, group, id)?;
+    let mut file = read_comments(&dir)?;
+    if file.threads.len() >= MAX_THREADS {
+        return Err(anyhow!(
+            "INVALID_ARGUMENT: a canvas holds at most {MAX_THREADS} threads; delete resolved ones"
+        ));
+    }
+    let anchor = resolve_anchor(&dir, anchor)?;
+    let now = now_ms();
+    let (author, agent_session) = match actor {
+        Actor::User => (Author::User, None),
+        Actor::Agent { session_id } => (Author::Agent, Some(session_id.clone())),
+    };
+    let thread_id = short_id("t");
+    file.threads.push(Thread {
+        id: thread_id.clone(),
+        anchor,
+        status: ThreadStatus::Open,
+        agent_session,
+        created_at: now,
+        updated_at: now,
+        messages: vec![message(author, text)],
+    });
+    write_comments(&dir, &mut file)?;
+    Ok((thread_id, views(&dir, file)?))
+}
+
+/// Change one thread. The agent may only touch threads sent to its own
+/// conversation.
+fn with_thread(
+    db: &Database,
+    group: &ProjectGroupRecord,
+    id: &str,
+    thread_id: &str,
+    actor: &Actor,
+    change: impl FnOnce(&mut Thread) -> Result<()>,
+) -> Result<Comments> {
+    let _guard = lock();
+    let dir = canvas_dir(db, group, id)?;
+    let mut file = read_comments(&dir)?;
+    let thread = file
+        .threads
+        .iter_mut()
+        .find(|thread| thread.id == thread_id)
+        .ok_or_else(|| anyhow!("NOT_FOUND: no comment thread {thread_id}"))?;
+    if let Actor::Agent { session_id } = actor {
+        if thread.agent_session.as_deref() != Some(session_id.as_str()) {
+            return Err(anyhow!(
+                "PERMISSION_DENIED: thread {thread_id} was not sent to this conversation; read it, but do not answer or resolve it"
+            ));
+        }
+    }
+    change(thread)?;
+    thread.updated_at = now_ms();
+    write_comments(&dir, &mut file)?;
+    views(&dir, file)
+}
+
+pub fn reply(
+    db: &Database,
+    group: &ProjectGroupRecord,
+    id: &str,
+    thread_id: &str,
+    text: &str,
+    actor: &Actor,
+) -> Result<Comments> {
+    let text = clean_comment(text)?;
+    let author = match actor {
+        Actor::User => Author::User,
+        Actor::Agent { .. } => Author::Agent,
+    };
+    with_thread(db, group, id, thread_id, actor, |thread| {
+        if thread.messages.len() >= MAX_MESSAGES {
+            return Err(anyhow!(
+                "INVALID_ARGUMENT: a thread holds at most {MAX_MESSAGES} messages"
+            ));
+        }
+        thread.messages.push(message(author, text));
+        Ok(())
+    })
+}
+
+pub fn set_status(
+    db: &Database,
+    group: &ProjectGroupRecord,
+    id: &str,
+    thread_id: &str,
+    status: ThreadStatus,
+    actor: &Actor,
+) -> Result<Comments> {
+    with_thread(db, group, id, thread_id, actor, |thread| {
+        thread.status = status;
+        Ok(())
+    })
+}
+
+/// Send a thread to a conversation; later replies come from it.
+pub fn assign(
+    db: &Database,
+    group: &ProjectGroupRecord,
+    id: &str,
+    thread_id: &str,
+    session_id: &str,
+) -> Result<Comments> {
+    let session = session_id.trim();
+    if session.is_empty() || session.len() > 200 {
+        return Err(anyhow!("INVALID_ARGUMENT: sessionId required"));
+    }
+    with_thread(db, group, id, thread_id, &Actor::User, |thread| {
+        thread.agent_session = Some(session.to_string());
+        thread.status = ThreadStatus::Open;
+        Ok(())
+    })
+}
+
+pub fn delete_thread(
+    db: &Database,
+    group: &ProjectGroupRecord,
+    id: &str,
+    thread_id: &str,
+) -> Result<Comments> {
+    let _guard = lock();
+    let dir = canvas_dir(db, group, id)?;
+    let mut file = read_comments(&dir)?;
+    let before = file.threads.len();
+    file.threads.retain(|thread| thread.id != thread_id);
+    if file.threads.len() == before {
+        return Err(anyhow!("NOT_FOUND: no comment thread {thread_id}"));
+    }
+    write_comments(&dir, &mut file)?;
+    views(&dir, file)
+}
+
+#[cfg(test)]
+mod tests;

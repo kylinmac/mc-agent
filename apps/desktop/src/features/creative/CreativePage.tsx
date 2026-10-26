@@ -48,6 +48,21 @@ import { ASPECT_RATIOS, StudioPanel } from "./StudioPanel";
 import { NewCreativeDialog } from "./NewCreativeDialog";
 import { MoveDialog } from "./MoveDialog";
 import { setAssetDragImage } from "./drag-image";
+import { CanvasView } from "./canvas/CanvasView";
+import { CanvasNav } from "./canvas/CanvasNav";
+import { useCanvasList } from "./canvas/use-canvas";
+import {
+  addAttachment,
+  attachmentsText,
+  hasViewContext,
+  makeNonce,
+  threadAttachment,
+  viewContextText,
+  type CanvasAttachment,
+  type CanvasViewState,
+} from "./canvas/canvas-model";
+import type { StudioChatExtra } from "./StudioChat";
+import type { CanvasThread } from "@pi-desktop/shared";
 import "./creative.css";
 
 /*
@@ -160,6 +175,12 @@ export function CreativePage() {
   // Images on their way to a category (0 when nothing is dragged).
   const [assetDrag, setAssetDrag] = useState(0);
   const [dragging, setDragging] = useState(false);
+  // The canvas (docs/mc-agent/creative-canvas.md): what it shows the chat,
+  // what waits to go with the next message, and a request to send now.
+  const [canvasState, setCanvasState] = useState<CanvasViewState | null>(null);
+  const [canvasContextOff, setCanvasContextOff] = useState(false);
+  const [attachments, setAttachments] = useState<CanvasAttachment[]>([]);
+  const [chatRequest, setChatRequest] = useState<{ id: number; text: string } | null>(null);
 
   const creativeGroups = groups.filter((group) => purposes[group.id] === "creative");
   const group = groups.find((candidate) => candidate.id === groupId) ?? null;
@@ -180,6 +201,8 @@ export function CreativePage() {
     setDetailId(null);
     setView({ kind: "all" });
     setTargetCategory("");
+    setAttachments([]);
+    setChatRequest(null);
   }, [groupId]);
 
   // A creative project is an ordinary project: keep it in the main sidebar's
@@ -203,6 +226,7 @@ export function CreativePage() {
   }, [studioGroupId]);
 
   const { assets, jobs, comparisons, categories, error, reload } = useStudioData(studioGroupId);
+  const { canvases, reload: reloadCanvases } = useCanvasList(studioGroupId);
   const tree = useMemo(() => categoryTree(categories), [categories]);
   const flat = useMemo(() => flattenCategories(tree), [tree]);
   const assetById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets]);
@@ -408,7 +432,7 @@ export function CreativePage() {
     const target = event.target as HTMLElement | null;
     if (target?.closest("input, textarea, select, [contenteditable=true], [role=dialog]:not(.mc-creative-detail-layer)")) return;
     if (!scrollRef.current?.offsetParent && !detailId) return;
-    if (picking || creating || moving || view.kind === "comparisons" || contextMenu) return;
+    if (picking || creating || moving || view.kind === "comparisons" || view.kind === "canvas" || contextMenu) return;
     const mod = event.metaKey || event.ctrlKey;
     if (detailId) {
       if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
@@ -450,6 +474,63 @@ export function CreativePage() {
     return compareContextText(compared, t("mcProject.creativeChatCompareIntro"));
   }, [view.kind, comparing.ids, assetById, t]);
   const compareCount = view.kind === "comparisons" ? comparing.ids.filter((id) => assetById.has(id)).length : 0;
+
+  // On the canvas, each message carries what is visible and selected, unless
+  // the chip is dismissed (until the selection changes), plus what was queued.
+  const canvasSelection = canvasState ? `${canvasState.canvasId}:${canvasState.selected.map((node) => node.address).join(",")}` : "";
+  useEffect(() => setCanvasContextOff(false), [canvasSelection]);
+  const canvasContextOn = view.kind === "canvas" && !canvasContextOff && hasViewContext(canvasState);
+  const attachmentLabel = (item: CanvasAttachment) =>
+    item.kind === "thread"
+      ? t("mcProject.canvasChipThread", { text: (item.messages[0]?.text ?? "").slice(0, 24) })
+      : item.kind === "note"
+        ? t("mcProject.canvasChipNote", { text: item.text.slice(0, 24) })
+        : t("mcProject.canvasChipErrors", { board: item.boardId });
+  const chatExtra: StudioChatExtra | undefined = studioGroupId
+    ? {
+        chips: [
+          ...(canvasContextOn && canvasState
+            ? [
+                {
+                  key: "canvas-view",
+                  label: canvasState.selected.length
+                    ? t("mcProject.canvasChatSelected", { count: canvasState.selected.length })
+                    : t("mcProject.canvasChatVisible", { count: canvasState.visibleBoards.length }),
+                  onRemove: () => setCanvasContextOff(true),
+                },
+              ]
+            : []),
+          ...attachments.map((item) => ({
+            key: item.key,
+            label: attachmentLabel(item),
+            onRemove: () => setAttachments((list) => list.filter((entry) => entry.key !== item.key)),
+          })),
+        ],
+        text: () =>
+          [canvasContextOn && canvasState ? viewContextText(canvasState, makeNonce()) : "", attachmentsText(attachments, makeNonce())]
+            .filter(Boolean)
+            .join("\n\n"),
+        // Threads go to the conversation that receives them; only it may answer.
+        beforeSend: async (sessionId) => {
+          for (const item of attachments) {
+            if (item.kind !== "thread") continue;
+            await api.creative.call("creative.canvasComments.assign", {
+              groupId: studioGroupId,
+              canvasId: item.canvasId,
+              threadId: item.threadId,
+              sessionId,
+            });
+          }
+        },
+        afterSend: () => setAttachments([]),
+        request: chatRequest,
+      }
+    : undefined;
+  const sendThread = (thread: CanvasThread, queue: boolean) => {
+    if (view.kind !== "canvas") return;
+    setAttachments((list) => addAttachment(list, threadAttachment(view.canvasId, thread)));
+    if (!queue) setChatRequest({ id: Date.now(), text: t("mcProject.canvasHandleThread") });
+  };
 
   /** Open 对比集 with these images as a new comparison. */
   const openCompare = (ids: string[]) => {
@@ -685,6 +766,30 @@ export function CreativePage() {
                 {viewItem({ kind: "all" }, <IconImage size={14} />, t("mcProject.creativeViewAll"), assets.length)}
                 {viewItem({ kind: "comparisons" }, <IconDiff size={14} />, t("mcProject.creativeSectionComparisons"), comparisons.length)}
               </div>
+              <CanvasNav
+                canvases={canvases}
+                activeId={view.kind === "canvas" ? view.canvasId : null}
+                onOpen={(canvasId) => setView({ kind: "canvas", canvasId })}
+                onCreate={async (title) => {
+                  const { canvas } = await api.creative.call("creative.canvas.create", { groupId: studioGroupId, title });
+                  await reloadCanvases();
+                  setView({ kind: "canvas", canvasId: canvas.id });
+                }}
+                onRename={async (canvasId, title) => {
+                  await api.creative.call("creative.canvas.rename", { groupId: studioGroupId, canvasId, title });
+                  await reloadCanvases();
+                }}
+                onDelete={(canvas) => {
+                  if (!window.confirm(t("mcProject.canvasDeleteCanvasConfirm", { title: canvas.title, path: canvas.path }))) return;
+                  void api.creative
+                    .call("creative.canvas.delete", { groupId: studioGroupId, canvasId: canvas.id })
+                    .then(async () => {
+                      await reloadCanvases();
+                      if (view.kind === "canvas" && view.canvasId === canvas.id) setView({ kind: "all" });
+                    })
+                    .catch(fail);
+                }}
+              />
               <CategoryTree
                 nodes={tree}
                 view={view}
@@ -755,6 +860,7 @@ export function CreativePage() {
           onGenerate={generate}
           chatContext={compareContext}
           chatContextCount={compareCount}
+          chatExtra={chatExtra}
         />
       ) : null}
       <section
@@ -787,6 +893,26 @@ export function CreativePage() {
               {t("mcProject.creativeMarkCreative")}
             </Button>
           </div>
+        ) : view.kind === "canvas" ? (
+          <>
+            <header className="mc-creative-head">
+              <h1 className="page-title">
+                {canvases.find((canvas) => canvas.id === view.canvasId)?.title ?? t("mcProject.canvasSection")}
+              </h1>
+              <div className="mc-creative-head-actions">
+                <span className="mc-creative-muted">{t("mcProject.canvasHeadHint")}</span>
+              </div>
+            </header>
+            <CanvasView
+              key={view.canvasId}
+              groupId={studioGroupId!}
+              canvasId={view.canvasId}
+              assetExists={(assetId) => (assets.length ? assetById.has(assetId) : undefined)}
+              onViewState={setCanvasState}
+              onAttach={(item) => setAttachments((list) => addAttachment(list, item))}
+              onSendThread={sendThread}
+            />
+          </>
         ) : view.kind === "comparisons" ? (
           <CompareView
             ids={comparing.ids}

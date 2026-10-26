@@ -278,21 +278,22 @@ test("scheme privileges: standard + secure only, registered in the single privil
   const schemes = await readMainModule("plugin-schemes.ts");
   assert.match(
     schemes,
-    /registerSchemesAsPrivileged\(\[\s*PLUGIN_ASSET_SCHEME_PRIVILEGES,\s*PLUGIN_RENDERER_SCHEME_PRIVILEGES,\s*GEN_UI_SCHEME_PRIVILEGES,\s*\]\)/,
+    /registerSchemesAsPrivileged\(\[\s*PLUGIN_ASSET_SCHEME_PRIVILEGES,\s*PLUGIN_RENDERER_SCHEME_PRIVILEGES,\s*GEN_UI_SCHEME_PRIVILEGES,\s*CANVAS_SCHEME_PRIVILEGES,\s*\]\)/,
   );
   const startup = await readMainModule("bootstrap/startup.ts");
   const install = startup.indexOf("installGenUiProtocol({ getHost });");
   assert.ok(install > startup.indexOf("app.whenReady()"), "protocol handler installs after ready");
 });
 
-test("main window CSP adds exactly frame-src pi-genui:", () => {
+test("main window CSP adds exactly frame-src pi-genui: (and mc-agent's mc-canvas:)", () => {
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const csp = /http-equiv="Content-Security-Policy"\s+content="([^"]+)"/.exec(html)?.[1];
   assert.ok(csp);
   const directives = csp.split(";").map((part) => part.trim()).filter(Boolean);
   assert.deepEqual(
     directives.filter((directive) => directive.includes("pi-genui")),
-    ["frame-src pi-genui:"],
+    // mc-agent: creative canvas artboards (docs/mc-agent/creative-canvas.md).
+    ["frame-src pi-genui: mc-canvas:"],
   );
   assert.ok(!directives.some((directive) => directive.startsWith("child-src")));
 });

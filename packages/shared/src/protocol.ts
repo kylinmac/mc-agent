@@ -514,6 +514,8 @@ export const IPC = {
     terminalExit: "pi-desktop/mc-terminal/event/exit",
     // mc-agent creative studio: a generation job changed.
     creativeJob: "pi-desktop/mc-creative/event/job",
+    // mc-agent creative canvas: a canvas or its comments changed.
+    creativeCanvas: "pi-desktop/mc-creative/event/canvas",
     /** Progress of an install or update, while it is still running. */
     pluginInstallProgress: "pi-desktop/plugin/event/installProgress",
     /** Host-originated app settings mutation (e.g. plugin `app.setTheme`). */

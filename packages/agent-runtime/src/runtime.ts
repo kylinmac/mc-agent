@@ -22,6 +22,7 @@ import { forkBrief, forkableParentMessages } from "./mc-subagent-fork.js";
 import type { McUserHook } from "@pi-desktop/shared";
 import { runUserHooks, hookFeedbackText, MAX_STOP_CONTINUATIONS } from "./mc-user-hooks.js";
 import { REMEMBER_TOOL_NAME, rememberDescription, rememberParameters } from "./mc-memory-tool.js";
+import { CANVAS_TOOL_NAMES, canvasToolDescriptions, canvasToolParameters } from "./mc-canvas-tools.js";
 import { todoWriteDescription, todoWriteParameters } from "./todo-tool.js";
 import { createJevClassifierTool } from "./jev-classifier-tool.js";
 import { scheduledToolParameters, scheduledToolDescriptions } from "./scheduled-tools.js";
@@ -3439,6 +3440,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       if (toolName === "SaveCreativeAsset") return saveCreativeAssetDescription;
       // mc-agent project memory notes (MC-ADR-0019).
       if (toolName === REMEMBER_TOOL_NAME) return rememberDescription;
+      // mc-agent creative canvas (docs/mc-agent/creative-canvas.md).
+      if (toolName in canvasToolDescriptions) return canvasToolDescriptions[toolName as keyof typeof canvasToolDescriptions];
       if (scheduledToolDescriptions[toolName]) return scheduledToolDescriptions[toolName];
       switch (toolName) {
         case "BrowserPreview":
@@ -3500,6 +3503,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       GenerateImages: imageGenerationParameters,
       SaveCreativeAsset: saveCreativeAssetParameters,
       [REMEMBER_TOOL_NAME]: rememberParameters,
+      ...canvasToolParameters,
       TodoWrite: todoWriteParameters,
       Read: {
         path: pathParam(
@@ -4134,6 +4138,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       tools.push("PluginScaffold", "PluginPack", "GenerateImages", "SaveCreativeAsset", ...Object.keys(scheduledToolParameters));
       // mc-agent: only a conversation in a project has a memory to write.
       if (this.projectPath && !this.remoteWorkspace) tools.push(REMEMBER_TOOL_NAME);
+      // mc-agent: the creative canvas lives in a local project's files.
+      if (this.projectPath && !this.remoteWorkspace) tools.push(...CANVAS_TOOL_NAMES);
     }
     const builtins = tools.map(exec);
     const jevTools: AgentTool[] =

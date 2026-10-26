@@ -126,6 +126,9 @@ impl PermissionManager {
             // mc-agent: a note in the project's memory, which the user can
             // edit or delete (MC-ADR-0019).
             "Remember" => Risk::Low,
+            // mc-agent: the creative canvas, which writes only its own files
+            // under creative/canvas (docs/mc-agent/creative-canvas.md).
+            "CanvasRead" | "CanvasWrite" | "CanvasComment" => Risk::Low,
             "Write" | "Edit" | "Bash" | "GenerateImages" => Risk::High,
             name if name.starts_with("plugin_") => match declared {
                 Some("low") => Risk::Low,

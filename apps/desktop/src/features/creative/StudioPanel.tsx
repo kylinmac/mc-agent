@@ -10,7 +10,7 @@ import { IconPlus, IconX } from "../../components/icons";
 import { useAppStore } from "../../stores/app-store";
 import type { CreativeRole } from "./creative-types";
 import { ROLE_HINT_KEYS, ROLE_LABEL_KEYS, type CategoryNode, type FormReference } from "./creative-model";
-import { StudioChat } from "./StudioChat";
+import { StudioChat, type StudioChatExtra } from "./StudioChat";
 import { useAssetImage } from "./use-creative";
 
 const ROLES: CreativeRole[] = ["reference", "edit", "style"];
@@ -132,6 +132,8 @@ export function StudioPanel({
   onCategory,
   chatContext = "",
   chatContextCount = 0,
+  chatContextLabel,
+  chatExtra,
   aspectRatio,
   onAspectRatio,
   resolution,
@@ -152,6 +154,9 @@ export function StudioPanel({
   /** Sent ahead of each chat message (the images being compared). */
   chatContext?: string;
   chatContextCount?: number;
+  chatContextLabel?: string;
+  /** What the canvas adds to the chat. */
+  chatExtra?: StudioChatExtra;
   /** The shape asked for ("" for the model's default). */
   aspectRatio: string;
   onAspectRatio: (ratio: string) => void;
@@ -173,6 +178,11 @@ export function StudioPanel({
   const providers = useAppStore((state) => state.providers);
   const setPage = useAppStore((state) => state.setPage);
   const [tab, setTab] = useState<"direct" | "chat">(readTab);
+  // Something sent from the canvas needs the conversation on screen.
+  const wantsChat = Boolean(chatExtra?.chips.length || chatExtra?.request);
+  useEffect(() => {
+    if (wantsChat) setTab("chat");
+  }, [wantsChat, chatExtra?.request?.id]);
   const [count, setCount] = useState(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -377,7 +387,14 @@ export function StudioPanel({
           <p className="mc-creative-muted">{t("mcProject.creativeFormHint")}</p>
         </div>
       ) : (
-        <StudioChat groupId={groupId} projectPath={projectPath} context={chatContext} contextCount={chatContextCount} />
+        <StudioChat
+          groupId={groupId}
+          projectPath={projectPath}
+          context={chatContext}
+          contextCount={chatContextCount}
+          contextLabel={chatContextLabel}
+          extra={chatExtra}
+        />
       )}
     </aside>
   );

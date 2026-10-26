@@ -2187,6 +2187,13 @@ export const api = {
         listener((payload as { job: CreativeJob }).job),
       );
     },
+    /** The agent changed a canvas or its comments (docs/mc-agent/creative-canvas.md). */
+    onCanvas: (listener: (change: { groupId: string; canvasId: string }) => void) => {
+      if (!window.piDesktop?.on) return () => undefined;
+      return window.piDesktop.on(IPC.event.creativeCanvas, (payload) =>
+        listener(payload as { groupId: string; canvasId: string }),
+      );
+    },
   },
   // mc-agent work-panel terminal (MC-ADR-0005).
   terminalCreate: (input: { tabId: string; cwd: string; cols?: number; rows?: number }) =>

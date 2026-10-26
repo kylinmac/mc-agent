@@ -1,5 +1,7 @@
 import { protocol } from "electron";
 import { GEN_UI_SCHEME_PRIVILEGES } from "./gen-ui-protocol";
+// mc-agent creative canvas artboards (docs/mc-agent/creative-canvas.md).
+import { CANVAS_SCHEME_PRIVILEGES } from "./creative/canvas-protocol";
 import { PLUGIN_ASSET_SCHEME_PRIVILEGES } from "./plugin-asset-protocol";
 import { PLUGIN_RENDERER_SCHEME_PRIVILEGES } from "./plugin-renderer-protocol";
 
@@ -18,5 +20,6 @@ export function registerPluginSchemes(): void {
     PLUGIN_ASSET_SCHEME_PRIVILEGES,
     PLUGIN_RENDERER_SCHEME_PRIVILEGES,
     GEN_UI_SCHEME_PRIVILEGES,
+    CANVAS_SCHEME_PRIVILEGES,
   ]);
 }
