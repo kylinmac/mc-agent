@@ -1532,7 +1532,7 @@ sklm: {
     themeFromPlugin: "由插件 {{plugin}} 提供。",
     themeSearchPlaceholder: "搜索主题…",
     permissionMode: "权限模式",
-    permissionModeDesc: "工具操作的默认审批方式。自动模式会在不询问的情况下运行命令，并可能修改文件。单个会话里仍可临时调整。",
+    permissionModeDesc: "工具操作的默认审批方式。自动模式会在不询问的情况下运行命令，并可能修改文件；强制推送、合并、发版、发布包、删除项目外文件和 sudo 仍会询问。单个会话里仍可临时调整。",
     permissionModeAsk: "每次询问",
     permissionModeAcceptEdits: "自动接受编辑",
     permissionModeAuto: "全自动",

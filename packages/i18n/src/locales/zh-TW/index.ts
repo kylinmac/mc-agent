@@ -1510,7 +1510,7 @@ sklm: {
     themeFromPlugin: "由外掛 {{plugin}} 提供。",
     themeSearchPlaceholder: "搜尋主題…",
     permissionMode: "許可權模式",
-    permissionModeDesc: "工具操作的預設審批方式。自動模式會在不詢問的情況下執行命令，並可能修改檔案。單個會話裡仍可臨時調整。",
+    permissionModeDesc: "工具操作的預設審批方式。自動模式會在不詢問的情況下執行命令，並可能修改檔案；強制推送、合併、發版、發布套件、刪除專案外檔案和 sudo 仍會詢問。單個會話裡仍可臨時調整。",
     permissionModeAsk: "每次詢問",
     permissionModeAcceptEdits: "自動接受編輯",
     permissionModeAuto: "全自動",
