@@ -26,6 +26,7 @@
 | [决策清单](decisions.md) | 集中处理待确认问题 |
 | [新增功能工程结构评审](engineering-structure-review.md) | 契约与模块整理、目录位置、核心概念边界；2026-10-22 已按文档实施，各条结果见第 10 节 |
 | [创作工作台方案](creative-studio.md) | 生图、生视频的入口、布局和分期（一期已实现） |
+| [创作画布方案](creative-canvas.md) | 创作工作台二期画布，分三档：A 档画板、便签、元素定位、评论与 @Agent、视图上下文；B 档原型与导出；C 档所见即所得编辑（X-CANVAS-01，建议待评审） |
 | [macOS 权限归属与授权体验](macos-permissions.md) | 权限调用进程、签名身份、分步授权、复检；2026-10-22 已实施，结果见第 9 节 |
 | [电脑操作方案](computer-use.md) | 内置 Computer Use 插件：macOS 与 Windows 后端、权限及验证边界 |
 | [Windows 安装与更新](windows-install-update.md) | R15：暗色单页安装、后台下载、原目录静默更新 |
