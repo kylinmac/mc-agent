@@ -1,0 +1,550 @@
+/* mc-agent (MC-ADR-0023): creating a project from the conversation. */
+
+/* The proposal card rides the composer dock like the Ask card. */
+.composer-stack > .mc-np-card {
+  width: 100%;
+  margin: 0 0 8px;
+  background: var(--ds-bg-composer);
+  box-shadow: var(--ds-shadow-composer);
+}
+
+.mc-np-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: min(520px, 60vh);
+  padding: 12px 14px;
+  overflow-y: auto;
+  border-radius: var(--radius-md);
+  overscroll-behavior-y: contain;
+}
+
+.mc-np-head,
+.mc-np-foot,
+.mc-np-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mc-np-foot {
+  flex-wrap: wrap;
+}
+
+.mc-np-head-main {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.mc-np-kicker {
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--tracking-wide);
+}
+
+.mc-np-step,
+.mc-np-muted,
+.mc-np-hint {
+  color: var(--ds-text-faint);
+  font-size: var(--text-xs);
+}
+
+.mc-np-hint {
+  margin: 0;
+}
+
+.mc-np-close {
+  display: inline-flex;
+  padding: 3px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+}
+
+.mc-np-close:hover:not(:disabled) {
+  background: var(--ds-bg-hover);
+  color: var(--ds-text-primary);
+}
+
+.mc-np-title {
+  margin: 0;
+  color: var(--ds-text-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.mc-np-note {
+  margin: 0;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-relaxed);
+}
+
+.mc-np-path {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--ds-tile-deep);
+  color: var(--ds-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.mc-np-parent {
+  min-width: 0;
+  overflow: hidden;
+  direction: rtl;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mc-np-folder,
+.mc-np-name {
+  min-width: 120px;
+  flex: 1;
+  padding: 1px 0;
+  border: 0;
+  border-bottom: 1px dashed var(--ds-border-strong);
+  background: transparent;
+  color: var(--ds-text-primary);
+  font: inherit;
+  outline: none;
+}
+
+.mc-np-folder:focus,
+.mc-np-name:focus {
+  border-bottom-color: var(--ds-accent);
+}
+
+.mc-np-name {
+  width: 100%;
+  font-family: inherit;
+  font-size: var(--text-sm);
+}
+
+.mc-np-status {
+  min-width: 0;
+  flex: 1;
+  font-size: var(--text-xs);
+}
+
+.mc-np-status.is-ok {
+  color: var(--ds-success);
+}
+
+.mc-np-status.is-warning {
+  color: var(--ds-warning);
+}
+
+.mc-np-status.is-error {
+  color: var(--ds-error);
+}
+
+.mc-np-status.is-muted {
+  color: var(--ds-text-faint);
+}
+
+.mc-np-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.mc-np-actions.is-start {
+  margin-left: 0;
+  gap: 12px;
+}
+
+.mc-np-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-xs);
+}
+
+.mc-np-link.is-start {
+  align-self: flex-start;
+}
+
+.mc-np-link:hover:not(:disabled) {
+  color: var(--ds-text-primary);
+  text-decoration: underline;
+}
+
+.mc-np-options {
+  display: grid;
+  gap: 6px;
+}
+
+.mc-np-option {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--ds-tile-deep);
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.mc-np-option:hover:not(:disabled) {
+  color: var(--ds-text-primary);
+}
+
+.mc-np-option.is-selected {
+  border-color: color-mix(in oklab, var(--ds-accent) 55%, transparent);
+  background: color-mix(in oklab, var(--ds-accent) 10%, var(--ds-tile-deep));
+  color: var(--ds-text-primary);
+}
+
+.mc-np-option.is-dashed {
+  border: 1px dashed var(--ds-border-default);
+  background: transparent;
+}
+
+.mc-np-option.is-dashed.is-selected {
+  border-color: color-mix(in oklab, var(--ds-accent) 55%, transparent);
+}
+
+.mc-np-radio {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  margin-top: 2px;
+  border: 1.5px solid var(--ds-border-strong);
+  border-radius: var(--radius-full);
+}
+
+.mc-np-option.is-selected .mc-np-radio {
+  border: 4px solid var(--ds-accent);
+}
+
+.mc-np-option-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mc-np-option-label {
+  font-size: var(--text-sm);
+}
+
+.mc-np-option-hint {
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+}
+
+.mc-np-badge,
+.mc-np-pill {
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px solid color-mix(in oklab, var(--ds-accent) 45%, transparent);
+  border-radius: var(--radius-full);
+  color: var(--ds-accent);
+  font-size: var(--text-2xs);
+}
+
+.mc-np-pill {
+  border-color: color-mix(in oklab, var(--ds-warning) 45%, transparent);
+  color: var(--ds-warning);
+}
+
+.mc-np-draft {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .mc-np-draft {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.mc-np-panel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--ds-tile-deep);
+}
+
+.mc-np-label {
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+}
+
+.mc-np-tree {
+  margin: 0;
+  padding: 0;
+  color: var(--ds-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-prose);
+  list-style: none;
+}
+
+.mc-np-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: var(--leading-relaxed);
+}
+
+.mc-np-notes dt {
+  color: var(--ds-text-primary);
+  font-family: var(--font-mono);
+}
+
+.mc-np-notes dd {
+  margin: 0;
+  color: var(--ds-text-muted);
+}
+
+.mc-np-prompt {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-relaxed);
+  white-space: pre-wrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.mc-np-prompt.is-open {
+  display: block;
+}
+
+.mc-np-plan {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px 14px;
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.mc-np-plan dt {
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+}
+
+.mc-np-plan dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--ds-text-primary);
+}
+
+.mc-np-plan-value {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.mc-np-plan-value:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.mc-np-plan-value:disabled {
+  cursor: default;
+}
+
+.mc-np-plan-value .mc-np-muted {
+  flex: none;
+  white-space: nowrap;
+}
+
+.mc-np-plan-value.is-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.mc-np-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  font-size: var(--text-sm);
+  list-style: none;
+}
+
+.mc-np-progress li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ds-text-faint);
+}
+
+.mc-np-progress li.is-running,
+.mc-np-progress li.is-done {
+  color: var(--ds-text-primary);
+}
+
+.mc-np-progress li.is-failed {
+  color: var(--ds-error);
+}
+
+.mc-np-progress-mark {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--ds-border-strong);
+  border-radius: var(--radius-full);
+}
+
+.mc-np-progress li.is-done .mc-np-progress-mark {
+  border-color: var(--ds-success);
+  color: var(--ds-success);
+}
+
+.mc-np-progress li.is-running .mc-np-progress-mark {
+  border-top-color: var(--ds-text-primary);
+  animation: mc-np-spin 0.8s linear infinite;
+}
+
+@keyframes mc-np-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mc-np-progress li.is-running .mc-np-progress-mark {
+    animation: none;
+  }
+}
+
+/* The finished project in the transcript. */
+.mc-np-done {
+  display: flex;
+  width: min(100%, var(--chat-prose-max-width, 720px));
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 0;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in oklab, var(--ds-success) 35%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--ds-success) 8%, transparent);
+}
+
+.mc-np-done-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mc-np-done-title {
+  color: var(--ds-text-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.mc-np-done-path {
+  color: var(--ds-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+/* Above the home composer: the suggestion, or the armed mode. */
+.mc-np-intent {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in oklab, var(--ds-accent) 30%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--ds-accent) 8%, var(--ds-bg-composer));
+  color: var(--ds-text-primary);
+}
+
+.mc-np-intent-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mc-np-intent-title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.mc-np-intent-hint {
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+}
+
+/* Settings → Project templates: the folders new projects go in. */
+.mc-np-default-path {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.mc-np-location-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mc-np-location-note {
+  width: 100%;
+  max-width: 420px;
+  padding: 2px 0;
+  border: 0;
+  border-bottom: 1px dashed var(--ds-border-default);
+  background: transparent;
+  color: var(--ds-text-secondary);
+  font: inherit;
+  font-size: var(--text-xs);
+  outline: none;
+}
+
+.mc-np-location-note:focus {
+  border-bottom-color: var(--ds-accent);
+}

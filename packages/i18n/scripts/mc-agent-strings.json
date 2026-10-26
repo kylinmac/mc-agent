@@ -3748,5 +3748,415 @@
     "en": "Got it",
     "zh-CN": "知道了",
     "zh-TW": "知道了"
+  },
+  "npKicker": {
+    "en": "New project",
+    "zh-CN": "新建项目",
+    "zh-TW": "新建專案"
+  },
+  "npStep": {
+    "en": "Step {{current}} of {{total}}",
+    "zh-CN": "第 {{current}}/{{total}} 步",
+    "zh-TW": "第 {{current}}/{{total}} 步"
+  },
+  "npCreating": {
+    "en": "Creating…",
+    "zh-CN": "正在创建…",
+    "zh-TW": "正在建立…"
+  },
+  "npDismiss": {
+    "en": "Not now — tell the agent",
+    "zh-CN": "先不建，告诉 Agent",
+    "zh-TW": "先不建，告訴 Agent"
+  },
+  "npWhere": {
+    "en": "Where should the project go?",
+    "zh-CN": "项目放在哪",
+    "zh-TW": "專案放在哪"
+  },
+  "npFolderLabel": {
+    "en": "Folder name",
+    "zh-CN": "文件夹名",
+    "zh-TW": "資料夾名稱"
+  },
+  "npFolderInvalid": {
+    "en": "Use one folder name without / \\ : * ? \" < > |",
+    "zh-CN": "文件夹名不能为空，也不能含 / \\ : * ? \" < > |",
+    "zh-TW": "資料夾名稱不能為空，也不能含 / \\ : * ? \" < > |"
+  },
+  "npChecking": {
+    "en": "Checking…",
+    "zh-CN": "正在检查…",
+    "zh-TW": "正在檢查…"
+  },
+  "npBlocked": {
+    "en": "A file with this name is already there",
+    "zh-CN": "这里已有同名文件，不是文件夹",
+    "zh-TW": "這裡已有同名檔案，不是資料夾"
+  },
+  "npIsProject": {
+    "en": "This folder is already the project “{{name}}”",
+    "zh-CN": "这个文件夹已经是项目「{{name}}」",
+    "zh-TW": "這個資料夾已經是專案「{{name}}」"
+  },
+  "npNotWritable": {
+    "en": "No permission to write here",
+    "zh-CN": "这里没有写入权限",
+    "zh-TW": "這裡沒有寫入權限"
+  },
+  "npExistsFull": {
+    "en": "The folder exists with {{count}} items; it becomes the project as it is, nothing inside changes",
+    "zh-CN": "文件夹已存在，里面有 {{count}} 项；会直接作为项目，不改动里面的文件",
+    "zh-TW": "資料夾已存在，裡面有 {{count}} 項；會直接作為專案，不改動裡面的檔案"
+  },
+  "npExistsEmpty": {
+    "en": "The folder exists and is empty",
+    "zh-CN": "文件夹已存在，是空的",
+    "zh-TW": "資料夾已存在，是空的"
+  },
+  "npWillCreate": {
+    "en": "The folder will be created",
+    "zh-CN": "文件夹还不存在，会新建",
+    "zh-TW": "資料夾還不存在，會新建"
+  },
+  "npFree": {
+    "en": "{{size}} free",
+    "zh-CN": "磁盘剩余 {{size}}",
+    "zh-TW": "磁碟剩餘 {{size}}"
+  },
+  "npOpenThatProject": {
+    "en": "Open that project",
+    "zh-CN": "打开那个项目",
+    "zh-TW": "打開那個專案"
+  },
+  "npChangeLocation": {
+    "en": "Change location…",
+    "zh-CN": "换个位置…",
+    "zh-TW": "換個位置…"
+  },
+  "npHere": {
+    "en": "Put it here",
+    "zh-CN": "就这里",
+    "zh-TW": "就這裡"
+  },
+  "npPickTemplate": {
+    "en": "Pick a template",
+    "zh-CN": "选一个模板",
+    "zh-TW": "選一個範本"
+  },
+  "npRanked": {
+    "en": "Ranked by your description",
+    "zh-CN": "按你的描述排了序",
+    "zh-TW": "按你的描述排了序"
+  },
+  "npRecommended": {
+    "en": "Recommended",
+    "zh-CN": "推荐",
+    "zh-TW": "推薦"
+  },
+  "npRequestDraft": {
+    "en": "None fits — let the agent make one",
+    "zh-CN": "都不合适，让 Agent 按需求新做一套",
+    "zh-TW": "都不合適，讓 Agent 按需求新做一套"
+  },
+  "npRequestDraftHint": {
+    "en": "It drafts folders and notes for you to review",
+    "zh-CN": "起草后给你看，可以只用这一次，也可以存成模板",
+    "zh-TW": "起草後給你看，可以只用這一次，也可以存成範本"
+  },
+  "npNoTemplate": {
+    "en": "No template, just the folder",
+    "zh-CN": "不用模板，只建文件夹",
+    "zh-TW": "不用範本，只建資料夾"
+  },
+  "npNoTemplateHint": {
+    "en": "A simple project without a resource folder",
+    "zh-CN": "简单项目，没有资料目录",
+    "zh-TW": "簡單專案，沒有資料目錄"
+  },
+  "npDraftOption": {
+    "en": "The agent's draft: {{name}}",
+    "zh-CN": "Agent 起草的：{{name}}",
+    "zh-TW": "Agent 起草的：{{name}}"
+  },
+  "npAskDraft": {
+    "en": "Let the agent draft one",
+    "zh-CN": "让 Agent 起草",
+    "zh-TW": "讓 Agent 起草"
+  },
+  "npNext": {
+    "en": "Next",
+    "zh-CN": "下一步",
+    "zh-TW": "下一步"
+  },
+  "npBack": {
+    "en": "Back",
+    "zh-CN": "上一步",
+    "zh-TW": "上一步"
+  },
+  "npDraftTitle": {
+    "en": "New template draft: {{name}}",
+    "zh-CN": "新模板草稿：{{name}}",
+    "zh-TW": "新範本草稿：{{name}}"
+  },
+  "npDraftUnsaved": {
+    "en": "Not saved",
+    "zh-CN": "未保存",
+    "zh-TW": "未儲存"
+  },
+  "npFolders": {
+    "en": "Folders",
+    "zh-CN": "资料目录",
+    "zh-TW": "資料目錄"
+  },
+  "npFolderNotes": {
+    "en": "What goes in each",
+    "zh-CN": "每个目录的说明",
+    "zh-TW": "每個目錄的說明"
+  },
+  "npSystemPrompt": {
+    "en": "System prompt",
+    "zh-CN": "系统提示词",
+    "zh-TW": "系統提示詞"
+  },
+  "npExpand": {
+    "en": "Show all",
+    "zh-CN": "展开全部",
+    "zh-TW": "展開全部"
+  },
+  "npCollapse": {
+    "en": "Show less",
+    "zh-CN": "收起",
+    "zh-TW": "收起"
+  },
+  "npDraftHint": {
+    "en": "To change it, tell the agent in the chat. Saved templates can be edited in Settings → Project templates.",
+    "zh-CN": "要改的话直接跟 Agent 说；保存后也能在 设置 → 项目模板 里改。",
+    "zh-TW": "要改的話直接跟 Agent 說；儲存後也能在 設定 → 專案範本 裡改。"
+  },
+  "npUseOnce": {
+    "en": "Use for this project only",
+    "zh-CN": "只用这一次",
+    "zh-TW": "只用這一次"
+  },
+  "npSaveAndUse": {
+    "en": "Save as template and use",
+    "zh-CN": "保存为模板并使用",
+    "zh-TW": "儲存為範本並使用"
+  },
+  "npConfirmTitle": {
+    "en": "Confirm the plan",
+    "zh-CN": "确认方案",
+    "zh-TW": "確認方案"
+  },
+  "npName": {
+    "en": "Name",
+    "zh-CN": "名称",
+    "zh-TW": "名稱"
+  },
+  "npLocation": {
+    "en": "Location",
+    "zh-CN": "位置",
+    "zh-TW": "位置"
+  },
+  "npNew": {
+    "en": "new",
+    "zh-CN": "新建",
+    "zh-TW": "新建"
+  },
+  "npExisting": {
+    "en": "existing",
+    "zh-CN": "已存在",
+    "zh-TW": "已存在"
+  },
+  "npTemplate": {
+    "en": "Template",
+    "zh-CN": "模板",
+    "zh-TW": "範本"
+  },
+  "npDraftOnce": {
+    "en": "{{name}} (drafted, this project only)",
+    "zh-CN": "{{name}}（Agent 起草，只用这一次）",
+    "zh-TW": "{{name}}（Agent 起草，只用這一次）"
+  },
+  "npDraftSaved": {
+    "en": "{{name}} (drafted, saved as a template)",
+    "zh-CN": "{{name}}（Agent 起草，保存为模板）",
+    "zh-TW": "{{name}}（Agent 起草，儲存為範本）"
+  },
+  "npResourceFolder": {
+    "en": "Resource folder",
+    "zh-CN": "资料目录",
+    "zh-TW": "資料目錄"
+  },
+  "npPromptDefault": {
+    "en": "Default",
+    "zh-CN": "默认",
+    "zh-TW": "預設"
+  },
+  "npPromptFromDraft": {
+    "en": "Rules from the draft",
+    "zh-CN": "草稿里的规则",
+    "zh-TW": "草稿裡的規則"
+  },
+  "npNothingYet": {
+    "en": "Nothing is written until you press Create",
+    "zh-CN": "点“创建”之前不会写入任何东西",
+    "zh-TW": "按「建立」之前不會寫入任何東西"
+  },
+  "npRevise": {
+    "en": "Change something",
+    "zh-CN": "改一改",
+    "zh-TW": "改一改"
+  },
+  "npCreate": {
+    "en": "Create",
+    "zh-CN": "创建",
+    "zh-TW": "建立"
+  },
+  "npProgress_folder": {
+    "en": "Folder {{path}}",
+    "zh-CN": "新建文件夹 {{path}}",
+    "zh-TW": "新建資料夾 {{path}}"
+  },
+  "npProgress_project": {
+    "en": "Register the project",
+    "zh-CN": "登记为项目",
+    "zh-TW": "登記為專案"
+  },
+  "npProgress_resources": {
+    "en": "Resource folder from {{template}}",
+    "zh-CN": "按 {{template}} 建资料目录",
+    "zh-TW": "按 {{template}} 建資料目錄"
+  },
+  "npProgress_prompt": {
+    "en": "System prompt",
+    "zh-CN": "设置系统提示词",
+    "zh-TW": "設定系統提示詞"
+  },
+  "npDoneTitle": {
+    "en": "Project created: {{name}}",
+    "zh-CN": "项目已创建：{{name}}",
+    "zh-TW": "專案已建立：{{name}}"
+  },
+  "npOpenProject": {
+    "en": "Open project",
+    "zh-CN": "打开项目",
+    "zh-TW": "打開專案"
+  },
+  "npContinueHere": {
+    "en": "Continue in the project",
+    "zh-CN": "在项目里继续",
+    "zh-TW": "在專案裡繼續"
+  },
+  "npContinueAfterTurn": {
+    "en": "Available once this reply finishes",
+    "zh-CN": "这一轮回复结束后可用",
+    "zh-TW": "這一輪回覆結束後可用"
+  },
+  "npMoveFailed": {
+    "en": "This conversation could not move to the project",
+    "zh-CN": "这段对话没能移到项目里",
+    "zh-TW": "這段對話沒能移到專案裡"
+  },
+  "npIntentTitle": {
+    "en": "Looks like you want to start a new project",
+    "zh-CN": "看起来你想新建一个项目",
+    "zh-TW": "看起來你想新建一個專案"
+  },
+  "npIntentHint": {
+    "en": "The agent picks a folder and a template; nothing is created until you confirm",
+    "zh-CN": "Agent 会帮你选目录、挑模板，确认后再创建",
+    "zh-TW": "Agent 會幫你選目錄、挑範本，確認後再建立"
+  },
+  "npJustChat": {
+    "en": "Just chat",
+    "zh-CN": "只是聊聊",
+    "zh-TW": "只是聊聊"
+  },
+  "npCreateAsProject": {
+    "en": "Create as a new project",
+    "zh-CN": "作为新项目创建",
+    "zh-TW": "作為新專案建立"
+  },
+  "npArmedTitle": {
+    "en": "New project",
+    "zh-CN": "新建项目",
+    "zh-TW": "新建專案"
+  },
+  "npArmedHint": {
+    "en": "Describe the project and where it goes; the agent sets it up after you confirm",
+    "zh-CN": "说说要做什么、放在哪，确认后 Agent 帮你建好",
+    "zh-TW": "說說要做什麼、放在哪，確認後 Agent 幫你建好"
+  },
+  "npArmedCancel": {
+    "en": "Back to a normal chat",
+    "zh-CN": "改回普通对话",
+    "zh-TW": "改回一般對話"
+  },
+  "npKindConversation": {
+    "en": "By conversation",
+    "zh-CN": "用对话新建",
+    "zh-TW": "用對話新建"
+  },
+  "npKindConversationHint": {
+    "en": "Describe it; the agent picks folder and template",
+    "zh-CN": "说说要做什么，Agent 选位置和模板",
+    "zh-TW": "說說要做什麼，Agent 選位置和範本"
+  },
+  "npSidebarAction": {
+    "en": "New project by conversation…",
+    "zh-CN": "用对话新建项目…",
+    "zh-TW": "用對話新建專案…"
+  },
+  "templateOneOff": {
+    "en": "drafted for this project only",
+    "zh-CN": "只用于本项目",
+    "zh-TW": "只用於本專案"
+  },
+  "npDefaultLocationCard": {
+    "en": "Locations for new projects",
+    "zh-CN": "新项目位置",
+    "zh-TW": "新專案位置"
+  },
+  "npDefaultLocationHelp": {
+    "en": "Where the agent puts a project created from a conversation when you don't name a folder. It picks the location whose note fits the project, else the default (the first). You can still change it on the card.",
+    "zh-CN": "用对话新建项目、没说放哪时，Agent 按说明挑最合适的位置，挑不出就用默认（第一个）；卡片上仍可修改。",
+    "zh-TW": "用對話新建專案、沒說放哪時，Agent 按說明挑最合適的位置，挑不出就用預設（第一個）；卡片上仍可修改。"
+  },
+  "npDefaultLocationAuto": {
+    "en": "None yet — the agent uses the folder most of your projects are in",
+    "zh-CN": "还没有设置，Agent 会用大多数项目所在的文件夹",
+    "zh-TW": "還沒有設定，Agent 會用大多數專案所在的資料夾"
+  },
+  "npDefaultLocationAdd": {
+    "en": "Add location…",
+    "zh-CN": "添加位置…",
+    "zh-TW": "新增位置…"
+  },
+  "npDefaultLocationDefault": {
+    "en": "Default",
+    "zh-CN": "默认",
+    "zh-TW": "預設"
+  },
+  "npDefaultLocationNote": {
+    "en": "What goes here, e.g. code projects",
+    "zh-CN": "放什么，比如：代码项目",
+    "zh-TW": "放什麼，例如：程式專案"
+  },
+  "npDefaultLocationMakeDefault": {
+    "en": "Make default",
+    "zh-CN": "设为默认",
+    "zh-TW": "設為預設"
+  },
+  "npDefaultLocationRemove": {
+    "en": "Remove",
+    "zh-CN": "移除",
+    "zh-TW": "移除"
+  },
+  "npCreatedAfterStop": {
+    "en": "Project “{{name}}” was created; the reply had already stopped, so tell the agent if you want it to continue.",
+    "zh-CN": "项目「{{name}}」已创建；这一轮回复已经停止，需要的话告诉 Agent 继续。",
+    "zh-TW": "專案「{{name}}」已建立；這一輪回覆已經停止，需要的話告訴 Agent 繼續。"
   }
 }

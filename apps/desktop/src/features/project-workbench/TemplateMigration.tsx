@@ -168,7 +168,11 @@ export function TemplateMigration({
             })
           : t("mcProject.templateUnknown")}
         {status?.outdated ? ` · ${t("mcProject.templateOutdated")}` : ""}
-        {status?.recorded && !status.templateExists ? ` · ${t("mcProject.templateMissing")}` : ""}
+        {status?.recorded?.oneOff
+          ? ` · ${t("mcProject.templateOneOff")}`
+          : status?.recorded && !status.templateExists
+            ? ` · ${t("mcProject.templateMissing")}`
+            : ""}
         {notice ? ` · ${notice}` : ""}
       </span>
       <span className="mc-workbench-muted">{t("mcProject.migrationHint")}</span>

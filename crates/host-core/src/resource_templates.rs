@@ -60,6 +60,10 @@ pub struct ProjectMeta {
     /// same name. Absent on folders made before ownership was recorded.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub owner: Option<String>,
+    /// mc-agent (MC-ADR-0023): made from a template drafted for this project
+    /// alone. Its copy lives in `.mc-agent/template.json`, not in the library.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub one_off: bool,
 }
 
 /// A project's template record compared with the template as it is now.
@@ -170,6 +174,7 @@ pub fn record_project_template(
             .ok()
             .flatten()
             .and_then(|previous| previous.owner),
+        one_off: false,
     };
     write_project_meta(resource_folder, &meta)?;
     Ok(meta)
@@ -186,6 +191,35 @@ pub fn record_project_owner(resource_folder: &Path, group_id: &str) -> Result<()
     }
     meta.owner = Some(group_id.to_string());
     write_project_meta(resource_folder, &meta)
+}
+
+/// Record a template drafted for this project alone (MC-ADR-0023): the
+/// project meta marks it one-off, and its folders and descriptions are kept
+/// beside it so the resource index still knows what each folder is for.
+pub fn record_one_off_template(
+    resource_folder: &Path,
+    template: &TemplateMeta,
+    name: &str,
+    owner: &str,
+) -> Result<ProjectMeta> {
+    let dir = resource_folder.join(PROJECT_META_DIR);
+    fs::create_dir_all(&dir)?;
+    write_template_meta(&dir, template)?;
+    let meta = ProjectMeta {
+        template: name.to_string(),
+        template_version: template.version.max(1),
+        template_fingerprint: String::new(),
+        recorded_at: crate::db::now_ms(),
+        owner: Some(owner.to_string()),
+        one_off: true,
+    };
+    write_project_meta(resource_folder, &meta)?;
+    Ok(meta)
+}
+
+/// The descriptions a one-off template keeps beside the project.
+pub fn one_off_template_meta(resource_folder: &Path) -> Result<TemplateMeta> {
+    read_template_meta(&resource_folder.join(PROJECT_META_DIR))
 }
 
 fn write_project_meta(resource_folder: &Path, meta: &ProjectMeta) -> Result<()> {
@@ -211,7 +245,7 @@ pub fn project_template_status(
         });
     };
     let template = templates_dir.join(&recorded.template);
-    if !template.is_dir() {
+    if recorded.one_off || !template.is_dir() {
         return Ok(ProjectTemplateStatus {
             recorded: Some(recorded),
             template_exists: false,

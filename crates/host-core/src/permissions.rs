@@ -126,6 +126,9 @@ impl PermissionManager {
             // mc-agent: a note in the project's memory, which the user can
             // edit or delete (MC-ADR-0019).
             "Remember" => Risk::Low,
+            // mc-agent: lists templates, and proposes a project the user
+            // confirms on a card before anything is written (MC-ADR-0023).
+            "ProjectTemplates" | "CreateProject" => Risk::Low,
             "Write" | "Edit" | "Bash" | "GenerateImages" => Risk::High,
             name if name.starts_with("plugin_") => match declared {
                 Some("low") => Risk::Low,

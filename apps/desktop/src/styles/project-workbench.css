@@ -239,10 +239,10 @@
   white-space: nowrap;
 }
 
-/* Create dialog: chat / simple project / managed project. */
+/* Create dialog: chat / by conversation / simple project / managed project. */
 .mc-kind-options {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 

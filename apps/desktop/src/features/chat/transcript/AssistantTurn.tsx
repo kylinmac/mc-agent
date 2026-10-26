@@ -39,6 +39,7 @@ import {
 } from "./shared";
 import { activityItemsEqual } from "./ActivityGroup";
 import { GeneratedImages } from "./GeneratedImages";
+import { CreatedProjectCard } from "../../project-create/CreatedProjectCard";
 import { MessageRow } from "./MessageRow";
 import { ReviewChangeCard } from "../../../components/ReviewChangeCard";
 import { ToolRow } from "./ToolRow";
@@ -333,6 +334,10 @@ export const AssistantTurn = memo(function AssistantTurn({
   const generatedImages = useMemo(() => tools
     .filter((message) => message.toolName === "GenerateImages")
     .map((message) => <GeneratedImages key={message.id} message={message} />), [tools]);
+  // mc-agent (MC-ADR-0023): the project a CreateProject call made.
+  const createdProjects = useMemo(() => tools
+    .filter((message) => message.toolName === "CreateProject")
+    .map((message) => <CreatedProjectCard key={message.id} message={message} />), [tools]);
   // Delegation status/timing depends on actual tool messages, never on thinking
   // or text and never on a Task's attached child transcript identity.
   const delegationItems = useMemo(() => tools.map((message) => ({ kind: "tool" as const, message })), [tools]);
@@ -419,6 +424,7 @@ export const AssistantTurn = memo(function AssistantTurn({
             produced, not part of what it did. */}
         <AssistantTurnParts parts={responses} {...partContext} />
         {generatedImages}
+        {createdProjects}
         {!isActive && metaMessage ? (
           <MessageMeta
             modelId={modelId}
