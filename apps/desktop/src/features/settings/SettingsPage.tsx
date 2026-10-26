@@ -22,6 +22,7 @@ import {
   IconBot,
   IconChevronLeft,
   IconFileText,
+  IconHook,
   IconActivity,
   IconFolder,
   IconShield,
@@ -52,6 +53,7 @@ import { ProjectsPage } from "../../pages/ProjectsPage";
 import { AgentSkillsPage } from "../../components/settings/AgentSkillsPage";
 import { AgentMcpPage } from "../../components/settings/AgentMcpPage";
 import { AgentSubagentsPage } from "../../components/settings/AgentSubagentsPage";
+import { HooksPage } from "./HooksPage";
 import { RemoteHostsPage } from "../../components/settings/RemoteHostsPage";
 import { VoiceSettingsSection } from "./voice/VoiceSettingsSection";
 import {
@@ -249,6 +251,7 @@ export function SettingsPage() {
       mcp: <IconServer size={14} />,
       subagents: <IconBot size={14} />,
       systemPrompts: <IconFileText size={14} />,
+      hooks: <IconHook size={14} />,
       mcUsage: <IconActivity size={14} />,
       projectTemplates: <IconFolder size={14} />,
       systemPermissions: <IconShield size={14} />,
@@ -659,6 +662,8 @@ export function SettingsPage() {
           {tab === "instructions" && <AgentInstructionsSection />}
 
           {tab === "systemPrompts" && <SystemPromptsPage />}
+
+          {tab === "hooks" && <HooksPage />}
 
           {tab === "mcUsage" && <UsagePage />}
 

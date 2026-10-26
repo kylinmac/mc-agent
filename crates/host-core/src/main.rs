@@ -7,6 +7,7 @@ mod config_sync;
 mod data_relocation;
 mod db;
 mod keyboard;
+mod mc_auto_guard;
 mod mc_creative;
 mod mc_import;
 mod mc_prompts;

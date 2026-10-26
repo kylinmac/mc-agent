@@ -3,6 +3,7 @@ import { guardRemoteInvocation } from "./remote-ipc-safety";
 import { isRemoteSession, safeSessionSummary } from "./remote-session-safety";
 import type {
   BackgroundShell,
+  McUserHook,
   CreativeAsset,
   CreativeJob,
   CreativeMethod,
@@ -92,6 +93,7 @@ import type {
   SessionSystemPrompt,
   SystemPromptConfig,
   UsageSummary,
+  SubscriptionQuota,
   ResourceTemplateSummary,
   ResourceListing,
   ProjectTask,
@@ -1028,6 +1030,9 @@ export const api = {
   /** mc-agent: estimated context use by kind; null until the session has run. */
   usageSummary: (fromMs: number, toMs: number) =>
     invoke<UsageSummary>(IPC.invoke.mcUsageSummary, { fromMs, toMs }),
+  /** mc-agent: remaining subscription quota of a provider; null when it has none to show. */
+  subscriptionQuota: (providerId: string) =>
+    invoke<{ quota: SubscriptionQuota | null }>(IPC.invoke.mcSubscriptionQuota, { providerId }),
   /** mc-agent macOS permissions (X-PERM-02): check never prompts. */
   macPermissions: {
     check: () => invoke<MacPermissionReport>(IPC.invoke.macPermissionsCheck),
@@ -2140,6 +2145,9 @@ export const api = {
     invoke<BackgroundShell & { output: string; truncated: boolean }>(IPC.invoke.backgroundShellsView, { sessionId, id }),
   backgroundShellsKill: (sessionId: string, id: string) =>
     invoke<BackgroundShell>(IPC.invoke.backgroundShellsKill, { sessionId, id }),
+  // mc-agent user hooks (MC-ADR-0021).
+  mcHooksGet: () => invoke<{ hooks: McUserHook[] }>(IPC.invoke.mcHooksGet),
+  mcHooksSet: (hooks: McUserHook[]) => invoke<{ hooks: McUserHook[] }>(IPC.invoke.mcHooksSet, hooks),
   // mc-agent creative studio (docs/mc-agent/creative-studio.md).
   creative: {
     /** A host `creative.*` method; the name fixes its parameters and result. */

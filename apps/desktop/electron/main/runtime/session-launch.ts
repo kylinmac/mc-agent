@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { loadUserHooks } from "../mc-user-hooks-store";
 import {
   GEN_UI_DIRECTORY_NAME,
   ErrorCodes as SharedErrorCodes,
@@ -799,6 +800,8 @@ export function createSessionLaunchRuntime({
         customSystemPrompt,
         projectInstructions,
         projectMemory,
+        // mc-agent (MC-ADR-0021): read at every launch, so edits apply to the next prompt.
+        userHooks: await loadUserHooks(dataDir),
         provider: {
           id: provider.id,
           name: provider.name,

@@ -19,6 +19,9 @@ import {
   saveCreativeAssetParameters,
 } from "./image-generation/tool.js";
 import { forkBrief, forkableParentMessages } from "./mc-subagent-fork.js";
+import type { McUserHook } from "@pi-desktop/shared";
+import { runUserHooks, hookFeedbackText, MAX_STOP_CONTINUATIONS } from "./mc-user-hooks.js";
+import { REMEMBER_TOOL_NAME, rememberDescription, rememberParameters } from "./mc-memory-tool.js";
 import { todoWriteDescription, todoWriteParameters } from "./todo-tool.js";
 import { createJevClassifierTool } from "./jev-classifier-tool.js";
 import { scheduledToolParameters, scheduledToolDescriptions } from "./scheduled-tools.js";
@@ -1059,6 +1062,8 @@ export type AgentRuntimeOptions = {
   projectInstructions?: ProjectInstructions;
   /** Durable project context loaded from host-owned project memory. */
   projectMemory?: string;
+  /** mc-agent (MC-ADR-0021): user-configured shell hooks. */
+  userHooks?: McUserHook[];
   /** Persisted transcript to seed the agent with (session isolation: each
    * session's agent carries only its own history). */
   history?: UiMessage[];
@@ -1125,6 +1130,7 @@ export type RuntimeMatchConfig = {
   customSystemPrompt?: CustomSystemPrompt;
   projectInstructions?: ProjectInstructions;
   projectMemory?: string;
+  userHooks?: McUserHook[];
   projectPath?: string;
   /** Remote tool root. Model requests and runtime state remain on this machine. */
   remoteWorkspace?: { hostKey: string; path: string };
@@ -1407,7 +1413,7 @@ function commandShellToolDescription(
     shellSyntaxGuidance(shell),
     `The session scratch directory variable is ${shellScratchVariable(shell)}.`,
     `An optional timeout from 1 to ${MAX_COMMAND_TIMEOUT_SECONDS} seconds may be supplied; without it, the command defaults to a 60-second timeout.`,
-    `Set runInBackground: true for long-lived processes the user needs after the turn ends (dev servers, watchers, builds). A background call returns a backgroundTaskId immediately, survives turn aborts and timeouts, and its output is visible in the composer's running-tasks bar; do not set it for commands whose output the current turn depends on.`,
+    `Set runInBackground: true for long-lived processes the user needs after the turn ends (dev servers, watchers, builds). A background call returns a backgroundTaskId immediately, survives turn aborts and timeouts, and its output is visible in the composer's running-tasks bar; do not set it for commands whose output the current turn depends on. When a background command exits on its own you get an automatic notice with its exit code and last output, even after your turn has ended, so never sleep or poll in a loop waiting for one to finish.`,
     ...(formattedScratch ? [`The session scratch directory is ${formattedScratch}.`] : []),
   ].join(" ");
 }
@@ -1953,6 +1959,8 @@ export class DesktopAgentRuntime {
   private baseProjectInstructions?: ProjectInstructions;
   private projectInstructions?: ProjectInstructions;
   private projectMemory?: string;
+  /** mc-agent (MC-ADR-0021): user-configured shell hooks. */
+  private userHooks: McUserHook[] = [];
   /** Per-prompt claims prevent repeated path-resolution RPCs for one directory. */
   private pathInstructionClaims = new Map<
     string,
@@ -2162,6 +2170,7 @@ export class DesktopAgentRuntime {
     this.baseProjectInstructions = opts.projectInstructions;
     this.projectInstructions = opts.projectInstructions;
     this.projectMemory = opts.projectMemory?.trim() || undefined;
+    this.userHooks = opts.userHooks ?? [];
     this.compactionEnabled = compactionEnabled(opts.compactionSettings);
     this.compactionStrategy = resolveCompactionStrategy(opts.compactionStrategy);
 
@@ -2641,8 +2650,64 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
   ): Promise<AfterToolCallResult | undefined> {
     const own = this.resolveOwnToolOutcome(context);
     const fromExtensions = await this.extensionToolResult(context, own);
-    if (!fromExtensions) return own;
-    return { ...(own ?? {}), ...fromExtensions };
+    const merged: AfterToolCallResult | undefined = fromExtensions ? { ...(own ?? {}), ...fromExtensions } : own;
+    if (!this.userHooks.length) return merged;
+    // mc-agent (MC-ADR-0021): a PostToolUse hook's complaint joins the result.
+    const feedback = await this.userHookFeedback("PostToolUse", {
+      toolName: context.toolCall.name,
+      toolInput: context.args,
+      toolResult: merged?.content ?? context.result?.content,
+    });
+    if (!feedback) return merged;
+    const content = merged?.content ?? context.result?.content;
+    return {
+      ...(merged ?? {}),
+      content: [...(Array.isArray(content) ? content : []), { type: "text", text: hookFeedbackText("PostToolUse", feedback) }],
+    };
+  }
+
+  /** mc-agent (MC-ADR-0021): the feedback of the matching hooks that exited with 2. */
+  private async userHookFeedback(
+    event: "PreToolUse" | "PostToolUse" | "Stop",
+    input: { toolName?: string; toolInput?: unknown; toolResult?: unknown; lastReply?: string },
+  ): Promise<string | undefined> {
+    const cwd = this.workspaceRoot ?? this.projectPath;
+    if (!this.userHooks.length || this.remoteWorkspace || !cwd) return undefined;
+    return runUserHooks(this.userHooks, { event, sessionId: this.sessionId, cwd, ...input });
+  }
+
+  /**
+   * mc-agent (MC-ADR-0021): Stop hooks run when the turn would end; feedback
+   * from one that exited with 2 goes back to the agent, which keeps working.
+   */
+  private async runStopHooks(): Promise<void> {
+    for (let round = 0; round < MAX_STOP_CONTINUATIONS; round += 1) {
+      if (this.disposed || this.runCancelled || this.turnHadError) return;
+      const feedback = await this.userHookFeedback("Stop", { lastReply: this.lastAssistantText() });
+      if (!feedback || this.disposed || this.runCancelled) return;
+      this.requestStartedAt = Date.now();
+      await this.agent.prompt(hookFeedbackText("Stop", feedback));
+      await this.waitForIdleAndSteering();
+      if (!(await this.runPendingRecoveries())) return;
+      if (this.turnHadError) {
+        this.terminateParentTurn();
+        return;
+      }
+      await this.resumeAfterDelegations();
+    }
+  }
+
+  private lastAssistantText(): string {
+    const messages = this.agent.state.messages as Array<{ role?: string; content?: unknown }>;
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const message = messages[index];
+      if (message?.role !== "assistant" || !Array.isArray(message.content)) continue;
+      return (message.content as Array<{ type?: string; text?: string }>)
+        .filter((block) => block.type === "text" && typeof block.text === "string")
+        .map((block) => block.text)
+        .join("");
+    }
+    return "";
   }
 
   /** `tool_call` hook: an extension may block a call with a reason (spec 16 §6). */
@@ -2760,6 +2825,11 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       if (!this.isToolAllowedInMode(context.toolCall.name)) {
         return { block: true, reason: modeToolDenial(context.toolCall.name, this.mode) };
       }
+      const hookBlock = await this.userHookFeedback("PreToolUse", {
+        toolName: context.toolCall.name,
+        toolInput: context.args,
+      });
+      if (hookBlock) return { block: true, reason: hookFeedbackText("PreToolUse", hookBlock) };
       return this.extensionToolCall(context);
     }
     const enterKind = enterToolKind(context.toolCall.name);
@@ -2849,6 +2919,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       safeJson(this.customSystemPrompt ?? null) ===
         safeJson(config.customSystemPrompt ?? null) &&
       (this.projectMemory ?? "") === (config.projectMemory?.trim() ?? "") &&
+      safeJson(this.userHooks) === safeJson(config.userHooks ?? []) &&
       (this.projectPath ?? "") === (config.remoteWorkspace?.path ?? config.projectPath?.trim() ?? "") &&
       safeJson(this.remoteWorkspace ?? null) === safeJson(config.remoteWorkspace ?? null) &&
       (this.workspaceRoot ?? "") === (config.workspaceRoot?.trim() ?? "") &&
@@ -3366,6 +3437,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       if (toolName === "GenerateImages") return imageGenerationDescription;
       // mc-agent creative studio (docs/mc-agent/creative-studio.md).
       if (toolName === "SaveCreativeAsset") return saveCreativeAssetDescription;
+      // mc-agent project memory notes (MC-ADR-0019).
+      if (toolName === REMEMBER_TOOL_NAME) return rememberDescription;
       if (scheduledToolDescriptions[toolName]) return scheduledToolDescriptions[toolName];
       switch (toolName) {
         case "BrowserPreview":
@@ -3404,7 +3477,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         case "Bash":
           return `${commandShellToolDescription(this.commandShell, this.scratchDir)} Use Edit or Write instead of apply_patch, git apply, or patch; do not retry a failed shell patch command repeatedly.${this.mode === "agent" ? " Read a background command's new output with BashOutput and stop it with KillBash once it is no longer needed; both take the backgroundTaskId the call returned as backgroundId." : ""}`;
         case "BashOutput":
-          return "Read the new output of a background command started with Bash runInBackground, since your last read, plus its status (running, exited, failed with exitCode, stopped). stdout is in output and stderr in stderr; when much was printed only the latest part is returned. Poll sparingly: check after doing other work rather than in a tight loop.";
+          return "Read the new output of a background command started with Bash runInBackground, since your last read, plus its status (running, exited, failed with exitCode, stopped). stdout is in output and stderr in stderr; when much was printed only the latest part is returned. You are notified automatically when a background command exits, so use this to check progress or read the full output, not to wait for the end.";
         case "KillBash":
           return "Stop a background command started with Bash runInBackground, including the processes it started. Stop servers and watchers you started once the task no longer needs them.";
         case "TodoWrite":
@@ -3426,6 +3499,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     const parameters: Record<string, Parameters<typeof Type.Object>[0]> = {
       GenerateImages: imageGenerationParameters,
       SaveCreativeAsset: saveCreativeAssetParameters,
+      [REMEMBER_TOOL_NAME]: rememberParameters,
       TodoWrite: todoWriteParameters,
       Read: {
         path: pathParam(
@@ -4058,6 +4132,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         : ["Read", "Glob", "Grep", "BrowserPreview", "Bash", "Write", "Edit"];
     if (this.mode === "agent") {
       tools.push("PluginScaffold", "PluginPack", "GenerateImages", "SaveCreativeAsset", ...Object.keys(scheduledToolParameters));
+      // mc-agent: only a conversation in a project has a memory to write.
+      if (this.projectPath && !this.remoteWorkspace) tools.push(REMEMBER_TOOL_NAME);
     }
     const builtins = tools.map(exec);
     const jevTools: AgentTool[] =
@@ -9016,6 +9092,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       return { turnId: this.turnId };
     }
     await this.resumeAfterDelegations();
+    await this.runStopHooks();
     return { turnId: this.turnId };
   }
 
@@ -9142,6 +9219,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         return { turnId: this.turnId };
       }
       await this.resumeAfterDelegations();
+      await this.runStopHooks();
     } catch (err) {
       const classifiedError = classifyAgentError(err);
       const diagnosticError =

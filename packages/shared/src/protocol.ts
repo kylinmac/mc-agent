@@ -221,6 +221,8 @@ export const IPC = {
     mcPromptsSessionGet: "pi-desktop/mc-prompts/session-get",
     mcPromptsSessionSet: "pi-desktop/mc-prompts/session-set",
     mcUsageSummary: "pi-desktop/mc-usage/summary",
+    // mc-agent: remaining subscription quota of the conversation's provider.
+    mcSubscriptionQuota: "pi-desktop/mc-usage/subscription-quota",
     // mc-agent: macOS system permissions page (X-PERM-02).
     macPermissionsCheck: "pi-desktop/mac-permissions/check",
     macPermissionsRequest: "pi-desktop/mac-permissions/request",
@@ -243,6 +245,9 @@ export const IPC = {
     backgroundShellsList: "pi-desktop/mc-background/list",
     backgroundShellsView: "pi-desktop/mc-background/view",
     backgroundShellsKill: "pi-desktop/mc-background/kill",
+    // mc-agent user hooks (MC-ADR-0021).
+    mcHooksGet: "pi-desktop/mc-hooks/get",
+    mcHooksSet: "pi-desktop/mc-hooks/set",
     projectFoldersMissing: "pi-desktop/project-resources/missing-folders",
     projectResourcesTemplateSave: "pi-desktop/project-resources/templates/save",
     projectResourcesTemplateDelete: "pi-desktop/project-resources/templates/delete",

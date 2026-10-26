@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useBlockingOverlay } from "../lib/blocking-overlay";
-import type { ProjectMemory, ProjectMemoryEntry } from "@pi-desktop/shared";
+import { isAgentMemoryEntry, type ProjectMemory, type ProjectMemoryEntry } from "@pi-desktop/shared";
 import { api } from "../lib/api";
 import { OverlayBackdrop, Button, Input, Textarea, TooltipButton } from "./ui";
 import { IconClose, IconPlus, IconSparkles, IconTrash } from "./icons";
@@ -161,8 +161,14 @@ export function ProjectMemoryDialog({
             {entries.map((entry, index) => (
               <article className="project-memory-card" key={entry.id} role="listitem">
                 <div className="project-memory-card-head">
-                  <span className="project-memory-entry-index" aria-hidden>
-                    {index + 1}
+                  {/* mc-agent (MC-ADR-0019): a note the agent saved with Remember. */}
+                  <span
+                    className="project-memory-entry-index"
+                    data-agent={isAgentMemoryEntry(entry) ? "true" : undefined}
+                    title={isAgentMemoryEntry(entry) ? t("mcProject.memoryByAgent") : undefined}
+                    aria-hidden
+                  >
+                    {isAgentMemoryEntry(entry) ? "AI" : index + 1}
                   </span>
                   <Input
                     value={entry.title}
