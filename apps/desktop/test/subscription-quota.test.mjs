@@ -9,6 +9,7 @@ import {
   parseGlmUsage,
   parseKimiUsage,
   parseMinimaxUsage,
+  parseXaiUsage,
 } from "../electron/main/subscription-quota/parse.ts";
 import { SubscriptionQuotaService, quotaReaderFor } from "../electron/main/subscription-quota/service.ts";
 
@@ -91,6 +92,19 @@ test("MiniMax prefers remaining percentages and reads counts as what is left", (
   assert.deepEqual(parseMinimaxUsage({ base_resp: { status_code: 1004 } }), []);
 });
 
+test("xAI reads the credit pool of the billing period, nested or not", () => {
+  const start = "2026-10-21T10:00:00Z";
+  const end = "2026-10-28T10:00:00Z";
+  assert.deepEqual(parseXaiUsage({ config: { creditUsagePercent: 6, billingPeriodStart: start, billingPeriodEnd: end } }), [
+    { remainingPercent: 94, seconds: 604800, resetsAt: Date.parse(end) },
+  ]);
+  assert.deepEqual(parseXaiUsage({ creditUsagePercent: 12.5, currentPeriod: { start, end } })[0].remainingPercent, 87.5);
+  // Without a period it still shows what is left, unlabelled.
+  assert.deepEqual(parseXaiUsage({ config: { creditUsagePercent: 130 } }), [{ remainingPercent: 0 }]);
+  assert.deepEqual(parseXaiUsage({ config: {} }), []);
+  assert.deepEqual(parseXaiUsage("<html>"), []);
+});
+
 test("window lengths become labels; odd lengths are not forced into one", () => {
   assert.deepEqual(subscriptionQuotaWindowKind(18000), { kind: "hours", count: 5 });
   assert.deepEqual(subscriptionQuotaWindowKind(86400), { kind: "day" });
@@ -128,7 +142,12 @@ test("only known services get a reader, and credentials go to their fixed host",
   // API keys of other services, look-alike hosts and plain logins get nothing.
   assert.equal(quotaReaderFor(provider({ baseUrl: "https://api.openai.com/v1" }), deps), null);
   assert.equal(quotaReaderFor(provider({ baseUrl: "https://api.z.ai.evil.example/v1" }), deps), null);
-  assert.equal(quotaReaderFor(provider({ authKind: "oauth", vendorKey: "xai" }), deps), null);
+  const xai = await requestFor({ authKind: "oauth", vendorKey: "xai" });
+  assert.equal(xai.url, "https://cli-chat-proxy.grok.com/v1/billing?format=credits");
+  assert.equal(xai.headers.Authorization, "Bearer access");
+  assert.equal(xai.headers["x-grok-client-mode"], "cli");
+  // An xAI API key is billed per token, not from a subscription pool.
+  assert.equal(quotaReaderFor(provider({ vendorKey: "xai", baseUrl: "https://api.x.ai/v1" }), deps), null);
   // An API key on the Anthropic vendor is not a subscription.
   assert.equal(quotaReaderFor(provider({ vendorKey: "anthropic", baseUrl: "https://api.anthropic.com" }), deps), null);
 });
