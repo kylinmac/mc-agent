@@ -15,6 +15,7 @@ on:
       - 'AGENTS.md'
       - 'CLAUDE.md'
       - 'packages/shared/src/changelog*.ts'
+      - 'packages/shared/src/mc-changelog*.ts'
       - 'scripts/check-*.mjs'
       - 'docs/scripts/**'
       - '.github/workflows/docs-check.yml'
@@ -25,6 +26,7 @@ on:
       - 'AGENTS.md'
       - 'CLAUDE.md'
       - 'packages/shared/src/changelog*.ts'
+      - 'packages/shared/src/mc-changelog*.ts'
       - 'scripts/check-*.mjs'
       - 'docs/scripts/**'
       - '.github/workflows/docs-check.yml'
@@ -61,6 +63,11 @@ jobs:
 
       - name: Check locale pairs and every documentation page
         run: pnpm docs:check
+
+      # MC-ADR-0017: format of mc-agent's own release notes. The per-version
+      # requirement runs in mc-release.yml against the release tag.
+      - name: Check mc-agent release notes
+        run: node scripts/check-mc-changelog.mjs && node --test scripts/check-mc-changelog.test.mjs
 
       - name: Build the documentation site (dead links and routes)
         run: pnpm docs:build

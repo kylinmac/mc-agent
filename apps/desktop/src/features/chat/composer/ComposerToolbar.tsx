@@ -24,6 +24,7 @@ import {
 } from "../../../components/icons";
 import { LiveVoiceControls } from "../../voice/live/LiveVoiceControls";
 import { ComposerModelPicker } from "./ComposerModelPicker";
+import { SubscriptionQuotaChip } from "./SubscriptionQuotaChip";
 import type { useComposerModelMenu } from "./hooks/useComposerModelMenu";
 
 type ModelMenuController = ReturnType<typeof useComposerModelMenu>;
@@ -196,6 +197,8 @@ export function ComposerToolbar({
 
       <div className="composer-right">
         {localToolsAllowed ? <ComposerControlSlots side="right" /> : null}
+        {/* mc-agent: remaining subscription quota, when the account reports one. */}
+        {localToolsAllowed ? <SubscriptionQuotaChip t={t} providerId={providerId} runActive={runActive} /> : null}
         {contextUsage ? <ContextUsageInspector {...contextUsage} /> : null}
         <ComposerModelPicker
           t={t}

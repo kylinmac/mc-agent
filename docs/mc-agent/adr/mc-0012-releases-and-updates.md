@@ -30,3 +30,5 @@
 - 需要 Intel 或其他平台安装包时扩展脚本。
 
 2026-10-23：[R16 云端发布](../cloud-release.md) 将正式发布迁移到 GitHub Actions。原本机脚本保留为构建、验证及应急工具；云端沿用其 ad-hoc 打包校验，统一等待 Windows 和 macOS 完成后发布。
+
+2026-10-26：装好新版本之后的“更新了什么”与版本更新说明见 [MC-ADR-0017](mc-0017-post-update-whats-new.md)（待确认）；本 ADR 仍不在发现新版本时弹窗。
