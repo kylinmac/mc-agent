@@ -92,6 +92,7 @@ import type {
   SessionSystemPrompt,
   SystemPromptConfig,
   UsageSummary,
+  SubscriptionQuota,
   ResourceTemplateSummary,
   ResourceListing,
   ProjectTask,
@@ -1028,6 +1029,9 @@ export const api = {
   /** mc-agent: estimated context use by kind; null until the session has run. */
   usageSummary: (fromMs: number, toMs: number) =>
     invoke<UsageSummary>(IPC.invoke.mcUsageSummary, { fromMs, toMs }),
+  /** mc-agent: remaining subscription quota of a provider; null when it has none to show. */
+  subscriptionQuota: (providerId: string) =>
+    invoke<{ quota: SubscriptionQuota | null }>(IPC.invoke.mcSubscriptionQuota, { providerId }),
   /** mc-agent macOS permissions (X-PERM-02): check never prompts. */
   macPermissions: {
     check: () => invoke<MacPermissionReport>(IPC.invoke.macPermissionsCheck),

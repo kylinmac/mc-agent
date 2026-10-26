@@ -3767,6 +3767,15 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     permSettingsPath_screenRecording: "System Settings → Privacy & Security → Screen & System Audio Recording",
     permSettingsPath_microphone: "System Settings → Privacy & Security → Microphone",
     sessionInfoRemaining: "{{percent}}% left",
+    quotaTitle: "Subscription quota left",
+    quotaRemaining: "{{percent}}% left",
+    quotaResets: "resets {{time}}",
+    quotaWindowHours: "{{count}}h",
+    quotaWindowDays: "{{count}}d",
+    quotaWindow_day: "Day",
+    quotaWindow_week: "Week",
+    quotaWindow_month: "Month",
+    quotaWindowPlan: "Plan",
   },
   // mc-agent:end
 } as const;

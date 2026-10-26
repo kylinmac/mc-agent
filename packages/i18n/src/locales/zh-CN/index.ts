@@ -3698,6 +3698,15 @@ sklm: {
     permSettingsPath_screenRecording: "系统设置 → 隐私与安全性 → 录屏与系统录音",
     permSettingsPath_microphone: "系统设置 → 隐私与安全性 → 麦克风",
     sessionInfoRemaining: "剩余 {{percent}}%",
+    quotaTitle: "订阅剩余额度",
+    quotaRemaining: "剩余 {{percent}}%",
+    quotaResets: "{{time}} 重置",
+    quotaWindowHours: "{{count}}h",
+    quotaWindowDays: "{{count}} 天",
+    quotaWindow_day: "日",
+    quotaWindow_week: "周",
+    quotaWindow_month: "月",
+    quotaWindowPlan: "套餐",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

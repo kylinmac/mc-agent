@@ -3626,6 +3626,15 @@ sklm: {
     permSettingsPath_screenRecording: "系統設定 → 隱私權與安全性 → 螢幕與系統錄音",
     permSettingsPath_microphone: "系統設定 → 隱私權與安全性 → 麥克風",
     sessionInfoRemaining: "剩餘 {{percent}}%",
+    quotaTitle: "訂閱剩餘額度",
+    quotaRemaining: "剩餘 {{percent}}%",
+    quotaResets: "{{time}} 重置",
+    quotaWindowHours: "{{count}}h",
+    quotaWindowDays: "{{count}} 天",
+    quotaWindow_day: "日",
+    quotaWindow_week: "週",
+    quotaWindow_month: "月",
+    quotaWindowPlan: "方案",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;
