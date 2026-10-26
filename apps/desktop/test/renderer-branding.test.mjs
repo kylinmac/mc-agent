@@ -32,12 +32,14 @@ const [
     read("../src/lib/renderer-language.ts"),
   ]);
 
-// mc-agent: the shell name is the fork's own; other copy still says PI-Desktop.
+// mc-agent: user-facing copy uses the fork brand; Codex remains an import source only.
 test("renderer surfaces the mc-agent brand instead of the Codex shell brand", () => {
   assert.match(english, /shellName:\s*"mc-agent"/);
   assert.match(chinese, /shellName:\s*"mc-agent"/);
-  assert.match(english, /placeholder:\s*"Ask PI-Desktop to help with anything"/);
-  assert.match(chinese, /placeholder:\s*"让 PI-Desktop 帮你做任何事"/);
+  assert.match(english, /placeholder:\s*"Ask mc-agent to help with anything"/);
+  assert.match(chinese, /placeholder:\s*"让 mc-agent 帮你做任何事"/);
+  assert.doesNotMatch(english, /Ask PI-Desktop/);
+  assert.doesNotMatch(chinese, /让 PI-Desktop/);
   assert.doesNotMatch(english, /shellName:\s*"Codex"/);
   assert.doesNotMatch(chinese, /shellName:\s*"Codex"/);
   // Codex remains a supported external import source, not the app identity.

@@ -187,7 +187,7 @@ const spec = (
  * A future IPC channel is not automatically exposed until reviewed here.
  */
 const CONTROL_OPERATION_SPECS: OperationSpec[] = [
-  spec("appGetVersion", "app/getVersion", "Return PI-Desktop and host versions.", "read", []),
+  spec("appGetVersion", "app/getVersion", "Return mc-agent and host versions.", "read", []),
   spec("appHealth", "app/health", "Return host health.", "read", []),
   spec("appGetOnboarding", "app/getOnboarding", "Read onboarding state.", "read", []),
   spec("appDismissOnboarding", "app/dismissOnboarding", "Dismiss onboarding.", "write", []),
@@ -284,7 +284,7 @@ const coreTool = (
 });
 
 const CORE_TOOL_SPECS = [
-  coreTool("pi_app_info", "Read PI-Desktop and host version information.", objectSchema({}), "app/getVersion", () => []),
+  coreTool("pi_app_info", "Read mc-agent and host version information.", objectSchema({}), "app/getVersion", () => []),
   coreTool("pi_project_get", "Read the active project workspace.", objectSchema({}), "project/get", () => []),
   coreTool("pi_project_list", "List durable projects.", objectSchema({}), "project/list", () => []),
   coreTool(
@@ -1173,7 +1173,7 @@ export class McpControlServer {
           capabilities: { tools: { listChanged: false } },
           serverInfo: { name: this.serverName, version: this.version },
           instructions:
-            "Local PI-Desktop control plane. Named tools cover project/session/Agent/workspace. Dangerous operations, including session/configure permissionMode, require confirm=true. confirm is an agent acknowledgement, not a desktop user prompt. Poll pi_session_get or pi_agent_status for turn progress; this server does not stream SSE.",
+            "Local mc-agent control plane. Named tools cover project/session/Agent/workspace. Dangerous operations, including session/configure permissionMode, require confirm=true. confirm is an agent acknowledgement, not a desktop user prompt. Poll pi_session_get or pi_agent_status for turn progress; this server does not stream SSE.",
         }),
         sessionId,
       };
@@ -1239,7 +1239,7 @@ export class McpControlServer {
     });
     const generic: McpTool = {
       name: "pi_desktop_invoke",
-      description: "Invoke a reviewed PI-Desktop operation. Use pi_control_describe for ids and argument shapes. Dangerous operations require confirm=true. This is an agent acknowledgement, not a user prompt.",
+      description: "Invoke a reviewed mc-agent operation. Use pi_control_describe for ids and argument shapes. Dangerous operations require confirm=true. This is an agent acknowledgement, not a user prompt.",
       inputSchema: objectSchema({
         operation: {
           type: "string",
@@ -1274,7 +1274,7 @@ export class McpControlServer {
     };
     const describe: McpTool = {
       name: "pi_control_describe",
-      description: "Return the reviewed PI-Desktop operation catalog.",
+      description: "Return the reviewed mc-agent operation catalog.",
       inputSchema: objectSchema({}),
       execute: async () => this.operations.map((operation) => ({
         id: operation.id,

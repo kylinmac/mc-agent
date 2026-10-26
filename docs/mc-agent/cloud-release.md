@@ -6,7 +6,7 @@ P12：Actions 中运行 `mc-agent Release`，填写版本号（不含 v）。标
 
 V52：验证非法版本、缺失文件、版本错配与 SHA-512 错配会失败；验证两端真实云端构建、macOS 签名与 helper、Windows 安装升级测试，以及最终草稿发布。首次运行结果另行记录，不把工作流存在当作验证通过。
 
-发布操作：先让代码通过 PR 检查并合入 main，创建并推送 `v<版本>`，再运行 `gh workflow run mc-release.yml -f version=<版本>`。如已有草稿，可重跑；仅草稿允许替换同名产物。旧 `mc-windows.yml` 保留独立调试入口，统一发布流程复用其构建任务但关闭直接上传。
+发布操作：先让代码通过 PR 检查并合入 main，把该版本的更新说明写进 `mc-changelog-zh-CN.ts` 并合入（见[更新说明流程](release-notes.md)；prepare 会检查标签里有没有这一条，从 1.0.20 起），创建并推送 `v<版本>`，再运行 `gh workflow run mc-release.yml -f version=<版本>`。如已有草稿，可重跑；仅草稿允许替换同名产物。旧 `mc-windows.yml` 保留独立调试入口，统一发布流程复用其构建任务但关闭直接上传。
 
 当前支持与既有正式包一致：macOS Apple Silicon、Windows x64。Intel Mac、Linux 不属于本次扩展。macOS 没有 Developer ID 公证，首次安装的系统提示和更新后权限行为保持现状。
 

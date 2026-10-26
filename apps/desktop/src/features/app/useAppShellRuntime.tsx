@@ -40,6 +40,7 @@ import { useSidebarTransition } from "./useSidebarTransition";
 import { useStartupWatchdog } from "./useStartupWatchdog";
 import { useTraySessions } from "./useTraySessions";
 import { runLiveVoiceShortcut } from "../voice/live/live-voice-shortcuts";
+import { beginDictationHold } from "../voice/dictation/dictation-hold";
 
 const MODIFIER_ONLY_KEYS = new Set([
   "Alt",
@@ -878,6 +879,11 @@ export function useAppShellRuntime() {
           shortcut.id === "voiceToggle" ||
           shortcut.id === "voiceCancel")
       ) {
+        return;
+      }
+      // mc-agent: hold to talk; the release is watched by the hold itself.
+      if (shortcut.id === "dictationHold") {
+        if (e.repeat || beginDictationHold()) e.preventDefault();
         return;
       }
       if (shortcut.id === "voiceToggle" || shortcut.id === "voiceCancel") {

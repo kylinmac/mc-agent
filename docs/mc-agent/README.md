@@ -29,6 +29,7 @@
 | [macOS 权限归属与授权体验](macos-permissions.md) | 权限调用进程、签名身份、分步授权、复检；2026-10-22 已实施，结果见第 9 节 |
 | [电脑操作方案](computer-use.md) | 内置 Computer Use 插件：macOS 与 Windows 后端、权限及验证边界 |
 | [Windows 安装与更新](windows-install-update.md) | R15：暗色单页安装、后台下载、原目录静默更新 |
+| [更新说明流程](release-notes.md) | PR 模板「更新说明」、多个 PR 汇总成一个版本条目、发布门禁 |
 | [M1 基线记录](m1-baseline.md) | 构建、冒烟和 B1–B8 实测结果 |
  | [问题记录](bugs.md) | 开发阶段缺陷，编号 B，不占用 R / X |
 | [MC-ADR-0005](adr/mc-0005-work-panel-terminal-and-tools.md) | 工作面板终端与工具栏 |
@@ -39,6 +40,7 @@
 | [MC-ADR-0010](adr/mc-0010-system-prompt-templates.md) | 系统提示词查看与模板 |
 | [MC-ADR-0011](adr/mc-0011-usage-statistics.md) | 用量统计 |
 | [MC-ADR-0012](adr/mc-0012-releases-and-updates.md) | 发布到 GitHub Releases 与更新提醒 |
+| [MC-ADR-0017](adr/mc-0017-post-update-whats-new.md) | 更新后的“更新了什么”与版本更新说明（待确认） |
 | [MC-ADR-0013](adr/mc-0013-creative-studio.md) | 创作工作台（一期：图片） |
 | [MC-ADR-0014](adr/mc-0014-computer-use.md) | 电脑操作（Computer Use）内置插件 |
 | [MC-ADR-0015](adr/mc-0015-macos-permissions.md) | macOS 系统权限页与授权归属 |
