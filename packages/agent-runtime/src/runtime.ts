@@ -18,6 +18,7 @@ import {
   saveCreativeAssetDescription,
   saveCreativeAssetParameters,
 } from "./image-generation/tool.js";
+import { forkBrief, forkableParentMessages } from "./mc-subagent-fork.js";
 import type { McUserHook } from "@pi-desktop/shared";
 import { runUserHooks, hookFeedbackText, MAX_STOP_CONTINUATIONS } from "./mc-user-hooks.js";
 import { REMEMBER_TOOL_NAME, rememberDescription, rememberParameters } from "./mc-memory-tool.js";
@@ -207,6 +208,7 @@ import {
   rebuildChainsFromTranscript,
   selectChainRows,
   seedDelegateMessages,
+  truncateSeededMessages,
   type DelegationChain,
 } from "./delegation-history.js";
 import {
@@ -4856,6 +4858,15 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
   }
 
   /**
+   * mc-agent (MC-ADR-0022): a forked delegate starts from the parent's model
+   * context, cut to the delegate's budget like a resumed chain.
+   */
+  private seedForkedDelegate(provider: RuntimeProviderConfig): AgentMessage[] {
+    const messages = forkableParentMessages(this.agent.state.messages) as Parameters<typeof truncateSeededMessages>[0];
+    return truncateSeededMessages(messages, contextBudgetLimitsFor(buildProviderModel(provider)).hardLimit);
+  }
+
+  /**
    * `Task`: delegate one bounded piece of work to a subagent (ADR 0062).
    *
    * The catalog of definitions rides in this tool's description rather than in
@@ -4887,6 +4898,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
               `No delegation model overrides are configured. ${DELEGATION_DEFAULT_MODEL_GUIDANCE} ${DELEGATION_MODEL_OPT_IN_GUIDANCE}`,
             ]),
         "`task` is the delegate's only instruction. It cannot see this conversation, and you cannot correct it while it runs, so state the goal, the paths and facts it cannot infer, and exactly what to report back.",
+        // mc-agent (MC-ADR-0022): forked delegates.
+        "Set `fork: true` when the delegate needs what this conversation already established (decisions, files read, the user's constraints) and restating it would be long: it then starts with this conversation's context and runs on your model. A fork still needs a precise `task`. Do not combine `fork` with `model` or `resume`.",
         "To run delegates concurrently, emit several Task calls in one assistant message. A message that mixes Task with any other tool runs one call at a time. You may keep working or talk to the user while they run; the runtime delivers their reports when they finish. Call TaskStop only to cancel.",
         "To continue a previous subagent, pass its `resume` id (the `delegationId` returned by Task). Saying \"reuse\" in prose is not enough. Do not pass `model` when resuming; start a new delegation to change models.",
         `Available subagents:\n${catalog}`,
@@ -4915,6 +4928,12 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
           Type.String({
             description:
               "delegationId of a settled subagent in this conversation to continue. Omit to start a new session.",
+          }),
+        ),
+        fork: Type.Optional(
+          Type.Boolean({
+            description:
+              "Start the delegate with this conversation's context and your model. Not with `model` or `resume`.",
           }),
         ),
       }),
@@ -4958,8 +4977,19 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
             `Delegating to ${definition.name} needs a non-empty \`task\` brief.`,
           );
         }
+        // mc-agent (MC-ADR-0022): a fork continues this conversation's context
+        // on the parent's model, so it takes neither a model nor a chain.
+        const fork = isRecord(params) && params.fork === true;
+        if (fork && (resume || modelOverride)) {
+          return this.subagentToolError(
+            toolCallId,
+            "`fork` starts from this conversation on your model; omit `model` and `resume` when forking.",
+          );
+        }
         let provider: RuntimeProviderConfig | undefined;
-        if (modelOverride) {
+        if (fork) {
+          provider = this.provider;
+        } else if (modelOverride) {
           if (this.isDefinitionPinOverride(definition, modelOverride)) {
             provider = this.subagentProvider(definition);
             if (!provider) {
@@ -5054,7 +5084,9 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
             : undefined;
         const initialMessages = resumedChain
           ? this.seedResumedDelegate(resumedChain, provider)
-          : undefined;
+          : fork
+            ? this.seedForkedDelegate(provider)
+            : undefined;
         if (resume && !initialMessages) {
           // The chain resolved but has nothing left to replay. Drop it so the
           // prompt stops advertising an id that can never be continued, and
@@ -5160,7 +5192,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
             parentToolCallId: toolCallId,
             delegationId: record.delegationId,
             scratchDir: this.scratchDir,
-            task,
+            task: fork ? forkBrief(task) : task,
             provider,
             infiniteProviderRetry: this.infiniteProviderRetry,
             thinkingLevel,
