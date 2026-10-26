@@ -20,6 +20,9 @@ export function useTranscriptView(sessionId: string) {
     focus: view?.focus ?? null,
     parentMessage: view?.parentMessage,
     historical: Boolean(view?.focus || view?.restored),
+    // A restored range keeps reading ownership after joining live output.
+    // Only the canonical tail can carry this session's running presentation.
+    liveTail: !view?.focus && !view?.hasMoreAfter && messages.at(-1) === live.at(-1),
     loading: Boolean(view?.loading),
   };
 }

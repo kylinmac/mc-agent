@@ -759,6 +759,11 @@ may be retained while exactly one workspace supplies the visible shell context.
 - Background sessions continue without adding progress chrome to the visible
   session or moving focus. Reduced motion therefore has no progress-card
   transitions to preserve.
+- A restored reading range that has reached the canonical live tail presents
+  the session's running phase, elapsed time, and interaction waits normally.
+  Keeping its reading bookmark does not mean the turn has finished. Rejoining
+  live output preserves the viewport rather than acting like a new turn.
+  Explicit search, unread later pages, and disjoint snapshots remain historical.
 
 ### 2.5 Turn outcome closure
 

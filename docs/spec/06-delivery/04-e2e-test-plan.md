@@ -2104,6 +2104,24 @@ identify the platform validation still needed.
 - **Milestone**: M2
 - **Status**: Source-level regression covered; full visual scenario Draft
 
+#### E2E-TRANSCRIPT-restored-live-tail-status
+
+- **Preconditions**: An isolated renderer with two retained session panes, a
+  running turn with tool output, and the real Composer and SessionPane.
+- **Steps**: Restore a bookmark during selection revalidation; append live
+  output; switch away and reveal the running pane; inspect an unread history
+  range and an explicit search at the tail; settle and abort the turn.
+- **Expected**: The restored live tail keeps a running process header while
+  Stop is available. Content updates and pane reveal do not falsely show
+  Finished. The restored range and scroll offset remain owned by the reader.
+  Another session, unread pages, and explicit search do not inherit live
+  status. Terminal completion and abort show Finished and Stopped respectively.
+- **Automation**: `node scripts/e2e-transcript-reading-position.mjs`
+  (`transcriptLiveTailProbe`).
+- **Specs linked**: `04-ux/09-interaction-patterns.md` §2.4
+- **Acceptance**: C (session switching and running status)
+- **Status**: Automated isolated Electron regression
+
 #### E2E-207: Open large and long sessions through bounded transcript windows
 
 - **Preconditions**: A session contains a message with at least 50 MB of text
