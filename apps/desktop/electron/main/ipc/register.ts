@@ -26,7 +26,6 @@ import { registerMcUsageIpc } from "./mc-usage-ipc";
 import { registerMcPermissionsIpc } from "./mc-permissions-ipc";
 import { registerMcPromptsIpc } from "./mc-prompts-ipc";
 import { registerMcTerminalIpc } from "./mc-terminal-ipc";
-import { registerMcBackgroundIpc } from "./mc-background-ipc";
 import { loadUserHooks, saveUserHooks } from "../mc-user-hooks-store";
 import { registerMcBackgroundIpc, registerMcBackgroundWake } from "./mc-background-ipc";
 import { registerMcCreativeIpc } from "./mc-creative-ipc";
