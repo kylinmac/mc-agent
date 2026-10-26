@@ -8,7 +8,8 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { CloseBehavior } from "@pi-desktop/shared";
 
-export type WindowState = { x: number; y: number; width: number; height: number };
+/** `maximized` (mc-agent) restores a maximized window; the rect is its normal one. */
+export type WindowState = { x: number; y: number; width: number; height: number; maximized?: boolean };
 
 function windowStatePath(dataDir: string) {
   return join(dataDir, "window-state.json");
@@ -29,7 +30,7 @@ export async function readWindowState(
     };
     if (![s.x, s.y, s.width, s.height].every(Number.isFinite)) return null;
     if (s.width < minWidth || s.height < minHeight) return null;
-    return s;
+    return raw.maximized === true ? { ...s, maximized: true } : s;
   } catch {
     return null;
   }

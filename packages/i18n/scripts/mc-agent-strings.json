@@ -3730,8 +3730,23 @@
     "zh-TW": "例如：pnpm test >&2 || exit 2"
   },
   "whatsNewTitle": {
-    "en": "What's new in {{version}}",
-    "zh-CN": "{{version}} 更新了什么",
-    "zh-TW": "{{version}} 更新了什麼"
+    "en": "What's new",
+    "zh-CN": "更新了什么",
+    "zh-TW": "更新了什麼"
+  },
+  "whatsNewVersion": {
+    "en": "mc-agent {{version}}",
+    "zh-CN": "mc-agent {{version}}",
+    "zh-TW": "mc-agent {{version}}"
+  },
+  "whatsNewWhere": {
+    "en": "All versions: Settings → About → Release notes",
+    "zh-CN": "所有版本：设置 → 信息 → 发版日志",
+    "zh-TW": "所有版本：設定 → 資訊 → 發版日誌"
+  },
+  "whatsNewDone": {
+    "en": "Got it",
+    "zh-CN": "知道了",
+    "zh-TW": "知道了"
   }
 }

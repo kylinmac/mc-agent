@@ -1027,7 +1027,9 @@ export async function createWindow({
         ? clampBoundsOriginToWorkArea(normalBounds, display.workArea)
         : normalBounds;
     if (visible.width >= windowMinWidth && visible.height >= windowMinHeight) {
-      writeWindowState(dataDir, visible);
+      // The normal rect plus the maximized flag, so relaunch maximizes again
+      // and un-maximizing returns to the size the user had.
+      writeWindowState(dataDir, window.isMaximized() ? { ...visible, maximized: true } : visible);
     }
   };
   const scheduleStateSave = () => {
@@ -1039,6 +1041,8 @@ export async function createWindow({
   };
   window.on("resize", scheduleStateSave);
   window.on("move", scheduleStateSave);
+  window.on("maximize", scheduleStateSave);
+  window.on("unmaximize", scheduleStateSave);
   window.on("close", (event) => {
     if (saveTimer) {
       clearTimeout(saveTimer);
@@ -1164,6 +1168,8 @@ export async function createWindow({
     // Capture runs need the deterministic Codex footprint; normal launches
     // must respect restored user bounds and only fix real shelf states.
     ensureStableBounds(process.env.PI_DESKTOP_CAPTURE === "1");
+    // mc-agent: reopen maximized when it was closed maximized.
+    if (savedState?.maximized && process.env.PI_DESKTOP_CAPTURE !== "1") window.maximize();
     window.show();
     window.focus();
     // Burst re-assert only while Stage Manager initially settles / shelves us.
