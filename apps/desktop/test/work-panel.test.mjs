@@ -39,6 +39,8 @@ const quickToolsSource = await readFile(
 // mc-agent (MC-ADR-0005): the header holds the tool icons; tabs live in
 // each tool's pane below it, so the header keeps only controls out of the
 // native drag region.
+// mc-agent: the work panel has no tab strip (MC-ADR-0005), so upstream's
+// tab-overflow and close-button reveal tests (#1762) do not apply here.
 test("the work panel header holds the tools and leaves the rest draggable", () => {
   assert.match(panelSource, /className="work-panel-tab-strip-wrap"/);
   assert.match(panelSource, /<WorkPanelQuickTools \/>/);
