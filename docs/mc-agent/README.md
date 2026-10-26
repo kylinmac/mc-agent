@@ -31,6 +31,7 @@
  | [问题记录](bugs.md) | 开发阶段缺陷，编号 B，不占用 R / X |
 | [MC-ADR-0005](adr/mc-0005-work-panel-terminal-and-tools.md) | 工作面板终端与工具栏 |
 | [MC-ADR-0006](adr/mc-0006-background-commands.md) | 后台命令与后台任务面板 |
+| [MC-ADR-0022](adr/mc-0022-forked-subagents.md) | 继承对话上下文的子代理（fork） |
 | [MC-ADR-0007](adr/mc-0007-split-view.md) | 并列对话（分栏） |
 | [MC-ADR-0008](adr/mc-0008-installed-identity.md) | 安装版使用独立身份 |
 | [MC-ADR-0009](adr/mc-0009-import-from-other-agents.md) | 从其他智能体导入项目和对话 |

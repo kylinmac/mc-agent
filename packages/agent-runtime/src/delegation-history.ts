@@ -371,7 +371,7 @@ export function seedDelegateMessages(options: {
  * recorded usage, which still counts the history this truncation drops, so the
  * anchor could never fall below the limit no matter how much is removed.
  */
-function truncateSeededMessages(
+export function truncateSeededMessages(
   messages: Message[],
   hardLimit: number,
 ): Message[] {
