@@ -1554,7 +1554,7 @@ sklm: {
     themeFromPlugin: "Provided by the {{plugin}} plugin.",
     themeSearchPlaceholder: "Search themes…",
     permissionMode: "Permission mode",
-    permissionModeDesc: "How tool actions are approved by default. Auto runs commands without asking and may change files. You can still change this per session.",
+    permissionModeDesc: "How tool actions are approved by default. Auto runs commands without asking and may change files; force-pushes, merges, releases, publishing, deletes outside the project and sudo still ask. You can still change this per session.",
     permissionModeAsk: "Ask every time",
     permissionModeAcceptEdits: "Auto-accept edits",
     permissionModeAuto: "Full auto",
