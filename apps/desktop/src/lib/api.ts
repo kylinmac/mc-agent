@@ -3,6 +3,7 @@ import { guardRemoteInvocation } from "./remote-ipc-safety";
 import { isRemoteSession, safeSessionSummary } from "./remote-session-safety";
 import type {
   BackgroundShell,
+  McUserHook,
   CreativeAsset,
   CreativeJob,
   CreativeMethod,
@@ -2144,6 +2145,9 @@ export const api = {
     invoke<BackgroundShell & { output: string; truncated: boolean }>(IPC.invoke.backgroundShellsView, { sessionId, id }),
   backgroundShellsKill: (sessionId: string, id: string) =>
     invoke<BackgroundShell>(IPC.invoke.backgroundShellsKill, { sessionId, id }),
+  // mc-agent user hooks (MC-ADR-0021).
+  mcHooksGet: () => invoke<{ hooks: McUserHook[] }>(IPC.invoke.mcHooksGet),
+  mcHooksSet: (hooks: McUserHook[]) => invoke<{ hooks: McUserHook[] }>(IPC.invoke.mcHooksSet, hooks),
   // mc-agent creative studio (docs/mc-agent/creative-studio.md).
   creative: {
     /** A host `creative.*` method; the name fixes its parameters and result. */

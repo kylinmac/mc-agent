@@ -19,7 +19,8 @@ import {
   type RuntimeProviderConfig,
 } from "./runtime.js";
 import type { PluginSkillDef } from "./plugin-skills-prompt.js";
-import type { SessionMessageOrigin, TrustedExtensionSpec } from "@pi-desktop/shared";
+import type { McUserHook, SessionMessageOrigin, TrustedExtensionSpec } from "@pi-desktop/shared";
+import { normalizeMcUserHooks } from "@pi-desktop/shared";
 import type { ProjectInstructions } from "./project-instructions.js";
 import type { CustomSystemPrompt } from "./custom-system-prompt.js";
 import {
@@ -136,6 +137,8 @@ type RuntimeParams = {
   customSystemPrompt?: CustomSystemPrompt;
   projectInstructions?: ProjectInstructions;
   projectMemory?: string;
+  /** mc-agent (MC-ADR-0021): user-configured shell hooks. */
+  userHooks?: McUserHook[];
   compactionSettings?: ContextCompactionSettings;
   attachmentsDir?: string;
   userMessageId?: string;
@@ -245,6 +248,7 @@ async function runtimeFor(
     projectInstructions: params.projectInstructions,
     customSystemPrompt: params.customSystemPrompt,
     projectMemory: params.projectMemory,
+    userHooks: normalizeMcUserHooks(params.userHooks),
     projectPath: params.projectPath,
     remoteWorkspace: params.remoteWorkspace,
     workspaceRoot: params.workspaceRoot,
@@ -324,6 +328,7 @@ async function runtimeFor(
     customSystemPrompt: params.customSystemPrompt,
     projectInstructions: params.projectInstructions,
     projectMemory: params.projectMemory,
+    userHooks: normalizeMcUserHooks(params.userHooks),
     scratchDir:
       typeof params.scratchDir === "string" && params.scratchDir
         ? params.scratchDir

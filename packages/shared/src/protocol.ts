@@ -245,6 +245,9 @@ export const IPC = {
     backgroundShellsList: "pi-desktop/mc-background/list",
     backgroundShellsView: "pi-desktop/mc-background/view",
     backgroundShellsKill: "pi-desktop/mc-background/kill",
+    // mc-agent user hooks (MC-ADR-0021).
+    mcHooksGet: "pi-desktop/mc-hooks/get",
+    mcHooksSet: "pi-desktop/mc-hooks/set",
     projectFoldersMissing: "pi-desktop/project-resources/missing-folders",
     projectResourcesTemplateSave: "pi-desktop/project-resources/templates/save",
     projectResourcesTemplateDelete: "pi-desktop/project-resources/templates/delete",
