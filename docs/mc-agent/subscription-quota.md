@@ -13,9 +13,10 @@
 | GitHub Copilot 登录 | OAuth `github-copilot`（不含企业版） | `GET https://api.github.com/copilot_internal/user`，用登录时的 GitHub 令牌 | 每月 premium 请求；无限额或无额度时不显示 |
 | Kimi Code | OAuth `kimi-coding`，或 Base URL 为 `api.kimi.com` 的 Key | `GET https://api.kimi.com/coding/v1/usages` | `limits[]` 的窗口（如 5h）和顶层每周额度 |
 | GLM Coding Plan | Base URL 主机为 `api.z.ai` 或 `open.bigmodel.cn` 的 Key | `GET https://<同主机>/api/monitor/usage/quota/limit`，Key 不带 Bearer | `TOKENS_LIMIT` 的 5h、周；每月 MCP 工具额度不是模型用量，不显示 |
+| Grok 订阅（xAI 登录） | OAuth `xai` | `GET https://cli-chat-proxy.grok.com/v1/billing?format=credits`，带 `x-grok-client-mode: cli`；Grok Build CLI 读的积分池 | `creditUsagePercent` 对应的计费周期（目前为周）；格式参考开源客户端 [RongleCat/grok-app](https://github.com/RongleCat/grok-app) |
 | MiniMax Token／Coding Plan | Base URL 主机为 `api.minimaxi.com` 或 `api.minimax.io` 的 Key | `GET https://<同主机>/v1/token_plan/remains` | 5h 区间、周；优先读剩余百分比，`usage_count` 实为剩余量 |
 
-xAI 登录、OpenRouter 和其他 API Key 没有已知的额度接口，不显示。
+xAI API Key、OpenRouter 和其他 API Key 按量计费或没有已知的额度接口，不显示。
 
 ## 约束
 
@@ -24,5 +25,7 @@ xAI 登录、OpenRouter 和其他 API Key 没有已知的额度接口，不显�
 - 远程会话不显示。
 
 ## 验证状态
+
+2026-10-26：加入 Grok 订阅。开发版用已登录的 xAI 账号实测：接口返回本周已用 6%，输入框显示“周 94%”，悬停有重置时间。
 
 2026-10-26：解析与路由测试 10 项通过（各服务样例、窗口按时长区分、缓存、凭据主机限制）。开发版用已登录的 Codex 账号实测：接口返回只有周窗口，输入框显示“周 95%”。Claude、Copilot、Kimi、GLM、MiniMax 未用真实账号验证，格式依据社区实现，可能需要按实际返回调整。

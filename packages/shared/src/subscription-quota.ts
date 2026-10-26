@@ -14,7 +14,7 @@ export type SubscriptionQuotaWindow = {
 };
 
 export type SubscriptionQuota = {
-  /** Which reader produced it: codex, claude, copilot, kimi, glm, minimax. */
+  /** Which reader produced it: codex, claude, copilot, kimi, glm, minimax, xai. */
   source: string;
   windows: SubscriptionQuotaWindow[];
   fetchedAt: number;
