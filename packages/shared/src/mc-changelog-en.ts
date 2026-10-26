@@ -11,8 +11,11 @@ export const mcEnEntries: McReleaseNotes[] = [
   {
     version: "1.0.23",
     date: "2026-10-26",
-    highlights: [
-      "With a Grok subscription signed in through your xAI account, the composer now shows the week's remaining quota (for example \"Week 94%\"); hover for the reset time.",
+    features: [
+      "With a Grok subscription signed in through your xAI account, the composer shows the week's remaining quota (for example \"Week 94%\"); hover for the reset time.",
+    ],
+    improvements: [
+      "Release notes are grouped into New / Improved / Fixed, in shorter plain sentences.",
     ],
   },
   {

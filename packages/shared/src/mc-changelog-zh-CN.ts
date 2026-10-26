@@ -15,8 +15,11 @@ export const mcZhCNEntries: McReleaseNotes[] = [
   {
     version: "1.0.23",
     date: "2026-10-26",
-    highlights: [
-      "用 xAI 账号登录 Grok 订阅时，输入框右侧也会显示本周剩余额度（如“周 94%”），悬停可看重置时间。",
+    features: [
+      "用 xAI 账号登录 Grok 订阅时，输入框右侧显示本周剩余额度（如「周 94%」），悬停可看重置时间。",
+    ],
+    improvements: [
+      "更新说明按「新功能 / 优化 / 修复」分组，句子改短，去掉空话。",
     ],
   },
   {
