@@ -32,6 +32,8 @@
   background: color-mix(in oklab, var(--ds-text-muted) 14%, transparent);
   color: var(--ds-text-muted);
   font-weight: var(--font-weight-strong);
+}
+
 /* mc-agent: remaining subscription quota beside the context ring. */
 .mc-quota-chip {
   display: inline-flex;
