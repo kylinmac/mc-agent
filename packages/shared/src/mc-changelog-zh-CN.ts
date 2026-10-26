@@ -13,6 +13,15 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.24",
+    date: "2026-10-27",
+    features: [
+      "在对话里说要做什么项目、放在哪，Agent 会建议位置和模板，你在卡片上确认后才创建项目；也可从新建对话框「用对话新建」、侧栏「项目」右键菜单或 / 菜单进入。",
+      "没有合适模板时，Agent 可以为这个项目起草一套只用这一次的模板，也可以保存为模板库里的新模板。",
+      "设置 → 项目模板 可设置多个新项目位置，并为每个位置写用途说明。",
+    ],
+  },
+  {
     version: "1.0.23",
     date: "2026-10-26",
     features: [
