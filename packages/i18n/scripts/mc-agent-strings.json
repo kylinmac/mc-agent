@@ -3568,5 +3568,105 @@
     "en": "{{percent}}% left",
     "zh-CN": "剩余 {{percent}}%",
     "zh-TW": "剩餘 {{percent}}%"
+  },
+  "hooksNav": {
+    "en": "Hooks",
+    "zh-CN": "钩子",
+    "zh-TW": "鉤子"
+  },
+  "hooksTitle": {
+    "en": "Hooks",
+    "zh-CN": "钩子",
+    "zh-TW": "鉤子"
+  },
+  "hooksIntro": {
+    "en": "Shell commands that always run at fixed points of a turn, in the conversation's project folder, without asking. Exit code 2 means \"push back\": before a tool call it blocks the call, after one its output joins the result, and when the agent would finish it keeps the agent working. Any other exit code is ignored.",
+    "zh-CN": "在每一轮的固定时机自动运行的 shell 命令，在对话所在的项目目录里执行，不再询问。退出码 2 表示“有意见”：工具调用前会拦下这次调用，工具调用后输出会附在结果里，Agent 要结束时会让它继续干。其他退出码忽略。",
+    "zh-TW": "在每一輪的固定時機自動執行的 shell 命令，在對話所在的專案目錄裡執行，不再詢問。結束碼 2 表示「有意見」：工具呼叫前會攔下這次呼叫，工具呼叫後輸出會附在結果裡，Agent 要結束時會讓它繼續做。其他結束碼忽略。"
+  },
+  "hooksDesc": {
+    "en": "The tool name, its input and result, the session and the project folder are in MC_TOOL_NAME, MC_TOOL_INPUT, MC_TOOL_RESULT, MC_SESSION_ID and MC_PROJECT_DIR. Changes apply from each conversation's next prompt.",
+    "zh-CN": "工具名、输入、结果、会话和项目目录分别在环境变量 MC_TOOL_NAME、MC_TOOL_INPUT、MC_TOOL_RESULT、MC_SESSION_ID、MC_PROJECT_DIR 里。修改从各对话的下一次发送起生效。",
+    "zh-TW": "工具名、輸入、結果、會話和專案目錄分別在環境變數 MC_TOOL_NAME、MC_TOOL_INPUT、MC_TOOL_RESULT、MC_SESSION_ID、MC_PROJECT_DIR 裡。修改從各對話的下一次傳送起生效。"
+  },
+  "hooksAdd": {
+    "en": "Add hook",
+    "zh-CN": "添加钩子",
+    "zh-TW": "新增鉤子"
+  },
+  "hooksEmpty": {
+    "en": "No hooks yet.",
+    "zh-CN": "还没有钩子。",
+    "zh-TW": "還沒有鉤子。"
+  },
+  "hookEvent": {
+    "en": "When",
+    "zh-CN": "时机",
+    "zh-TW": "時機"
+  },
+  "hookEvent_PreToolUse": {
+    "en": "Before a tool call",
+    "zh-CN": "工具调用前",
+    "zh-TW": "工具呼叫前"
+  },
+  "hookEvent_PostToolUse": {
+    "en": "After a tool call",
+    "zh-CN": "工具调用后",
+    "zh-TW": "工具呼叫後"
+  },
+  "hookEvent_Stop": {
+    "en": "When the agent would finish",
+    "zh-CN": "Agent 要结束时",
+    "zh-TW": "Agent 要結束時"
+  },
+  "hookMatcher": {
+    "en": "Tools",
+    "zh-CN": "工具",
+    "zh-TW": "工具"
+  },
+  "hookMatcherPlaceholder": {
+    "en": "Tool names, e.g. Write|Edit; empty for all",
+    "zh-CN": "工具名，如 Write|Edit；留空为全部",
+    "zh-TW": "工具名，如 Write|Edit；留空為全部"
+  },
+  "hookMatcherInvalid": {
+    "en": "The tool pattern is not a valid regular expression.",
+    "zh-CN": "工具匹配不是有效的正则表达式。",
+    "zh-TW": "工具比對不是有效的正規表示式。"
+  },
+  "hookTimeout": {
+    "en": "Timeout in seconds (default 60)",
+    "zh-CN": "超时秒数（默认 60）",
+    "zh-TW": "逾時秒數（預設 60）"
+  },
+  "hookEnabled": {
+    "en": "Enabled",
+    "zh-CN": "启用",
+    "zh-TW": "啟用"
+  },
+  "hookRemove": {
+    "en": "Remove hook",
+    "zh-CN": "删除钩子",
+    "zh-TW": "刪除鉤子"
+  },
+  "hookCommand": {
+    "en": "Command",
+    "zh-CN": "命令",
+    "zh-TW": "命令"
+  },
+  "hookCommandPlaceholder_PreToolUse": {
+    "en": "e.g. a script that exits 2 to refuse a command",
+    "zh-CN": "例如：拒绝某些命令时以退出码 2 结束的脚本",
+    "zh-TW": "例如：拒絕某些命令時以結束碼 2 結束的腳本"
+  },
+  "hookCommandPlaceholder_PostToolUse": {
+    "en": "e.g. pnpm exec prettier --check . >&2 || exit 2",
+    "zh-CN": "例如：pnpm exec prettier --check . >&2 || exit 2",
+    "zh-TW": "例如：pnpm exec prettier --check . >&2 || exit 2"
+  },
+  "hookCommandPlaceholder_Stop": {
+    "en": "e.g. pnpm test >&2 || exit 2",
+    "zh-CN": "例如：pnpm test >&2 || exit 2",
+    "zh-TW": "例如：pnpm test >&2 || exit 2"
   }
 }

@@ -15,6 +15,7 @@ export type SettingsTabId =
   | "mcp"
   | "subagents"
   | "systemPrompts"
+  | "hooks"
   | "projectTemplates"
   | "systemPermissions"
   | "mcUsage"
@@ -257,6 +258,14 @@ export const SETTINGS_NAV: SettingsNavEntry[] = [
     titleKey: "mcProject.promptPageTitle",
     group: "agent",
     keywordKeys: ["mcProject.promptTemplates", "mcProject.promptByModel", "mcProject.promptByProject"],
+  },
+  {
+    // mc-agent (MC-ADR-0021): user hooks.
+    id: "hooks",
+    labelKey: "mcProject.hooksNav",
+    titleKey: "mcProject.hooksTitle",
+    group: "agent",
+    keywordKeys: ["mcProject.hooksDesc", "mcProject.hookEvent_PreToolUse", "mcProject.hookEvent_PostToolUse", "mcProject.hookEvent_Stop"],
   },
   {
     id: "subagents",

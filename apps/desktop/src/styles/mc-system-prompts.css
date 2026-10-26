@@ -113,3 +113,44 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* mc-agent (MC-ADR-0021): user hooks. */
+.mc-hooks-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.mc-hooks-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mc-hooks-matcher {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mc-hooks-timeout {
+  width: 72px;
+  flex: 0 0 auto;
+}
+
+.mc-hooks-command {
+  min-height: 56px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.mc-hooks-error {
+  margin: 0;
+  color: var(--ds-error);
+  font-size: var(--text-xs);
+}
+
+.mc-hooks-event,
+.mc-hooks-event-trigger {
+  flex: 0 0 auto;
+  min-width: 190px;
+}
