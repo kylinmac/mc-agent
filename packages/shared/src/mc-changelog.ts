@@ -1,7 +1,10 @@
 import type { ChangelogEntry } from "./changelog.js";
 import { normalizeChangelogVersion } from "./changelog-runtime.js";
 import { mcEnEntries } from "./mc-changelog-en.js";
+import { MC_CHANGE_KINDS, type McChangeKind, type McReleaseNotes } from "./mc-changelog-types.js";
 import { mcZhCNEntries } from "./mc-changelog-zh-CN.js";
+
+export { MC_CHANGE_KINDS, type McChangeKind, type McReleaseNotes } from "./mc-changelog-types.js";
 
 /**
  * mc-agent 自己的版本更新说明（MC-ADR-0017）。
@@ -11,16 +14,44 @@ import { mcZhCNEntries } from "./mc-changelog-zh-CN.js";
  * 简体中文是源语言，英文可选。中文界面读中文，其他界面语言读英文，
  * 缺英文时回落到中文。
  *
- * 安装版启动时由 apps/desktop 的 McWhatsNew 弹出「更新了什么」。
+ * 每个版本按 新功能 / 优化 / 修复 分组（McReleaseNotes）。对外返回的
+ * McChangelogEntry 同时带 `sections`（分组，界面按组显示）和 `highlights`
+ * （按组顺序拍平，兼容上游只认 ChangelogEntry 的地方）。
+ *
+ * 安装版启动时由 apps/desktop 的 McWhatsNew 弹出「更新内容」。
  */
 
 export type McChangelogLocale = "zh-CN" | "en";
 
+export type McChangeSection = { kind: McChangeKind; items: string[] };
+
+/** One version as shown: grouped `sections` plus the same lines flattened into `highlights`. */
+export type McChangelogEntry = ChangelogEntry & { sections: McChangeSection[] };
+
+type McCatalog = Record<McChangelogLocale, readonly McReleaseNotes[]>;
+
 /** Locale → newest-first mc-agent release notes. */
-export const MC_CHANGELOG: Record<McChangelogLocale, readonly ChangelogEntry[]> = {
+export const MC_CHANGELOG: McCatalog = {
   "zh-CN": mcZhCNEntries,
   en: mcEnEntries,
 };
+
+/** Non-empty categories in display order (新功能 → 优化 → 修复). */
+export function mcChangeSections(notes: McReleaseNotes): McChangeSection[] {
+  return MC_CHANGE_KINDS.map((kind) => ({ kind, items: notes[kind] ?? [] })).filter(
+    (section) => section.items.length > 0,
+  );
+}
+
+function toEntry(notes: McReleaseNotes): McChangelogEntry {
+  const sections = mcChangeSections(notes);
+  return {
+    version: notes.version,
+    ...(notes.date ? { date: notes.date } : {}),
+    sections,
+    highlights: sections.flatMap((section) => section.items),
+  };
+}
 
 export function resolveMcChangelogLocale(input?: string | null): McChangelogLocale {
   const value = (input || "").replaceAll("_", "-").toLowerCase();
@@ -47,14 +78,14 @@ export function compareMcVersions(a: string, b: string): number {
 export function getMcChangelogEntry(
   version: string | null | undefined,
   localeInput?: string | null,
-): ChangelogEntry | undefined {
+): McChangelogEntry | undefined {
   const key = normalizeChangelogVersion(version);
   if (!key) return undefined;
   const locale = resolveMcChangelogLocale(localeInput);
-  return (
+  const notes =
     MC_CHANGELOG[locale].find((entry) => entry.version === key) ??
-    MC_CHANGELOG["zh-CN"].find((entry) => entry.version === key)
-  );
+    MC_CHANGELOG["zh-CN"].find((entry) => entry.version === key);
+  return notes ? toEntry(notes) : undefined;
 }
 
 export type McReleaseNotesOptions = {
@@ -64,7 +95,7 @@ export type McReleaseNotesOptions = {
    * 这项功能的版本对所有老用户都没有记录，靠它区分升级和新安装。
    */
   existingInstall?: boolean;
-  catalog?: Record<McChangelogLocale, readonly ChangelogEntry[]>;
+  catalog?: McCatalog;
 };
 
 /**
@@ -74,13 +105,13 @@ export type McReleaseNotesOptions = {
  * - `lastSeen` 为空时：新安装返回空（只记录版本，不弹）；已有安装视为
  *   从上一个版本升级，只返回当前版本这一条。
  * - 降级或版本相同时返回空。
- * - `highlights` 为空的版本（无用户可见变化）跳过。
+ * - 三类都为空的版本（无用户可见变化）跳过。
  */
 export function mcReleaseNotesSince(
   lastSeen: string | null | undefined,
   current: string | null | undefined,
   { locale: localeInput, existingInstall = false, catalog = MC_CHANGELOG }: McReleaseNotesOptions = {},
-): ChangelogEntry[] {
+): McChangelogEntry[] {
   const from = normalizeChangelogVersion(lastSeen);
   const to = normalizeChangelogVersion(current);
   if (!to || (!from && !existingInstall) || (from && compareMcVersions(to, from) <= 0)) return [];
@@ -91,11 +122,12 @@ export function mcReleaseNotesSince(
       from ? compareMcVersions(version, from) > 0 && compareMcVersions(version, to) <= 0 : compareMcVersions(version, to) === 0,
     )
     .sort((a, b) => compareMcVersions(b, a));
-  const result: ChangelogEntry[] = [];
+  const result: McChangelogEntry[] = [];
   for (const version of versions) {
-    const entry =
+    const notes =
       catalog[locale].find((item) => item.version === version) ??
       catalog["zh-CN"].find((item) => item.version === version);
+    const entry = notes ? toEntry(notes) : undefined;
     if (entry?.highlights.length) result.push(entry);
   }
   return result;
@@ -104,10 +136,10 @@ export function mcReleaseNotesSince(
 /** Every mc-agent version's notes, newest first, in the reader's language where written. */
 export function mcChangelogEntries(
   localeInput?: string | null,
-  catalog: Record<McChangelogLocale, readonly ChangelogEntry[]> = MC_CHANGELOG,
-): ChangelogEntry[] {
+  catalog: McCatalog = MC_CHANGELOG,
+): McChangelogEntry[] {
   const locale = resolveMcChangelogLocale(localeInput);
-  return catalog["zh-CN"].map(
-    (entry) => catalog[locale].find((item) => item.version === entry.version) ?? entry,
+  return catalog["zh-CN"].map((entry) =>
+    toEntry(catalog[locale].find((item) => item.version === entry.version) ?? entry),
   );
 }

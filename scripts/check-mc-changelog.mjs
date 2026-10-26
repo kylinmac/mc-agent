@@ -10,8 +10,11 @@
  *
  * 校验 packages/shared/src/mc-changelog-zh-CN.ts（源语言）和 mc-changelog-en.ts：
  *   - 版本为 x.y.z 且 >= 1.0.0（上游 0.x 写在 changelog-*.ts，不在这里），不重复、新版本在前；
- *   - date 可选，格式 YYYY-MM-DD；highlights 是非空字符串数组，`[]` 表示本版无用户可见变化；
- *   - 英文条目可缺，有则版本必须在中文里存在、条数一致。
+ *   - date 可选，格式 YYYY-MM-DD；
+ *   - 按 features（新功能）/ improvements（优化）/ fixes（修复）分组，每组是非空字符串数组；
+ *     三组都没有表示本版无用户可见变化。不再接受扁平的 highlights；
+ *   - 每行不带项目符号或「新功能：」这类前缀（界面按组显示标题），不含「进一步优化体验」这类空话；
+ *   - 英文条目可缺，有则版本必须在中文里存在、每组条数一致。
  * `--require` 只对 REQUIRED_FROM 及之后的版本生效：此前的标签发布时还没有这套流程，
  * 重跑旧版本的发布草稿不因此失败。
  *
@@ -29,6 +32,18 @@ const SOURCES = {
   "zh-CN": { file: "packages/shared/src/mc-changelog-zh-CN.ts", exportName: "mcZhCNEntries" },
   en: { file: "packages/shared/src/mc-changelog-en.ts", exportName: "mcEnEntries" },
 };
+
+/**
+ * v1.0.20–v1.0.22 的标签里还是扁平的 highlights。重跑这些版本的发布草稿时，
+ * 门禁读的是标签里的旧文件，所以这几个版本仍接受 highlights（只查格式，不查措辞）。
+ */
+export const FLAT_HIGHLIGHTS_UNTIL = "1.0.22";
+
+/** 分组，与 packages/shared/src/mc-changelog-types.ts 的 MC_CHANGE_KINDS 一致。 */
+export const KINDS = ["features", "improvements", "fixes"];
+
+/** 不说清用户得到了什么的套话；写具体变化。 */
+export const FILLER = /进一步|全面提升|全新升级|更加(清晰|流畅|顺滑|便捷|稳定|友好)|(优化|提升)(了)?(用户)?体验|更紧凑清晰|improved? (the )?(overall )?experience|enhanced? (the )?experience|seamless/i;
 
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
@@ -76,14 +91,41 @@ export function validateEntries(label, entries) {
     if (date !== undefined && (typeof date !== "string" || !validDate(date))) {
       failures.push(`${where}: date ${JSON.stringify(date)} must be YYYY-MM-DD`);
     }
-    if (!Array.isArray(highlights)) {
-      failures.push(`${where}: highlights must be an array ([] = 无用户可见变化)`);
-    } else {
-      highlights.forEach((line, lineIndex) => {
+    if (highlights !== undefined) {
+      if (compareVersions(version, FLAT_HIGHLIGHTS_UNTIL) > 0 || KINDS.some((kind) => entry[kind] !== undefined)) {
+        failures.push(`${where}: use features / improvements / fixes instead of highlights (见 docs/mc-agent/release-notes.md)`);
+      } else if (!Array.isArray(highlights)) {
+        failures.push(`${where}: highlights must be an array`);
+      } else {
+        highlights.forEach((line, lineIndex) => {
+          if (typeof line !== "string" || line.trim() === "" || line !== line.trim()) {
+            failures.push(`${where}.highlights[${lineIndex}]: must be a non-empty trimmed string`);
+          }
+        });
+      }
+    }
+    for (const key of Object.keys(entry)) {
+      if (!["version", "date", "highlights", ...KINDS].includes(key)) {
+        failures.push(`${where}: unknown key ${key}; categories are ${KINDS.join(" / ")}`);
+      }
+    }
+    for (const kind of KINDS) {
+      const lines = entry[kind];
+      if (lines === undefined) continue;
+      if (!Array.isArray(lines)) {
+        failures.push(`${where}.${kind}: must be an array of strings`);
+        continue;
+      }
+      lines.forEach((line, lineIndex) => {
+        const at = `${where}.${kind}[${lineIndex}]`;
         if (typeof line !== "string" || line.trim() === "" || line !== line.trim()) {
-          failures.push(`${where}.highlights[${lineIndex}]: must be a non-empty trimmed string`);
+          failures.push(`${at}: must be a non-empty trimmed string`);
         } else if (/^[-*•]\s/.test(line)) {
-          failures.push(`${where}.highlights[${lineIndex}]: drop the bullet prefix; the UI adds it`);
+          failures.push(`${at}: drop the bullet prefix; the UI adds it`);
+        } else if (/^(新功能|功能|优化|修复|bug|new|improved|fixed)\s*[:：·]/i.test(line)) {
+          failures.push(`${at}: drop the category prefix; the UI shows the group title`);
+        } else if (FILLER.test(line)) {
+          failures.push(`${at}: say what the user gets instead of filler (${line.match(FILLER)[0]})`);
         }
       });
     }
@@ -100,16 +142,20 @@ export function validateCatalog({ zh, en }, { require } = {}) {
     const source = zhByVersion.get(entry.version);
     if (!source) {
       failures.push(`en: ${entry.version} has no zh-CN entry (zh-CN is the source)`);
-    } else if (source.highlights.length !== entry.highlights.length) {
-      failures.push(
-        `en: ${entry.version} has ${entry.highlights.length} highlights, zh-CN has ${source.highlights.length}`,
-      );
+    } else {
+      for (const kind of [...KINDS, "highlights"]) {
+        const zhCount = source[kind]?.length ?? 0;
+        const enCount = entry[kind]?.length ?? 0;
+        if (zhCount !== enCount) {
+          failures.push(`en: ${entry.version} has ${enCount} ${kind}, zh-CN has ${zhCount}`);
+        }
+      }
     }
   }
   if (require && compareVersions(require, REQUIRED_FROM) >= 0) {
     if (!zhByVersion.has(require)) {
       failures.push(
-        `zh-CN: no entry for ${require}. 发布前在 mc-changelog-zh-CN.ts 加一条（无用户可见变化写 highlights: []）`,
+        `zh-CN: no entry for ${require}. 发布前在 mc-changelog-zh-CN.ts 加一条（无用户可见变化只写 version 和 date）`,
       );
     }
     const newer = zh.filter((entry) => compareVersions(entry.version, require) > 0);
