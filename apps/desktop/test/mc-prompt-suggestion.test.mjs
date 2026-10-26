@@ -32,8 +32,12 @@ test("Tab accepts only into an empty draft, and the setting gates the request", 
   const input = readFileSync(new URL("../src/features/chat/composer/ComposerInput.tsx", import.meta.url), "utf8");
   const composer = readFileSync(new URL("../src/components/Composer.tsx", import.meta.url), "utf8");
   const ipc = readFileSync(new URL("../electron/main/ipc/mc-session-insight-ipc.ts", import.meta.url), "utf8");
-  assert.match(input, /const showSuggestion = value\.length === 0 && Boolean\(suggestion\)/);
-  assert.match(input, /event\.key === "Tab" &&[\s\S]*?showSuggestion &&[\s\S]*?onAcceptSuggestion\(\)/);
+  // The suggestion shares the plugin slot (ADR 0333): drawn only while the
+  // draft is empty, and Tab takes it only when no completion claims the key.
+  assert.match(input, /\{value\.length === 0 \? \(\s*suggestion \?/);
+  assert.match(input, /composerSuggestionKeyAction\(event,/);
+  assert.match(composer, /nextSuggestionText\s*\? \{[\s\S]*?: pluginSuggestion,/);
+  assert.match(composer, /applyEditorDraft\(nextSuggestionText, \[\], nextSuggestionText\.length\)/);
   assert.match(composer, /enabled: settings\?\.promptSuggestions === true/);
   assert.match(composer, /if \(source\) nextSuggestion\.dismiss\(\)/);
   assert.match(ipc, /if \(!suggestionsEnabled \|\| !\(await suggestionsEnabled\(\)\)\) return \{ text: null \}/);

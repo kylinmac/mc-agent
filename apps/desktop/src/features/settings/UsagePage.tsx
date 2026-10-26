@@ -160,7 +160,7 @@ export function UsagePage() {
       {summary && totals ? (
         <>
           <div className="mc-usage-kpis">
-            <Kpi label={t("mcProject.usageTotal")} value={compactTokens(totals.totalTokens)} detail={t("mcProject.usageTurns", { count: totals.turns })} />
+            <Kpi label={t("mcProject.usageTotalTokens")} value={compactTokens(totals.totalTokens)} detail={t("mcProject.usageTurns", { count: totals.turns })} />
             <Kpi label={t("mcProject.usageInput")} value={compactTokens(totals.inputTokens)} />
             <Kpi label={t("mcProject.usageOutput")} value={compactTokens(totals.outputTokens)} detail={totals.reasoningTokens ? t("mcProject.usageReasoning", { value: compactTokens(totals.reasoningTokens) }) : undefined} />
             <Kpi
@@ -222,7 +222,7 @@ export function UsagePage() {
                       <th>{t("mcProject.usageInput")}</th>
                       <th>{t("mcProject.usageOutput")}</th>
                       <th>{t("mcProject.usageCacheRead")}</th>
-                      <th>{t("mcProject.usageTotal")}</th>
+                      <th>{t("mcProject.usageTotalTokens")}</th>
                       <th aria-label={t("mcProject.usageShare")} />
                     </tr>
                   </thead>

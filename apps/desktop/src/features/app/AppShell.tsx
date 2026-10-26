@@ -1,4 +1,11 @@
-import { type CSSProperties, lazy, type ReactNode, Suspense, useEffect } from "react";
+import {
+  type CSSProperties,
+  lazy,
+  type ReactNode,
+  Suspense,
+  useEffect,
+  useState,
+} from "react";
 import { ConversationTopbar } from "../../components/ConversationTopbar";
 import { AppRail } from "../app-rail/AppRail";
 import { WindowsTitlebarActions } from "../app-rail/WindowsTitlebarActions";
@@ -13,6 +20,7 @@ import {
   IconPanel,
   IconPanelOpen,
 } from "../../components/icons";
+import { LifecycleConfirmationDialog } from "../../components/LifecycleConfirmationDialog";
 import { ProjectCreateDialog } from "../../components/ProjectCreateDialog";
 import { ProjectImportDialog } from "../project-import/ProjectImportDialog";
 import { SearchDialog } from "../../components/SearchDialog";
@@ -103,8 +111,9 @@ export function AppShell() {
     startupRetrying,
     sidebarToggleShortcut,
     workPanelToggleTooltip,
-    workPanelWidth,
+    requestedWorkPanelWidth,
   } = useAppShellRuntime();
+  const [toastAnchor, setToastAnchor] = useState<HTMLElement | null>(null);
   useCopyTex();
   // mc-agent (MC-ADR-0007): in a split view the work panel docks under the
   // focused column, so the right-hand panel is not shown.
@@ -129,7 +138,7 @@ export function AppShell() {
     containerWidth: shellWidth,
     sidebarWidth,
     sidebarCollapsed,
-    requestedPanelWidth: workPanelWidth,
+    requestedPanelWidth: requestedWorkPanelWidth,
     maximized: workPanelMaximized,
   }).panelWidth;
 
@@ -203,7 +212,7 @@ export function AppShell() {
             )}
 
             {!workPanelMaximized && (
-              <section className="main-pane">
+              <section ref={setToastAnchor} className="main-pane">
                 {page === "chat" ? (
                   <ConversationTopbar
                     sidebarCollapsed={sidebarCollapsed}
@@ -373,7 +382,7 @@ export function AppShell() {
           </div>
         </PortalVisibilityProvider>
         <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
-        <ToastHost />
+        <ToastHost anchorElement={page === "settings" ? null : toastAnchor} />
         <LiveVoiceStatusHost />
         <PluginRendererHost />
         <ExtensionPromptHost />
@@ -406,6 +415,7 @@ export function AppShell() {
       <ProjectCreateDialog />
       {/* mc-agent (MC-ADR-0009): import projects from other agents. */}
       <ProjectImportDialog />
+      <LifecycleConfirmationDialog />
       {splash}
       {startupRecovery}
     </div>

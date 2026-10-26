@@ -31,7 +31,7 @@ import {
 import { ComposerAutocomplete } from "./ComposerAutocomplete";
 import { AskToolCard } from "./AskToolCard";
 import { PlanApprovalBar } from "./PlanApprovalBar";
-import { TodoDock } from "./TodoDock";
+import { TaskDock } from "./TaskDock";
 import {
   COMPOSER_MAX_VISIBLE_ROWS,
   COMPOSER_MIN_HEIGHT_PX,
@@ -50,6 +50,7 @@ import { useComposerDraft } from "../features/chat/composer/hooks/useComposerDra
 import { useComposerInputHistory } from "../features/chat/composer/hooks/useComposerInputHistory";
 import { useNextPromptSuggestion } from "../features/chat/composer/hooks/useNextPromptSuggestion";
 import { usePluginComposerBridge } from "../features/chat/composer/hooks/usePluginComposerBridge";
+import { useComposerSuggestion, type ComposerSuggestionView } from "../features/chat/composer/hooks/useComposerSuggestion";
 import { useComposerSubmit } from "../features/chat/composer/hooks/useComposerSubmit";
 import { useComposerTransforms } from "../features/chat/composer/hooks/useComposerTransforms";
 import { ComposerInput } from "../features/chat/composer/ComposerInput";
@@ -152,6 +153,7 @@ export function Composer({
       : EMPTY_QUEUED_PROMPTS,
   );
 
+  const [modeOpen, setModeOpen] = useState(false);
   const [permissionOpen, setPermissionOpen] = useState(false);
   const composerTransformInvalidateRef = useRef<() => void>(() => {});
   const composerShellRef = useRef<HTMLDivElement>(null);
@@ -423,6 +425,7 @@ export function Composer({
 
   useEffect(() => {
     if (!controlsBlocked) return;
+    setModeOpen(false);
     setPermissionOpen(false);
   }, [controlsBlocked]);
 
@@ -501,6 +504,28 @@ export function Composer({
 
   // Plugin draft and attachment actions reach this composer while it takes input.
   usePluginComposerBridge({ ...draft, inputBlocked, enabled: localToolsAllowed });
+  // A plugin may have offered one line for this empty draft; it shows in the
+  // placeholder layer and `Tab` takes it (ADR 0333).
+  const pluginSuggestion = useComposerSuggestion();
+  // mc-agent: the suggested next message shares the plugin's slot and wins it.
+  const nextSuggestionText = inputBlocked ? null : nextSuggestion.text;
+  const dismissNextSuggestion = nextSuggestion.dismiss;
+  const suggestion = useMemo<ComposerSuggestionView | null>(
+    () =>
+      nextSuggestionText
+        ? {
+            text: nextSuggestionText,
+            hint: t("chat.suggestionHint"),
+            accept: () => {
+              dismissNextSuggestion();
+              applyEditorDraft(nextSuggestionText, [], nextSuggestionText.length);
+              return true;
+            },
+            dismiss: dismissNextSuggestion,
+          }
+        : pluginSuggestion,
+    [nextSuggestionText, dismissNextSuggestion, pluginSuggestion, applyEditorDraft, t],
+  );
 
   // Keep the transcript's bottom reserve in sync with the composer's real
   // height (it grows with multi-line input) so the last message sits just
@@ -533,7 +558,10 @@ export function Composer({
       data-composer-dock={variant}
     >
       <div className="composer-stack">
-        {activeSessionId && localToolsAllowed ? <TodoDock sessionId={activeSessionId} /> : null}
+        {/* One container for todo and background tasks: the tabs live in the
+            header, so the gate now covers both the way it already covered the
+            todo dock. */}
+        {activeSessionId && localToolsAllowed ? <TaskDock sessionId={activeSessionId} /> : null}
         {planCheckpoint?.status === "pending" ? (
           <PlanApprovalBar proposal={planCheckpoint} />
         ) : null}
@@ -586,18 +614,11 @@ export function Composer({
             enterToSend={enterToSend}
             runActive={runActive}
             composerAc={completions.ac}
+            suggestion={suggestion}
             onPaste={pasteClipboardFiles}
             onAcceptCompletion={completions.acceptCompletion}
             onSubmit={(steering) => void submitFromComposer(steering)}
             onInsertNewline={insertNewlineInEditor}
-            suggestion={inputBlocked ? null : nextSuggestion.text}
-            suggestionHint={t("mcProject.suggestionTabHint")}
-            onAcceptSuggestion={() => {
-              const text = nextSuggestion.text;
-              if (!text) return;
-              nextSuggestion.dismiss();
-              applyEditorDraft(text, [], text.length);
-            }}
             onInput={(source, caret) => {
               inputHistory.exitBrowsing();
               if (source) nextSuggestion.dismiss();
@@ -631,6 +652,8 @@ export function Composer({
             modelId={modelId}
             thinkingLevel={thinkingLevel}
             composerPermissionMode={composerPermissionMode}
+            modeOpen={modeOpen}
+            setModeOpen={setModeOpen}
             permissionOpen={permissionOpen}
             setPermissionOpen={setPermissionOpen}
             controlsBlocked={controlsBlocked}

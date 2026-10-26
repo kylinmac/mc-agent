@@ -26,14 +26,19 @@ pub fn run_cli() -> Result<bool> {
 pub(crate) struct Roots {
     source: PathBuf,
     canonical_source: PathBuf,
+    project_source: PathBuf,
     destination: PathBuf,
 }
 
 impl Roots {
     /// Roots that move one directory tree, e.g. a renamed resource folder.
     pub(crate) fn moving(source: &Path, destination: &Path) -> Self {
+        let canonical_source = fs::canonicalize(source).unwrap_or_else(|_| source.to_path_buf());
         Self {
-            canonical_source: fs::canonicalize(source).unwrap_or_else(|_| source.to_path_buf()),
+            project_source: crate::db::normalize_project_path(&canonical_source.to_string_lossy())
+                .map(PathBuf::from)
+                .unwrap_or_else(|| canonical_source.clone()),
+            canonical_source,
             source: source.to_path_buf(),
             destination: destination.to_path_buf(),
         }
@@ -49,6 +54,7 @@ impl Roots {
         let suffix = path
             .strip_prefix(&self.source)
             .or_else(|_| path.strip_prefix(&self.canonical_source))
+            .or_else(|_| path.strip_prefix(&self.project_source))
             .ok()?;
         // `join("")` would append a separator to the moved root itself.
         let target = if suffix.as_os_str().is_empty() {
@@ -271,6 +277,12 @@ pub fn relocate(source: &Path, destination: &Path) -> Result<()> {
     }
     let roots = Roots {
         source: source.to_path_buf(),
+        // Project repositories strip Windows verbatim prefixes and normalize
+        // separators; retain that same canonical spelling when matching keys.
+        project_source: PathBuf::from(
+            crate::db::normalize_project_path(&canonical_source.to_string_lossy())
+                .context("normalize canonical relocation source")?,
+        ),
         canonical_source,
         destination: destination.to_path_buf(),
     };
@@ -366,7 +378,13 @@ pub(crate) fn rewrite_database_paths(connection: &Connection, roots: &Roots) -> 
                     serde_json::from_str(&text).context("parse relocation database metadata")?;
                 roots.structured(&mut value).then(|| value.to_string())
             } else {
-                roots.remap(&text)
+                roots.remap(&text).map(|path| {
+                    if table == "projects" {
+                        crate::db::normalize_project_path(&path).unwrap_or(path)
+                    } else {
+                        path
+                    }
+                })
             };
             if let Some(next) = next {
                 connection.execute(
@@ -393,7 +411,10 @@ pub(crate) fn rewrite_database_paths(connection: &Connection, roots: &Roots) -> 
         for (namespace, key, text) in rows {
             let next_key = if matches!(namespace.as_str(), "projectMemory" | "projectInstructions")
             {
-                roots.remap(&key).unwrap_or_else(|| key.clone())
+                roots
+                    .remap(&key)
+                    .map(|path| crate::db::normalize_project_path(&path).unwrap_or(path))
+                    .unwrap_or_else(|| key.clone())
             } else {
                 key.clone()
             };

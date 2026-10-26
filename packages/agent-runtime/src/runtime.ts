@@ -129,6 +129,7 @@ import {
   subagentToolsLabel,
   type ProposalKind,
   type SubagentPermission,
+  GEN_UI_SKILL_ID,
 } from "@pi-desktop/shared";
 import { createStreamCoalescer, type StreamCoalescer } from "./stream-coalescer.js";
 import type { RuntimeHost } from "./host-client.js";
@@ -173,6 +174,7 @@ import {
 } from "./system-transcript.js";
 import {
   dedupeToolCallMessages,
+  createToolCallIdentity,
   reportDuplicateToolCallDrop,
 } from "./tool-call-dedupe.js";
 import {
@@ -208,6 +210,7 @@ import {
   clampOutputToContext,
   effectiveModelContextWindow,
   estimateOutputCapInputTokens,
+  requestTranscript,
 } from "./output-cap.js";
 import {
   composeSubagentSystemPrompt,
@@ -1078,6 +1081,10 @@ export type AgentRuntimeOptions = {
    * Advertised to the model in the system prompt; host-core enforces it as
    * a second containment root. */
   scratchDir?: string;
+  /** Absolute per-session directory for inline visualization fragments
+   * (ADR gen-ui-inline-visualization). Advertised in the system prompt;
+   * host-core enforces it as a containment root. Ignored for remote sessions. */
+  visualizationsDir?: string;
   onEvent: (envelope: AgentEventEnvelope) => void;
   /** Bounded diagnostics routed to the Electron logger, never the transcript. */
   onDiagnostic?: (diagnostic: AgentRuntimeDiagnostic) => void;
@@ -1325,6 +1332,14 @@ const TOOL_PARAM_ALIASES: Record<string, Record<string, string>> = {
   KillBash: { bash_id: "backgroundId", shell_id: "backgroundId" },
 };
 const TOOL_OUTPUT_UPDATE_THROTTLE_MS = 100;
+const READ_ONLY_CORE_TOOLS = new Set(["Read", "Glob", "Grep"]);
+/**
+ * How long a stop request waits for a tool that host-core can actually
+ * interrupt (`Bash`, `GenerateImages`) to hand back the output it collected
+ * before the kill (#1767). Tools without host-side cancellation do not wait at
+ * all: the runtime stops waiting the moment the signal fires.
+ */
+const TOOL_ABORT_GRACE_MS = 10_000;
 const MAX_TOOL_PROGRESS_CHARS = 64 * 1024;
 const TOOL_PROGRESS_TRUNCATION_MARKER =
   "\n\n[tool output progress truncated]\n\n";
@@ -1390,6 +1405,7 @@ function commandShellToolDescription(
     shellSyntaxGuidance(shell),
     `The session scratch directory variable is ${shellScratchVariable(shell)}.`,
     `An optional timeout from 1 to ${MAX_COMMAND_TIMEOUT_SECONDS} seconds may be supplied; without it, the command defaults to a 60-second timeout.`,
+    `Set runInBackground: true for long-lived processes the user needs after the turn ends (dev servers, watchers, builds). A background call returns a backgroundTaskId immediately, survives turn aborts and timeouts, and its output is visible in the composer's running-tasks bar; do not set it for commands whose output the current turn depends on.`,
     ...(formattedScratch ? [`The session scratch directory is ${formattedScratch}.`] : []),
   ].join(" ");
 }
@@ -1650,8 +1666,12 @@ export function toolResultFromUi(
   if (rawBlocks) {
     for (const b of rawBlocks) {
       if (!isRecord(b)) continue;
-      if (b.type === "text" && typeof b.text === "string") {
-        blocks.push({ type: "text", text: b.text });
+      // Same text rule as live execution: embedded MCP resources and resource
+      // links stay visible after a session restore. Binary resources have no
+      // text and stay out.
+      const blockText = hostContentBlockText(b);
+      if (blockText !== undefined) {
+        blocks.push({ type: "text", text: blockText });
       } else if (
         b.type === "image" &&
         typeof b.data === "string" &&
@@ -1665,8 +1685,9 @@ export function toolResultFromUi(
     // and image blocks so a restart does not flatten them into JSON (#1360).
     for (const b of raw) {
       if (!isRecord(b)) continue;
-      if (b.type === "text" && typeof b.text === "string") {
-        blocks.push({ type: "text", text: b.text });
+      const blockText = hostContentBlockText(b);
+      if (blockText !== undefined) {
+        blocks.push({ type: "text", text: blockText });
       } else if (
         b.type === "image" &&
         typeof b.data === "string" &&
@@ -1921,6 +1942,7 @@ export class DesktopAgentRuntime {
   private trackToolActivation = false;
   private activationHydrated = false;
   private scratchDir?: string;
+  private visualizationsDir?: string;
   private projectPath?: string;
   private remoteWorkspace?: { hostKey: string; path: string };
   /** Set only for an isolated session; see `RuntimeConfig.workspaceRoot`. */
@@ -2036,6 +2058,7 @@ export class DesktopAgentRuntime {
   private terminatingToolCalls = new Set<string>();
   private delegateMutationTerminations = new Map<string, { code: string; message: string }>();
   private fullEntries: MessageEntry[];
+  private readonly uniqueToolCalls: ReturnType<typeof createToolCallIdentity>;
   private readonly systemJournal = new SystemTranscriptJournal();
   private composedSections: Record<string, string> = {};
   private activeCompaction?: ContextCompactionRecord;
@@ -2082,6 +2105,12 @@ export class DesktopAgentRuntime {
   private contextReminderClaimed = false;
   private contextFallbackReminderClaimed = false;
   private activeToolProgressCleanups = new Set<(flush: boolean) => void>();
+  /**
+   * Abort handlers for the tool calls currently awaiting `tools.execute`.
+   * `abort()` drives these directly: a tool must be released even when the
+   * signal it was handed never fires, or the stop RPC stays pending forever.
+   */
+  private activeToolAborts = new Set<() => void>();
   private hostCloseUnsubscribe?: () => void;
   private turnSubagentUsage?: MessageUsage;
   private compactionRequestShape?: CompactionRequestShape;
@@ -2123,6 +2152,7 @@ export class DesktopAgentRuntime {
     this.commandShell = opts.commandShell;
     this.remoteWorkspace = opts.remoteWorkspace;
     this.scratchDir = opts.remoteWorkspace ? undefined : opts.scratchDir;
+    this.visualizationsDir = opts.remoteWorkspace ? undefined : opts.visualizationsDir;
     this.projectPath = opts.remoteWorkspace?.path ?? (opts.projectPath?.trim() || undefined);
     // Remote workspaces are never isolated (ADR 0329).
     this.workspaceRoot = opts.remoteWorkspace ? undefined : opts.workspaceRoot?.trim() || undefined;
@@ -2142,6 +2172,7 @@ export class DesktopAgentRuntime {
 
     this.transcriptHistory = [...(opts.history ?? [])];
     this.fullEntries = this.historyToEntries(this.transcriptHistory);
+    this.uniqueToolCalls = createToolCallIdentity(this.fullEntries.map((entry) => entry.message));
     this.activeCompaction = opts.compaction;
     this.delegationChains.hydrate(
       rebuildChainsFromTranscript(this.transcriptHistory),
@@ -2154,6 +2185,8 @@ export class DesktopAgentRuntime {
       "Complete the requested work and relevant checks without expanding scope. Preserve unrelated user changes. Resolve recoverable blockers yourself.",
       // Visibility rules.
       "Before each tool batch, briefly state its purpose. Keep the user informed during long work. The final response must state the outcome, verification, and remaining blockers. Never claim actions or checks you did not perform.",
+      // File-reference formatting.
+      "File references: when citing a real local file, use a Markdown link with a short label and the exact absolute path as its target, e.g. [file.ts](/workspace/src/file.ts:42). Add only a starting line (:line or :line:column) when useful; do not use ranges or GitHub #L anchors. Wrap destinations containing spaces in angle brackets. Do not wrap links in backticks or use file://, vscode://, or https:// for local files. Link only to existing files in the accessible workspace; mention unavailable or other-repository files as code text.",
       // Delegation steering (ADR 0089).
       ...(this.subagents.length
         ? [
@@ -2175,6 +2208,12 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       ...(this.scratchDir
         ? [
             `Your scratch directory for this session is \`${formatScratchDirForShell(this.commandShell, this.scratchDir)}\` (in Bash: ${shellScratchVariable(this.commandShell)}). Store ad-hoc temporary and intermediate files there using absolute paths. Workspace writes must be task-related project files or required toolchain outputs. Scratch persists across turns and is deleted with the session.`,
+          ]
+        : []),
+      // Inline visualizations (ADR gen-ui-inline-visualization).
+      ...(this.visualizationsDir
+        ? [
+            `Visualization directory (absolute paths only, .html fragments only; see the ${GEN_UI_SKILL_ID} skill): \`${this.visualizationsDir}\``,
           ]
         : []),
       // Isolated session (ADR 0329).
@@ -2278,6 +2317,9 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         // with pi's own run signal (Stop must keep working): the adapter refuses
         // to start an attempt on an aborted signal, and its backoff sleep rejects.
         const stallAbort = new AbortController();
+        // Both output clamps, ours and pi-ai's inside `streamSimple`, must see
+        // the instructions the adapter sends, not every superseded snapshot.
+        const requestContext = requestTranscript(m, context);
         const attemptOptions: SimpleStreamOptions = {
           ...hookedOptions,
           // Cap the output budget at the pi-desktop layer so the estimate
@@ -2285,7 +2327,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
           // max_tokens, but the low-level `stream` path used by
           // `thinkingLevel: "omit"` would otherwise send it untouched, and
           // both consume an estimate that under-counts CJK text (issue B).
-          maxTokens: clampOutputToContext(m, context, hookedOptions.maxTokens),
+          maxTokens: clampOutputToContext(m, requestContext, hookedOptions.maxTokens),
           signal: AbortSignal.any([
             ...(hookedOptions.signal ? [hookedOptions.signal] : []),
             stallAbort.signal,
@@ -2294,12 +2336,12 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         const usageTurnId = this.turnId;
         const retryStream = createProviderRetryStream(
           m,
-          context,
+          requestContext,
           attemptOptions,
           (retryOptions) => accountModelStream(m, () =>
             this.thinkingLevel === "omit"
-              ? this.models.stream(omitThinkingModel(m), context, retryOptions)
-              : this.models.streamSimple(m, context, retryOptions), {
+              ? this.models.stream(omitThinkingModel(m), requestContext, retryOptions)
+              : this.models.streamSimple(m, requestContext, retryOptions), {
                 providerId: this.provider.id,
                 nativeCost: this.provider.modelConfig?.nativeCost,
                 onUsage: (usage) => this.emit({ type: "usage", usage }, usageTurnId),
@@ -2325,8 +2367,9 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         // configured budget ends as a STREAM_FAILED error and re-enters the
         // shared transient retry path instead of hanging the turn on a
         // connection the provider never closes.
-        return withStreamIdleTimeout(retryStream, m, streamIdleTimeoutMs(), () =>
-          stallAbort.abort(),
+        return this.uniqueToolCalls(
+          withStreamIdleTimeout(retryStream, m, streamIdleTimeoutMs(), () => stallAbort.abort()),
+          context.messages,
         );
       },
       // A vendor account has no long-lived key. Leaving it unset keeps pi-ai
@@ -2346,6 +2389,9 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         );
       },
       prepareRequest: ({ context }) => this.prepareToolDeclarations(context),
+      // Extensions see every provider request, including the first one of a
+      // run, which `prepareNextTurn` never reaches (spec 16 §6, issue #1838).
+      transformContext: (messages) => this.extensionContext(messages),
       prepareNextTurnWithContext: (context, signal) =>
         this.prepareNextTurn(context, signal),
       afterToolCall: async (context) => this.afterToolCall(context),
@@ -2637,17 +2683,20 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     return Object.keys(out).length ? out : undefined;
   }
 
-  /** `context` hook: extensions may rewrite the message list before a provider request. */
-  private async extensionContext(update: AgentLoopTurnUpdate): Promise<AgentLoopTurnUpdate> {
+  /**
+   * `context` hook: extensions may rewrite the message list of one provider
+   * request. The replacement only shapes that request; the run's working
+   * context and the transcript keep the original messages.
+   */
+  private async extensionContext(messages: AgentMessage[]): Promise<AgentMessage[]> {
     const runner = this.extensionRunner;
-    if (!runner?.hasHandlers("context") || !update.context) return update;
+    if (!runner?.hasHandlers("context")) return messages;
     const result = await runner.emit<{ messages?: AgentMessage[] }>(
       "context",
-      { type: "context", messages: update.context.messages },
+      { type: "context", messages },
       (_acc, next) => next,
     );
-    if (!Array.isArray(result?.messages)) return update;
-    return { ...update, context: { ...update.context, messages: result.messages } };
+    return Array.isArray(result?.messages) ? result.messages : messages;
   }
 
   /** Mirror pi-agent-core events to extension handlers (spec 16 §6). */
@@ -3131,7 +3180,9 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       if (m.parentToolCallId) continue;
       const timestamp = Date.parse(m.createdAt) || Date.now();
       if (m.role === "system" && m.modelSystem) {
-        toolCarrier = undefined;
+        // An update recorded while a tool ran sits between the call and its
+        // result. It keeps the carrier: Pi holds the update until the results
+        // are written, which is the shape the live request had.
         append(m.id, this.systemJournal.restore(m));
       } else if (m.role === "user") {
         toolCarrier = undefined;
@@ -3237,11 +3288,11 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
    * The transcript is append-only and tolerates a retried append, so the same
    * call can reach the request twice: under the same row id (which the host's
    * keep-last dedupe already collapses) or a new one (which it cannot). The
-   * first occurrence wins, and a later call *or* a later result for that id is
-   * dropped, so the pair the provider validates stays well-formed — one call,
-   * one result. What was dropped is logged with its ids, because the next
-   * report of this should name the writer instead of only the provider's
-   * sentence.
+   * first pending occurrence wins; a later completed pair is retained under
+   * a fresh request id. New streamed executions are normalized before they
+   * reach this guard or the journal. What was dropped is logged with its ids,
+   * because the next report should name the writer instead of only the
+   * provider's sentence.
    */
   private dropDuplicateToolCalls(messages: AgentMessage[]): AgentMessage[] {
     const drop = dedupeToolCallMessages(messages);
@@ -3349,9 +3400,9 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         case "Edit":
           return `Replace, insert, or delete lines in an existing file. Names positions and supplies new content only — never old_string. Required: path, tag (4 hex from the latest Read/Grep/Write/Edit), ops. Ops: PUT N.=M: replace inclusive lines N–M; PUT <N: insert before N; PUT >N: insert after N; PUT >$: append; CUT N.=M delete; REM delete the file; MV DEST rename after other ops. Body rows are + plus the final line text. Every PUT with body rows must include the trailing colon, for example PUT 48.=48:; PUT 48.=48 followed by + rows is invalid. A colonless PUT is only for a register paste such as PUT <1 @name. No -old or context rows. Ranges name only the lines being changed. Re-ground on the tag returned by every successful write. After one failed Edit, classify the error: Read the live file for a stale tag or unseen lines (or retry unchanged on a complete EDIT_LINES_UNSEEN reveal), but correct syntax or range errors directly; do not guess. Do not edit the same path concurrently.${scratchPathHint}${externalPathHint}`;
         case "Bash":
-          return `${commandShellToolDescription(this.commandShell, this.scratchDir)} Use Edit or Write instead of apply_patch, git apply, or patch; do not retry a failed shell patch command repeatedly.${this.mode === "agent" ? " For a long-running process (a dev server, a watcher, a long build or test run) set runInBackground: true: the call returns a backgroundId at once and the process keeps running after the turn; read its new output with BashOutput and stop it with KillBash when it is no longer needed." : ""}`;
+          return `${commandShellToolDescription(this.commandShell, this.scratchDir)} Use Edit or Write instead of apply_patch, git apply, or patch; do not retry a failed shell patch command repeatedly.${this.mode === "agent" ? " Read a background command's new output with BashOutput and stop it with KillBash once it is no longer needed; both take the backgroundTaskId the call returned as backgroundId." : ""}`;
         case "BashOutput":
-          return "Read the new output of a background command started with Bash runInBackground, since your last read, plus its status (running, exited with exitCode, killed, failed). Output is combined stdout and stderr; when much was printed only the latest part is returned. Poll sparingly: check after doing other work rather than in a tight loop.";
+          return "Read the new output of a background command started with Bash runInBackground, since your last read, plus its status (running, exited, failed with exitCode, stopped). stdout is in output and stderr in stderr; when much was printed only the latest part is returned. Poll sparingly: check after doing other work rather than in a tight loop.";
         case "KillBash":
           return "Stop a background command started with Bash runInBackground, including the processes it started. Stop servers and watchers you started once the task no longer needs them.";
         case "TodoWrite":
@@ -3461,19 +3512,13 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         ),
       },
       BashOutput: {
-        backgroundId: Type.String({ description: "The backgroundId returned by Bash runInBackground." }),
+        backgroundId: Type.String({ description: "The backgroundTaskId returned by Bash runInBackground." }),
       },
       KillBash: {
-        backgroundId: Type.String({ description: "The backgroundId returned by Bash runInBackground." }),
+        backgroundId: Type.String({ description: "The backgroundTaskId returned by Bash runInBackground." }),
       },
       Bash: {
         command: Type.String(),
-        runInBackground: Type.Optional(
-          Type.Boolean({
-            description:
-              "Agent mode: start the command and return a backgroundId immediately instead of waiting; timeout does not apply.",
-          }),
-        ),
         timeout: Type.Optional(
           Type.Number({
             minimum: MIN_COMMAND_TIMEOUT_SECONDS,
@@ -3482,6 +3527,12 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
             maximum: MAX_ACCEPTED_COMMAND_TIMEOUT,
             description:
               `Optional command timeout in seconds from 1 to ${MAX_COMMAND_TIMEOUT_SECONDS}; defaults to 60 seconds.`,
+          }),
+        ),
+        runInBackground: Type.Optional(
+          Type.Boolean({
+            description:
+              "Start the command as a background task that outlives the turn (dev servers, watchers, builds). Returns backgroundTaskId immediately; ignored with timeout.",
           }),
         ),
       },
@@ -3555,13 +3606,27 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
               scheduleProgress();
             })
           : undefined;
+        // Read-only core tools may be abandoned locally if host-core is still
+        // waiting on a blocking read/search. Mutating, MCP, and plugin calls
+        // must settle before the turn is reported stopped. Bash and image
+        // generation retain their host process-abort path and grace window.
+        const hostAbortsProcess = isBash || toolName === "GenerateImages";
+        const canAbandonWait = READ_ONLY_CORE_TOOLS.has(toolName);
+        const abortedMarker = Symbol("tool-aborted");
+        let resolveAborted: (marker: typeof abortedMarker) => void = () => undefined;
+        const aborted = new Promise<typeof abortedMarker>((resolve) => {
+          resolveAborted = resolve;
+        });
+        let abortGraceTimer: ReturnType<typeof setTimeout> | undefined;
+        let stopped = false;
         const abort = () => {
-          if ((!isBash && toolName !== "GenerateImages") || abortRequested || settled) return;
+          if (abortRequested || settled) return;
           abortRequested = true;
           abortPromise = this.host
             .call("tools.abort", {
               sessionId: this.sessionId,
               toolCallId,
+              toolName,
             })
             .then(
               () => undefined,
@@ -3569,7 +3634,21 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
                 abortError = error;
               },
             );
+          // Release progress/output resources before arming the grace window:
+          // cleanup is idempotent and must not race the timer it would clear.
           cleanup(true);
+          if (hostAbortsProcess) {
+            // Bounded window for the partial output the host collected before
+            // the kill; past it the turn ends regardless.
+            abortGraceTimer = setTimeout(
+              () => resolveAborted(abortedMarker),
+              TOOL_ABORT_GRACE_MS,
+            );
+          } else if (canAbandonWait) {
+            // These tools are read-only, so returning before their host-side
+            // work drains cannot leave a write or external action behind.
+            resolveAborted(abortedMarker);
+          }
         };
 
         cleanup = (flush: boolean) => {
@@ -3581,6 +3660,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
           unsubscribeOutput?.();
           signal?.removeEventListener("abort", abort);
           this.activeToolProgressCleanups.delete(cleanup);
+          this.activeToolAborts.delete(abort);
         };
         this.activeToolProgressCleanups.add(cleanup);
         if (signal?.aborted) {
@@ -3592,6 +3672,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         if (signal) {
           signal.addEventListener("abort", abort, { once: true });
         }
+        this.activeToolAborts.add(abort);
 
         let result: {
           ok: boolean;
@@ -3603,7 +3684,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         let executionError: unknown;
         let executionFailed = false;
         try {
-          result = await this.host.call<{
+          const execution = this.host.call<{
               ok: boolean;
               content: unknown;
               isError?: boolean;
@@ -3621,6 +3702,9 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
                     expectedCommandShellId: this.commandShell.id,
                     expectedCommandShellDialect: this.commandShell.dialect,
                     timeoutMs,
+                    ...(isRecord(params) && params.runInBackground === true
+                      ? { runInBackground: true }
+                      : {}),
                   }
                 : {}),
               ...(toolName.startsWith("plugin_")
@@ -3651,15 +3735,34 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
                 ? { delegationId: this.delegateWorktrees.get(toolCallId) }
                 : {}),
             });
+          // #1767: read-only host work must not keep the user-facing turn open
+          // indefinitely. Other tool classes deliberately wait for the Host
+          // result so a write or extension action cannot outlive a reported
+          // stop.
+          const raced = await Promise.race([execution, aborted]);
+          if (raced === abortedMarker) {
+            stopped = true;
+          } else {
+            result = raced;
+          }
         } catch (error) {
           executionFailed = true;
           executionError = error;
         } finally {
           this.delegatePermissionScopes.delete(toolCallId);
           cleanup(true);
+          // cleanup is a no-op once the abort path has run, so the grace timer
+          // it armed is released here instead.
+          if (abortGraceTimer) clearTimeout(abortGraceTimer);
         }
         if (abortPromise) await abortPromise;
         if (abortError) throw abortError;
+        if (stopped) {
+          throw Object.assign(
+            new Error(`tool execution aborted while ${toolName} was running`),
+            { errorCode: "TOOL_ABORTED" },
+          );
+        }
         if (executionFailed) throw executionError;
         if (!result) throw new Error("tool execution returned no result");
         const recordParams = isRecord(params) ? params : undefined;
@@ -6503,14 +6606,12 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     this.activeProviderRetryAttempt = retryAttempt;
     this.pendingProviderRetry = undefined;
 
-    const messages = [...this.agent.state.messages];
-    if (messages.at(-1)?.role !== "assistant") {
-      throw new Error("Cannot retry a provider stream without its failed assistant message");
-    }
     // A failed stream can be represented by more than one trailing assistant
-    // message after a tool round. Remove the whole failed suffix before
-    // continuing; pi-agent-core rejects any assistant-terminated transcript.
-    while (messages.at(-1)?.role === "assistant") messages.pop();
+    // message after a tool round. Compaction may already have replaced the
+    // failed assistant with a summary or retained user message, so an
+    // assistant tail is optional. Remove any failed suffix before continuing;
+    // pi-agent-core rejects an assistant-terminated transcript.
+    const messages = removeTrailingAssistantMessages(this.agent.state.messages);
     this.setAgentMessages(messages);
 
     this.providerRetryInProgress = true;
@@ -6938,13 +7039,6 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
    * this hook.
    */
   private async prepareNextTurn(
-    turn: PrepareNextTurnContext,
-    signal?: AbortSignal,
-  ): Promise<AgentLoopTurnUpdate> {
-    return this.extensionContext(await this.prepareNextTurnWithoutExtensions(turn, signal));
-  }
-
-  private async prepareNextTurnWithoutExtensions(
     turn: PrepareNextTurnContext,
     _signal?: AbortSignal,
   ): Promise<AgentLoopTurnUpdate> {
@@ -9200,6 +9294,14 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     this.providerRetryAbort?.abort();
     if (this.compactionInProgress) this.compactionAborted = true;
     this.compactionAbort?.abort();
+    // `agent.abort()` normally fires the signal each in-flight tool was handed,
+    // and the tool executor reacts to that. When the signal does not reach a
+    // tool, the executor keeps awaiting `tools.execute`, the turn never
+    // settles, and this method never returns. The renderer awaits this RPC
+    // before it clears the "processing" state, so one unyielding tool pinned
+    // the whole session until it finished on its own (#1767). Drive the tools
+    // from here as well, so a stop always releases them.
+    for (const abortTool of [...this.activeToolAborts]) abortTool();
     await settlement;
   }
 

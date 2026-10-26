@@ -442,19 +442,57 @@ export function createApplicationLifecycle({
       case "resetZoom":
         contents.setZoomFactor(1);
         break;
-      case "toggleFullScreen":
+      case "toggleFullScreen": {
+        // Entering fullscreen from a maximized window leaves both flags set on
+        // Windows: `setFullScreen` does not clear the maximize state, and the
+        // maximized state is what `refitWindowToWorkArea` reads first to bail
+        // out. The result is a window that never fits itself back into the
+        // current work area and ends up stranded on another display (issue
+        // #1655). Unmaximize first, then toggle — and remember the windowed
+        // state so leaving fullscreen returns to what the user actually had
+        // rather than a restored-size window.
+        if (!isWindowFullScreen(target)) {
+          const wasMaximized = target.isMaximized();
+          if (wasMaximized) target.unmaximize();
+          if (wasMaximized) {
+            target.once("leave-full-screen", () => {
+              if (target.isDestroyed() || isWindowFullScreen(target)) return;
+              target.maximize();
+            });
+          }
+          setWindowFullScreen(
+            target,
+            true,
+            process.platform === "win32" && target === state.mainWindow,
+          );
+          break;
+        }
         setWindowFullScreen(
           target,
-          !isWindowFullScreen(target),
+          false,
           process.platform === "win32" && target === state.mainWindow,
         );
         break;
+      }
       case "minimize":
         target.minimize();
         break;
       case "toggleMaximize":
-        if (target.isMaximized()) target.unmaximize();
-        else target.maximize();
+        // Maximizing a fullscreen window must leave fullscreen first, or the
+        // window keeps both flags and the same stranding path above applies
+        // (issue #1655).
+        if (target.isMaximized()) {
+          target.unmaximize();
+        } else {
+          if (isWindowFullScreen(target)) {
+            setWindowFullScreen(
+              target,
+              false,
+              process.platform === "win32" && target === state.mainWindow,
+            );
+          }
+          target.maximize();
+        }
         break;
       case "close":
         target.close();
@@ -534,9 +572,31 @@ export function createApplicationLifecycle({
     }
     if (nativeTheme.themeSource === next) return;
     nativeTheme.themeSource = next;
-    if (process.platform === "darwin" && state.mainWindow && !state.mainWindow.isDestroyed()) {
+    // Only a translucent window owns a vibrancy material to re-apply; the
+    // opaque surface is repainted through the background path instead.
+    if (
+      process.platform === "darwin" &&
+      state.macosWindowTranslucency &&
+      state.mainWindow &&
+      !state.mainWindow.isDestroyed()
+    ) {
       state.mainWindow.setVibrancy("sidebar");
     }
+  }
+
+  /**
+   * Remember the surface the next main window is created with.
+   * `settings.macosWindowTranslucency` cannot take effect on a live window —
+   * Electron fixes `transparent` at creation — so a change is persisted and
+   * applied on the next launch instead of mutating the current window.
+   */
+  function applyMacosWindowTranslucency(
+    settings?: { macosWindowTranslucency?: unknown } | null,
+  ) {
+    // Absent means the shipped translucency: the setting is an opt-out for the
+    // GPU cost of the material, never an opt-in that changes the default look.
+    state.macosWindowTranslucency =
+      process.platform === "darwin" && settings?.macosWindowTranslucency !== false;
   }
 
   /**
@@ -690,6 +750,7 @@ export function createApplicationLifecycle({
     executeNativeMenuAction,
     dispatchNativeMenuAction,
     applyDeveloperMode,
+    applyMacosWindowTranslucency,
     applyPreventScreenSleep,
     applyKeepAwakeWhileRunning,
     disposePowerSaveBlockers,
