@@ -25,7 +25,7 @@ pub const HOME_ENV: &str = "MC_AGENT_HOME";
 pub const DEFAULT_TEMPLATE: &str = "blank";
 
 pub(crate) const TEMPLATES_DIR: &str = "templates";
-const PROJECTS_DIR: &str = "projects";
+pub(crate) const PROJECTS_DIR: &str = "projects";
 const HOME_DIR_NAME: &str = "mc-agent";
 /// Upper bound on entries copied from one template; templates are skeletons.
 const MAX_TEMPLATE_ENTRIES: usize = 2_000;
@@ -484,7 +484,7 @@ pub fn directory_name(project_name: &str) -> String {
 /// Create `parent/name`, or `name-2`, `name-3`, … when taken. Creation itself
 /// is the existence check, so a concurrent writer cannot be handed the same
 /// directory.
-fn create_unique_dir(parent: &Path, name: &str) -> Result<PathBuf> {
+pub(crate) fn create_unique_dir(parent: &Path, name: &str) -> Result<PathBuf> {
     for attempt in 1..=1_000u32 {
         let candidate = if attempt == 1 {
             parent.join(name)

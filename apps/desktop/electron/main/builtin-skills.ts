@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseSkillFrontmatter } from "@pi-desktop/plugin-sdk";
-import { GEN_UI_SKILL_ID } from "@pi-desktop/shared";
+import { GEN_UI_SKILL_ID, NEW_PROJECT_SKILL_ID } from "@pi-desktop/shared";
 import type { PluginSkillDef } from "@pi-desktop/agent-runtime";
 import type { LoadedSkillDocument } from "./skill-document";
 import { getModuleDirectory } from "./module-path";
@@ -23,6 +23,8 @@ const IMAGE_GENERATION_SKILL_FILE = "image-generation.md";
 /** Inline visualization contract (ADR gen-ui-inline-visualization). */
 export const VISUALIZE_SKILL_ID = GEN_UI_SKILL_ID;
 const VISUALIZE_SKILL_FILE = "visualize.md";
+/** mc-agent: create a project from the conversation (MC-ADR-0023). */
+const NEW_PROJECT_SKILL_FILE = "new-project.md";
 
 /** electron-builder copies `resources/skills` to `<resources>/skills`. */
 function resolveBuiltinSkillPath(fileName: string): string | null {
@@ -100,6 +102,7 @@ const BUILTIN_SKILL_FILES = [
   [IMAGE_GENERATION_SKILL_ID, IMAGE_GENERATION_SKILL_FILE],
   [VISUALIZE_SKILL_ID, VISUALIZE_SKILL_FILE],
   [PLUGIN_DEV_SKILL_ID, PLUGIN_DEV_SKILL_FILE],
+  [NEW_PROJECT_SKILL_ID, NEW_PROJECT_SKILL_FILE],
 ] as const;
 
 function builtinSkillFile(id: string): string | null {
@@ -122,7 +125,7 @@ export function builtinSkillCatalog(): PluginSkillDef[] {
  */
 export function builtinSkills(input: BuiltinSkillInput): PluginSkillDef[] {
   const ids: string[] = [IMAGE_GENERATION_SKILL_ID];
-  if (!input.remote) ids.push(VISUALIZE_SKILL_ID);
+  if (!input.remote) ids.push(VISUALIZE_SKILL_ID, NEW_PROJECT_SKILL_ID);
   if (isPluginWorkspace(input.workspacePath, input.pluginPaths)) ids.push(PLUGIN_DEV_SKILL_ID);
   const activeIds = new Set(ids);
   const disabled = new Set(input.disabledIds ?? []);

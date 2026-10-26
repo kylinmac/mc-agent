@@ -171,7 +171,14 @@ export type ProjectTaskPreflight = {
 
 /** A resource folder's template record (`.mc-agent/project.json`). */
 export type ProjectTemplateStatus = {
-  recorded?: { template: string; templateVersion: number; templateFingerprint: string; recordedAt: number };
+  recorded?: {
+    template: string;
+    templateVersion: number;
+    templateFingerprint: string;
+    recordedAt: number;
+    /** mc-agent (MC-ADR-0023): drafted for this project alone, not in the library. */
+    oneOff?: boolean;
+  };
   templateExists: boolean;
   currentVersion?: number;
   /** The template changed since the project recorded it. */

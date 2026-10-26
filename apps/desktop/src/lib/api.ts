@@ -202,6 +202,12 @@ import type {
   ModelConfigImportSource,
 } from "@pi-desktop/shared";
 export type { ModelConfigImportCandidate, ModelConfigImportSource };
+import type {
+  ProjectLocationCheck,
+  ProjectLocationPreference,
+  ProjectProposal,
+  ProjectProposalDecision,
+} from "@pi-desktop/shared";
 
 export interface ImportCandidate {
   source: ImportSource;
@@ -2149,6 +2155,32 @@ export const api = {
   mcReleaseNotesState: () =>
     invoke<{ version: string | null; lastSeen: string | null; existingInstall: boolean }>(IPC.invoke.mcReleaseNotesState),
   mcReleaseNotesSeen: (version: string) => invoke<{ ok: boolean }>(IPC.invoke.mcReleaseNotesSeen, version),
+  /** mc-agent: creating a project from the conversation (MC-ADR-0023). */
+  mcProjectCreate: {
+    proposals: () => invoke<{ proposals: ProjectProposal[] }>(IPC.invoke.mcProjectProposals),
+    resolve: (requestId: string, decision: ProjectProposalDecision) =>
+      invoke<{ ok: boolean }>(IPC.invoke.mcProjectProposalResolve, { requestId, decision }),
+    checkLocation: (parent: string, folder: string) =>
+      invoke<{ check: ProjectLocationCheck }>(IPC.invoke.mcProjectLocationCheck, { parent, folder }),
+    pickParent: (defaultPath?: string) =>
+      invoke<{ path: string | null }>(IPC.invoke.mcProjectPickParent, { defaultPath }),
+    makeFolder: (path: string) =>
+      invoke<{ path: string; created: boolean }>(IPC.invoke.mcProjectMakeFolder, { path }),
+    removeFolder: (path: string) => invoke<{ removed: boolean }>(IPC.invoke.mcProjectRemoveFolder, { path }),
+    ensureDraft: (
+      groupId: string,
+      template: { name: string; description: string; categories: Array<{ name: string; description: string }> },
+    ) => invoke<{ group: ProjectGroupRecord }>(IPC.invoke.mcProjectEnsureDraft, { groupId, template }),
+    locations: () => invoke<{ locations: ProjectLocationPreference[] }>(IPC.invoke.mcProjectLocationsGet),
+    setLocations: (locations: ProjectLocationPreference[]) =>
+      invoke<{ locations: ProjectLocationPreference[] }>(IPC.invoke.mcProjectLocationsSet, { locations }),
+    onChanged: (listener: (proposals: ProjectProposal[]) => void) => {
+      if (!window.piDesktop?.on) return () => undefined;
+      return window.piDesktop.on(IPC.event.mcProjectProposalsChanged, (payload) =>
+        listener((payload as { proposals?: ProjectProposal[] }).proposals ?? []),
+      );
+    },
+  },
   // mc-agent user hooks (MC-ADR-0021).
   mcHooksGet: () => invoke<{ hooks: McUserHook[] }>(IPC.invoke.mcHooksGet),
   mcHooksSet: (hooks: McUserHook[]) => invoke<{ hooks: McUserHook[] }>(IPC.invoke.mcHooksSet, hooks),

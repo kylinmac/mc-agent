@@ -81,6 +81,21 @@ pub fn ensure(state: &AppState, params: &Value) -> Result<Value, JsonRpcError> {
     Ok(json!({ "group": group }))
 }
 
+/// `project.resources.ensureDraft` (MC-ADR-0023): a resource folder laid out
+/// from a template the agent drafted for this project alone.
+pub fn ensure_draft(state: &AppState, params: &Value) -> Result<Value, JsonRpcError> {
+    let group_id = required_str(params, "groupId")?;
+    let input: crate::template_editor::TemplateInput =
+        serde_json::from_value(params.get("template").cloned().unwrap_or(Value::Null))
+            .map_err(|error| rpc_err(1002, error.to_string(), "INVALID_PARAMS"))?;
+    let home = resource_dirs::home_dir().map_err(internal)?;
+    let group = crate::project_draft_template::ensure_project_resources_from_draft(
+        &state.db, &home, group_id, &input,
+    )
+    .map_err(|error| rpc_err(1002, error.to_string(), "INVALID_PARAMS"))?;
+    Ok(json!({ "group": group }))
+}
+
 /// `project.group.context`: the upstream group context plus the workspace
 /// descriptions from the resource directory (R10), which every launch path
 /// renders into the project-folders note. Descriptions are best effort: a

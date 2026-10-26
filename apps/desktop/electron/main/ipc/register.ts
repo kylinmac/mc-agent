@@ -30,6 +30,7 @@ import { loadUserHooks, saveUserHooks } from "../mc-user-hooks-store";
 import { registerMcReleaseNotesIpc } from "./mc-release-notes-ipc";
 import { registerMcBackgroundIpc, registerMcBackgroundWake } from "./mc-background-ipc";
 import { registerMcCreativeIpc } from "./mc-creative-ipc";
+import { registerMcProjectCreateIpc } from "./mc-project-create-ipc";
 import { imageDataUrl, measureImage } from "../creative/measure-image";
 import { TerminalManager } from "../mc-terminal";
 import { registerProviderIpc } from "./provider-ipc";
@@ -404,6 +405,23 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
   });
   registerMcBackgroundIpc({ registrar, getHost });
   registerMcReleaseNotesIpc({ registrar, dataDir });
+  // mc-agent project creation from the conversation (MC-ADR-0023).
+  registerMcProjectCreateIpc({
+    registrar,
+    getHost,
+    dataDir,
+    refreshProjectGroups,
+    sendToRenderer,
+    pickFolder: async (defaultPath) => {
+      const window = getMainWindow();
+      const options = {
+        properties: ["openDirectory" as const, "createDirectory" as const],
+        ...(defaultPath ? { defaultPath } : {}),
+      };
+      const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options);
+      return result.canceled ? null : (result.filePaths[0] ?? null);
+    },
+  });
   // mc-agent user hooks (MC-ADR-0021).
   registrar.handle(IPC.invoke.mcHooksGet, async () => ({ hooks: await loadUserHooks(dataDir) }));
   registrar.handle(IPC.invoke.mcHooksSet, async (hooks: unknown) => ({ hooks: await saveUserHooks(dataDir, hooks) }));

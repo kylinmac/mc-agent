@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { TemplatePicker } from "./TemplatePicker";
+import { startConversationalProject } from "../project-create/start-conversational-project";
 
 export type ProjectKind = "simple" | "managed";
 
@@ -30,8 +31,11 @@ export function ProjectKindPicker({
   disabled?: boolean;
 }) {
   const { t } = useTranslation();
-  const options: Array<{ value: ProjectKind | "chat"; label: string; hint: string }> = [
+  // "conversation" leaves the dialog for a chat that creates the project
+  // (MC-ADR-0023); like "chat", it is an exit rather than a kind.
+  const options: Array<{ value: ProjectKind | "chat" | "conversation"; label: string; hint: string }> = [
     { value: "chat", label: t("mcProject.kindChat"), hint: t("mcProject.kindChatHint") },
+    { value: "conversation", label: t("mcProject.npKindConversation"), hint: t("mcProject.npKindConversationHint") },
     { value: "simple", label: t("mcProject.kindSimple"), hint: t("mcProject.kindSimpleHint") },
     { value: "managed", label: t("mcProject.kindManaged"), hint: t("mcProject.kindManagedHint") },
   ];
@@ -44,7 +48,8 @@ export function ProjectKindPicker({
       </div>
       <div className="mc-kind-options" role="group" aria-labelledby="mc-kind-heading">
         {options.map((option) => {
-          const unavailable = option.value === "managed" && remote;
+          const unavailable = (option.value === "managed" && remote) || (option.value === "conversation" && remote);
+          const exits = option.value === "chat" || option.value === "conversation";
           const active = option.value === kind;
           return (
             <button
@@ -52,10 +57,14 @@ export function ProjectKindPicker({
               type="button"
               className={`mc-kind-option${active ? " is-active" : ""}`}
               data-project-kind={option.value}
-              aria-pressed={option.value === "chat" ? undefined : active}
+              aria-pressed={exits ? undefined : active}
               disabled={disabled || unavailable}
               title={unavailable ? t("mcProject.kindManagedRemote") : undefined}
-              onClick={() => (option.value === "chat" ? onStartChat() : onKindChange(option.value))}
+              onClick={() => {
+                if (option.value === "chat") onStartChat();
+                else if (option.value === "conversation") void startConversationalProject();
+                else onKindChange(option.value);
+              }}
             >
               <span className="mc-kind-option-label">{option.label}</span>
               <span className="mc-kind-option-hint">{option.hint}</span>

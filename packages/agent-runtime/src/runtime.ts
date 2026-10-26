@@ -22,6 +22,14 @@ import { forkBrief, forkableParentMessages } from "./mc-subagent-fork.js";
 import type { McUserHook } from "@pi-desktop/shared";
 import { runUserHooks, hookFeedbackText, MAX_STOP_CONTINUATIONS } from "./mc-user-hooks.js";
 import { REMEMBER_TOOL_NAME, rememberDescription, rememberParameters } from "./mc-memory-tool.js";
+import {
+  CREATE_PROJECT_TOOL_NAME,
+  PROJECT_TEMPLATES_TOOL_NAME,
+  createProjectDescription,
+  createProjectParameters,
+  projectTemplatesDescription,
+  projectTemplatesParameters,
+} from "./mc-project-tools.js";
 import { todoWriteDescription, todoWriteParameters } from "./todo-tool.js";
 import { createJevClassifierTool } from "./jev-classifier-tool.js";
 import { scheduledToolParameters, scheduledToolDescriptions } from "./scheduled-tools.js";
@@ -3439,6 +3447,9 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       if (toolName === "SaveCreativeAsset") return saveCreativeAssetDescription;
       // mc-agent project memory notes (MC-ADR-0019).
       if (toolName === REMEMBER_TOOL_NAME) return rememberDescription;
+      // mc-agent project creation from the conversation (MC-ADR-0023).
+      if (toolName === PROJECT_TEMPLATES_TOOL_NAME) return projectTemplatesDescription;
+      if (toolName === CREATE_PROJECT_TOOL_NAME) return createProjectDescription;
       if (scheduledToolDescriptions[toolName]) return scheduledToolDescriptions[toolName];
       switch (toolName) {
         case "BrowserPreview":
@@ -3500,6 +3511,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       GenerateImages: imageGenerationParameters,
       SaveCreativeAsset: saveCreativeAssetParameters,
       [REMEMBER_TOOL_NAME]: rememberParameters,
+      [PROJECT_TEMPLATES_TOOL_NAME]: projectTemplatesParameters,
+      [CREATE_PROJECT_TOOL_NAME]: createProjectParameters,
       TodoWrite: todoWriteParameters,
       Read: {
         path: pathParam(
@@ -4134,6 +4147,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       tools.push("PluginScaffold", "PluginPack", "GenerateImages", "SaveCreativeAsset", ...Object.keys(scheduledToolParameters));
       // mc-agent: only a conversation in a project has a memory to write.
       if (this.projectPath && !this.remoteWorkspace) tools.push(REMEMBER_TOOL_NAME);
+      // mc-agent: projects are created on this machine (MC-ADR-0023).
+      if (!this.remoteWorkspace) tools.push(PROJECT_TEMPLATES_TOOL_NAME, CREATE_PROJECT_TOOL_NAME);
     }
     const builtins = tools.map(exec);
     const jevTools: AgentTool[] =
