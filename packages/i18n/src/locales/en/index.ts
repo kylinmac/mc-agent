@@ -3764,6 +3764,7 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     permSettingsPath_screenRecording: "System Settings → Privacy & Security → Screen & System Audio Recording",
     permSettingsPath_microphone: "System Settings → Privacy & Security → Microphone",
     sessionInfoRemaining: "{{percent}}% left",
+    memoryByAgent: "Saved by the agent. Edit or delete it like any other note.",
   },
   // mc-agent:end
 } as const;

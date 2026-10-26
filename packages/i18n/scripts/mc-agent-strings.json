@@ -3568,5 +3568,10 @@
     "en": "{{percent}}% left",
     "zh-CN": "剩余 {{percent}}%",
     "zh-TW": "剩餘 {{percent}}%"
+  },
+  "memoryByAgent": {
+    "en": "Saved by the agent. Edit or delete it like any other note.",
+    "zh-CN": "Agent 记下的，可以像其他条目一样修改或删除。",
+    "zh-TW": "Agent 記下的，可以像其他條目一樣修改或刪除。"
   }
 }

@@ -26,3 +26,10 @@
   margin: 6px 0 0;
   white-space: pre-wrap;
 }
+
+/* mc-agent (MC-ADR-0019): project memory notes the agent saved. */
+.project-memory-entry-index[data-agent="true"] {
+  background: color-mix(in oklab, var(--ds-text-muted) 14%, transparent);
+  color: var(--ds-text-muted);
+  font-weight: var(--font-weight-strong);
+}

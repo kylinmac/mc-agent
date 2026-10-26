@@ -3639,6 +3639,7 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
     permSettingsPath_screenRecording: "System Settings → Privacy & Security → Screen & System Audio Recording",
     permSettingsPath_microphone: "System Settings → Privacy & Security → Microphone",
     sessionInfoRemaining: "{{percent}}% left",
+    memoryByAgent: "Saved by the agent. Edit or delete it like any other note.",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

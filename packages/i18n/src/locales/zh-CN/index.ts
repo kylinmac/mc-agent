@@ -3695,6 +3695,7 @@ sklm: {
     permSettingsPath_screenRecording: "系统设置 → 隐私与安全性 → 录屏与系统录音",
     permSettingsPath_microphone: "系统设置 → 隐私与安全性 → 麦克风",
     sessionInfoRemaining: "剩余 {{percent}}%",
+    memoryByAgent: "Agent 记下的，可以像其他条目一样修改或删除。",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;

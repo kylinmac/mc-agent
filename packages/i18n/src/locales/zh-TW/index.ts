@@ -3623,6 +3623,7 @@ sklm: {
     permSettingsPath_screenRecording: "系統設定 → 隱私權與安全性 → 螢幕與系統錄音",
     permSettingsPath_microphone: "系統設定 → 隱私權與安全性 → 麥克風",
     sessionInfoRemaining: "剩餘 {{percent}}%",
+    memoryByAgent: "Agent 記下的，可以像其他條目一樣修改或刪除。",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;
