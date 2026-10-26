@@ -21,6 +21,7 @@ import { registerJevIpc } from "./jev-ipc";
 import { refreshProjectGroups } from "../workspace-roots";
 import { registerProjectResourcesIpc } from "./project-resources-ipc";
 import { registerSessionInsightIpc } from "./mc-session-insight-ipc";
+import { registerMcQuotaIpc } from "./mc-quota-ipc";
 import { registerMcUsageIpc } from "./mc-usage-ipc";
 import { registerMcPermissionsIpc } from "./mc-permissions-ipc";
 import { registerMcPromptsIpc } from "./mc-prompts-ipc";
@@ -345,6 +346,8 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     onProviderInvalidated: (providerId) => liveCallService?.invalidateProvider(providerId),
   });
   registerJevIpc({ registrar, logger });
+  // mc-agent: remaining subscription quota beside the composer.
+  registerMcQuotaIpc({ registrar, getHost, vendorOAuth });
   registerSessionInsightIpc({
     registrar,
     getSidecar,
