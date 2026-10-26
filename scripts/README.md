@@ -54,12 +54,14 @@ The scenarios are specified in
 | `e2e-tool-admission.mjs` | `node scripts/e2e-tool-admission.mjs` | Isolated real-host tool admission: queued Bash burst leaves capacity for another session's Read/Write and recovers all counters |
 | `e2e-smoke.mjs` | `pnpm test:e2e` | Protocol-level E2E against host-core, plus an optional live model |
 | `e2e-plan.mjs` | `pnpm test:e2e:plan` | Plan state, checkpoint artifact, and approval transitions |
-| `e2e-transcript-cache.mjs` | `pnpm test:e2e:transcript-cache` | Isolated Host RPC regression for large transcript cache creation, append plus middle Task rewrite, legacy cache recovery, paging, message navigation, tool results, and process restart |
+| `e2e-transcript-cache.mjs` | `pnpm test:e2e:transcript-cache` | Isolated Host RPC regression for large transcript cache creation, append plus middle Task rewrite, legacy cache recovery, paging, message navigation, invalid UTF-8 recovery, and process restart |
 | `e2e-plan-ui.mjs` | `pnpm test:e2e:plan-ui` | Plan approval through the rendered UI |
 | `e2e-electron-boot.mjs` | `pnpm test:e2e:boot` | Electron boot probe |
+| `e2e-provider-client-certificate.mjs` | `pnpm test:e2e:provider-client-certificate` | Isolated Electron 43 model discovery with optional client certificates, authenticated proxy routing, redirects and cancellation |
 | `e2e-provider-recovery.mjs` | `node scripts/e2e-provider-recovery.mjs` | Isolated desktop with a localhost fault-injection provider: socket failures, interrupted streams, Responses recovery, exhausted retries, Continue, and recovery across eleven real Read calls. Requires a built desktop/runtime and host binary (`PI_DESKTOP_HOST_BIN` when outside the checkout); retains screenshots and JSON under `.artifacts/issue-699/` |
 | `e2e-settings-scroll.mjs` | `pnpm test:e2e:settings-scroll` | Production Settings component navigation, search anchoring, focus-on-mount, and scroll behavior |
 | `e2e-transcript-render.mjs` | `pnpm test:e2e:transcript` | Production transcript render boundaries, runtime status geometry, and deterministic smooth-text cadence |
+| `e2e-gen-ui.mjs` | `pnpm test:e2e:gen-ui` | Offline production GenUI card/protocol journey: slider, theme, expand/Escape, viewport cleanup, global frame quota, and response-level cross-session sandbox |
 | `e2e-renderer-responsiveness.mjs` | `pnpm test:e2e:renderer-responsiveness` | Native Electron click, typing, session switching, disclosure, and scroll while an isolated child process streams large transcript deltas |
 | `e2e-config-sync-multidevice.mjs` | `pnpm test:e2e:config-sync` | Four isolated host-core processes against a SigV4-validating local S3 fixture; covers credential opt-out, approvals, concurrent edits/conflict resolution, mapped skill resources, deletion, sync/backup restore, restart, password rewrap, encrypted storage and cleanup |
 | `e2e-supervision.mjs` | `pnpm test:e2e:supervision` | Process supervision and restart behavior |

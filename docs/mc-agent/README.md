@@ -71,6 +71,8 @@
 
 Fork 已建立：`origin` 为 kylinmac/mc-agent，`upstream` 为 vastsa/PI-Desktop。R1–R12 已合入 `main`，验证状态见[验收与开发计划](validation-plan.md)第 2.1 节。
 
+上游同步：2026-10-25 合入上游 0.21.0（到 `c099b6a4c`）。后台命令改为基于上游的后台任务注册表（[MC-ADR-0006](adr/mc-0006-background-commands.md)）；输入框灰字建议与插件建议共用一个位置，mc-agent 的下一句建议优先；上游侧栏底部的版本号和更新入口不合入（见 bugs.md B-013）。
+
 ## 放在哪
 
 mc-agent 自己的文档都在 `docs/mc-agent/`，ADR 用 `MC-ADR-` 编号放 `docs/mc-agent/adr/`。`docs/` 其余内容（spec、adr、guide、zh-CN 和 VitePress 站点）属于上游，原样保留，便于同步。
