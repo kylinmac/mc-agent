@@ -245,6 +245,9 @@ export const IPC = {
     backgroundShellsList: "pi-desktop/mc-background/list",
     backgroundShellsView: "pi-desktop/mc-background/view",
     backgroundShellsKill: "pi-desktop/mc-background/kill",
+    // mc-agent release notes after an update (MC-ADR-0017).
+    mcReleaseNotesState: "pi-desktop/mc-release-notes/state",
+    mcReleaseNotesSeen: "pi-desktop/mc-release-notes/seen",
     // mc-agent user hooks (MC-ADR-0021).
     mcHooksGet: "pi-desktop/mc-hooks/get",
     mcHooksSet: "pi-desktop/mc-hooks/set",

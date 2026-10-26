@@ -12,6 +12,14 @@ import type { ChangelogEntry } from "./changelog.js";
  */
 export const mcZhCNEntries: ChangelogEntry[] = [
   {
+    version: "1.0.21",
+    date: "2026-10-26",
+    highlights: [
+      "装好新版本后首次打开会弹出“更新了什么”；设置 → 信息 → 发版日志里可以看到 mc-agent 每个版本的说明。",
+      "重新打开应用时，窗口恢复为上次关闭时的大小和位置，不再在开着工作面板关闭后缩成一半、挤到右边。",
+    ],
+  },
+  {
     version: "1.0.20",
     date: "2026-10-26",
     highlights: [

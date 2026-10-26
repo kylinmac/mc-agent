@@ -3630,6 +3630,7 @@ sklm: {
     hookCommandPlaceholder_PreToolUse: "e.g. a script that exits 2 to refuse a command",
     hookCommandPlaceholder_PostToolUse: "e.g. pnpm exec prettier --check . >&2 || exit 2",
     hookCommandPlaceholder_Stop: "e.g. pnpm test >&2 || exit 2",
+    whatsNewTitle: "What's new in {{version}}",
   },
   // mc-agent:end
 } satisfies EnglishCatalog;
