@@ -73,5 +73,9 @@ test("a short tap is dropped and a release while the microphone opens still ends
   assert.match(button, /Date\.now\(\) - pressed\.pressedAt < HOLD_MIN_MS\) void cancel\(\)/);
   assert.match(button, /if \(hold\.current\?\.released\) endHold\(\);/);
   assert.match(button, /registerDictationHoldTarget\(\{/);
+  // A hold whose start failed or was abandoned must not stop a later click-started recording.
+  assert.match(button, /catch \(error\) \{\s*\/\/[^\n]*\n\s*hold\.current = null;/);
+  assert.match(button, /\{ hold\.current = null; await current\.cancel\(\); return; \}/);
+  assert.match(button, /onClick=\{\(\) => \{ hold\.current = null; void \(phase === "recording"/);
   assert.match(shell, /if \(shortcut\.id === "dictationHold"\) \{\s*if \(e\.repeat \|\| beginDictationHold\(\)\) e\.preventDefault\(\);/);
 });

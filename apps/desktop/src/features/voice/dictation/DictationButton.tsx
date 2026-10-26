@@ -83,11 +83,13 @@ export function DictationButton({ t, scope, disabled, onText }: {
     session.current = current; setPhase("starting");
     try {
       await current.start(settings.voice?.deviceId);
-      if (session.current !== current || scopeRef.current !== origin || !visibleRef.current) { await current.cancel(); return; }
+      if (session.current !== current || scopeRef.current !== origin || !visibleRef.current) { hold.current = null; await current.cancel(); return; }
       setPhase("recording");
       // The hold ended while the microphone was still opening.
       if (hold.current?.released) endHold();
     } catch (error) {
+      // A failed start ends the hold too, so a stale release cannot stop the next recording.
+      hold.current = null;
       if (session.current === current) { report(error); session.current = null; setPhase("idle"); }
       try { await current.cancel(); } catch { showToast(t("dictation.releaseFailed"), { variant: "error" }); }
     }
@@ -124,7 +126,7 @@ export function DictationButton({ t, scope, disabled, onText }: {
   return <>
     <TooltipButton ref={buttonRef} type="button" className="icon-btn icon-btn-square" tooltip={tooltip} ariaLabel={label}
       disabled={(!active && disabled) || phase === "starting" || phase === "transcribing"}
-      onClick={() => { void (phase === "recording" ? stop() : start()); }}>
+      onClick={() => { hold.current = null; void (phase === "recording" ? stop() : start()); }}>
       {phase === "recording" ? <IconStop size={15} /> : <IconMic size={15} />}
     </TooltipButton>
     {active ? <>
