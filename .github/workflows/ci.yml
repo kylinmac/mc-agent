@@ -6,10 +6,14 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
+      # Release-note entries only; docs-check.yml validates their format.
+      - 'packages/shared/src/mc-changelog*.ts'
   pull_request:
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
+      # Release-note entries only; docs-check.yml validates their format.
+      - 'packages/shared/src/mc-changelog*.ts'
   workflow_dispatch:
 
 concurrency:
@@ -56,8 +60,39 @@ jobs:
       - name: Unit-test the Pi patch checks
         run: node --test scripts/pi-patch-hash.test.mjs
 
-      - name: Unit tests
-        run: pnpm -r --if-present test
+      # apps/desktop's node --test suite runs in the sharded desktop-tests job.
+      - name: Unit tests (workspace packages)
+        run: pnpm -r --filter '!@pi-desktop/desktop' --if-present test
+
+  desktop-tests:
+    name: Desktop unit tests (shard ${{ matrix.shard }}/3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build workspace packages
+        run: pnpm build:js
+
+      - name: Unit tests (apps/desktop)
+        working-directory: apps/desktop
+        run: node --test --test-shard=${{ matrix.shard }}/3 test/*.test.mjs
 
   rust:
     name: Rust host-core format / lint / test
@@ -135,6 +170,19 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # `apt-get update` alone has taken 9-10 minutes on hosted runners. Try the
+      # image's package lists first, refresh only if that fails, and run it in
+      # the background so it overlaps the install and build steps below.
+      - name: Start virtual display install
+        run: |
+          (
+            set +e
+            pkgs="openbox xauth xvfb"
+            sudo apt-get install --no-install-recommends --yes $pkgs \
+              || { sudo apt-get update && sudo apt-get install --no-install-recommends --yes $pkgs; }
+            echo $? > "$RUNNER_TEMP/apt-display.status"
+          ) > "$RUNNER_TEMP/apt-display.log" 2>&1 &
+
       - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v7
@@ -146,10 +194,6 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: Install virtual display
-        run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends --yes openbox xauth xvfb
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -172,11 +216,24 @@ jobs:
       - name: Build host-core
         run: cargo build -p host-core --locked
 
+      - name: Wait for virtual display install
+        timeout-minutes: 15
+        run: |
+          while [ ! -f "$RUNNER_TEMP/apt-display.status" ]; do sleep 2; done
+          cat "$RUNNER_TEMP/apt-display.log"
+          exit "$(cat "$RUNNER_TEMP/apt-display.status")"
+
       - name: Run inline GenUI interaction and isolation E2E
         run: xvfb-run --auto-servernum pnpm test:e2e:gen-ui
 
       - name: Run provider optional client certificate E2E
-        run: xvfb-run --auto-servernum pnpm test:e2e:provider-client-certificate
+        # Electron occasionally stalls before the first request on hosted runners
+        # (killed after 65s); retry once so a runner hiccup does not fail CI.
+        run: |
+          xvfb-run --auto-servernum pnpm test:e2e:provider-client-certificate || {
+            echo "::warning::provider client certificate E2E failed once; retrying"
+            xvfb-run --auto-servernum pnpm test:e2e:provider-client-certificate
+          }
 
       - name: Run browser capture/resize E2E
         run: xvfb-run --auto-servernum sh -c 'openbox >/dev/null 2>&1 & exec node scripts/e2e-browser-capture-resize.mjs'

@@ -487,3 +487,12 @@ test("GitHub releases trigger the CNB mirror pipeline with a JSON payload", () =
     "JSON payload must not interpolate the release tag through YAML string escaping",
   );
 });
+
+test("CI shards the desktop unit tests and keeps slow setup off the critical path", () => {
+  assert.match(ciWorkflowSource, /- 'packages\/shared\/src\/mc-changelog\*\.ts'/);
+  assert.match(ciWorkflowSource, /run: pnpm -r --filter '!@pi-desktop\/desktop' --if-present test/);
+  assert.match(ciWorkflowSource, /^  desktop-tests:\n[\s\S]*?shard: \[1, 2, 3\]/m);
+  assert.match(ciWorkflowSource, /node --test --test-shard=\$\{\{ matrix\.shard \}\}\/3 test\/\*\.test\.mjs/);
+  assert.doesNotMatch(ciWorkflowSource, /^\s+sudo apt-get update\n\s+sudo apt-get install/m);
+  assert.match(ciWorkflowSource, /name: Wait for virtual display install/);
+});
