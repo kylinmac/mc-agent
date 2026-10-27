@@ -9,6 +9,18 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.26",
+    date: "2026-10-27",
+    improvements: [
+      "In a project with several folders, the sidebar \"+\" asks whether the new task starts in the resource folder or a workspace, with the last choice selected.",
+      "The project workbench's task list lets you pick the folder tasks run in; a folder picked in the workbench is also used by the \"New task\" button and the project menu.",
+    ],
+    fixes: [
+      "In a question card, after choosing \"Enter another answer\", Enter submits (or moves to the next question) and Shift+Enter adds a line; confirming an input-method candidate no longer submits.",
+      "With an MCP server connected, the session info panel no longer shows 0 MCP tools.",
+    ],
+  },
+  {
     version: "1.0.25",
     date: "2026-10-27",
     features: [
