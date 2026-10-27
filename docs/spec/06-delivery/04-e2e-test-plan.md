@@ -2110,7 +2110,11 @@ identify the platform validation still needed.
   running turn with tool output, and the real Composer and SessionPane.
 - **Steps**: Restore a bookmark during selection revalidation; append live
   output; switch away and reveal the running pane; inspect an unread history
-  range and an explicit search at the tail; settle and abort the turn.
+  range and an explicit search at the tail; settle and abort the turn. While
+  reading above the live tail, click return-to-latest and switch away in the
+  same task, before a native smooth-scroll event. Return first with the pane
+  retained, then repeat while a project switch actually unmounts the pane and
+  output continues in the background.
 - **Expected**: The restored live tail keeps a running process header while
   Stop is available. Content updates and pane reveal do not falsely show
   Finished. The restored range and scroll offset remain owned by the reader.
@@ -2119,9 +2123,13 @@ identify the platform validation still needed.
   An empty restored range stays historical, an ordinary empty canonical range
   shows the initial wait, and a restored navigation-parent copy with the same
   message id keeps the running presentation.
+  Return-to-latest synchronously records a pinned bookmark; both a retained
+  reveal and a fresh project remount follow the newest output without a second
+  click. The running header and Stop control stay consistent. Readers who did
+  not choose return-to-latest keep their existing historical reading position.
 - **Automation**: `node scripts/e2e-transcript-reading-position.mjs`
   (`transcriptLiveTailProbe`).
-- **Specs linked**: `04-ux/09-interaction-patterns.md` §2.4
+- **Specs linked**: `04-ux/09-interaction-patterns.md` §2.3 / §2.4
 - **Acceptance**: C (session switching and running status)
 - **Status**: Automated isolated Electron regression
 

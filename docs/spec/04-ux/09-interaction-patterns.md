@@ -738,7 +738,12 @@ may be retained while exactly one workspace supplies the visible shell context.
 - Sending a new prompt, retrying, or regenerating always re-pins follow mode and jumps to the bottom before the turn continues, even if the user had scrolled up
 - "Scroll to bottom" floating button appears as soon as manual upward scrolling
   releases follow mode
-- Click "Scroll to bottom" button: resumes auto-scroll and snaps to bottom
+- Click "Scroll to bottom" button: resumes auto-scroll and snaps to bottom.
+  Record the pinned bookmark synchronously, before any smooth-scroll event:
+  immediately switching sessions or projects must preserve this follow intent
+  even if the original pane is hidden or unmounted before scrolling finishes.
+  Returning follows the latest output rather than restoring the old reading
+  offset. Manual upward reading without that click still retains its position.
 - Stream completion: if user was auto-scrolling, keep at bottom; if manual, stay at position
 - An asynchronously completed diagram height update follows the same rule:
   ResizeObserver keeps a pinned transcript at the bottom, while a user who has
