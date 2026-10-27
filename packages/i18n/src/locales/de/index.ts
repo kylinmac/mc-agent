@@ -2944,6 +2944,8 @@ sklm: {
     tasksTitle: "Tasks",
     tasksEmpty: "No tasks yet.",
     taskNew: "New task",
+    taskStartFolderLabel: "Run in",
+    newTaskStartFolderMenu: "Start new task in",
     taskTitlePlaceholder: "Task title",
     taskGoalPlaceholder: "Goal (optional)",
     taskAcceptancePlaceholder: "Acceptance criteria (required)",

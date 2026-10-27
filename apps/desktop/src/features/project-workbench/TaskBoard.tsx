@@ -25,12 +25,17 @@ export function TaskBoard({
   groupId,
   listing,
   startFolder,
+  startFolderOptions = [],
+  onStartFolderChange,
   onTasksChanged,
   onError,
 }: {
   groupId: string;
   listing: ResourceListing | null;
   startFolder: string;
+  /** The project's folders a task run can start in (#41). */
+  startFolderOptions?: ReadonlyArray<{ path: string; label: string }>;
+  onStartFolderChange?: (path: string) => void;
   onTasksChanged: (tasks: ProjectTask[]) => void;
   onError: (message: string) => void;
 }) {
@@ -149,6 +154,24 @@ export function TaskBoard({
     <div className="mc-workbench-tasks">
       <div className="mc-workbench-row">
         <span className="mc-workbench-label">{t("mcProject.tasksTitle")}</span>
+        {startFolderOptions.length > 1 && onStartFolderChange ? (
+          // mc-agent (#41): tasks start in this folder; pick it next to the
+          // board instead of in the start-folder row at the bottom.
+          <label className="mc-workbench-task-folder">
+            <span className="mc-workbench-muted">{t("mcProject.taskStartFolderLabel")}</span>
+            <select
+              className="mc-workbench-select"
+              value={startFolder}
+              onChange={(event) => onStartFolderChange(event.target.value)}
+            >
+              {startFolderOptions.map((option) => (
+                <option key={option.path} value={option.path} title={option.path}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <Button size="sm" variant="ghost" onClick={() => setCreating((value) => !value)}>
           {t("mcProject.taskNew")}
         </Button>

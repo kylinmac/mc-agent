@@ -94,6 +94,8 @@ import {
 } from "../features/worktree/WorktreeSidebarParts";
 import { WorktreeBehindWatcher } from "../features/worktree/WorktreeBehind";
 import { startConversationalProject } from "../features/project-create/start-conversational-project";
+import { projectStartFolderChoices } from "../features/project-sidebar/start-folder-menu";
+import { rememberedStartFolder, rememberStartFolder } from "../features/project-workbench/start-folder";
 import { SidebarMenuPanel, sidebarMenuKeyDown } from "./SidebarMenuPanel";
 import {
   sidebarMenuAction,
@@ -322,6 +324,8 @@ export function Sidebar({
   // Which row menu item is armed for its second, confirming click.
   const { armed: armedDelete, setArmed: setArmedDelete } = useArmedDelete();
   const [projectMenu, setProjectMenu] = useState<string | null>(null);
+  // mc-agent (#41): the project "+" opens a start-folder menu in the same slot.
+  const [projectMenuKind, setProjectMenuKind] = useState<"actions" | "startFolder">("actions");
   // Multi-select: Shift/Cmd+click session rows for batch operations.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const lastClickedIdRef = useRef<string | null>(null);
@@ -582,11 +586,16 @@ export function Sidebar({
   );
 
   const openProjectRowMenu = useCallback(
-    (projectKey: string, trigger: HTMLButtonElement | null) => {
+    (
+      projectKey: string,
+      trigger: HTMLButtonElement | null,
+      kind: "actions" | "startFolder" = "actions",
+    ) => {
       menuTriggerRef.current = trigger;
       setSortOpen(false);
       setSessionMenu(null);
       setSectionMenu(null);
+      setProjectMenuKind(kind);
       setProjectMenu(projectKey);
     },
     [],
@@ -1835,6 +1844,29 @@ export function Sidebar({
     ],
   );
 
+  // mc-agent (#41): where a new task of a multi-folder project starts.
+  const startFolderMenuContent = (entry: ProjectEntry): SidebarMenuPanelContent => ({
+    label: t("mcProject.newTaskStartFolderMenu"),
+    items: [
+      sidebarMenuGroup({
+        id: "project-start-folder",
+        label: t("mcProject.newTaskStartFolderMenu"),
+        options: projectStartFolderChoices(projectFolderIndex, entry.key, rememberedStartFolder).map(
+          (choice) => ({
+            id: `start-folder-${choice.path}`,
+            label: choice.label,
+            selected: choice.selected,
+            onSelect: () => {
+              closeMenus(false);
+              rememberStartFolder(choice.groupId, choice.path);
+              void createProjectSession(choice.path);
+            },
+          }),
+        ),
+      }),
+    ],
+  });
+
   const projectMenuContent = useCallback(
     (entry: ProjectEntry): SidebarMenuPanelContent => {
       const archived = Boolean(entry.meta.archived);
@@ -2279,7 +2311,7 @@ export function Sidebar({
   const renderProjectGroup = (entry: ProjectEntry) => {
     const collapsedProject = entry.meta.collapsed ?? projectCollapsed[entry.key] ?? false;
     const projectId = projectDomId(entry.key);
-    const isMenuOpen = projectMenu === entry.key;
+    const isMenuOpen = projectMenu === entry.key && projectMenuKind === "actions";
 
     // Show the initial page by default; the remaining sessions stay folded
     // behind the Load more affordance.
@@ -2454,7 +2486,21 @@ export function Sidebar({
             className="sidebar-session-group-add"
             tooltip={entry.active ? t("project.newTask") : t("project.openAndNewTask", { defaultValue: "Open project and create task" })}
             ariaLabel={entry.active ? t("project.newTask") : t("project.openAndNewTask", { defaultValue: "Open project and create task" })}
-            onClick={() => void createProjectSession(entry.path)}
+            onClick={(event) => {
+              // mc-agent (#41): a project with several folders asks where the
+              // new task starts; one folder starts right away as before.
+              if (projectStartFolderChoices(projectFolderIndex, entry.key, rememberedStartFolder).length > 1) {
+                event.stopPropagation();
+                if (projectMenu === entry.key && projectMenuKind === "startFolder") {
+                  closeMenus();
+                  return;
+                }
+                placeMenu(event);
+                openProjectRowMenu(entry.key, event.currentTarget, "startFolder");
+                return;
+              }
+              void createProjectSession(entry.path);
+            }}
           >
             <IconNewSession size={13} />
           </TooltipButton>
@@ -2564,7 +2610,8 @@ export function Sidebar({
       );
     }
     if (entry) {
-      const content = projectMenuContent(entry);
+      const content =
+        projectMenuKind === "startFolder" ? startFolderMenuContent(entry) : projectMenuContent(entry);
       return portalToBody(
         <SidebarMenuPanel
           menuRef={floatingMenuRef}

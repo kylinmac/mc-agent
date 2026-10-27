@@ -523,3 +523,11 @@
   background: var(--ds-bg-hover);
   color: var(--ds-text-primary);
 }
+
+/* mc-agent (#41): the folder task runs start in, next to the task board title. */
+.mc-workbench-task-folder {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}

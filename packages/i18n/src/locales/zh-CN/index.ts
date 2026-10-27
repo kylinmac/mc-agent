@@ -3040,6 +3040,8 @@ sklm: {
     tasksTitle: "任务",
     tasksEmpty: "还没有任务。",
     taskNew: "新建任务",
+    taskStartFolderLabel: "执行目录",
+    newTaskStartFolderMenu: "新建任务的起始目录",
     taskTitlePlaceholder: "任务标题",
     taskGoalPlaceholder: "目标（可选）",
     taskAcceptancePlaceholder: "验收条件（必填）",
