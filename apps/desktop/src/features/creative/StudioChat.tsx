@@ -1,9 +1,9 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { SessionThinkingLevel, UiMessage } from "@pi-desktop/shared";
-import { imageGenerationBindings, isImageGenerationModel, stripCanvasData } from "@pi-desktop/shared";
+import { imageGenerationBindings, isImageGenerationModel } from "@pi-desktop/shared";
 import { TooltipButton } from "../../components/ui";
-import { IconArrowUp, IconExternal, IconPlus, IconStop, IconX } from "../../components/icons";
+import { IconArrowUp, IconExternal, IconPlus, IconStop } from "../../components/icons";
 import { Markdown } from "../../components/Markdown";
 import { PermissionCard } from "../../components/PermissionCard";
 import { api } from "../../lib/api";
@@ -74,44 +74,22 @@ function visible(message: UiMessage): boolean {
   return !(message as UiMessage & { parentToolCallId?: string }).parentToolCallId;
 }
 
-const handledRequests = new Set<number>();
-
-/**
- * What the canvas adds to the chat (docs/mc-agent/creative-canvas.md): chips
- * for what goes with the next message, the fenced text they become, a hook
- * that runs once the conversation exists (to send threads to it), and a
- * request to send right away.
- */
-export type StudioChatExtra = {
-  chips: Array<{ key: string; label: string; onRemove: () => void }>;
-  text: () => string;
-  beforeSend?: (sessionId: string) => Promise<void>;
-  afterSend?: () => void;
-  request?: { id: number; text: string } | null;
-};
-
 export function StudioChat({
   groupId,
   projectPath,
   context = "",
   contextCount = 0,
-  contextLabel,
-  extra,
 }: {
   groupId: string;
   projectPath: string | null;
   /** Sent ahead of each message, e.g. the images being compared. */
   context?: string;
   contextCount?: number;
-  /** Shown instead of the comparison wording, e.g. for the canvas. */
-  contextLabel?: string;
-  extra?: StudioChatExtra;
 }) {
   const { t } = useTranslation();
   const settings = useAppStore((state) => state.settings);
   const sessions = useAppStore((state) => state.sessions);
   const sendPrompt = useAppStore((state) => state.sendPrompt);
-  const enqueuePrompt = useAppStore((state) => state.enqueuePrompt);
   const abortSession = useAppStore((state) => state.abortSession);
   const selectSession = useAppStore((state) => state.selectSession);
   const setPage = useAppStore((state) => state.setPage);
@@ -236,40 +214,22 @@ export function StudioChat({
     return session.id;
   };
 
-  const send = async (requested?: string) => {
-    const content = (requested ?? text).trim();
+  const send = async () => {
+    const content = text.trim();
     if (!content || busy || !modelReady) return;
     setBusy(true);
     setError(null);
     try {
       const id = await ensureSession();
-      await extra?.beforeSend?.(id);
-      const full = [context, extra?.text() ?? "", content].filter(Boolean).join("\n\n");
-      // A running conversation takes it as its next turn.
-      const accepted =
-        sessionId && running ? await enqueuePrompt(full, undefined, id) : await sendPrompt(full, undefined, id);
-      if (accepted) {
-        if (requested === undefined) setText("");
-        extra?.afterSend?.();
-      } else setError(t("mcProject.creativeChatNotSent"));
+      const accepted = await sendPrompt(context ? `${context}\n\n${content}` : content, undefined, id);
+      if (accepted) setText("");
+      else setError(t("mcProject.creativeChatNotSent"));
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
     } finally {
       setBusy(false);
     }
   };
-  const sendRef = useRef(send);
-  sendRef.current = send;
-  const requestId = extra?.request?.id;
-  useEffect(() => {
-    const request = extra?.request;
-    // A request is sent once, even if the chat mounts again while it is set.
-    if (!request || handledRequests.has(request.id)) return;
-    handledRequests.add(request.id);
-    void sendRef.current(request.text);
-    // Only a new request id sends.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requestId]);
 
   return (
     <div className="mc-creative-chat">
@@ -311,7 +271,7 @@ export function StudioChat({
                 <div key={message.id} className="message-row user mc-creative-chat-user">
                   <div className="message-col">
                     <div className="message-bubble">
-                      <UserText content={message.content} />
+                      <div className="message-user-text selectable">{message.content}</div>
                     </div>
                   </div>
                 </div>
@@ -343,21 +303,7 @@ export function StudioChat({
       </div>
       {error ? <p className="mc-creative-error">{error}</p> : null}
       {context ? (
-        <p className="mc-creative-chat-context">
-          {contextLabel ?? t("mcProject.creativeChatWithCompare", { count: contextCount })}
-        </p>
-      ) : null}
-      {extra?.chips.length ? (
-        <div className="mc-creative-chat-chips">
-          {extra.chips.map((chip) => (
-            <span key={chip.key} className="mc-creative-chat-chip">
-              <span>{chip.label}</span>
-              <button type="button" aria-label={t("mcProject.canvasRemoveAttachment")} onClick={chip.onRemove}>
-                <IconX size={11} />
-              </button>
-            </span>
-          ))}
-        </div>
+        <p className="mc-creative-chat-context">{t("mcProject.creativeChatWithCompare", { count: contextCount })}</p>
       ) : null}
       <div className="composer-shell mc-creative-chat-composer">
         <textarea
@@ -412,18 +358,6 @@ export function StudioChat({
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-/** A user message without the fenced canvas data it carried. */
-function UserText({ content }: { content: string }) {
-  const { t } = useTranslation();
-  const { text, blocks } = stripCanvasData(content);
-  return (
-    <div className="message-user-text selectable">
-      {text}
-      {blocks ? <span className="mc-creative-chat-carried">{t("mcProject.canvasCarried")}</span> : null}
     </div>
   );
 }

@@ -7,10 +7,6 @@ use std::path::Path;
 use serde_json::{json, Value};
 
 use super::{rpc_err, AppState, JsonRpcError};
-
-// The canvas methods (docs/mc-agent/creative-canvas.md) share this surface.
-#[path = "mc_canvas_rpc.rs"]
-mod canvas_rpc;
 use crate::db::ProjectGroupRecord;
 use crate::mc_creative::{
     self as creative, AssetFilter, ComparisonInput, FileFacts, JobInput, JobStatus, Purpose,
@@ -62,9 +58,6 @@ pub fn handle(state: &AppState, method: &str, params: &Value) -> Result<Value, J
         _ => {}
     }
     let group = group(state, params)?;
-    if method.starts_with("creative.canvas") {
-        return canvas_rpc::handle(db, &group, method, params);
-    }
     let result = match method {
         "creative.setPurpose" => set_purpose(state, &group, params),
         "creative.useWorkspace" => {

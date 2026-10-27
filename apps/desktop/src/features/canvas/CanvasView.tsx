@@ -1,4 +1,5 @@
 import {
+  type ReactNode,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -9,30 +10,11 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { cx } from "../../../components/ui";
-import {
-  IconChat,
-  IconCircleAlert,
-  IconMinus,
-  IconPencil,
-  IconPlus,
-  IconTarget,
-  IconUndo2,
-  IconX,
-} from "../../../components/icons";
-import { ContextMenu, useContextMenu } from "../../../components/ContextMenu";
-import { api } from "../../../lib/api";
-import { CANVAS_NOTE_COLORS } from "@pi-desktop/shared";
-import type {
-  Canvas,
-  CanvasAnchorInput,
-  CanvasElement,
-  CanvasNode,
-  CanvasNoteColor,
-  CanvasOp,
-  CanvasThread,
-} from "@pi-desktop/shared";
-import { useAssetImage } from "../use-creative";
+import { cx } from "../../components/ui";
+import { IconChat, IconCircleAlert, IconMinus, IconPlus, IconTarget, IconUndo2, IconX } from "../../components/icons";
+import { ContextMenu, useContextMenu } from "../../components/ContextMenu";
+import { api } from "../../lib/api";
+import type { Canvas, CanvasAnchorInput, CanvasElement, CanvasNode, CanvasOp, CanvasThread } from "@pi-desktop/shared";
 import { CanvasFrame, type CanvasFrameHandle } from "./CanvasFrame";
 import { useCanvas } from "./use-canvas";
 import {
@@ -42,7 +24,6 @@ import {
   elementBox,
   errorsAttachment,
   fitView,
-  frameAt,
   intersects,
   inverseOps,
   noteAttachment,
@@ -63,25 +44,35 @@ import {
 import "./canvas.css";
 
 /*
-  mc-agent creative canvas, tier A (docs/mc-agent/creative-canvas.md):
-  artboards (sandboxed HTML), library images, notes and titles laid out on a
-  pan-and-zoom stage; elements inside artboards can be picked; comment threads
-  sit on elements, artboard points or the canvas, and can be sent to the
-  studio's conversation. The view state (what is visible and selected) goes up
-  so the chat can carry it.
+  mc-agent prototype canvas, tier A (docs/mc-agent/prototype-canvas.md). The
+  agent draws; the user looks, tries and comments. Artboards (sandboxed HTML),
+  the agent's notes and titles sit on a pan-and-zoom stage. The user can enter
+  an artboard to use it, pick elements inside it, arrange artboards by
+  dragging, and leave comment threads on elements, artboard points or the
+  canvas, sent to the conversation beside it. The view state (what is visible
+  and selected) goes up so the conversation's next message can carry it.
 */
 
-type Tool = "select" | "hand" | "note" | "comment";
+type Tool = "select" | "hand" | "comment";
 
 type Drag =
   | { kind: "pan"; start: Point; origin: CanvasViewport }
-  | { kind: "move"; start: Point; origin: Map<string, Point>; moved: boolean; boardClick?: { boardId: string; client: Point } }
-  | { kind: "resize"; id: string; start: Point; origin: Box }
+  | { kind: "move"; start: Point; origin: Map<string, Point>; moved: boolean }
+  // On an artboard's page: a click picks the element there; a drag pans.
+  | { kind: "press"; boardId: string; client: Point; origin: CanvasViewport; additive: boolean }
   | { kind: "marquee"; start: Point; current: Point; additive: boolean };
 
-type Composer = { anchor: CanvasAnchorInput; at: Point; label?: string | null };
+type Composer = {
+  anchor: CanvasAnchorInput;
+  at: Point;
+  label?: string | null;
+  /** The element the comment is about, outlined while it is written. */
+  target?: { boardId: string; rect: Box };
+};
 
-const VIEW_KEY = "mc.creative.canvasView.";
+type Hover = { boardId: string; tid: number; rect: Box; label?: string | null };
+
+const VIEW_KEY = "mc.canvasView.";
 
 function readView(canvasId: string): CanvasViewport | null {
   try {
@@ -101,6 +92,16 @@ function storeView(canvasId: string, view: CanvasViewport) {
   }
 }
 
+const POPOVER_W = 340;
+const POPOVER_H = 240;
+
+/** Where a popover goes for a point: beside it, kept inside the stage. */
+function popoverPlace(at: Point, bounds: { w: number; h: number }, dx = 12, dy = 12) {
+  const left = Math.max(8, Math.min(at.x + dx, bounds.w - POPOVER_W - 8));
+  const top = at.y + dy + POPOVER_H > bounds.h ? Math.max(8, at.y - POPOVER_H) : at.y + dy;
+  return { left, top };
+}
+
 function editableTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
 }
@@ -108,18 +109,19 @@ function editableTarget(target: EventTarget | null): boolean {
 export function CanvasView({
   groupId,
   canvasId,
-  assetExists,
+  head,
   onViewState,
   onAttach,
   onSendThread,
 }: {
   groupId: string;
   canvasId: string;
-  /** Whether a library asset is still there; undefined while unknown. */
-  assetExists: (assetId: string) => boolean | undefined;
+  /** The canvas switcher, shown at the start of the toolbar. */
+  head?: ReactNode;
   onViewState: (state: CanvasViewState | null) => void;
+  /** Put something from the canvas on the conversation's next message. */
   onAttach: (attachment: CanvasAttachment) => void;
-  /** Hand a thread to the studio conversation, now or with the next message. */
+  /** Hand a thread to the conversation, now or with the next message. */
   onSendThread: (thread: CanvasThread, queue: boolean) => void;
 }) {
   const { t } = useTranslation();
@@ -132,17 +134,19 @@ export function CanvasView({
   const [selected, setSelected] = useState<string[]>([]);
   const [nodes, setNodes] = useState<Array<CanvasNode & { rect: Box }>>([]);
   const [entered, setEntered] = useState<string | null>(null);
-  const [editing, setEditing] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [history, setHistory] = useState<CanvasHistory>(EMPTY_HISTORY);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [composer, setComposer] = useState<Composer | null>(null);
+  const [hover, setHover] = useState<Hover | null>(null);
   const [openThread, setOpenThread] = useState<string | null>(null);
   const [panel, setPanel] = useState<"open" | "resolved" | null>(null);
   const [pinBoxes, setPinBoxes] = useState<Map<string, Record<number, Box>>>(new Map());
   const [ready, setReady] = useState<Record<string, number>>({});
   const [notice, setNotice] = useState<string | null>(null);
   const frames = useRef(new Map<string, CanvasFrameHandle>());
+  /** Whether the pointer is over this canvas (`:hover` is not kept up to date while it is captured). */
+  const pointerInside = useRef(false);
   const { contextMenu: menu, openContextMenu, closeContextMenu } = useContextMenu();
 
   const fail = useCallback((failure: unknown) => setNotice(failure instanceof Error ? failure.message : String(failure)), []);
@@ -162,36 +166,58 @@ export function CanvasView({
   const fitAll = useCallback(
     (target: Canvas | null = canvas) => {
       if (!target || !size.w) return;
-      setView(fitView(boundsOf(target.elements.map((element) => elementBox(element))), size.w, size.h));
+      setView(fitView(boundsOf(target.elements.map((element) => elementBox(element))), size.w, size.h, 32));
     },
     [canvas, size.w, size.h],
   );
 
-  // First view of a canvas: where it was left, else everything.
+  // First view of a canvas: where it was left, else everything. A fitted
+  // view follows the panel's size (it opens narrow and grows) until the user
+  // pans or zooms.
   const placed = useRef<string | null>(null);
+  const autoView = useRef(true);
+  const userView = (next: CanvasViewport) => {
+    autoView.current = false;
+    setView(next);
+  };
   useEffect(() => {
     if (!canvas || !size.w || placed.current === canvasId) return;
     placed.current = canvasId;
     const stored = readView(canvasId);
+    autoView.current = !stored;
     if (stored) setView(stored);
     else fitAll(canvas);
   }, [canvas, canvasId, size.w, fitAll]);
+  // `fitAll` changes with the stage size and the canvas.
+  useEffect(() => {
+    if (canvas && autoView.current && placed.current === canvasId) fitAll(canvas);
+  }, [canvas, canvasId, fitAll]);
+
+  // The agent's first artboards on an empty canvas come into view.
+  const hadElements = useRef(false);
+  useEffect(() => {
+    if (!canvas) return;
+    const has = canvas.elements.length > 0;
+    if (has && !hadElements.current && placed.current === canvasId) fitAll(canvas);
+    hadElements.current = has;
+  }, [canvas, canvasId, fitAll]);
 
   useEffect(() => {
     setSelected([]);
     setNodes([]);
     setEntered(null);
-    setEditing(null);
     setErrors({});
     setHistory(EMPTY_HISTORY);
     setComposer(null);
     setOpenThread(null);
     setView(null);
     placed.current = null;
+    autoView.current = true;
+    hadElements.current = false;
   }, [canvasId]);
 
   useEffect(() => {
-    if (!view) return;
+    if (!view || autoView.current) return;
     const timer = setTimeout(() => storeView(canvasId, view), 300);
     return () => clearTimeout(timer);
   }, [view, canvasId]);
@@ -205,6 +231,7 @@ export function CanvasView({
       event.preventDefault();
       const rect = node.getBoundingClientRect();
       const at = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      autoView.current = false;
       setView((current) => {
         if (!current) return current;
         if (event.ctrlKey || event.metaKey) return zoomAt(current, Math.exp(-event.deltaY * 0.01), at);
@@ -273,42 +300,17 @@ export function CanvasView({
     [apply, conflict, fail, history],
   );
 
-  const removeSelected = useCallback(async () => {
-    const targets = selected.map((id) => byId.get(id)).filter((element): element is CanvasElement => !!element);
-    if (!targets.length) return;
-    const frameCount = targets.filter((element) => element.type === "frame").length;
-    if (frameCount && !window.confirm(t("mcProject.canvasDeleteBoardsConfirm", { count: frameCount }))) return;
-    await change(targets.map((element) => ({ op: "remove", id: element.id })));
-    setSelected([]);
-    setNodes([]);
-  }, [byId, change, selected, t]);
-
-  const addNote = useCallback(
-    async (at: Point) => {
-      const board = canvas ? frameAt(canvas, at) : null;
-      const id = `n${Date.now().toString(36)}`;
-      const result = await change([
-        {
-          op: "add",
-          element: {
-            id,
-            type: "note",
-            x: Math.round(at.x),
-            y: Math.round(at.y),
-            w: 240,
-            h: 0,
-            text: "",
-            ...(board ? { boardId: board.id } : {}),
-          },
-        },
-      ]);
-      if (result) {
-        setSelected([id]);
-        setEditing(id);
-      }
-      setTool("select");
+  const removeElements = useCallback(
+    async (ids: readonly string[]) => {
+      const targets = ids.map((id) => byId.get(id)).filter((element): element is CanvasElement => !!element);
+      if (!targets.length) return;
+      const frameCount = targets.filter((element) => element.type === "frame").length;
+      if (frameCount && !window.confirm(t("mcProject.canvasDeleteBoardsConfirm", { count: frameCount }))) return;
+      await change(targets.map((element) => ({ op: "remove", id: element.id })));
+      setSelected([]);
+      setNodes([]);
     },
-    [canvas, change],
+    [byId, change, t],
   );
 
   // ---- picking inside artboards -------------------------------------------------
@@ -324,18 +326,54 @@ export function CanvasView({
       const hit = await handle.pick(local.x, local.y);
       if (!hit) return { local, node: null };
       try {
-        const { node } = await api.creative.call("creative.canvas.resolveNode", {
-          groupId,
-          canvasId,
-          boardId,
-          node: hit.node,
-        });
+        const { node } = await api.canvas.call("canvas.resolveNode", { groupId, canvasId, boardId, node: hit.node });
         return { local, node: { ...node, rect: hit.rect } };
       } catch {
         return { local, node: null };
       }
     },
     [canvasId, groupId, view],
+  );
+
+  // What the pointer is over inside an artboard: outlined, with its label
+  // (named by host-core, remembered per artboard version).
+  const labels = useRef(new Map<string, string | null>());
+  const hovering = useRef<{ busy: boolean; next: { boardId: string; x: number; y: number } | null }>({ busy: false, next: null });
+  const trackHover = useCallback(
+    (boardId: string, clientX: number, clientY: number) => {
+      const state = hovering.current;
+      state.next = { boardId, x: clientX, y: clientY };
+      if (state.busy) return;
+      state.busy = true;
+      void (async () => {
+        while (state.next) {
+          const at = state.next;
+          state.next = null;
+          const handle = frames.current.get(at.boardId);
+          const iframe = stage.current?.querySelector<HTMLIFrameElement>(`[data-board="${CSS.escape(at.boardId)}"] iframe`);
+          const board = byId.get(at.boardId);
+          if (!handle || !iframe || !view || !board) continue;
+          const rect = iframe.getBoundingClientRect();
+          const hit = await handle.pick((at.x - rect.left) / view.zoom, (at.y - rect.top) / view.zoom);
+          if (!hit) {
+            setHover(null);
+            continue;
+          }
+          const key = `${at.boardId}:${board.rev}:${hit.node}`;
+          if (!labels.current.has(key)) {
+            try {
+              const { node } = await api.canvas.call("canvas.resolveNode", { groupId, canvasId, boardId: at.boardId, node: hit.node });
+              labels.current.set(key, node.label ?? node.tag);
+            } catch {
+              labels.current.set(key, null);
+            }
+          }
+          setHover({ boardId: at.boardId, tid: hit.node, rect: hit.rect, label: labels.current.get(key) });
+        }
+        state.busy = false;
+      })();
+    },
+    [byId, canvasId, groupId, view],
   );
 
   // ---- comments -----------------------------------------------------------------
@@ -381,9 +419,15 @@ export function CanvasView({
       const picked = await pickAt(boardId, clientX, clientY);
       const local = picked?.local ?? { x: 0, y: 0 };
       const point = { x: Math.round(local.x), y: Math.round(local.y) };
+      setHover(null);
       setComposer(
         picked?.node
-          ? { anchor: { kind: "element", boardId, node: picked.node.tid, ...point }, at, label: picked.node.label }
+          ? {
+              anchor: { kind: "element", boardId, node: picked.node.tid, ...point },
+              at,
+              label: picked.node.label,
+              target: { boardId, rect: picked.node.rect },
+            }
           : { anchor: { kind: "board", boardId, ...point }, at },
       );
     },
@@ -395,7 +439,7 @@ export function CanvasView({
   const submitComment = async (text: string, sendToAgent: boolean, queue: boolean) => {
     if (!composer) return;
     try {
-      const { threadId, comments: next } = await api.creative.call("creative.canvasComments.add", {
+      const { threadId, comments: next } = await api.canvas.call("canvas.comments.add", {
         groupId,
         canvasId,
         anchor: composer.anchor,
@@ -411,7 +455,7 @@ export function CanvasView({
     }
   };
 
-  // ---- view state for the chat --------------------------------------------------
+  // ---- view state for the conversation --------------------------------------------------
 
   const lastState = useRef("");
   useEffect(() => {
@@ -438,7 +482,7 @@ export function CanvasView({
       errored: Object.entries(errors)
         .filter(([, messages]) => messages.length)
         .map(([key, messages]) => ({ boardId: key.split(":")[0], message: messages[0] })),
-      dirty: drag !== null || editing !== null,
+      dirty: drag !== null,
     };
     const serialized = JSON.stringify(state);
     if (serialized === lastState.current) return;
@@ -451,6 +495,25 @@ export function CanvasView({
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      const node = stage.current;
+      if (!node?.isConnected) return;
+      // Escape always steps out of what is open here, unless the user is
+      // typing somewhere else in the window.
+      if (event.type === "keydown" && event.key === "Escape" && (composer || openThread || entered)) {
+        const outside = editableTarget(event.target) && !node.closest(".mc-canvas")?.contains(event.target as Node);
+        if (!outside) {
+          if (composer) setComposer(null);
+          else if (openThread) setOpenThread(null);
+          else setEntered(null);
+          return;
+        }
+      }
+      // Other keys only while the pointer or focus is on this canvas: it
+      // shares the window with the conversation.
+      if (!pointerInside.current && !node.closest(".mc-canvas")?.matches(":focus-within")) {
+        if (event.type === "keyup" && event.key === " ") setSpaceHeld(false);
+        return;
+      }
       if (event.key === " " && !editableTarget(event.target)) {
         if (event.type === "keydown") {
           if (!event.repeat) setSpaceHeld(true);
@@ -459,16 +522,10 @@ export function CanvasView({
         return;
       }
       if (event.type !== "keydown" || editableTarget(event.target)) return;
-      if (!stage.current?.isConnected) return;
       const mod = event.metaKey || event.ctrlKey;
       if (event.key === "Escape") {
-        if (composer) setComposer(null);
-        else if (openThread) setOpenThread(null);
-        else if (entered) setEntered(null);
-        else {
-          setSelected([]);
-          setNodes([]);
-        }
+        setSelected([]);
+        setNodes([]);
         return;
       }
       if (mod && event.key.toLowerCase() === "z") {
@@ -479,10 +536,10 @@ export function CanvasView({
       if (mod) return;
       if ((event.key === "Delete" || event.key === "Backspace") && selected.length) {
         event.preventDefault();
-        void removeSelected();
+        void removeElements(selected);
         return;
       }
-      const tools: Record<string, Tool> = { v: "select", h: "hand", n: "note", c: "comment" };
+      const tools: Record<string, Tool> = { v: "select", h: "hand", c: "comment" };
       const next = tools[event.key.toLowerCase()];
       if (next) setTool(next);
     };
@@ -492,7 +549,7 @@ export function CanvasView({
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("keyup", onKey);
     };
-  }, [composer, entered, openThread, removeSelected, selected.length, undo]);
+  }, [composer, entered, openThread, removeElements, selected, undo]);
 
   // ---- pointer --------------------------------------------------------------------
 
@@ -501,6 +558,7 @@ export function CanvasView({
   const beginPan = (event: ReactPointerEvent) => {
     if (!view) return;
     (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+    autoView.current = false;
     setDrag({ kind: "pan", start: { x: event.clientX, y: event.clientY }, origin: view });
   };
 
@@ -512,16 +570,11 @@ export function CanvasView({
     }
     if (event.button !== 0 || !view) return;
     setComposer(null);
-    setEditing(null);
-    if (tool === "note") {
-      void addNote(canvasPoint(event.clientX, event.clientY));
-      return;
-    }
+    setEntered(null);
     if (tool === "comment") {
       void startComment(event.clientX, event.clientY, null);
       return;
     }
-    setEntered(null);
     const point = canvasPoint(event.clientX, event.clientY);
     if (!event.shiftKey) {
       setSelected([]);
@@ -529,6 +582,37 @@ export function CanvasView({
     }
     (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
     setDrag({ kind: "marquee", start: point, current: point, additive: event.shiftKey });
+  };
+
+  /**
+   * Pointer down on an artboard's page: a click picks the element under it
+   * (shift adds to the picked ones), a drag pans the canvas. Moving the
+   * artboard itself is done by its name strip.
+   */
+  const onBoardDown = (event: ReactPointerEvent<HTMLElement>, element: CanvasElement) => {
+    if (entered === element.id) return;
+    if (event.button === 1 || (event.button === 0 && panning)) {
+      event.preventDefault();
+      event.stopPropagation();
+      beginPan(event);
+      return;
+    }
+    if (event.button !== 0 || !view) return;
+    event.stopPropagation();
+    setComposer(null);
+    setEntered(null);
+    if (tool === "comment") {
+      void startComment(event.clientX, event.clientY, element.id);
+      return;
+    }
+    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+    setDrag({
+      kind: "press",
+      boardId: element.id,
+      client: { x: event.clientX, y: event.clientY },
+      origin: view,
+      additive: event.shiftKey,
+    });
   };
 
   /** Pointer down on an element: select it and start moving the selection. */
@@ -546,13 +630,6 @@ export function CanvasView({
       void startComment(event.clientX, event.clientY, element.type === "frame" ? element.id : null);
       return;
     }
-    if (tool === "note") {
-      void addNote(canvasPoint(event.clientX, event.clientY));
-      return;
-    }
-    if (editing === element.id) return;
-    setEditing(null);
-    const alreadyAlone = selected.length === 1 && selected[0] === element.id;
     let next = selected;
     if (event.shiftKey) {
       next = selected.includes(element.id) ? selected.filter((id) => id !== element.id) : [...selected, element.id];
@@ -572,24 +649,26 @@ export function CanvasView({
       start: canvasPoint(event.clientX, event.clientY),
       origin,
       moved: false,
-      // A click (no drag) on an artboard that is already selected picks the
-      // element under the pointer.
-      boardClick:
-        alreadyAlone && element.type === "frame" && !event.shiftKey
-          ? { boardId: element.id, client: { x: event.clientX, y: event.clientY } }
-          : undefined,
     });
   };
 
-  const onResizeDown = (event: ReactPointerEvent<HTMLElement>, element: CanvasElement) => {
-    if (event.button !== 0) return;
-    event.stopPropagation();
-    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
-    setDrag({ kind: "resize", id: element.id, start: canvasPoint(event.clientX, event.clientY), origin: elementBox(element) });
-  };
-
   const onPointerMove = (event: ReactPointerEvent) => {
-    if (!drag || !view) return;
+    if (!view) return;
+    if (!drag) {
+      const board = tool !== "hand" && !spaceHeld ? (event.target as HTMLElement).closest?.("[data-board]") : null;
+      const boardId = board?.getAttribute("data-board");
+      if (boardId && boardId !== entered && (event.target as HTMLElement).classList.contains("mc-canvas-board-cover"))
+        trackHover(boardId, event.clientX, event.clientY);
+      else if (hover) setHover(null);
+      return;
+    }
+    if (drag.kind === "press") {
+      if (Math.hypot(event.clientX - drag.client.x, event.clientY - drag.client.y) < 4) return;
+      autoView.current = false;
+      setHover(null);
+      setDrag({ kind: "pan", start: drag.client, origin: drag.origin });
+      return;
+    }
     if (drag.kind === "pan") {
       setView({
         ...drag.origin,
@@ -605,32 +684,16 @@ export function CanvasView({
     }
     const dx = point.x - drag.start.x;
     const dy = point.y - drag.start.y;
-    if (drag.kind === "move") {
-      if (!drag.moved && Math.hypot(dx, dy) * view.zoom < 3) return;
-      if (!drag.moved) setDrag({ ...drag, moved: true });
-      preview((current) => ({
-        ...current,
-        elements: current.elements.map((element) => {
-          const origin = drag.origin.get(element.id);
-          return origin ? { ...element, x: Math.round(origin.x + dx), y: Math.round(origin.y + dy) } : element;
-        }),
-      }));
-      return;
-    }
+    if (!drag.moved && Math.hypot(dx, dy) * view.zoom < 3) return;
+    if (!drag.moved) setDrag({ ...drag, moved: true });
     preview((current) => ({
       ...current,
-      elements: current.elements.map((element) =>
-        element.id === drag.id
-          ? {
-              ...element,
-              w: Math.max(40, Math.round(drag.origin.w + dx)),
-              h: element.h === 0 && element.type !== "frame" && element.type !== "image" ? 0 : Math.max(40, Math.round(drag.origin.h + dy)),
-            }
-          : element,
-      ),
+      elements: current.elements.map((element) => {
+        const origin = drag.origin.get(element.id);
+        return origin ? { ...element, x: Math.round(origin.x + dx), y: Math.round(origin.y + dy) } : element;
+      }),
     }));
   };
-
   const onPointerUp = (event: ReactPointerEvent) => {
     if (!drag) return;
     setDrag(null);
@@ -642,31 +705,24 @@ export function CanvasView({
       setSelected((current) => (drag.additive ? [...new Set([...current, ...hits])] : hits));
       return;
     }
-    if (drag.kind === "move") {
-      if (!drag.moved) {
-        if (drag.boardClick) {
-          const { boardId, client } = drag.boardClick;
-          void pickAt(boardId, client.x, client.y).then((picked) => {
-            if (!picked?.node) {
-              setNodes([]);
-              return;
-            }
-            const node = picked.node;
-            setNodes((current) =>
-              event.shiftKey ? [...current.filter((entry) => entry.address !== node.address), node] : [node],
-            );
-          });
-        }
-        return;
-      }
-      const moved = [...drag.origin.keys()]
-        .map((id) => byId.get(id))
-        .filter((element): element is CanvasElement => !!element);
-      void change(moved.map((element) => ({ op: "update", id: element.id, set: { x: element.x, y: element.y } })));
+    if (drag.kind === "press") {
+      const { boardId, client, additive } = drag;
+      setSelected([boardId]);
+      void pickAt(boardId, client.x, client.y).then((picked) => {
+        const node = picked?.node;
+        setNodes((current) => {
+          const kept = additive ? current.filter((entry) => entry.boardId === boardId) : [];
+          if (!node) return kept;
+          return [...kept.filter((entry) => entry.address !== node.address), node];
+        });
+      });
       return;
     }
-    const element = byId.get(drag.id);
-    if (element) void change([{ op: "update", id: element.id, set: { w: element.w, ...(element.h ? { h: element.h } : {}) } }]);
+    if (!drag.moved) return;
+    const moved = [...drag.origin.keys()]
+      .map((id) => byId.get(id))
+      .filter((element): element is CanvasElement => !!element);
+    void change(moved.map((element) => ({ op: "update", id: element.id, set: { x: element.x, y: element.y } })));
   };
 
   // ---- rendering --------------------------------------------------------------------
@@ -677,8 +733,10 @@ export function CanvasView({
     return (
       <div className="mc-canvas">
         <div className="mc-canvas-stage" ref={stage}>
-          {error ? <p className="mc-creative-error mc-canvas-hint">{error}</p> : null}
+          {error ? <p className="mc-canvas-error mc-canvas-hint">{error}</p> : null}
         </div>
+        {/* After the stage, as in the loaded canvas, so the stage stays the same element. */}
+        <div className="mc-canvas-toolbar">{head}</div>
       </div>
     );
   }
@@ -687,33 +745,23 @@ export function CanvasView({
   const ink = 1 / zoom;
   const worldStyle = { transform: `translate(${view.panX}px, ${view.panY}px) scale(${zoom})` };
   const marquee = drag?.kind === "marquee" ? rectFrom(drag.start, drag.current) : null;
-  const single = selected.length === 1 ? byId.get(selected[0]) : undefined;
 
-  const boardMenu = (event: ReactMouseEvent<HTMLElement>, element: CanvasElement) =>
+  const elementMenu = (event: ReactMouseEvent<HTMLElement>, element: CanvasElement) =>
     openContextMenu(event, {
-      label: element.title || element.id,
+      label: element.title || element.text?.slice(0, 40) || element.id,
       items: [
         ...(element.type === "frame" && element.hasPrev
           ? [{ id: "restore", label: t("mcProject.canvasRestorePrevious"), onSelect: () => void change([{ op: "restore", id: element.id }]) }]
           : []),
         ...(element.type === "note"
-          ? [
-              { id: "attach", label: t("mcProject.canvasAttachNote"), onSelect: () => onAttach(noteAttachment(canvasId, element)) },
-              { id: "edit", label: t("mcProject.canvasEditNote"), onSelect: () => setEditing(element.id) },
-            ]
+          ? [{ id: "attach", label: t("mcProject.canvasAttachNote"), onSelect: () => onAttach(noteAttachment(canvasId, element)) }]
           : []),
-        { id: "front", label: t("mcProject.canvasBringFront"), onSelect: () => void change([{ op: "reorder", id: element.id, to: "front" }]) },
-        { id: "back", label: t("mcProject.canvasSendBack"), onSelect: () => void change([{ op: "reorder", id: element.id, to: "back" }]) },
         {
           id: "delete",
           label: t("mcProject.canvasDelete"),
           danger: true,
-          separatorBefore: true,
-          onSelect: () => {
-            setSelected([element.id]);
-            if (element.type === "frame" && !window.confirm(t("mcProject.canvasDeleteBoardsConfirm", { count: 1 }))) return;
-            void change([{ op: "remove", id: element.id }]);
-          },
+          separatorBefore: element.type === "note" || element.hasPrev,
+          onSelect: () => void removeElements([element.id]),
         },
       ],
     });
@@ -723,9 +771,10 @@ export function CanvasView({
     const common = {
       "data-element": element.id,
       onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => onElementDown(event, element),
-      onContextMenu: (event: ReactMouseEvent<HTMLDivElement>) => boardMenu(event, element),
+      onContextMenu: (event: ReactMouseEvent<HTMLDivElement>) => elementMenu(event, element),
     };
     if (element.type === "frame") {
+      const { onPointerDown: moveBoard, ...menu } = common;
       const errorKey = `${element.id}:${element.rev}`;
       const boardErrors = errors[errorKey] ?? [];
       const mounted = zoom >= PLACEHOLDER_ZOOM && mountArea !== null && intersects(elementBox(element), mountArea);
@@ -733,7 +782,9 @@ export function CanvasView({
       return (
         <div
           key={element.id}
-          {...common}
+          {...menu}
+          onPointerDown={(event) => onBoardDown(event, element)}
+          onPointerLeave={() => setHover((current) => (current?.boardId === element.id ? null : current))}
           data-board={element.id}
           className={cx("mc-canvas-board", isSelected && "is-selected", isEntered && "is-entered")}
           style={{ left: element.x, top: element.y, width: element.w, height: element.h, outlineWidth: isSelected ? 2 * ink : ink }}
@@ -741,7 +792,11 @@ export function CanvasView({
             if (tool === "select") setEntered(element.id);
           }}
         >
-          <div className="mc-canvas-strip" style={{ fontSize: 12 * ink, top: -22 * ink, height: 20 * ink }}>
+          <div
+            className="mc-canvas-strip"
+            style={{ fontSize: 12 * ink, top: -22 * ink, height: 20 * ink }}
+            onPointerDown={(event) => moveBoard(event)}
+          >
             <span>{element.title || element.id}</span>
             {isEntered ? (
               <span className="mc-canvas-entered-hint">{t("mcProject.canvasEnteredHint")}</span>
@@ -791,6 +846,28 @@ export function CanvasView({
             </div>
           )}
           {isEntered ? null : <div className="mc-canvas-board-cover" />}
+          {hover?.boardId === element.id && !drag ? (
+            <div
+              className="mc-canvas-hover"
+              style={{ left: hover.rect.x, top: hover.rect.y, width: hover.rect.w, height: hover.rect.h, outlineWidth: ink }}
+            >
+              {hover.label ? (
+                <span style={{ fontSize: 11 * ink, top: -18 * ink, padding: `${1 * ink}px ${5 * ink}px` }}>{hover.label}</span>
+              ) : null}
+            </div>
+          ) : null}
+          {composer?.target?.boardId === element.id ? (
+            <div
+              className="mc-canvas-node"
+              style={{
+                left: composer.target.rect.x,
+                top: composer.target.rect.y,
+                width: composer.target.rect.w,
+                height: composer.target.rect.h,
+                outlineWidth: 2 * ink,
+              }}
+            />
+          ) : null}
           {nodes
             .filter((node) => node.boardId === element.id)
             .map((node) => (
@@ -825,19 +902,6 @@ export function CanvasView({
         </div>
       );
     }
-    if (element.type === "image") {
-      return (
-        <div
-          key={element.id}
-          {...common}
-          className={cx("mc-canvas-image", isSelected && "is-selected")}
-          style={{ left: element.x, top: element.y, width: element.w, height: element.h, outlineWidth: isSelected ? 2 * ink : 0 }}
-        >
-          <CanvasImage groupId={groupId} assetId={element.assetId} missing={element.assetId ? assetExists(element.assetId) === false : true} />
-        </div>
-      );
-    }
-    const isEditing = editing === element.id;
     const box = elementBox(element);
     return (
       <div
@@ -855,19 +919,8 @@ export function CanvasView({
           ...(element.h ? { height: element.h } : element.type === "note" ? { maxHeight: box.w * (4 / 3) } : {}),
           outlineWidth: isSelected ? 2 * ink : 0,
         }}
-        onDoubleClick={() => setEditing(element.id)}
       >
-        {isEditing ? (
-          <NoteEditor
-            initial={element.text ?? ""}
-            onDone={(text) => {
-              setEditing(null);
-              if (text !== (element.text ?? "")) void change([{ op: "update", id: element.id, set: { text } }]);
-            }}
-          />
-        ) : (
-          <div className="mc-canvas-note-text">{element.text || (element.type === "note" ? t("mcProject.canvasEmptyNote") : "")}</div>
-        )}
+        <div className="mc-canvas-note-text">{element.text}</div>
       </div>
     );
   };
@@ -876,7 +929,18 @@ export function CanvasView({
   const threadAt = thread ? pinPosition(thread, canvas, pinBoxes) : null;
 
   return (
-    <div className={cx("mc-canvas", `tool-${panning ? "hand" : tool}`, drag?.kind === "pan" && "is-panning")}>
+    <div
+      className={cx("mc-canvas", `tool-${panning ? "hand" : tool}`, drag?.kind === "pan" && "is-panning")}
+      onPointerEnter={() => {
+        pointerInside.current = true;
+      }}
+      onPointerMoveCapture={() => {
+        pointerInside.current = true;
+      }}
+      onPointerLeave={() => {
+        pointerInside.current = false;
+      }}
+    >
       <div
         className="mc-canvas-stage"
         ref={stage}
@@ -891,18 +955,6 @@ export function CanvasView({
       >
         <div className="mc-canvas-world" style={worldStyle}>
           {elements.map(renderElement)}
-          {single && (single.type === "frame" || single.type === "image" || single.type === "note") && !editing ? (
-            <div
-              className="mc-canvas-resize"
-              style={{
-                left: single.x + single.w - 6 * ink,
-                top: single.y + elementBox(single).h - 6 * ink,
-                width: 12 * ink,
-                height: 12 * ink,
-              }}
-              onPointerDown={(event) => onResizeDown(event, single)}
-            />
-          ) : null}
           {openThreads.map((candidate) => {
             const at = pinPosition(candidate, canvas, pinBoxes);
             if (!at) return null;
@@ -930,6 +982,7 @@ export function CanvasView({
         {composer ? (
           <CommentComposer
             at={composer.at}
+            bounds={size}
             label={composer.label}
             onCancel={() => setComposer(null)}
             onSubmit={(text, sendToAgent, queue) => void submitComment(text, sendToAgent, queue)}
@@ -939,11 +992,12 @@ export function CanvasView({
           <ThreadPopover
             key={thread.id}
             at={toScreen(threadAt, view)}
+            bounds={size}
             thread={thread}
             number={numberOf.get(thread.id)}
             onClose={() => setOpenThread(null)}
             onReply={async (text) => {
-              const { comments: next } = await api.creative.call("creative.canvasComments.reply", {
+              const { comments: next } = await api.canvas.call("canvas.comments.reply", {
                 groupId,
                 canvasId,
                 threadId: thread.id,
@@ -952,7 +1006,7 @@ export function CanvasView({
               setThreads(next);
             }}
             onStatus={async (status) => {
-              const { comments: next } = await api.creative.call("creative.canvasComments.setStatus", {
+              const { comments: next } = await api.canvas.call("canvas.comments.setStatus", {
                 groupId,
                 canvasId,
                 threadId: thread.id,
@@ -963,7 +1017,7 @@ export function CanvasView({
             }}
             onDelete={async () => {
               if (!window.confirm(t("mcProject.canvasDeleteThreadConfirm"))) return;
-              const { comments: next } = await api.creative.call("creative.canvasComments.delete", {
+              const { comments: next } = await api.canvas.call("canvas.comments.delete", {
                 groupId,
                 canvasId,
                 threadId: thread.id,
@@ -978,11 +1032,12 @@ export function CanvasView({
       </div>
 
       <div className="mc-canvas-toolbar" onPointerDown={(event) => event.stopPropagation()}>
+        {head}
+        <span className="mc-canvas-toolbar-spacer" />
         {(
           [
             ["select", t("mcProject.canvasToolSelect"), "V", <IconTarget size={14} key="i" />],
             ["hand", t("mcProject.canvasToolHand"), "H", <span className="mc-canvas-hand" aria-hidden key="i">✋</span>],
-            ["note", t("mcProject.canvasToolNote"), "N", <IconPencil size={14} key="i" />],
             ["comment", t("mcProject.canvasToolComment"), "C", <IconChat size={14} key="i" />],
           ] as const
         ).map(([id, label, key, icon]) => (
@@ -999,13 +1054,21 @@ export function CanvasView({
           </button>
         ))}
         <span className="mc-canvas-toolbar-sep" />
-        <button type="button" className="mc-canvas-tool" title={t("mcProject.canvasZoomOut")} aria-label={t("mcProject.canvasZoomOut")} onClick={() => setView(zoomAt(view, 1 / 1.25, { x: size.w / 2, y: size.h / 2 }))}>
+        <button type="button" className="mc-canvas-tool" title={t("mcProject.canvasZoomOut")} aria-label={t("mcProject.canvasZoomOut")} onClick={() => userView(zoomAt(view, 1 / 1.25, { x: size.w / 2, y: size.h / 2 }))}>
           <IconMinus size={14} />
         </button>
-        <button type="button" className="mc-canvas-zoom" title={t("mcProject.canvasZoomFit")} onClick={() => fitAll()}>
+        <button
+          type="button"
+          className="mc-canvas-zoom"
+          title={t("mcProject.canvasZoomFit")}
+          onClick={() => {
+            autoView.current = true;
+            fitAll();
+          }}
+        >
           {Math.round(zoom * 100)}%
         </button>
-        <button type="button" className="mc-canvas-tool" title={t("mcProject.canvasZoomIn")} aria-label={t("mcProject.canvasZoomIn")} onClick={() => setView(zoomAt(view, 1.25, { x: size.w / 2, y: size.h / 2 }))}>
+        <button type="button" className="mc-canvas-tool" title={t("mcProject.canvasZoomIn")} aria-label={t("mcProject.canvasZoomIn")} onClick={() => userView(zoomAt(view, 1.25, { x: size.w / 2, y: size.h / 2 }))}>
           <IconPlus size={14} />
         </button>
         <span className="mc-canvas-toolbar-sep" />
@@ -1029,35 +1092,17 @@ export function CanvasView({
           onClose={() => setPanel(null)}
           onOpen={(candidate) => {
             const at = pinPosition(candidate, canvas, pinBoxes);
-            if (at) setView({ ...view, panX: size.w / 2 - at.x * zoom, panY: size.h / 2 - at.y * zoom });
+            if (at) userView({ ...view, panX: size.w / 2 - at.x * zoom, panY: size.h / 2 - at.y * zoom });
             setOpenThread(candidate.id);
           }}
         />
-      ) : null}
-
-      {single?.type === "note" && !editing ? (
-        <div className="mc-canvas-selection-bar" onPointerDown={(event) => event.stopPropagation()}>
-          {CANVAS_NOTE_COLORS.map((color) => (
-            <button
-              key={color}
-              type="button"
-              className={cx("mc-canvas-swatch", `is-${color}`, (single.color ?? "yellow") === color && "active")}
-              aria-label={t(`mcProject.canvasColor_${color}`)}
-              title={t(`mcProject.canvasColor_${color}`)}
-              onClick={() => void change([{ op: "update", id: single.id, set: { color: color as CanvasNoteColor } }])}
-            />
-          ))}
-          <button type="button" className="mc-canvas-bar-button" onClick={() => onAttach(noteAttachment(canvasId, single))}>
-            {t("mcProject.canvasAttachNote")}
-          </button>
-        </div>
       ) : null}
 
       {elements.length === 0 ? <p className="mc-canvas-hint">{t("mcProject.canvasEmptyHint")}</p> : null}
       {notice ? (
         <div className="mc-canvas-notice" role="status">
           <span>{notice}</span>
-          <button type="button" aria-label={t("mcProject.creativeClose")} onClick={() => setNotice(null)}>
+          <button type="button" aria-label={t("mcProject.canvasClose")} onClick={() => setNotice(null)}>
             <IconX size={12} />
           </button>
         </div>
@@ -1067,62 +1112,29 @@ export function CanvasView({
   );
 }
 
-function CanvasImage({ groupId, assetId, missing }: { groupId: string; assetId?: string; missing: boolean }) {
-  const { t } = useTranslation();
-  const url = useAssetImage(groupId, missing ? null : assetId, 1024);
-  if (missing) return <div className="mc-canvas-placeholder is-missing">{t("mcProject.canvasAssetMissing")}</div>;
-  return url ? <img src={url} alt="" draggable={false} /> : <div className="mc-canvas-placeholder" />;
-}
-
-function NoteEditor({ initial, onDone }: { initial: string; onDone: (text: string) => void }) {
-  const [text, setText] = useState(initial);
-  const done = useRef(false);
-  const finish = () => {
-    if (done.current) return;
-    done.current = true;
-    onDone(text.trimEnd());
-  };
-  return (
-    <textarea
-      className="mc-canvas-note-editor"
-      autoFocus
-      value={text}
-      onChange={(event) => setText(event.target.value)}
-      onPointerDown={(event) => event.stopPropagation()}
-      onBlur={finish}
-      onKeyDown={(event) => {
-        if (event.key === "Escape" || (event.key === "Enter" && (event.metaKey || event.ctrlKey))) {
-          event.preventDefault();
-          finish();
-        }
-      }}
-    />
-  );
-}
-
 function CommentComposer({
   at,
+  bounds,
   label,
   onCancel,
   onSubmit,
 }: {
   at: Point;
+  bounds: { w: number; h: number };
   label?: string | null;
   onCancel: () => void;
+  /** `sendToAgent` hands the thread to the conversation; `queue` waits for the next message. */
   onSubmit: (text: string, sendToAgent: boolean, queue: boolean) => void;
 }) {
   const { t } = useTranslation();
   const [text, setText] = useState("");
-  const [agent, setAgent] = useState(false);
-  const [queue, setQueue] = useState(false);
-  const mentions = /(^|\s)@agent\b/i.test(text);
-  const toAgent = agent || mentions;
-  const submit = () => {
-    const body = text.replace(/(^|\s)@agent\b/gi, " ").trim();
-    if (body) onSubmit(body, toAgent, toAgent && queue);
+  // "@Agent" in the text is a way of saying "send it"; it is not kept.
+  const body = text.replace(/(^|\s)@agent\b/gi, " ").trim();
+  const submit = (sendToAgent: boolean, queue = false) => {
+    if (body) onSubmit(body, sendToAgent, queue);
   };
   return (
-    <div className="mc-canvas-popover" style={{ left: at.x + 12, top: at.y + 12 }} onPointerDown={(event) => event.stopPropagation()}>
+    <div className="mc-canvas-popover" style={popoverPlace(at, bounds)} onPointerDown={(event) => event.stopPropagation()}>
       {label ? <div className="mc-canvas-popover-label">{t("mcProject.canvasCommentOn", { label })}</div> : null}
       <textarea
         autoFocus
@@ -1133,27 +1145,24 @@ function CommentComposer({
         onKeyDown={(event) => {
           if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
             event.preventDefault();
-            submit();
+            submit(true);
           }
           if (event.key === "Escape") onCancel();
         }}
       />
-      <label className="mc-canvas-check">
-        <input type="checkbox" checked={toAgent} disabled={mentions} onChange={(event) => setAgent(event.target.checked)} />
-        {t("mcProject.canvasSendToAgent")}
-      </label>
-      {toAgent ? (
-        <label className="mc-canvas-check">
-          <input type="checkbox" checked={queue} onChange={(event) => setQueue(event.target.checked)} />
-          {t("mcProject.canvasQueue")}
-        </label>
-      ) : null}
       <div className="mc-canvas-popover-actions">
         <button type="button" onClick={onCancel}>
-          {t("mcProject.creativeCancel")}
+          {t("mcProject.canvasCancel")}
         </button>
-        <button type="button" className="is-primary" disabled={!text.trim()} onClick={submit}>
+        <span className="mc-canvas-tab-spacer" />
+        <button type="button" disabled={!body} onClick={() => submit(false)}>
           {t("mcProject.canvasCommentSubmit")}
+        </button>
+        <button type="button" disabled={!body} onClick={() => submit(true, true)}>
+          {t("mcProject.canvasQueueToAgent")}
+        </button>
+        <button type="button" className="is-primary" disabled={!body} title="⌘↩" onClick={() => submit(true)}>
+          {t("mcProject.canvasSendToAgent")}
         </button>
       </div>
     </div>
@@ -1162,6 +1171,7 @@ function CommentComposer({
 
 function ThreadPopover({
   at,
+  bounds,
   thread,
   number,
   onClose,
@@ -1172,6 +1182,7 @@ function ThreadPopover({
   onError,
 }: {
   at: Point;
+  bounds: { w: number; h: number };
   thread: CanvasThread;
   number?: number;
   onClose: () => void;
@@ -1183,7 +1194,6 @@ function ThreadPopover({
 }) {
   const { t } = useTranslation();
   const [text, setText] = useState("");
-  const [queue, setQueue] = useState(false);
   const reply = () => {
     const body = text.trim();
     if (!body) return;
@@ -1192,13 +1202,13 @@ function ThreadPopover({
       .catch(onError);
   };
   return (
-    <div className="mc-canvas-popover is-thread" style={{ left: at.x + 16, top: at.y - 8 }} onPointerDown={(event) => event.stopPropagation()}>
+    <div className="mc-canvas-popover is-thread" style={popoverPlace(at, bounds, 16, -8)} onPointerDown={(event) => event.stopPropagation()}>
       <div className="mc-canvas-popover-head">
         <span className="mc-canvas-pin-badge">{number ?? "✓"}</span>
         <span className="mc-canvas-popover-label">
           {thread.anchor.label ? t("mcProject.canvasCommentOn", { label: thread.anchor.label }) : t(`mcProject.canvasAnchor_${thread.anchor.kind}`)}
         </span>
-        <button type="button" className="mc-canvas-icon" aria-label={t("mcProject.creativeClose")} onClick={onClose}>
+        <button type="button" className="mc-canvas-icon" aria-label={t("mcProject.canvasClose")} onClick={onClose}>
           <IconX size={12} />
         </button>
       </div>
@@ -1239,12 +1249,12 @@ function ThreadPopover({
         </button>
       </div>
       <div className="mc-canvas-popover-agent">
-        {thread.agentSession ? <span className="mc-creative-muted">{t("mcProject.canvasSentToAgent")}</span> : null}
-        <label className="mc-canvas-check">
-          <input type="checkbox" checked={queue} onChange={(event) => setQueue(event.target.checked)} />
-          {t("mcProject.canvasQueue")}
-        </label>
-        <button type="button" onClick={() => onSend(queue)}>
+        {thread.agentSession ? <span className="mc-canvas-muted">{t("mcProject.canvasSentToAgent")}</span> : null}
+        <span className="mc-canvas-tab-spacer" />
+        <button type="button" onClick={() => onSend(true)}>
+          {t("mcProject.canvasQueueToAgent")}
+        </button>
+        <button type="button" onClick={() => onSend(false)}>
           {thread.agentSession ? t("mcProject.canvasSendAgain") : t("mcProject.canvasSendToAgent")}
         </button>
       </div>
@@ -1277,7 +1287,7 @@ function CommentsPanel({
             {t(`mcProject.canvasFilter_${value}`, { count: threads.filter((thread) => thread.status === value).length })}
           </button>
         ))}
-        <button type="button" className="mc-canvas-icon" aria-label={t("mcProject.creativeClose")} onClick={onClose}>
+        <button type="button" className="mc-canvas-icon" aria-label={t("mcProject.canvasClose")} onClick={onClose}>
           <IconX size={12} />
         </button>
       </div>
@@ -1287,7 +1297,7 @@ function CommentsPanel({
             <span className="mc-canvas-pin-badge">{numberOf.get(thread.id) ?? "✓"}</span>
             <span className="mc-canvas-panel-text">
               <span>{thread.messages[0]?.text}</span>
-              <span className="mc-creative-muted">
+              <span className="mc-canvas-muted">
                 {thread.anchor.label ?? t(`mcProject.canvasAnchor_${thread.anchor.kind}`)}
                 {thread.located.state === "moved" ? ` · ${t("mcProject.canvasMovedShort")}` : ""}
                 {thread.agentSession ? ` · ${t("mcProject.canvasSentShort")}` : ""}
@@ -1297,7 +1307,7 @@ function CommentsPanel({
           </button>
         ))
       ) : (
-        <p className="mc-creative-muted mc-canvas-panel-empty">{t("mcProject.canvasNoComments")}</p>
+        <p className="mc-canvas-muted mc-canvas-panel-empty">{t("mcProject.canvasNoComments")}</p>
       )}
     </aside>
   );

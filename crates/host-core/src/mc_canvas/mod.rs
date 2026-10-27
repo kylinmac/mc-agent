@@ -1,10 +1,11 @@
-//! mc-agent: the creative canvas (docs/mc-agent/creative-canvas.md, tier A).
+//! mc-agent: the prototype canvas (docs/mc-agent/prototype-canvas.md, tier A).
 //!
-//! A canvas is a folder of real files under the project's creative storage,
-//! so it can be committed and opened by path from any conversation:
+//! The agent draws prototypes on it as HTML artboards; the user looks, tries
+//! them and comments. A canvas belongs to a project and is a folder of plain
+//! files in the app's data folder, outside the user's repository:
 //!
 //! ```text
-//! creative/canvas/<canvas id>/
+//! <data dir>/canvas/<project id>/<canvas id>/
 //!   canvas.json            elements, back to front, and a version number
 //!   comments.json          comment threads
 //!   frames/<board id>.html one HTML fragment per artboard
@@ -27,10 +28,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use super::{get_asset, storage};
 use crate::db::{now_ms, Database, ProjectGroupRecord};
 
-/// The canvas folder inside `creative/`; categories cannot use the name.
+/// The canvas folder inside the data folder.
 pub const CANVAS_DIR: &str = "canvas";
 const INDEX_FILE: &str = "canvas.json";
 const COMMENTS_FILE: &str = "comments.json";
@@ -64,7 +64,6 @@ fn lock() -> std::sync::MutexGuard<'static, ()> {
 #[serde(rename_all = "lowercase")]
 pub enum ElementKind {
     Frame,
-    Image,
     Note,
     Title,
 }
@@ -89,8 +88,6 @@ pub struct Element {
     pub text: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub color: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub asset_id: Option<String>,
     /// The frame a note is attached to.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub board_id: Option<String>,
@@ -142,7 +139,6 @@ pub struct ElementInput {
     pub text: Option<String>,
     /// Empty clears it.
     pub color: Option<String>,
-    pub asset_id: Option<String>,
     /// Empty detaches the note.
     pub board_id: Option<String>,
 }
@@ -228,9 +224,19 @@ fn short_id(prefix: &str) -> String {
     format!("{prefix}{}", &raw[..10])
 }
 
-/// `creative/canvas/` of the project's current storage.
+/// `<data dir>/canvas/<project>/`. A project whose id is not a plain name
+/// (a folder-only project's is `legacy:<path>`) gets a digest of it instead.
 pub fn canvas_root(db: &Database, group: &ProjectGroupRecord) -> Result<PathBuf> {
-    Ok(storage(db, group)?.base.join(CANVAS_DIR))
+    let folder = if valid_id(&group.id) {
+        group.id.clone()
+    } else {
+        use sha2::{Digest, Sha256};
+        format!(
+            "p-{}",
+            &hex::encode(Sha256::digest(group.id.as_bytes()))[..32]
+        )
+    };
+    Ok(db.data_dir().join(CANVAS_DIR).join(folder))
 }
 
 fn canvas_dir(db: &Database, group: &ProjectGroupRecord, id: &str) -> Result<PathBuf> {
@@ -428,20 +434,13 @@ fn finite(value: f64, label: &str, min: f64, max: f64) -> Result<f64> {
 fn limits(kind: ElementKind) -> (f64, f64) {
     match kind {
         ElementKind::Frame => (40.0, 8000.0),
-        ElementKind::Image => (16.0, 8000.0),
         ElementKind::Note => (80.0, 1200.0),
         ElementKind::Title => (80.0, 8000.0),
     }
 }
 
 /// Validate and apply one element's fields onto `element`.
-fn set_fields(
-    db: &Database,
-    group: &ProjectGroupRecord,
-    element: &mut Element,
-    input: &ElementInput,
-    frames: &HashSet<String>,
-) -> Result<()> {
+fn set_fields(element: &mut Element, input: &ElementInput, frames: &HashSet<String>) -> Result<()> {
     let kind = element.kind;
     if let Some(x) = input.x {
         element.x = finite(x, "x", -MAX_COORD, MAX_COORD)?;
@@ -487,15 +486,6 @@ fn set_fields(
                 ))
             }
         };
-    }
-    if let Some(asset) = &input.asset_id {
-        if kind != ElementKind::Image {
-            return Err(anyhow!("INVALID_ARGUMENT: only an image shows an asset"));
-        }
-        let found = get_asset(db, asset.trim())?
-            .filter(|found| found.group_id == group.id && found.removed_at.is_none())
-            .ok_or_else(|| anyhow!("NOT_FOUND: no asset {asset} in this project's library"))?;
-        element.asset_id = Some(found.id);
     }
     if let Some(board) = &input.board_id {
         if kind != ElementKind::Note {
@@ -589,7 +579,6 @@ pub fn apply(
                     }
                     None => short_id(match kind {
                         ElementKind::Frame => "b",
-                        ElementKind::Image => "i",
                         ElementKind::Note => "n",
                         ElementKind::Title => "t",
                     }),
@@ -624,12 +613,11 @@ pub fn apply(
                     title: String::new(),
                     text: String::new(),
                     color: (kind == ElementKind::Note).then(|| "yellow".to_string()),
-                    asset_id: None,
                     board_id: None,
                     rev: 0,
                     has_prev: false,
                 };
-                set_fields(db, group, &mut element, input, &frames)?;
+                set_fields(&mut element, input, &frames)?;
                 match kind {
                     ElementKind::Frame => {
                         let html = html
@@ -651,9 +639,6 @@ pub fn apply(
                             html: html.to_string(),
                             keep_prev: false,
                         });
-                    }
-                    ElementKind::Image if element.asset_id.is_none() => {
-                        return Err(anyhow!("INVALID_ARGUMENT: an image needs assetId"))
                     }
                     _ if html.is_some() => {
                         return Err(anyhow!("INVALID_ARGUMENT: only an artboard has html"))
@@ -677,7 +662,7 @@ pub fn apply(
                 }
                 let at = position(&canvas, target)?;
                 let mut element = canvas.elements[at].clone();
-                set_fields(db, group, &mut element, set, &frames)?;
+                set_fields(&mut element, set, &frames)?;
                 if let Some(html) = html {
                     if element.kind != ElementKind::Frame {
                         return Err(anyhow!("INVALID_ARGUMENT: only an artboard has html"));
@@ -782,6 +767,9 @@ pub fn apply(
             }
         }
     }
+    if matches!(actor, Actor::Agent { .. }) {
+        clear_titles(&mut canvas, &mut warnings);
+    }
     canvas.version += 1;
     canvas.updated_at = now_ms();
     write_canvas(&dir, &canvas)?;
@@ -790,6 +778,42 @@ pub fn apply(
         added,
         warnings,
     })
+}
+
+/// The room a title needs above its row: its own line and the artboards'
+/// name strips.
+const TITLE_CLEARANCE: f64 = 110.0;
+
+/// Move each title up out of the artboards it sits on or just above, so the
+/// agent's layout never covers a name strip. Says so in the warnings.
+fn clear_titles(canvas: &mut Canvas, warnings: &mut Vec<String>) {
+    let frames: Vec<(f64, f64, f64)> = canvas
+        .elements
+        .iter()
+        .filter(|element| element.kind == ElementKind::Frame)
+        .map(|element| (element.x, element.x + element.w, element.y))
+        .collect();
+    for title in canvas
+        .elements
+        .iter_mut()
+        .filter(|element| element.kind == ElementKind::Title)
+    {
+        let (left, right) = (title.x, title.x + title.w.max(1.0));
+        let top = frames
+            .iter()
+            .filter(|(x0, x1, y)| {
+                *x0 < right && left < *x1 && *y > title.y - 40.0 && *y < title.y + TITLE_CLEARANCE
+            })
+            .map(|(_, _, y)| *y)
+            .fold(f64::INFINITY, f64::min);
+        if top.is_finite() {
+            title.y = top - TITLE_CLEARANCE;
+            warnings.push(format!(
+                "{}: moved up to y={} so it does not cover the artboards' names; put titles {TITLE_CLEARANCE} px above their row",
+                title.id, title.y
+            ));
+        }
+    }
 }
 
 // ---- serving and element addresses -------------------------------------------
@@ -811,14 +835,12 @@ fn frame_source(dir: &Path, canvas: &Canvas, board: &str) -> Result<(String, u64
     Ok((source, element.rev))
 }
 
-/// An artboard as the frame shows it: numbered, with library images resolved
-/// by `asset_url` (only assets of this project are offered to it).
+/// An artboard as the frame shows it: every element numbered.
 pub fn board_document(
     db: &Database,
     group: &ProjectGroupRecord,
     id: &str,
     board: &str,
-    asset_url: impl Fn(&str) -> String,
 ) -> Result<(String, u64)> {
     let dir = canvas_dir(db, group, id)?;
     let canvas = read_canvas(&dir)?;
@@ -826,13 +848,7 @@ pub fn board_document(
     // A file edited by hand may no longer read strictly; it is still shown,
     // just without element numbers.
     let served = match html::parse(&source) {
-        Ok(parsed) => html::annotate(&source, &parsed, |asset| {
-            get_asset(db, asset)
-                .ok()
-                .flatten()
-                .filter(|found| found.group_id == group.id && found.removed_at.is_none())
-                .map(|found| asset_url(&found.id))
-        }),
+        Ok(parsed) => html::annotate(&source, &parsed),
         Err(_) => source,
     };
     Ok((served, rev))

@@ -1219,7 +1219,7 @@ pub async fn execute_tool_with_path_access(
         "SaveCreativeAsset" => Ok(serde_json::json!({ "authorized": true })),
         // mc-agent: the desktop writes the note into project memory.
         "Remember" => Ok(serde_json::json!({ "authorized": true })),
-        // mc-agent: the desktop reads and writes the creative canvas.
+        // mc-agent: the desktop reads and writes the prototype canvas.
         "CanvasRead" | "CanvasWrite" | "CanvasComment" => {
             Ok(serde_json::json!({ "authorized": true }))
         }

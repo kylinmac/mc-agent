@@ -1,19 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { canvasAssetUrlPrefix, canvasBoardUrl, canvasLocationFromUrl, fenceCanvasData, stripCanvasData } from "./mc-canvas";
+import { canvasBoardUrl, canvasLocationFromUrl, fenceCanvasData, stripCanvasData } from "./mc-canvas";
 
 describe("mc-canvas URLs", () => {
-  it("round-trips board and asset locations", () => {
+  it("round-trips board locations, a folder-only project's id included", () => {
     expect(canvasLocationFromUrl(canvasBoardUrl("g-1", "c1", "login-a", 7))).toEqual({
       kind: "board",
       groupId: "g-1",
       canvasId: "c1",
       boardId: "login-a",
     });
-    expect(canvasLocationFromUrl(`${canvasAssetUrlPrefix("g-1")}3f2a-11`)).toEqual({
-      kind: "asset",
-      groupId: "g-1",
-      assetId: "3f2a-11",
-    });
+    expect(canvasLocationFromUrl(canvasBoardUrl("legacy:/Users/me/web app", "c1", "a", 1))?.groupId).toBe(
+      "legacy:/Users/me/web app",
+    );
   });
 
   it("refuses anything else", () => {
@@ -24,7 +22,8 @@ describe("mc-canvas URLs", () => {
       "mc-canvas://board/g/c/b/1/extra",
       "mc-canvas://board/g/c/b/x",
       "mc-canvas://other/g/c",
-      "mc-canvas://asset/g/a b",
+      "mc-canvas://asset/g/a1",
+      "mc-canvas://board/g/c/b/1?x=1",
       "mc-canvas://user:pw@board/g/c/b/1",
       "mc-canvas://board/g/c/b/1#x",
       "not a url",

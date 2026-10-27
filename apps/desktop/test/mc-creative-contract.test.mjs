@@ -13,10 +13,7 @@ import { CREATIVE_RENDERER_METHODS } from "@pi-desktop/shared";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..", "..", "..");
-// The canvas methods (docs/mc-agent/creative-canvas.md) live in their own file.
-const rpc = ["mc_creative_rpc.rs", "mc_canvas_rpc.rs"]
-  .map((file) => readFileSync(join(root, "crates/host-core/src/rpc", file), "utf8"))
-  .join("\n");
+const rpc = readFileSync(join(root, "crates/host-core/src/rpc/mc_creative_rpc.rs"), "utf8");
 const ipc = readFileSync(join(here, "..", "electron/main/ipc/mc-creative-ipc.ts"), "utf8");
 
 test("every renderer creative method is one host-core answers", () => {
@@ -25,18 +22,7 @@ test("every renderer creative method is one host-core answers", () => {
     assert.ok(answered.has(method), `${method} is not handled by mc_creative_rpc.rs`);
   }
   // Host-only methods stay out of the renderer's reach.
-  for (const method of [
-    "creative.jobs.create",
-    "creative.jobs.recordResult",
-    "creative.code.register",
-    // The agent's canvas methods act for a conversation; the served artboard
-    // is only for Main's protocol handler.
-    "creative.canvas.agentApply",
-    "creative.canvas.boardDocument",
-    "creative.canvasComments.agentAdd",
-    "creative.canvasComments.agentReply",
-    "creative.canvasComments.agentSetStatus",
-  ]) {
+  for (const method of ["creative.jobs.create", "creative.jobs.recordResult", "creative.code.register"]) {
     assert.ok(answered.has(method));
     assert.ok(!CREATIVE_RENDERER_METHODS.includes(method), `${method} must stay Main-only`);
   }

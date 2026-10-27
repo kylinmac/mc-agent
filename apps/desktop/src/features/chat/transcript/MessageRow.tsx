@@ -9,7 +9,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import type { UiMessage } from "@pi-desktop/shared";
-import { splitInlineContent } from "@pi-desktop/shared";
+import { splitInlineContent, stripCanvasData } from "@pi-desktop/shared";
 import { useOpenChatFileRef } from "../../../hooks/use-preview-target";
 import { sessionAllows } from "../../../lib/remote-session-safety";
 import { useSlotSessionId } from "../../../plugins/renderer-slots/use-slots";
@@ -125,7 +125,8 @@ export const MessageRow = memo(function MessageRow({
   // The user's own order: an image chip the draft named inline renders between
   // the text runs it sat between, exactly where the Composer showed it.
   const userContentParts = useMemo(
-    () => splitInlineContent(String(message.content || ""), message.attachments ?? []).parts,
+    // mc-agent: canvas data a message carried is for the agent, not shown.
+    () => splitInlineContent(stripCanvasData(String(message.content || "")).text, message.attachments ?? []).parts,
     [message.attachments, message.content],
   );
   const renderContentPart = (

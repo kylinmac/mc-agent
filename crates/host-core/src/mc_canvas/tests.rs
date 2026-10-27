@@ -1,6 +1,5 @@
 use super::*;
 use crate::db::canonical_project_path;
-use crate::mc_creative::{import_reference, FileFacts};
 use serde_json::json;
 
 struct Fixture {
@@ -57,10 +56,12 @@ fn with_board(f: &Fixture) -> Canvas {
 }
 
 #[test]
-fn a_canvas_is_plain_files_under_creative_canvas() {
+fn a_canvas_is_plain_files_in_the_data_folder() {
     let f = fixture();
     let canvas = with_board(&f);
-    let dir = f.web.join("creative/canvas").join(&canvas.id);
+    let dir = canvas_dir_of(&f, &canvas.id);
+    // Nothing is written into the project's own folders.
+    assert!(fs::read_dir(&f.web).unwrap().next().is_none());
     assert!(dir.join("canvas.json").is_file());
     assert_eq!(
         fs::read_to_string(dir.join("frames/a.html")).unwrap(),
@@ -73,8 +74,10 @@ fn a_canvas_is_plain_files_under_creative_canvas() {
     assert_eq!(canvas.version, 2);
     assert_eq!(canvas.elements[1].board_id.as_deref(), Some("a"));
     assert_eq!(canvas.elements[1].color.as_deref(), Some("yellow"));
-    // The folder name is reserved for canvases.
-    assert!(crate::mc_creative::normalize_category("canvas").is_err());
+}
+
+fn canvas_dir_of(f: &Fixture, id: &str) -> PathBuf {
+    f.db.data_dir().join("canvas").join(&f.group.id).join(id)
 }
 
 #[test]
@@ -133,7 +136,7 @@ fn a_batch_is_all_or_nothing() {
     );
     let now = get(&f.db, &f.group, &canvas.id).unwrap();
     assert_eq!(now, canvas);
-    let dir = f.web.join("creative/canvas").join(&canvas.id);
+    let dir = canvas_dir_of(&f, &canvas.id);
     assert_eq!(
         fs::read_to_string(dir.join("frames/a.html")).unwrap(),
         BOARD_A
@@ -204,7 +207,7 @@ fn removing_an_artboard_detaches_its_notes_and_deletes_its_files() {
     .unwrap();
     assert_eq!(after.canvas.elements.len(), 1);
     assert_eq!(after.canvas.elements[0].board_id, None);
-    let dir = f.web.join("creative/canvas").join(&canvas.id);
+    let dir = canvas_dir_of(&f, &canvas.id);
     assert!(!dir.join("frames/a.html").exists());
 }
 
@@ -232,14 +235,6 @@ fn elements_are_checked() {
         (
             json!([{ "op": "add", "element": { "type": "note", "boardId": "zz" } }]),
             "no artboard zz",
-        ),
-        (
-            json!([{ "op": "add", "element": { "type": "image", "assetId": "nope" } }]),
-            "no asset",
-        ),
-        (
-            json!([{ "op": "add", "element": { "type": "image" } }]),
-            "needs assetId",
         ),
         (
             json!([{ "op": "add", "element": { "id": "../x", "type": "note" } }]),
@@ -275,35 +270,17 @@ fn elements_are_checked() {
 }
 
 #[test]
-fn images_show_library_assets_of_this_project_only() {
+fn artboards_are_served_numbered_and_images_are_not_elements() {
     let f = fixture();
     let canvas = with_board(&f);
-    let png = f.web.join("hero.png");
-    fs::write(&png, [0x89, b'P', b'N', b'G', 1]).unwrap();
-    let asset = import_reference(&f.db, &f.group, &png, &FileFacts::default(), "").unwrap();
-    let after = apply(
-        &f.db,
-        &f.group,
-        &canvas.id,
-        canvas.version,
-        &ops(json!([
-            { "op": "add", "element": { "id": "img", "type": "image", "assetId": asset.id, "w": 200, "h": 120 } },
-            { "op": "update", "id": "a", "html": format!("<img src=\"asset:{}\" alt=\"hero\"><img src=\"asset:other\" alt=\"x\">", asset.id) },
-        ])),
-        &Actor::User,
-    )
-    .unwrap();
-    assert_eq!(
-        after.canvas.elements[2].asset_id.as_deref(),
-        Some(asset.id.as_str())
-    );
-    let (served, rev) = board_document(&f.db, &f.group, &canvas.id, "a", |id| {
-        format!("mc-canvas://asset/g/{id}")
-    })
-    .unwrap();
-    assert_eq!(rev, 2);
-    assert!(served.contains(&format!("src=\"mc-canvas://asset/g/{}\"", asset.id)));
-    assert!(served.contains("data-mc-node=\"1\" src=\"\""));
+    let (served, rev) = board_document(&f.db, &f.group, &canvas.id, "a").unwrap();
+    assert_eq!(rev, 1);
+    assert!(served.contains(r#"<h1 data-mc-node="1" data-mc-id="headline">"#));
+    // Prototypes draw their own pictures; there is no library to place from.
+    assert!(serde_json::from_value::<Vec<Op>>(json!([
+        { "op": "add", "element": { "type": "image", "x": 0, "y": 0 } }
+    ]))
+    .is_err());
 }
 
 #[test]
@@ -477,4 +454,52 @@ fn renaming_and_deleting_a_canvas() {
     delete(&f.db, &f.group, &canvas.id).unwrap();
     assert!(list(&f.db, &f.group).unwrap().is_empty());
     assert!(get(&f.db, &f.group, &canvas.id).is_err());
+}
+
+#[test]
+fn the_agents_title_moves_up_off_its_row() {
+    let f = fixture();
+    let canvas = create(&f.db, &f.group, "两版").unwrap();
+    let applied = apply(
+        &f.db,
+        &f.group,
+        &canvas.id,
+        canvas.version,
+        &ops(json!([
+            { "op": "add", "element": { "id": "t", "type": "title", "x": 0, "y": 0, "w": 860, "text": "两版并排" } },
+            { "op": "add", "element": { "id": "a", "type": "frame", "x": 0, "y": 56, "w": 390, "h": 844 }, "html": BOARD_A },
+            { "op": "add", "element": { "id": "far", "type": "title", "x": 2000, "y": 0, "w": 300, "text": "别处" } },
+        ])),
+        &Actor::Agent { session_id: "s1".into() },
+    )
+    .unwrap();
+    let title = |id: &str| {
+        applied
+            .canvas
+            .elements
+            .iter()
+            .find(|e| e.id == id)
+            .unwrap()
+            .y
+    };
+    assert_eq!(title("t"), 56.0 - TITLE_CLEARANCE);
+    assert_eq!(title("far"), 0.0);
+    assert!(applied
+        .warnings
+        .iter()
+        .any(|w| w.starts_with("t: moved up")));
+    // The user's own layout is left as it is.
+    let mine = apply(
+        &f.db,
+        &f.group,
+        &canvas.id,
+        applied.canvas.version,
+        &ops(json!([{ "op": "update", "id": "t", "set": { "y": 40 } }])),
+        &Actor::User,
+    )
+    .unwrap();
+    assert_eq!(
+        mine.canvas.elements.iter().find(|e| e.id == "t").unwrap().y,
+        40.0
+    );
 }

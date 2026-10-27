@@ -1,6 +1,7 @@
 import {
   CANVAS_ERROR_MESSAGE,
   CANVAS_KEY_MESSAGE,
+  CANVAS_LEAVE_MESSAGE,
   CANVAS_MAX_ERROR_CHARS,
   CANVAS_MAX_ERRORS,
   CANVAS_PICK_MESSAGE,
@@ -8,31 +9,30 @@ import {
   CANVAS_READY_MESSAGE,
   CANVAS_RECTS_MESSAGE,
   CANVAS_RECTS_REPLY_MESSAGE,
-  CANVAS_SCHEME,
 } from "@pi-desktop/shared";
 import { GEN_UI_PERMISSIONS_POLICY } from "../gen-ui-document";
 
 /**
- * mc-agent creative canvas (docs/mc-agent/creative-canvas.md): the shell an
- * artboard fragment is served in. Same isolation as gen-ui visualizations:
+ * mc-agent prototype canvas (docs/mc-agent/prototype-canvas.md): the shell
+ * an artboard fragment is served in. Same isolation as gen-ui visualizations:
  * an opaque-origin sandbox, a CSP that blocks every network request, form,
- * frame and `<base>`, and no device permissions. Images come only from the
- * project's library through `mc-canvas://asset/…`.
+ * frame and `<base>`, and no device permissions. Images are inline (`data:`)
+ * or drawn (SVG, CSS).
  *
  * The runtime is the only host contact: it announces itself, reports script
- * and loading errors, reports Escape, and answers two questions from its
- * parent — which numbered element is at a point, and where some numbered
- * elements are (both in the frame's viewport pixels). It sends numbers and
- * boxes, never text.
+ * and loading errors, reports Escape, drops its selection when the user leaves
+ * it, and answers two questions from its parent — which numbered element is
+ * at a point, and where some numbered elements are (both in the frame's
+ * viewport pixels). It sends numbers and boxes, never text.
  */
 
 export const CANVAS_CONTENT_SECURITY_POLICY = [
   "default-src 'none'",
   "script-src 'unsafe-inline'",
   "style-src 'unsafe-inline'",
-  `img-src data: blob: ${CANVAS_SCHEME}:`,
+  "img-src data: blob:",
   "font-src data:",
-  `media-src data: blob: ${CANVAS_SCHEME}:`,
+  "media-src data: blob:",
   "connect-src 'none'",
   "frame-src 'none'",
   "worker-src 'none'",
@@ -59,6 +59,7 @@ const RUNTIME_SCRIPT = `(() => {
   const RECTS_REPLY = ${JSON.stringify(CANVAS_RECTS_REPLY_MESSAGE)};
   const ERROR = ${JSON.stringify(CANVAS_ERROR_MESSAGE)};
   const KEY = ${JSON.stringify(CANVAS_KEY_MESSAGE)};
+  const LEAVE = ${JSON.stringify(CANVAS_LEAVE_MESSAGE)};
   const MAX_CHARS = ${CANVAS_MAX_ERROR_CHARS};
   const MAX_ERRORS = ${CANVAS_MAX_ERRORS};
   const post = (message) => parent.postMessage(message, "*");
@@ -76,6 +77,12 @@ const RUNTIME_SCRIPT = `(() => {
     if (event.source !== parent) return;
     const data = event.data;
     if (!data || typeof data !== "object") return;
+    if (data.type === LEAVE) {
+      const selection = getSelection();
+      if (selection) selection.removeAllRanges();
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      return;
+    }
     if (data.type === PICK) {
       const x = Number(data.x);
       const y = Number(data.y);
@@ -121,7 +128,7 @@ const RUNTIME_SCRIPT = `(() => {
 
 /** A white page by default, like a design tool's artboard. */
 const SHELL_CSS = `:root { color-scheme: light; }
-html, body { margin: 0; background: #fff; color: #111; }
+html, body { margin: 0; height: 100%; background: #fff; color: #111; }
 body { font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }`;
 
 function escapeAttribute(value: string): string {
@@ -160,21 +167,4 @@ export function buildCanvasErrorDocument(code: "not-found" | "unavailable"): str
     `<script>parent.postMessage(${JSON.stringify({ type: CANVAS_ERROR_MESSAGE, message })}, "*");</script>`,
     `<p style="margin:16px;opacity:0.6">${message}</p>`,
   );
-}
-
-const IMAGE_TYPES: Record<string, string> = {
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  gif: "image/gif",
-  webp: "image/webp",
-  avif: "image/avif",
-  bmp: "image/bmp",
-  svg: "image/svg+xml",
-};
-
-/** Content type for a library image by extension, or null when not an image. */
-export function canvasImageType(path: string): string | null {
-  const extension = path.split(".").pop()?.toLowerCase() ?? "";
-  return IMAGE_TYPES[extension] ?? null;
 }

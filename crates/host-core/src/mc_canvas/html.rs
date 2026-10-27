@@ -1,4 +1,4 @@
-//! Artboard HTML for the creative canvas (docs/mc-agent/creative-canvas.md).
+//! Artboard HTML for the prototype canvas (docs/mc-agent/prototype-canvas.md).
 //!
 //! An artboard is an HTML *fragment* the agent wrote. This module reads it
 //! strictly (every element closed, every attribute value quoted) so that the
@@ -41,8 +41,6 @@ const FORBIDDEN: &[&str] = &[
 /// Attribute the server writes; a fragment may not bring its own.
 pub const NODE_ATTRIBUTE: &str = "data-mc-node";
 pub const ID_ATTRIBUTE: &str = "data-mc-id";
-/// `src="asset:<id>"` names an image of the project's library.
-pub const ASSET_PREFIX: &str = "asset:";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Node {
@@ -89,18 +87,9 @@ impl Node {
     }
 }
 
-/// An attribute value that names a library asset: its byte range and id.
-#[derive(Debug, Clone, PartialEq)]
-pub struct AssetRef {
-    pub start: usize,
-    pub end: usize,
-    pub asset_id: String,
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct Parsed {
     pub nodes: Vec<Node>,
-    pub assets: Vec<AssetRef>,
     reserved_attribute: bool,
     scripts: Vec<String>,
 }
@@ -389,15 +378,6 @@ pub fn parse(source: &str) -> Result<Parsed, HtmlError> {
                 match attr.as_str() {
                     ID_ATTRIBUTE => mc_id = Some(raw.to_string()),
                     "alt" => alt = Some(decode_entities(raw)),
-                    "src" | "poster" | "href" => {
-                        if let Some(id) = raw.trim().strip_prefix(ASSET_PREFIX) {
-                            parsed.assets.push(AssetRef {
-                                start,
-                                end,
-                                asset_id: id.trim().to_string(),
-                            });
-                        }
-                    }
                     _ => {}
                 }
             }
@@ -484,7 +464,7 @@ pub struct Checked {
     pub warnings: Vec<String>,
 }
 
-/// The artboard conventions (docs/mc-agent/creative-canvas.md, 关键设计 2).
+/// The artboard conventions (docs/mc-agent/prototype-canvas.md, 关键设计 2).
 /// Structure only; whether the design is good is not this check's business.
 pub fn check(source: &str) -> Result<(Parsed, Checked), String> {
     if source.len() > MAX_BOARD_BYTES {
@@ -557,58 +537,15 @@ pub fn check(source: &str) -> Result<(Parsed, Checked), String> {
     Ok((parsed, checked))
 }
 
-/// The source as served: each start tag numbered, and each `asset:` value
-/// replaced by `asset_url` (or left empty when the asset is not available).
-pub fn annotate(
-    source: &str,
-    parsed: &Parsed,
-    asset_url: impl Fn(&str) -> Option<String>,
-) -> String {
-    enum Edit<'a> {
-        Insert(usize, String),
-        Replace(usize, usize, &'a str),
-    }
-    let mut edits: Vec<(usize, Edit<'_>)> = parsed
-        .nodes
-        .iter()
-        .map(|node| {
-            (
-                node.name_end,
-                Edit::Insert(node.name_end, format!(" {NODE_ATTRIBUTE}=\"{}\"", node.tid)),
-            )
-        })
-        .collect();
-    let urls: Vec<(usize, usize, String)> = parsed
-        .assets
-        .iter()
-        .map(|asset| {
-            (
-                asset.start,
-                asset.end,
-                asset_url(&asset.asset_id).unwrap_or_default(),
-            )
-        })
-        .collect();
-    for (start, end, url) in &urls {
-        edits.push((*start, Edit::Replace(*start, *end, url.as_str())));
-    }
-    edits.sort_by_key(|(at, _)| *at);
+/// The source as served: each start tag numbered.
+pub fn annotate(source: &str, parsed: &Parsed) -> String {
     let mut out = String::with_capacity(source.len() + parsed.nodes.len() * 20);
     let mut cursor = 0;
-    for (_, edit) in edits {
-        match edit {
-            Edit::Insert(at, text) => {
-                out.push_str(&source[cursor..at]);
-                out.push_str(&text);
-                cursor = at;
-            }
-            Edit::Replace(start, end, text) => {
-                out.push_str(&source[cursor..start]);
-                // Only safe URL characters reach the attribute.
-                out.push_str(&text.replace(['"', '\'', '<', '>'], ""));
-                cursor = end;
-            }
-        }
+    // Nodes are in document order, so their tag names are too.
+    for node in &parsed.nodes {
+        out.push_str(&source[cursor..node.name_end]);
+        out.push_str(&format!(" {NODE_ATTRIBUTE}=\"{}\"", node.tid));
+        cursor = node.name_end;
     }
     out.push_str(&source[cursor..]);
     out
@@ -633,7 +570,7 @@ mod tests {
 <div style="padding: 32px">
   <h1>Hello &amp; welcome</h1>
   <ul><li>One</li><li data-mc-id="two">Two</li></ul>
-  <img src="asset:abc" alt="Hero image">
+  <img src="data:image/png;base64,AAAA" alt="Hero image">
 </div>"#;
 
     #[test]
@@ -661,19 +598,14 @@ mod tests {
     }
 
     #[test]
-    fn annotation_numbers_every_start_tag_and_resolves_assets() {
+    fn annotation_numbers_every_start_tag() {
         let parsed = parse(MINIMAL).unwrap();
-        let served = annotate(MINIMAL, &parsed, |id| {
-            (id == "abc").then(|| "mc-canvas://asset/g/abc".to_string())
-        });
+        let served = annotate(MINIMAL, &parsed);
         assert!(served.starts_with(r#"<style data-mc-node="0">"#));
         assert!(served.contains(r#"<li data-mc-node="5" data-mc-id="two">"#));
-        assert!(served.contains(r#"<img data-mc-node="6" src="mc-canvas://asset/g/abc""#));
+        assert!(served.contains(r#"<img data-mc-node="6" src="data:"#));
         // Serving again from the served text would find the reserved attribute.
         assert!(check(&served).unwrap_err().contains(NODE_ATTRIBUTE));
-        // An asset that is not available becomes an empty source.
-        let missing = annotate(MINIMAL, &parsed, |_| None);
-        assert!(missing.contains(r#"src="""#));
     }
 
     #[test]

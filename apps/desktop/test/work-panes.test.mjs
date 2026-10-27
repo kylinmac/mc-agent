@@ -45,10 +45,10 @@ test("a pane shows the tab last selected in it, else its newest", () => {
 
 test("stored layout is normalized", () => {
   const prefs = normalizePanePrefs({ order: ["files", "nope", "files"], collapsed: ["review", 3], sizes: { files: 900, bad: 1 } });
-  assert.deepEqual(prefs.order, ["files", "terminal", "background", "browser", "review", "other"]);
+  assert.deepEqual(prefs.order, ["files", "canvas", "terminal", "background", "browser", "review", "other"]);
   assert.deepEqual(prefs.collapsed, ["review"]);
   assert.deepEqual(prefs.sizes, { files: 20 });
-  assert.deepEqual(normalizePanePrefs("junk").order, ["terminal", "background", "browser", "files", "review", "other"]);
+  assert.deepEqual(normalizePanePrefs("junk").order, ["canvas", "terminal", "background", "browser", "files", "review", "other"]);
 });
 
 test("panes move, collapse and drop by pointer position", () => {

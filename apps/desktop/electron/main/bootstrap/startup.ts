@@ -12,7 +12,7 @@ import {
 } from "@pi-desktop/shared";
 import { installApplicationMenu } from "../application-menu";
 import { installGenUiProtocol } from "../gen-ui-protocol";
-import { installCanvasProtocol } from "../creative/canvas-protocol";
+import { installCanvasProtocol } from "../canvas/canvas-protocol";
 import { installPluginAssetProtocol } from "../plugin-asset-protocol";
 import { installPluginRendererProtocol } from "../plugin-renderer-protocol";
 import { registerPluginSchemes } from "../plugin-schemes";
@@ -202,7 +202,7 @@ export function registerApplicationStartup(deps: StartupDependencies): void {
       plugins.resolveRendererSource(pluginId, generation, requestPath),
     );
     installGenUiProtocol({ getHost });
-    // mc-agent creative canvas artboards.
+    // mc-agent prototype canvas artboards.
     installCanvasProtocol({ getHost });
     // Load the close-behavior preference before the first window exists: the
     // close handler reads `closeBehavior` synchronously, and a window created

@@ -29,18 +29,15 @@ function draggedIds(event: DragEvent): string[] | null {
  * was typed and says why (mc-agent, bugs.md B-006); only success or Escape
  * closes it.
  */
-export function NameInput({
+function NameInput({
   initial,
   placeholder,
   check,
   onSubmit,
   onCancel,
-  refused,
 }: {
   initial: string;
   placeholder: string;
-  /** What a refusal says; categories by default. */
-  refused?: string;
   /** The full path the value would make, checked before sending. */
   check: (value: string) => string | null;
   /** Resolves when done; rejects with a message to show. */
@@ -67,7 +64,7 @@ export function NameInput({
       await onSubmit(name);
     } catch (failure) {
       const detail = failure instanceof Error ? failure.message : String(failure);
-      setError({ text: refused ?? t("mcProject.creativeCategoryRefused"), detail });
+      setError({ text: t("mcProject.creativeCategoryRefused"), detail });
     } finally {
       setBusy(false);
     }

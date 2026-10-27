@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import {
   CANVAS_ERROR_MESSAGE,
   CANVAS_KEY_MESSAGE,
+  CANVAS_LEAVE_MESSAGE,
   CANVAS_MAX_ERROR_CHARS,
   CANVAS_PICK_MESSAGE,
   CANVAS_PICKED_MESSAGE,
@@ -130,6 +131,18 @@ export const CanvasFrame = forwardRef<
       waiting.clear();
     };
   }, []);
+
+  // Leaving the artboard drops what was selected or focused in it, so no
+  // selection is left behind and keys come back to the canvas.
+  const wasInteractive = useRef(props.interactive);
+  useEffect(() => {
+    if (wasInteractive.current && !props.interactive) {
+      frame.current?.contentWindow?.postMessage({ type: CANVAS_LEAVE_MESSAGE }, "*");
+      frame.current?.blur();
+      window.focus();
+    }
+    wasInteractive.current = props.interactive;
+  }, [props.interactive]);
 
   return (
     <iframe

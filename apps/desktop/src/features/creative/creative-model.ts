@@ -17,8 +17,7 @@ export type StudioView =
   | { kind: "all" }
   | { kind: "uncategorized" }
   | { kind: "category"; path: string }
-  | { kind: "comparisons" }
-  | { kind: "canvas"; canvasId: string };
+  | { kind: "comparisons" };
 
 export function inCategory(assetCategory: string, path: string): boolean {
   return assetCategory === path || assetCategory.startsWith(`${path}/`);
@@ -31,7 +30,6 @@ export function viewAssets(assets: readonly CreativeAsset[], view: StudioView): 
     case "category":
       return assets.filter((asset) => inCategory(asset.category, view.path));
     case "comparisons":
-    case "canvas":
       return [];
     default:
       return [...assets];

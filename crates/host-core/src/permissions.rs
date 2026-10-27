@@ -126,8 +126,8 @@ impl PermissionManager {
             // mc-agent: a note in the project's memory, which the user can
             // edit or delete (MC-ADR-0019).
             "Remember" => Risk::Low,
-            // mc-agent: the creative canvas, which writes only its own files
-            // under creative/canvas (docs/mc-agent/creative-canvas.md).
+            // mc-agent: the prototype canvas, which writes only its own files
+            // in the data folder (docs/mc-agent/prototype-canvas.md).
             "CanvasRead" | "CanvasWrite" | "CanvasComment" => Risk::Low,
             // mc-agent: lists templates, and proposes a project the user
             // confirms on a card before anything is written (MC-ADR-0023).

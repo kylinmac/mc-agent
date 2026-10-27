@@ -2,7 +2,7 @@ import { fenceCanvasData } from "@pi-desktop/shared";
 import type { Canvas, CanvasElement, CanvasNode, CanvasOp, CanvasThread } from "@pi-desktop/shared";
 
 /*
-  mc-agent creative canvas (docs/mc-agent/creative-canvas.md): the pure part
+  mc-agent prototype canvas (docs/mc-agent/prototype-canvas.md): the pure part
   of the canvas view — coordinates, what is visible, what the chat is told,
   and how a user's change is undone.
 */
@@ -43,7 +43,7 @@ export function elementBox(element: CanvasElement, measured?: number): Box {
   const chars = (element.text ?? "").length;
   const perLine = Math.max(8, Math.floor(element.w / 8));
   const lines = Math.max(1, Math.ceil(chars / perLine) + (element.text ?? "").split("\n").length - 1);
-  const height = element.type === "title" ? 96 : Math.min(element.w * (4 / 3), 24 + lines * 20);
+  const height = element.type === "title" ? 56 : Math.min(element.w * (4 / 3), 24 + lines * 20);
   return { x: element.x, y: element.y, w: element.w, h: height };
 }
 

@@ -17,8 +17,6 @@
 //! - **Categories:** user-made, nested; each is a folder, and moving an image
 //!   between categories moves its file.
 //! - **Comparisons:** saved sets of asset references with a note and a pick.
-//! - **Canvases:** artboards, images and notes laid out together, with
-//!   comment threads ([`canvas`]); plain files under `creative/canvas/`.
 //!
 //! The tables are mc-owned (`mc_creative_*`) and created when missing, so
 //! they never touch upstream's schema version.
@@ -43,7 +41,6 @@ const MAX_TEXT_CHARS: usize = 32_000;
 const MAX_COMPARISON_ITEMS: usize = 8;
 
 mod assets;
-pub mod canvas;
 mod comparisons;
 mod jobs;
 mod schema;
@@ -474,9 +471,10 @@ pub fn normalize_category(raw: &str) -> Result<String> {
             return Err(anyhow!("INVALID_ARGUMENT: not a folder name: {segment}"));
         }
     }
-    if segments.first().is_some_and(|first| {
-        *first == SCRIPTS_DIR || *first == UNCATEGORIZED_DIR || *first == canvas::CANVAS_DIR
-    }) {
+    if segments
+        .first()
+        .is_some_and(|first| *first == SCRIPTS_DIR || *first == UNCATEGORIZED_DIR)
+    {
         return Err(anyhow!("INVALID_ARGUMENT: that name is reserved"));
     }
     Ok(segments.join("/"))

@@ -292,7 +292,7 @@ test("main window CSP adds exactly frame-src pi-genui: (and mc-agent's mc-canvas
   const directives = csp.split(";").map((part) => part.trim()).filter(Boolean);
   assert.deepEqual(
     directives.filter((directive) => directive.includes("pi-genui")),
-    // mc-agent: creative canvas artboards (docs/mc-agent/creative-canvas.md).
+    // mc-agent: prototype canvas artboards (docs/mc-agent/prototype-canvas.md).
     ["frame-src pi-genui: mc-canvas:"],
   );
   assert.ok(!directives.some((directive) => directive.startsWith("child-src")));

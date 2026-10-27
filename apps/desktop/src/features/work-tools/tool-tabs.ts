@@ -34,6 +34,14 @@ export function backgroundTab(): WorkPanelTab {
   return { id: "background", kind: "background" };
 }
 
+/**
+ * The prototype canvas tab: one per session, showing one of the project's
+ * canvases (docs/mc-agent/prototype-canvas.md).
+ */
+export function canvasTab(canvasId?: string): WorkPanelTab {
+  return { id: "canvas", kind: "canvas", ...(canvasId ? { resource: canvasId } : {}) };
+}
+
 /** Terminal tab ids across every session's work panel. */
 export function terminalTabIds(tabs: Iterable<WorkPanelTab>): Set<string> {
   const ids = new Set<string>();

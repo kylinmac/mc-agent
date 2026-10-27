@@ -9,7 +9,6 @@ import type {
 } from "@pi-desktop/shared";
 import type { HostProcess } from "../host-process";
 import type { LocalToolHandler } from "../agent-sidecar";
-import { CANVAS_SESSION_HINT } from "./canvas-tools";
 import { imageInputLoader } from "../services/image-inputs";
 import {
   isImageFailure,
@@ -442,6 +441,5 @@ export async function creativeSessionHint(host: Host, projectPath: string | null
     "To create an image with an image model, call GenerateImages; its results are saved and filed automatically (uncategorized).",
     `To draw with code (pixel art, icons, charts, diagrams), write the script under ${storage.scripts}, have it write the image into the category folder (or ${storage.uncategorized}), run it, then call SaveCreativeAsset with the image path, the script path, the exact command and the category. Never leave images in the project root.`,
     "Choose whichever fits the request; for precise pixel-level or programmatic results, code drawing is usually better.",
-    CANVAS_SESSION_HINT,
   ].join("\n");
 }

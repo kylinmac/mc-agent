@@ -7,7 +7,9 @@ export type WorkPanelTabKind =
   // mc-agent: an interactive shell; `resource` is its start folder (MC-ADR-0005).
   | "terminal"
   // mc-agent: the session's background commands (MC-ADR-0006).
-  | "background";
+  | "background"
+  // mc-agent: the project's prototype canvas; `resource` is the canvas shown.
+  | "canvas";
 
 export type WorkPanelTab = {
   id: string;
@@ -254,7 +256,7 @@ export function isKnownWorkPanelTab(tab: WorkPanelTab): boolean {
       tab.kind === "file" || tab.kind === "plugin" ||
       tab.kind === "subagent") ||
     // mc-agent work-panel terminal (MC-ADR-0005).
-    (Boolean(tab) && (tab.kind === "terminal" || tab.kind === "background"))
+    (Boolean(tab) && (tab.kind === "terminal" || tab.kind === "background" || tab.kind === "canvas"))
   );
 }
 

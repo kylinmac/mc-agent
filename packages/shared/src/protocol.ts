@@ -227,6 +227,8 @@ export const IPC = {
     macPermissionsCheck: "pi-desktop/mac-permissions/check",
     macPermissionsRequest: "pi-desktop/mac-permissions/request",
     macPermissionsOpenSettings: "pi-desktop/mac-permissions/open-settings",
+    // mc-agent prototype canvas (docs/mc-agent/prototype-canvas.md).
+    canvasCall: "pi-desktop/mc-canvas/call",
     // mc-agent creative studio (docs/mc-agent/creative-studio.md).
     creativeCall: "pi-desktop/mc-creative/call",
     creativeGenerate: "pi-desktop/mc-creative/generate",
@@ -524,8 +526,8 @@ export const IPC = {
     terminalExit: "pi-desktop/mc-terminal/event/exit",
     // mc-agent creative studio: a generation job changed.
     creativeJob: "pi-desktop/mc-creative/event/job",
-    // mc-agent creative canvas: a canvas or its comments changed.
-    creativeCanvas: "pi-desktop/mc-creative/event/canvas",
+    // mc-agent prototype canvas: the agent changed a canvas or its comments.
+    canvasChanged: "pi-desktop/mc-canvas/event/changed",
     // mc-agent: the project proposals waiting for the user (MC-ADR-0023).
     mcProjectProposalsChanged: "pi-desktop/mc-project-create/event/proposals",
     /** Progress of an install or update, while it is still running. */

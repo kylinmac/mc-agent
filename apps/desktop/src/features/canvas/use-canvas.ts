@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Canvas, CanvasComments, CanvasOp, CanvasSummary } from "@pi-desktop/shared";
-import { api } from "../../../lib/api";
+import { api } from "../../lib/api";
 
 /*
-  mc-agent creative canvas: loading and changing a canvas through host-core.
+  mc-agent prototype canvas: loading and changing a canvas through host-core.
   Changes go out one at a time, each against the version the last one
   returned; a refusal because the canvas changed meanwhile reloads it.
 */
@@ -17,7 +17,7 @@ export function useCanvasList(groupId: string | null) {
       return;
     }
     try {
-      const { canvases: listed } = await api.creative.call("creative.canvas.list", { groupId });
+      const { canvases: listed } = await api.canvas.call("canvas.list", { groupId });
       setCanvases(listed);
       setError(null);
     } catch (failure) {
@@ -29,7 +29,7 @@ export function useCanvasList(groupId: string | null) {
   }, [reload]);
   useEffect(
     () =>
-      api.creative.onCanvas((change) => {
+      api.canvas.onChanged((change) => {
         if (change.groupId === groupId) void reload();
       }),
     [groupId, reload],
@@ -52,8 +52,8 @@ export function useCanvas(groupId: string, canvasId: string) {
   const load = useCallback(async () => {
     try {
       const [{ canvas: loaded }, { comments: threads }] = await Promise.all([
-        api.creative.call("creative.canvas.get", { groupId, canvasId }),
-        api.creative.call("creative.canvasComments.list", { groupId, canvasId }),
+        api.canvas.call("canvas.get", { groupId, canvasId }),
+        api.canvas.call("canvas.comments.list", { groupId, canvasId }),
       ]);
       current.current = loaded;
       setCanvas(loaded);
@@ -73,7 +73,7 @@ export function useCanvas(groupId: string, canvasId: string) {
 
   useEffect(
     () =>
-      api.creative.onCanvas((change) => {
+      api.canvas.onChanged((change) => {
         if (change.groupId === groupId && change.canvasId === canvasId) void load();
       }),
     [groupId, canvasId, load],
@@ -90,7 +90,7 @@ export function useCanvas(groupId: string, canvasId: string) {
         const before = current.current;
         if (!before) return null;
         try {
-          const applied = await api.creative.call("creative.canvas.apply", {
+          const applied = await api.canvas.call("canvas.apply", {
             groupId,
             canvasId,
             baseVersion: before.version,

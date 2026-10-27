@@ -21,7 +21,7 @@ export function allowsLiveMicrophonePermission(input: PermissionDecision): boole
 }
 
 const GEN_UI_PREFIX = `${GEN_UI_SCHEME}:`;
-// mc-agent: creative canvas artboards are model-written code too.
+// mc-agent: prototype canvas artboards are model-written code too.
 const CANVAS_PREFIX = `${CANVAS_SCHEME}:`;
 
 /**

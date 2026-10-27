@@ -4179,6 +4179,31 @@
     "zh-CN": "画布",
     "zh-TW": "畫布"
   },
+  "paneCanvas": {
+    "en": "Canvas",
+    "zh-CN": "画布",
+    "zh-TW": "畫布"
+  },
+  "canvasNoProject": {
+    "en": "The canvas belongs to a project. Open this conversation in a local project to use it.",
+    "zh-CN": "画布属于项目。在本地项目里的会话中才能使用。",
+    "zh-TW": "畫布屬於專案。在本機專案裡的對話中才能使用。"
+  },
+  "canvasNoCanvas": {
+    "en": "No canvas yet. Ask the agent to draw a prototype, or add an empty canvas with +.",
+    "zh-CN": "还没有画布。让 Agent 画一个原型，或点 + 新建空画布。",
+    "zh-TW": "還沒有畫布。讓 Agent 畫一個原型，或點 + 新增空白畫布。"
+  },
+  "canvasClose": {
+    "en": "Close",
+    "zh-CN": "关闭",
+    "zh-TW": "關閉"
+  },
+  "canvasCancel": {
+    "en": "Cancel",
+    "zh-CN": "取消",
+    "zh-TW": "取消"
+  },
   "canvasNew": {
     "en": "New canvas",
     "zh-CN": "新建画布",
@@ -4188,11 +4213,6 @@
     "en": "Canvas name",
     "zh-CN": "画布名称",
     "zh-TW": "畫布名稱"
-  },
-  "canvasNameRefused": {
-    "en": "The canvas could not be saved with that name.",
-    "zh-CN": "这个名称无法保存画布。",
-    "zh-TW": "這個名稱無法儲存畫布。"
   },
   "canvasRename": {
     "en": "Rename",
@@ -4205,19 +4225,14 @@
     "zh-TW": "刪除畫布…"
   },
   "canvasDeleteCanvasConfirm": {
-    "en": "Delete the canvas “{{title}}”? Its folder ({{path}}) with its artboards, notes and comments is deleted. Images from the library stay.",
-    "zh-CN": "删除画布“{{title}}”？它的文件夹（{{path}}）连同画板、便签和评论都会删除，素材库里的图片保留。",
-    "zh-TW": "刪除畫布「{{title}}」？它的資料夾（{{path}}）連同畫板、便條和評論都會刪除，素材庫裡的圖片保留。"
-  },
-  "canvasHeadHint": {
-    "en": "Drag to move · ⌘ + scroll to zoom · double-click an artboard to use it",
-    "zh-CN": "拖动移动 · ⌘ + 滚动缩放 · 双击画板与之交互",
-    "zh-TW": "拖曳移動 · ⌘ + 捲動縮放 · 按兩下畫板與之互動"
+    "en": "Delete the canvas “{{title}}” with its artboards and comments?",
+    "zh-CN": "删除画布“{{title}}”及其中的画板和评论？",
+    "zh-TW": "刪除畫布「{{title}}」及其中的畫板和評論？"
   },
   "canvasEmptyHint": {
-    "en": "This canvas is empty. Ask the agent in the chat to lay out a few options here, or add a note with N.",
-    "zh-CN": "画布还是空的。可以在左侧对话里让 Agent 在这里摆几版方案，或按 N 加一张便签。",
-    "zh-TW": "畫布還是空的。可以在左側對話裡讓 Agent 在這裡擺幾版方案，或按 N 加一張便條。"
+    "en": "This canvas is empty. Ask the agent in the conversation to draw a prototype here.",
+    "zh-CN": "画布还是空的。在对话里让 Agent 在这里画一个原型。",
+    "zh-TW": "畫布還是空的。在對話裡讓 Agent 在這裡畫一個原型。"
   },
   "canvasConflict": {
     "en": "The canvas changed meanwhile and was reloaded; make your change again.",
@@ -4233,11 +4248,6 @@
     "en": "Hand",
     "zh-CN": "抓手",
     "zh-TW": "抓手"
-  },
-  "canvasToolNote": {
-    "en": "Note",
-    "zh-CN": "便签",
-    "zh-TW": "便條"
   },
   "canvasToolComment": {
     "en": "Comment",
@@ -4284,35 +4294,10 @@
     "zh-CN": "让 Agent 修",
     "zh-TW": "讓 Agent 修"
   },
-  "canvasAssetMissing": {
-    "en": "Asset deleted",
-    "zh-CN": "素材已删除",
-    "zh-TW": "素材已刪除"
-  },
-  "canvasEmptyNote": {
-    "en": "Double-click to write",
-    "zh-CN": "双击输入内容",
-    "zh-TW": "按兩下輸入內容"
-  },
   "canvasAttachNote": {
     "en": "Attach to chat",
     "zh-CN": "附带到对话",
     "zh-TW": "附加到對話"
-  },
-  "canvasEditNote": {
-    "en": "Edit",
-    "zh-CN": "编辑",
-    "zh-TW": "編輯"
-  },
-  "canvasBringFront": {
-    "en": "Bring to front",
-    "zh-CN": "移到最前",
-    "zh-TW": "移到最前"
-  },
-  "canvasSendBack": {
-    "en": "Send to back",
-    "zh-CN": "移到最后",
-    "zh-TW": "移到最後"
   },
   "canvasDelete": {
     "en": "Delete",
@@ -4329,50 +4314,15 @@
     "zh-CN": "删除这条评论？",
     "zh-TW": "刪除這則評論？"
   },
-  "canvasColor_yellow": {
-    "en": "Yellow",
-    "zh-CN": "黄色",
-    "zh-TW": "黃色"
-  },
-  "canvasColor_blue": {
-    "en": "Blue",
-    "zh-CN": "蓝色",
-    "zh-TW": "藍色"
-  },
-  "canvasColor_green": {
-    "en": "Green",
-    "zh-CN": "绿色",
-    "zh-TW": "綠色"
-  },
-  "canvasColor_pink": {
-    "en": "Pink",
-    "zh-CN": "粉色",
-    "zh-TW": "粉紅色"
-  },
-  "canvasColor_purple": {
-    "en": "Purple",
-    "zh-CN": "紫色",
-    "zh-TW": "紫色"
-  },
-  "canvasColor_orange": {
-    "en": "Orange",
-    "zh-CN": "橙色",
-    "zh-TW": "橙色"
-  },
-  "canvasColor_gray": {
-    "en": "Gray",
-    "zh-CN": "灰色",
-    "zh-TW": "灰色"
-  },
   "canvasCommentOn": {
     "en": "On “{{label}}”",
     "zh-CN": "关于“{{label}}”",
     "zh-TW": "關於「{{label}}」"
   },
   "canvasCommentPlaceholder": {
-    "en": "Comment… type @Agent to send it to the agent",
-    "zh-CN": "写评论… 输入 @Agent 交给 Agent",
-    "zh-TW": "寫評論… 輸入 @Agent 交給 Agent"
+    "en": "Comment… ⌘↩ sends it to the agent",
+    "zh-CN": "写评论… ⌘↩ 发给 Agent",
+    "zh-TW": "寫評論… ⌘↩ 交給 Agent"
   },
   "canvasCommentSubmit": {
     "en": "Comment",
@@ -4389,10 +4339,10 @@
     "zh-CN": "再次发给 Agent",
     "zh-TW": "再次交給 Agent"
   },
-  "canvasQueue": {
-    "en": "Queue with the next message",
-    "zh-CN": "排队，随下一条消息发送",
-    "zh-TW": "排隊，隨下一則訊息傳送"
+  "canvasQueueToAgent": {
+    "en": "Queue for agent",
+    "zh-CN": "排队给 Agent",
+    "zh-TW": "排隊給 Agent"
   },
   "canvasSentToAgent": {
     "en": "Sent to the agent",
@@ -4518,10 +4468,5 @@
     "en": "Please handle the canvas comment attached here.",
     "zh-CN": "请处理附带的这条画布评论。",
     "zh-TW": "請處理附加的這則畫布評論。"
-  },
-  "canvasCarried": {
-    "en": "+ canvas data",
-    "zh-CN": "＋画布内容",
-    "zh-TW": "＋畫布內容"
   }
 }

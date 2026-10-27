@@ -29,6 +29,7 @@ import { registerMcTerminalIpc } from "./mc-terminal-ipc";
 import { loadUserHooks, saveUserHooks } from "../mc-user-hooks-store";
 import { registerMcReleaseNotesIpc } from "./mc-release-notes-ipc";
 import { registerMcBackgroundIpc, registerMcBackgroundWake } from "./mc-background-ipc";
+import { registerMcCanvasIpc } from "./mc-canvas-ipc";
 import { registerMcCreativeIpc } from "./mc-creative-ipc";
 import { registerMcProjectCreateIpc } from "./mc-project-create-ipc";
 import { imageDataUrl, measureImage } from "../creative/measure-image";
@@ -435,6 +436,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     },
     log: (message, error) => logger.app("tool", "warn", message, error === undefined ? undefined : { data: String(error) }),
   });
+  registerMcCanvasIpc({ registrar, getHost, sendToRenderer });
   registerMcCreativeIpc({
     registrar,
     getHost,

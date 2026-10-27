@@ -126,125 +126,6 @@ export type CreativeStorage = {
   scripts: string;
 };
 
-/* Creative canvas (docs/mc-agent/creative-canvas.md): plain files under
-   `creative/canvas/<id>/`, read and written through host-core. */
-
-export type CanvasElementKind = "frame" | "image" | "note" | "title";
-export const CANVAS_NOTE_COLORS = ["yellow", "blue", "green", "pink", "purple", "orange", "gray"] as const;
-export type CanvasNoteColor = (typeof CANVAS_NOTE_COLORS)[number];
-
-export type CanvasElement = {
-  id: string;
-  type: CanvasElementKind;
-  x: number;
-  y: number;
-  w: number;
-  /** 0 for a note or title that grows with its text. */
-  h: number;
-  /** A frame's name strip. */
-  title?: string;
-  /** A note's or title's text. */
-  text?: string;
-  color?: CanvasNoteColor;
-  assetId?: string;
-  /** The frame a note is attached to. */
-  boardId?: string;
-  /** A frame's source revision. */
-  rev: number;
-  /** A frame keeps the version before the agent's last change. */
-  hasPrev: boolean;
-};
-
-export type Canvas = {
-  v: number;
-  id: string;
-  title: string;
-  version: number;
-  createdAt: number;
-  updatedAt: number;
-  /** Back to front. */
-  elements: CanvasElement[];
-};
-
-export type CanvasSummary = {
-  id: string;
-  title: string;
-  version: number;
-  updatedAt: number;
-  boards: number;
-  path: string;
-};
-
-export type CanvasElementInput = Partial<Omit<CanvasElement, "rev" | "hasPrev" | "color" | "boardId">> & {
-  /** Empty clears it. */
-  color?: CanvasNoteColor | "";
-  /** Empty detaches the note. */
-  boardId?: string;
-};
-
-export type CanvasOp =
-  | { op: "add"; element: CanvasElementInput & { type: CanvasElementKind }; html?: string }
-  | { op: "update"; id: string; set?: Omit<CanvasElementInput, "id" | "type">; html?: string }
-  | { op: "remove"; id: string }
-  | { op: "restore"; id: string }
-  | { op: "reorder"; id: string; to: "front" | "back" };
-
-export type CanvasApplied = { canvas: Canvas; added: string[]; warnings: string[] };
-
-/** An element of an artboard, as host-core reads it from the source. */
-export type CanvasNode = {
-  boardId: string;
-  /** `<board>#<n>:<path>`. */
-  address: string;
-  tid: number;
-  path: number[];
-  mcId?: string | null;
-  label?: string | null;
-  kind: "text" | "image" | "shape" | "line" | "other";
-  tag: string;
-  rev: number;
-};
-
-export type CanvasAnchorKind = "element" | "board" | "canvas";
-export type CanvasAnchor = {
-  kind: CanvasAnchorKind;
-  boardId?: string;
-  address?: string;
-  mcId?: string;
-  label?: string;
-  rev?: number;
-  /** Inside the artboard for element and board anchors, else on the canvas. */
-  x: number;
-  y: number;
-};
-export type CanvasAnchorInput = {
-  kind: CanvasAnchorKind;
-  boardId?: string;
-  /** The element's number in the served frame. */
-  node?: number;
-  x: number;
-  y: number;
-};
-
-export type CanvasCommentMessage = { id: string; author: "user" | "agent"; text: string; at: number };
-export type CanvasThread = {
-  id: string;
-  anchor: CanvasAnchor;
-  status: "open" | "resolved";
-  /** The conversation the thread was sent to. */
-  agentSession?: string;
-  createdAt: number;
-  updatedAt: number;
-  messages: CanvasCommentMessage[];
-  located: {
-    state: "ok" | "moved" | "boardMissing" | "board" | "canvas";
-    node?: CanvasNode;
-  };
-};
-export type CanvasComments = { version: number; threads: CanvasThread[] };
-
-type WithCanvas<T extends object = object> = { groupId: string; canvasId: string } & T;
-
 type WithGroup<T extends object = object> = { groupId: string } & T;
 
 /**
@@ -303,34 +184,6 @@ export type CreativeMethods = {
     result: { comparison: CreativeComparison };
   };
   "creative.comparisons.delete": { params: WithGroup<{ comparisonId: string }>; result: { ok: true } };
-  "creative.canvas.list": { params: WithGroup; result: { canvases: CanvasSummary[] } };
-  "creative.canvas.create": { params: WithGroup<{ title: string }>; result: { canvas: Canvas } };
-  "creative.canvas.get": {
-    params: WithCanvas<{ html?: boolean; boards?: string[] }>;
-    result: { canvas: Canvas; html: Record<string, string> | null };
-  };
-  "creative.canvas.apply": { params: WithCanvas<{ baseVersion: number; ops: CanvasOp[] }>; result: CanvasApplied };
-  "creative.canvas.rename": { params: WithCanvas<{ title: string }>; result: { canvas: Canvas } };
-  "creative.canvas.delete": { params: WithCanvas; result: { ok: true } };
-  "creative.canvas.resolveNode": { params: WithCanvas<{ boardId: string; node: number }>; result: { node: CanvasNode } };
-  "creative.canvasComments.list": { params: WithCanvas; result: { comments: CanvasComments } };
-  "creative.canvasComments.add": {
-    params: WithCanvas<{ anchor: CanvasAnchorInput; text: string }>;
-    result: { threadId: string; comments: CanvasComments };
-  };
-  "creative.canvasComments.reply": {
-    params: WithCanvas<{ threadId: string; text: string }>;
-    result: { comments: CanvasComments };
-  };
-  "creative.canvasComments.setStatus": {
-    params: WithCanvas<{ threadId: string; status: "open" | "resolved" }>;
-    result: { comments: CanvasComments };
-  };
-  "creative.canvasComments.assign": {
-    params: WithCanvas<{ threadId: string; sessionId: string }>;
-    result: { comments: CanvasComments };
-  };
-  "creative.canvasComments.delete": { params: WithCanvas<{ threadId: string }>; result: { comments: CanvasComments } };
 };
 
 export type CreativeMethod = keyof CreativeMethods;
@@ -365,19 +218,6 @@ export const CREATIVE_RENDERER_METHODS = [
   "creative.comparisons.list",
   "creative.comparisons.save",
   "creative.comparisons.delete",
-  "creative.canvas.list",
-  "creative.canvas.create",
-  "creative.canvas.get",
-  "creative.canvas.apply",
-  "creative.canvas.rename",
-  "creative.canvas.delete",
-  "creative.canvas.resolveNode",
-  "creative.canvasComments.list",
-  "creative.canvasComments.add",
-  "creative.canvasComments.reply",
-  "creative.canvasComments.setStatus",
-  "creative.canvasComments.assign",
-  "creative.canvasComments.delete",
 ] as const satisfies readonly CreativeMethod[];
 
 /** Every method in CreativeMethods is listed above, and nothing else. */
