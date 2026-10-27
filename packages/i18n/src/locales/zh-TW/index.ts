@@ -3157,7 +3157,7 @@ sklm: {
     importSelected: "已選 {{sessions}} 個對話，涉及 {{projects}} 個專案",
     importScanning: "正在尋找可匯入的對話…",
     importScanFailed: "尋找失敗：{{message}}",
-    importEmpty: "沒有找到 Claude Code、Codex、PI-Desktop 或 Grok 的對話。",
+    importEmpty: "沒有找到 Claude Code、Codex、PI-Desktop、Grok 或 Hermes 的對話。",
     importNoMatch: "沒有符合的對話。",
     importNoProject: "不在專案中",
     importSessionCount: "{{count}} 個對話",

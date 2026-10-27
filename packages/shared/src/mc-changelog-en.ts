@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.25",
+    date: "2026-10-27",
+    features: [
+      "Import conversations from Hermes Agent, including every Hermes profile, with text and tool history; a conversation Hermes continued after compressing its context imports as one.",
+    ],
+  },
+  {
     version: "1.0.23",
     date: "2026-10-26",
     features: [
