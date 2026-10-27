@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.25",
+    date: "2026-10-27",
+    features: [
+      "「导入对话」支持 Hermes Agent：读取本机 Hermes（含各个 profile）的对话，保留文字和工具调用记录；Hermes 压缩上下文后接着聊的部分合成同一个对话导入。",
+    ],
+  },
+  {
     version: "1.0.24",
     date: "2026-10-27",
     features: [

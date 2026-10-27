@@ -194,7 +194,7 @@ import {
 } from "@pi-desktop/shared";
 
 // mc-agent (MC-ADR-0009): "pi-desktop" is an installed PI-Desktop.
-export type ImportSource = "claude-code" | "opencode" | "codex" | "pi" | "pi-desktop" | "grok";
+export type ImportSource = "claude-code" | "opencode" | "codex" | "pi" | "pi-desktop" | "grok" | "hermes";
 // One definition, owned by the shared package (the host and sidecar use the
 // same shape); re-exported so existing renderer imports keep working.
 import type {

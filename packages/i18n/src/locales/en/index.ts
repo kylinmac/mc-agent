@@ -3298,7 +3298,7 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     importSelected: "{{sessions}} conversations in {{projects}} projects selected",
     importScanning: "Looking for conversations…",
     importScanFailed: "Could not look for conversations: {{message}}",
-    importEmpty: "No conversations from Claude Code, Codex, PI-Desktop or Grok were found.",
+    importEmpty: "No conversations from Claude Code, Codex, PI-Desktop, Grok or Hermes were found.",
     importNoMatch: "Nothing matches.",
     importNoProject: "Not in a project",
     importSessionCount: "{{count}} conversations",

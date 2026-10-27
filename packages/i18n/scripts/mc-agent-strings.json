@@ -1235,9 +1235,9 @@
     "zh-TW": "尋找失敗：{{message}}"
   },
   "importEmpty": {
-    "en": "No conversations from Claude Code, Codex, PI-Desktop or Grok were found.",
-    "zh-CN": "没有找到 Claude Code、Codex、PI-Desktop 或 Grok 的对话。",
-    "zh-TW": "沒有找到 Claude Code、Codex、PI-Desktop 或 Grok 的對話。"
+    "en": "No conversations from Claude Code, Codex, PI-Desktop, Grok or Hermes were found.",
+    "zh-CN": "没有找到 Claude Code、Codex、PI-Desktop、Grok 或 Hermes 的对话。",
+    "zh-TW": "沒有找到 Claude Code、Codex、PI-Desktop、Grok 或 Hermes 的對話。"
   },
   "importNoMatch": {
     "en": "Nothing matches.",

@@ -3229,7 +3229,7 @@ sklm: {
     importSelected: "已选 {{sessions}} 个对话，涉及 {{projects}} 个项目",
     importScanning: "正在查找可导入的对话…",
     importScanFailed: "查找失败：{{message}}",
-    importEmpty: "没有找到 Claude Code、Codex、PI-Desktop 或 Grok 的对话。",
+    importEmpty: "没有找到 Claude Code、Codex、PI-Desktop、Grok 或 Hermes 的对话。",
     importNoMatch: "没有匹配的对话。",
     importNoProject: "不在项目中",
     importSessionCount: "{{count}} 个对话",

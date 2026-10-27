@@ -51,6 +51,7 @@ const IMPORT_SOURCES = new Set<ExternalSource>([
   "pi",
   "pi-desktop",
   "grok",
+  "hermes",
 ]);
 
 function importSelectionKey(value: unknown): string | null {
