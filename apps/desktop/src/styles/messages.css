@@ -410,9 +410,9 @@
   display: block;
   resize: none;
   field-sizing: content;
-  min-height: calc(1.5em + 12px);
+  min-height: calc(var(--leading-relaxed) * 1em + 12px);
   max-height: 160px;
-  line-height: 1.5;
+  line-height: var(--leading-relaxed);
   overflow-y: auto;
 }
 
