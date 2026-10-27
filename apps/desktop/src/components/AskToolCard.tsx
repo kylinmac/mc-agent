@@ -233,14 +233,24 @@ export function AskToolCard({ request, queued = 0 }: { request: PendingAsk; queu
         </button>
       </div>
       {currentDraft.customSelected ? (
-        <input
+        <textarea
           className="asktool-custom-input"
+          rows={1}
           value={currentDraft.customText}
           placeholder={t("askTool.customPlaceholder")}
           aria-label={t("askTool.customOption")}
           onChange={(event) =>
             updateCurrentDraft((draft) => ({ ...draft, customText: event.target.value, skipped: false }))
           }
+          onKeyDown={(event) => {
+            // mc-agent (#39): Enter answers like the primary button (next
+            // question, or submit on the last one); Shift+Enter adds a line.
+            // The IME confirm keystroke only commits the composition.
+            if (event.key !== "Enter" || event.shiftKey) return;
+            if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
+            event.preventDefault();
+            if (!resolving) next();
+          }}
           autoFocus
         />
       ) : null}

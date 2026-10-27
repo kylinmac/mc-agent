@@ -2968,6 +2968,8 @@ sklm: {
     tasksTitle: "任務",
     tasksEmpty: "還沒有任務。",
     taskNew: "新增任務",
+    taskStartFolderLabel: "執行目錄",
+    newTaskStartFolderMenu: "新增任務的起始目錄",
     taskTitlePlaceholder: "任務標題",
     taskGoalPlaceholder: "目標（選填）",
     taskAcceptancePlaceholder: "驗收條件（必填）",

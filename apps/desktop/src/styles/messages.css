@@ -406,6 +406,14 @@
   color: var(--ds-text-primary);
   font: inherit;
   font-size: var(--text-sm);
+  /* A textarea so Shift+Enter can add lines; grows with its text. */
+  display: block;
+  resize: none;
+  field-sizing: content;
+  min-height: calc(var(--leading-relaxed) * 1em + 12px);
+  max-height: 160px;
+  line-height: var(--leading-relaxed);
+  overflow-y: auto;
 }
 
 .asktool-custom-input:focus-visible {

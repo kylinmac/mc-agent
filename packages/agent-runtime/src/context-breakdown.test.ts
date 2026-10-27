@@ -66,6 +66,34 @@ describe("contextBreakdown", () => {
     expect(result.autoCompactAt).toBeLessThan(200_000);
   });
 
+  it("counts MCP tools named by the host even when declarations lack mcpServerId (#40)", () => {
+    const result = contextBreakdown({
+      sections: {},
+      projectInstructionsPrompt: "",
+      memoryPrompt: "",
+      // Provider-facing declarations: one MCP tool activated, no server id.
+      tools: [tool("read"), tool("mcp_dbx_list_connections")],
+      mcpToolNames: ["mcp_dbx_list_connections", "mcp_dbx_query", "mcp_dbx_describe"],
+      messages: [],
+      model,
+    });
+
+    expect(result.toolCount).toBe(1);
+    expect(result.toolNames).toEqual(["read"]);
+    expect(result.mcpToolCount).toBe(3);
+    expect(result.mcpToolNames).toEqual(["mcp_dbx_describe", "mcp_dbx_list_connections", "mcp_dbx_query"]);
+    // Only the declared MCP tool costs context tokens.
+    const declaredOnly = contextBreakdown({
+      sections: {},
+      projectInstructionsPrompt: "",
+      memoryPrompt: "",
+      tools: [tool("mcp_dbx_list_connections", "dbx")],
+      messages: [],
+      model,
+    });
+    expect(result.categories.mcpTools).toBe(declaredOnly.categories.mcpTools);
+  });
+
   it("never reports a negative remainder when the context section is all project text", () => {
     const project = "P".repeat(70);
     const result = contextBreakdown({

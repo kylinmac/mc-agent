@@ -9625,6 +9625,11 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       projectInstructionsPrompt: projectInstructionsPrompt(this.projectInstructions) ?? "",
       memoryPrompt: projectMemoryPrompt(this.projectMemory) ?? "",
       tools: this.agent?.state.tools ?? [],
+      // The catalog's AgentTools drop `mcpServerId`; name the MCP tools this
+      // session can call from the host-resolved definitions instead (#40).
+      mcpToolNames: this.pluginTools
+        .filter((tool) => tool.mcpServerId && this.toolCatalog.has(tool.name))
+        .map((tool) => tool.name),
       messages: this.agent?.state.messages ?? [],
       model: this.model,
     });

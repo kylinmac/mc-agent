@@ -2984,6 +2984,8 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
     tasksTitle: "Tasks",
     tasksEmpty: "No tasks yet.",
     taskNew: "New task",
+    taskStartFolderLabel: "Run in",
+    newTaskStartFolderMenu: "Start new task in",
     taskTitlePlaceholder: "Task title",
     taskGoalPlaceholder: "Goal (optional)",
     taskAcceptancePlaceholder: "Acceptance criteria (required)",

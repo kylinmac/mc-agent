@@ -540,7 +540,14 @@ export function ProjectsPage() {
                           role="menuitem"
                           onClick={() => {
                             setMenuFor(null);
-                            void startTask(project.path);
+                            // mc-agent (#41): the folder last picked for this project.
+                            void startTask(
+                              chooseStartFolder(
+                                project.roots,
+                                project.path,
+                                rememberedStartFolder(project.groupId),
+                              ),
+                            );
                           }}
                         >
                           <IconChat size={14} />

@@ -2669,6 +2669,23 @@ describe("DesktopAgentRuntime deferred tool catalog", () => {
     await runtime.dispose();
   });
 
+  it("counts connected MCP tools in the context breakdown (#40)", async () => {
+    const runtime = createRuntime({
+      mode: "agent",
+      pluginTools: [
+        { name: "plugin_demo_run", description: "demo", parameters: {} },
+        { name: "mcp_dbx_list_connections", mcpServerId: "dbx", description: "list", parameters: {} },
+        { name: "mcp_dbx_query", mcpServerId: "dbx", description: "query", parameters: {} },
+      ],
+    });
+    const breakdown = runtime.contextBreakdown();
+    expect(breakdown.mcpToolCount).toBe(2);
+    expect(breakdown.mcpToolNames).toEqual(["mcp_dbx_list_connections", "mcp_dbx_query"]);
+    expect(breakdown.toolNames).not.toContain("mcp_dbx_query");
+    expect(breakdown.mcpToolNames).not.toContain("plugin_demo_run");
+    await runtime.dispose();
+  });
+
   it("hides plugin tools without plan-safe actions in Plan mode", async () => {
     const runtime = createRuntime({
       mode: "plan",
