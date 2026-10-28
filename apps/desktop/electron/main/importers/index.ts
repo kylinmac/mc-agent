@@ -3,6 +3,7 @@ import { CODEX_SCAN_MAX_FILES, codexImporter, scanCodexSessionsResult } from "./
 import { opencodeImporter } from "./opencode";
 import { piImporter } from "./pi";
 import { grokImporter } from "./grok";
+import { hermesImporter } from "./hermes";
 import type {
   ExternalSessionSummary,
   ExternalSource,
@@ -20,6 +21,7 @@ const importers: SessionImporter[] = [
   codexImporter,
   piImporter,
   grokImporter,
+  hermesImporter,
 ];
 
 export async function scanAllSources(): Promise<{

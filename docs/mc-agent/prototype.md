@@ -1,5 +1,7 @@
 2026-10-27：[R18 原型画布](prototype-canvas.md)（P14；V57）：会话工作面板里的“画布”标签，Agent 画的 HTML 画板、说明便签、评论与 @Agent，布局见方案“界面布局”。
 
+2026-10-27：P1 项目导入对话框（R1.8；V39）增加 Hermes 来源筛选，见 [MC-ADR-0009](adr/mc-0009-import-from-other-agents.md)。
+
 2026-10-25：P1 项目导入对话框（R1.8；V39）增加 Grok 来源筛选，沿用项目分组、单项／全选和已导入状态，见 [MC-ADR-0009](adr/mc-0009-import-from-other-agents.md)。
 
 同日修复 Codex：同 ID 分段合为一个条目，显示索引中的真实标题；旧版已导入项可选“重新导入完整副本（保留原会话）”，新版完整副本仍显示已导入。

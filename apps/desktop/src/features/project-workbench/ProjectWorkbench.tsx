@@ -154,6 +154,19 @@ export function ProjectWorkbench({
     rememberStartFolder(project.groupId, startFolder);
     onStartSession(startFolder);
   };
+  // mc-agent (#41): a choice applies at once, so "New task" in the detail bar,
+  // the project menu and the sidebar start in the folder picked here.
+  const pickStartFolder = (path: string) => {
+    setStartFolder(path);
+    rememberStartFolder(project.groupId, path);
+  };
+  const startFolderOptions = project.roots.map((root) => ({
+    path: root.path,
+    label:
+      root.kind === "resources"
+        ? t("mcProject.startFolderResources")
+        : root.name || root.path.split(/[\\/]/).filter(Boolean).at(-1) || root.path,
+  }));
 
   if (remote) return null;
 
@@ -292,6 +305,8 @@ export function ProjectWorkbench({
           groupId={project.groupId}
           listing={listing}
           startFolder={startFolder}
+          startFolderOptions={startFolderOptions}
+          onStartFolderChange={pickStartFolder}
           onTasksChanged={setTasks}
           onError={onError}
         />
@@ -326,13 +341,11 @@ export function ProjectWorkbench({
           id={`mc-start-${project.groupId}`}
           className="mc-workbench-select"
           value={startFolder}
-          onChange={(event) => setStartFolder(event.target.value)}
+          onChange={(event) => pickStartFolder(event.target.value)}
         >
-          {project.roots.map((root) => (
-            <option key={root.path} value={root.path}>
-              {root.kind === "resources"
-                ? t("mcProject.startFolderResources")
-                : root.name || root.path.split(/[\\/]/).filter(Boolean).at(-1) || root.path}
+          {startFolderOptions.map((option) => (
+            <option key={option.path} value={option.path} title={option.path}>
+              {option.label}
             </option>
           ))}
         </select>

@@ -8,13 +8,14 @@ import type { ImportCandidate, ImportSource } from "../../lib/api";
 */
 
 /** Sources this dialog offers, in display order. */
-export const IMPORT_SOURCES: readonly ImportSource[] = ["claude-code", "codex", "pi-desktop", "grok"];
+export const IMPORT_SOURCES: readonly ImportSource[] = ["claude-code", "codex", "pi-desktop", "grok", "hermes"];
 
 export const SOURCE_LABELS: Record<ImportSource, string> = {
   "claude-code": "Claude Code",
   codex: "Codex",
   "pi-desktop": "PI-Desktop",
   grok: "Grok",
+  hermes: "Hermes",
   opencode: "OpenCode",
   pi: "Pi",
 };

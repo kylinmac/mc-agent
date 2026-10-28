@@ -57,3 +57,12 @@
 | PI-Desktop | 依据源 SQLite 会话索引和原生 transcript 复制标题／消息／压缩记录，不按多个 rollout 建候选；源码复查未发现同类问题，本轮未做安装版验证 |
 
 29 项导入回归通过。Pi、OpenCode 保持后端兼容入口，不新增到当前用户界面；未声明支持它们的所有未来存储版本。所有来源都是一次性副本，不是持续同步。
+
+## 修订（2026-10-27）：Hermes Agent 本地会话（R1.8 / P1 / V39）
+
+- 已确定：导入入口增加 Hermes。读取 Hermes Agent（Nous Research）的 SQLite 存储 `<HERMES_HOME>/state.db`（`sessions`、`messages` 两张表，OpenAI 格式消息）；`HERMES_HOME` 未设置时为 `~/.hermes`（Windows 为 `%LOCALAPPDATA%\hermes`），并扫描 `<HERMES_HOME>/profiles/<名称>/state.db`。只读打开，不读取凭据、`.env`、系统提示词或 FTS 索引。
+- 一个可导入对话与 Hermes 自己的会话列表一致：根会话及 /branch、/reset 产生的子会话；压缩轮换（父会话 `end_reason = 'compression'`）产生的续接会话合并进同一条；子代理（`_delegate_from`）、`source = 'tool'`、`hidden` 会话不单独列出。
+- 保留用户、助手文本和工具调用参数及结果；跳过 system 行、压缩摘要行（`_compressed_summary`）、仅给模型看的行、内部通知类 `display_kind`、撤销/回退掉的行（`active = 0` 且未归档）；压缩归档的原始行（`compacted = 1`）保留。压缩时复制到下一代的尾部按 Hermes 的显示去重规则只保留一份。图片只留占位。
+- 缺少必需列的库视为不支持的格式，整库跳过并记录警告；`state.db` 为符号链接或不在已知目录下时拒绝转换。profile 中的对话导入 ID 带 `<profile>.` 前缀，避免与默认库重名。
+- 验证：以 Hermes 主分支 `hermes_state` 的 `SessionDB` 实际写出的 state.db 交叉核对会话列表和对话内容；单测覆盖压缩续接、分支/重置、子代理与隐藏会话、profile、旧版缺列、损坏库、符号链接和越界文件。
+

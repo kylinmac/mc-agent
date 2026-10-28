@@ -78,7 +78,8 @@
 
 1. 功能 PR 按模板写好「更新说明」，通过检查后合入 main。
 2. 汇总成版本条目（第 2 节），PR 合入 main。
-3. 在该提交上创建并推送 `v<版本>`。
-4. `gh workflow run mc-release.yml -f version=<版本>`；prepare 先检查条目，再建草稿、构建、发布。
+3. 打标签前在本地 main 上先跑一遍门禁：`pnpm release:check-notes <版本>`（即 `node scripts/check-mc-changelog.mjs --require <版本>`）。失败就先补条目，别打标签：标签一旦推送并开始发布就不能改指向（见第 3 节）。
+4. 在该提交上创建并推送 `v<版本>`。
+5. `gh workflow run mc-release.yml -f version=<版本>`；prepare 先检查条目，再建草稿、构建、发布。
 
 GitHub Release 页面的正文暂时仍是 `--generate-notes` 自动生成；是否改用同一条目，等弹窗上线后再定。

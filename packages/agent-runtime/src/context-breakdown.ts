@@ -47,6 +47,12 @@ export type ContextBreakdownInput = {
   projectInstructionsPrompt: string;
   memoryPrompt: string;
   tools: ReadonlyArray<Tool & { mcpServerId?: string }>;
+  /**
+   * Names of every MCP tool the session can call, declared or on demand.
+   * Declared tools above are matched against this list too, because the
+   * provider-facing declarations do not carry `mcpServerId`.
+   */
+  mcpToolNames?: readonly string[];
   messages: readonly AgentMessage[];
   model: Model<Api>;
 };
@@ -88,12 +94,13 @@ export function contextBreakdown(input: ContextBreakdownInput): ContextBreakdown
   let tools = 0;
   let mcpTools = 0;
   const toolNames: string[] = [];
-  const mcpToolNames: string[] = [];
+  const knownMcp = new Set(input.mcpToolNames ?? []);
+  const mcpToolNames = new Set<string>(knownMcp);
   for (const tool of input.tools) {
     const cost = toolTokens(tool);
-    if (tool.mcpServerId) {
+    if (tool.mcpServerId || knownMcp.has(tool.name)) {
       mcpTools += cost;
-      mcpToolNames.push(tool.name);
+      mcpToolNames.add(tool.name);
     } else {
       tools += cost;
       toolNames.push(tool.name);
@@ -117,11 +124,13 @@ export function contextBreakdown(input: ContextBreakdownInput): ContextBreakdown
     categories,
     usedTokens: Object.values(categories).reduce((sum, value) => sum + value, 0),
     toolCount: toolNames.length,
-    mcpToolCount: mcpToolNames.length,
+    // MCP tools on demand cost no declaration tokens until activated, but
+    // they are available to this session, so they count (#40).
+    mcpToolCount: mcpToolNames.size,
     skillCount: skillNames.filter((name) => name !== "skills").length,
     messageCount,
     toolNames: toolNames.sort(),
-    mcpToolNames: mcpToolNames.sort(),
+    mcpToolNames: [...mcpToolNames].sort(),
     skillNames: skillNames
       .filter((name) => name !== "skills")
       .map((name) => name.slice(SKILL_SECTION_PREFIX.length))

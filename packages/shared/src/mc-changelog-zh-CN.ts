@@ -13,6 +13,25 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.26",
+    date: "2026-10-27",
+    improvements: [
+      "有多个目录的项目，在侧栏点「+」新建任务时可选从资料目录或哪个工作区开始，默认选上次用的。",
+      "项目工作台的任务列表旁可直接选任务在哪个目录执行；在工作台选过的目录，从「新建任务」按钮和项目菜单新建时也会沿用。",
+    ],
+    fixes: [
+      "问答卡选「输入其他答案」后，按回车即可提交（不是最后一题时进入下一题），Shift+回车换行；输入法选字时的回车不会误提交。",
+      "已连接 MCP 服务器时，会话信息栏的「MCP 工具」数量不再显示为 0。",
+    ],
+  },
+  {
+    version: "1.0.25",
+    date: "2026-10-27",
+    features: [
+      "「导入对话」支持 Hermes Agent：读取本机 Hermes（含各个 profile）的对话，保留文字和工具调用记录；Hermes 压缩上下文后接着聊的部分合成同一个对话导入。",
+    ],
+  },
+  {
     version: "1.0.24",
     date: "2026-10-27",
     features: [
