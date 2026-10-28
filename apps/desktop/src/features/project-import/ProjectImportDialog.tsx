@@ -77,6 +77,7 @@ function ProjectImportDialogContent() {
   const sessions = useAppStore((state) => state.sessions);
   const [candidates, setCandidates] = useState<ImportCandidate[] | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [truncated, setTruncated] = useState<Partial<Record<ImportSource, number>>>({});
   const [source, setSource] = useState<ImportSource | "all">("all");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -88,7 +89,9 @@ function ProjectImportDialogContent() {
     let canceled = false;
     api.scanImportSessions().then(
       (result) => {
-        if (!canceled) setCandidates(result.sessions);
+        if (canceled) return;
+        setCandidates(result.sessions);
+        setTruncated(result.truncated ?? {});
       },
       (error: unknown) => {
         if (!canceled) setScanError(error instanceof Error ? error.message : String(error));
@@ -316,6 +319,12 @@ function ProjectImportDialogContent() {
           />
           <span className="mc-import-meta">{t("mcProject.importSelected", summary)}</span>
         </div>
+        {source === "codex" || truncated.codex ? (
+          <div className="mc-import-hint" role="note">
+            {source === "codex" ? <p>{t("mcProject.importCodexScope")}</p> : null}
+            {truncated.codex ? <p>{t("mcProject.importCodexTruncated", { count: truncated.codex })}</p> : null}
+          </div>
+        ) : null}
         <div className="mc-import-body">{body}</div>
         <footer className="mc-import-foot">
           <span className="mc-import-note">{t("mcProject.importNote")}</span>
