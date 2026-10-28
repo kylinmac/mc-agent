@@ -9,6 +9,17 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.27",
+    date: "2026-10-28",
+    improvements: [
+      "The Codex tab of the import dialog explains that only sessions stored on this computer can be imported; cloud chats and ChatGPT projects from ChatGPT on the web or the desktop app's Chat / Work are not local. It also says when only the newest Codex sessions were scanned.",
+    ],
+    fixes: [
+      "Importing from Codex no longer misses conversations started in the Codex desktop app or IDE extension: their messages carry editor context first and were skipped as injected text, so sessions without a title disappeared. The real request after \"My request for Codex\" is now used for the title and content.",
+      "Importing from Codex also lists archived sessions (~/.codex/archived_sessions) and honors a Codex folder set with CODEX_HOME.",
+    ],
+  },
+  {
     version: "1.0.26",
     date: "2026-10-27",
     improvements: [

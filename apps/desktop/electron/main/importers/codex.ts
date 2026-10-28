@@ -13,7 +13,22 @@ import type {
 import { importedSessionId, toIso, truncateTitle } from "./types";
 import { groupCodexSegments, mergeCodexRecords, readCodexTitles } from "./codex-segments";
 
-const SESSIONS_DIR = path.join(os.homedir(), ".codex", "sessions");
+/** Codex honors `$CODEX_HOME` before falling back to `~/.codex`. */
+function codexHome(): string {
+  const override = process.env.CODEX_HOME?.trim();
+  return override ? path.resolve(override) : path.join(os.homedir(), ".codex");
+}
+
+const SESSIONS_DIR = path.join(codexHome(), "sessions");
+
+/**
+ * `codex archive` / the desktop app's "Archive" move a rollout out of the
+ * dated `sessions/YYYY/MM/DD` tree into this flat sibling. The threads are
+ * still the user's history, so the scan lists them too.
+ */
+function archivedSessionsDir(sessionsDir: string): string {
+  return path.join(sessionsDir, "..", "archived_sessions");
+}
 
 function readLfJsonl(
   stream: Readable,
@@ -78,6 +93,9 @@ interface ParsedCodexFile {
   items: Array<{ item: CodexItem; timestamp: string | null }>;
 }
 
+/** Delimiter Codex places between injected IDE context and the user's request. */
+const CODEX_REQUEST_MARKER = "## My request for Codex:";
+
 function itemText(item: CodexItem): string {
   if (!Array.isArray(item.content)) return "";
   const text = item.content
@@ -89,6 +107,16 @@ function itemText(item: CodexItem): string {
     .map((c) => c.text)
     .join("\n")
     .trim();
+  if (item.role === "user") {
+    // The desktop app and IDE extension serialize IDE context (active file,
+    // open tabs, selections, in-app browser, ...) into the same user message,
+    // ending with this marker and then the real request. Codex itself replays
+    // the text after the LAST marker, so do the same; otherwise the whole turn
+    // looked synthetic and a session whose every turn carried IDE context
+    // vanished from the scan.
+    const marker = text.lastIndexOf(CODEX_REQUEST_MARKER);
+    if (marker !== -1) return text.slice(marker + CODEX_REQUEST_MARKER.length).trim();
+  }
   // Attachment wrappers also contain the user's actual request; don't discard that turn.
   if (item.role === "user" && text.startsWith("# Files mentioned by the user:")) {
     const request = text.match(/(?:^|\n)## My request:\s*([\s\S]*)$/);
@@ -190,6 +218,26 @@ const CODEX_SCAN_TAIL_BYTES = 256 * 1024;
 async function listSessionFiles(
   dir: string = SESSIONS_DIR,
   maxFiles: number = CODEX_SCAN_MAX_FILES,
+  archivedDir: string | null = archivedSessionsDir(dir),
+): Promise<{ files: string[]; truncated: boolean }> {
+  const active = await listRolloutFiles(dir, maxFiles);
+  if (!archivedDir) return active;
+  const archived = await listRolloutFiles(archivedDir, maxFiles);
+  if (!archived.files.length) return active;
+  // Rollout names start with their creation time, so the basename orders both
+  // trees on one newest-first timeline before the shared cap applies.
+  const merged = [...active.files, ...archived.files].sort((a, b) =>
+    path.basename(b).localeCompare(path.basename(a)),
+  );
+  return {
+    files: merged.slice(0, maxFiles),
+    truncated: active.truncated || archived.truncated || merged.length > maxFiles,
+  };
+}
+
+async function listRolloutFiles(
+  dir: string,
+  maxFiles: number,
 ): Promise<{ files: string[]; truncated: boolean }> {
   const out: string[] = [];
   let truncated = false;
@@ -440,8 +488,9 @@ export interface CodexScanResult {
 export async function scanCodexSessionsResult(
   dir: string = SESSIONS_DIR,
   maxFiles: number = CODEX_SCAN_MAX_FILES,
+  archivedDir: string | null = archivedSessionsDir(dir),
 ): Promise<CodexScanResult> {
-  const { files, truncated } = await listSessionFiles(dir, maxFiles);
+  const { files, truncated } = await listSessionFiles(dir, maxFiles, archivedDir);
   const sessions: ExternalSessionSummary[] = [];
   for (const filePath of files) {
     const meta = await scanFile(filePath);
@@ -468,8 +517,9 @@ export async function scanCodexSessionsResult(
 export async function scanCodexSessions(
   dir: string = SESSIONS_DIR,
   maxFiles: number = CODEX_SCAN_MAX_FILES,
+  archivedDir: string | null = archivedSessionsDir(dir),
 ): Promise<ExternalSessionSummary[]> {
-  return (await scanCodexSessionsResult(dir, maxFiles)).sessions;
+  return (await scanCodexSessionsResult(dir, maxFiles, archivedDir)).sessions;
 }
 
 
