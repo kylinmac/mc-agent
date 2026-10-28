@@ -336,6 +336,7 @@ Gold source: local Codex electron captures; latest row wins where rows conflict.
 | D669 | `@` queries search past a truncated file index | **Amend D124: while the 8000-entry `fs/index` snapshot is truncated, a non-empty `@` query is also searched over the root's full listing through the read-only Electron channel `pi-desktop/fs/search` once typing pauses, and its best 50 rows merge with the local matches. A complete index never searches. Remote sessions keep their snapshot. No host RPC, storage, or schema change.** | The shallowest-8000-entry index left a script several folders down matching no query at all, even though the truncation note invited the reader to refine it (issue #1781). |
 | D671 | Inline generative UI visualizations | **Amend D114: local sessions get a second host-owned contained root `<data_dir>/visualizations/<sessionId>/` for `.html` fragments only (Read/Write/Edit, auto-allowed like scratch, never in remote or contract sessions). A standalone `::visualize{"path","title"}` reply line renders the fragment inline through a sandboxed `pi-genui://session/<sid>/<file>` iframe (`sandbox="allow-scripts"`, strict CSP, no network). Builtin skill `pi-desktop/visualize`. No schema change.** | Interactive explanations need an embedded page; ADR gen-ui-inline-visualization. |
 | D675 | Inline images are admitted by pixel size as well as bytes | **Amend D361: an image whose PNG/JPEG/GIF/WebP header reports a longest edge above `MAX_INLINE_IMAGE_EDGE_PX` (8000) is never inlined. Host Read refuses it with `TOOL_FAILED`; prompt attachments and restored history take the existing `@path` fallback; and the runtime's last provider view replaces any such image block (user or tool result) with a text notice naming its size. The probe reads headers only (no decoder); unknown dimensions keep the byte-only rule. No protocol, schema, or persisted-format change.** | Issue #1913: a 1.89 MB, 780 x 14182 full-page screenshot passed every byte check, the provider rejected it with a non-retriable 400, and replay made every later request in that session fail. Dropping is deterministic for the same bytes, so the request prefix and prompt caching stay stable; resampling would need an image decoder and is deferred. |
+| D674 | Per-turn changed-files summary under a finished reply | **A completed reply whose turn recorded workspace review changes renders one read-only `TurnChangesCard` below its answer and above `entryExtra`, built only from that turn's message-owned `details.review` records (no new capture, IPC, or persistence). Rows merge edits per path (`D` if the turn ends by deleting, else `A` if any edit created the file, else `M`; counts summed; rolled-back files stay listed and struck through). Up to four files use relaxed rows, more use dense rows, and rows past 12 fold into `+N more`. Clicking a row opens Review on that file's recorded changes; the per-call review rows and the Review tab are unchanged.** | Issue #1891, design 10 (adaptive density): the per-call review rows answer "what did this call change", and Review answers it for the whole session, but nothing answered "what did this turn change" without counting rows. |
 
 
 ## M0. Model catalog decisions
@@ -8018,3 +8019,23 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   `packages/agent-runtime/src/attachment-history.test.ts`,
   `apps/desktop/test/prompt-inline-attachments.test.mjs`, and host-core
   `tools::image_dimensions` / `read_refuses_images_past_the_pixel_limit` tests.
+## 2026-10-28 — Per-turn changed-files summary (D674)
+
+- D674 adds a read-only `TurnChangesCard` under every completed reply whose
+  turn recorded at least one workspace review change (issue #1891, design 10).
+  It mounts with the reply plugin slots, so it never appears while streaming or
+  after a failed turn, and `entryExtra` blocks stay beneath it.
+- The card reads only the turn's message-owned `details.review` records through
+  `reviewChangeFromMessage`; no capture, IPC, persistence, or host-core change.
+  Rows merge edits per path: `D` when the turn ends by deleting the file, else
+  `A` when any edit created it, else `M`; counts add up; a file whose every edit
+  was rolled back stays listed and struck through.
+- Adaptive density: up to four files use relaxed 25px rows; more switch to dense
+  21px rows with a directory count; rows past 12 fold into `+N more` with a link
+  to Review. The card is one `--ds-tile` surface with no border (D297).
+- Clicking a row opens the originating session's Review tab, scrolls to that
+  file's first recorded change, and expands it, through a transient renderer
+  focus request (`lib/review-focus-request.ts`) rather than app-store state.
+  The per-call review rows and the Review tab otherwise keep their behavior.
+- Covered by `apps/desktop/test/turn-changes-card.test.mjs`. See
+  `04-ux/08-component-spec.md` §4.4 and E2E-CHAT-turn-changed-files-summary.

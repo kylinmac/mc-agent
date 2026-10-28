@@ -339,6 +339,7 @@
 | D669 | `@` 查询越过被截断的文件索引 | **修订 D124：8000 条的 `fs/index` 快照被截断时，非空的 `@` 查询会在输入停顿后，通过只读的 Electron 通道 `pi-desktop/fs/search` 在该根目录的完整清单中搜索，最好的 50 行与本地匹配合并。完整的索引从不搜索。远程会话保持使用快照。不改变主机 RPC、存储或 schema。** | 只保留最浅 8000 条的索引，会让深几层目录里的脚本对任何查询都匹配不到，而截断提示还在邀请用户细化查询（issue #1781）。 |
 | D671 | 对话内联生成式 UI 可视化 | **修订 D114：本地会话新增第二个由宿主拥有的受控根目录 `<data_dir>/visualizations/<sessionId>/`，仅用于 `.html` 片段（Read/Write/Edit，与 scratch 一样免确认，远程会话和合约会话中不提供）。回复中单独一行 `::visualize{"path","title"}` 会通过沙箱化的 `pi-genui://session/<sid>/<file>` iframe（`sandbox="allow-scripts"`、严格 CSP、无网络）内联渲染该片段。内置 skill `pi-desktop/visualize`。不改变 schema。** | 交互式讲解需要内嵌页面；见 ADR gen-ui-inline-visualization。 |
 | D675 | 内联图片同时按像素尺寸与字节准入 | **修订 D361：PNG/JPEG/GIF/WebP 文件头显示最长边超过 `MAX_INLINE_IMAGE_EDGE_PX`（8000）的图片永不内联。Host Read 以 `TOOL_FAILED` 拒绝；提示附件与恢复的历史走既有的 `@path` 回退；运行时在最后的提供商视图中把这类图片块（用户或工具结果）替换为写明尺寸的文本说明。探测只读文件头（无解码器）；读不出尺寸时保留仅按字节的规则。不改变协议、schema 或持久化格式。** | Issue #1913：一张 1.89 MB、780 x 14182 的整页截图通过了所有字节检查，提供商以不可重试的 400 拒绝，重放使该会话此后每个请求都失败。同样的字节总是被同样地丢弃，请求前缀与提示缓存保持稳定；重采样需要图像解码器，留待以后。 |
+| D674 | 已完成回复下方的按轮文件变更汇总 | **回合记录了工作区审核变更的已完成回复，会在回答下方、`entryExtra` 上方渲染一张只读的 `TurnChangesCard`，只由该回合消息拥有的 `details.review` 记录构建（不新增采集、IPC 或持久化）。按路径合并多次编辑（回合以删除结束为 `D`，否则有创建即为 `A`，其余为 `M`；计数累加；已回滚文件保留并显示删除线）。不超过四个文件用宽松行，更多用密集行，超过 12 行折叠为 `+N more`。点击一行会在审阅中打开该文件的记录变更；逐次调用的审核行和审阅选项卡保持不变。** | Issue #1891，设计 10（自适应密度）：逐次调用的审核行回答“这次调用改了什么”，审阅回答整个会话的问题，但回答“这一轮改了什么”仍需自己数工具行。 |
 
 ## M0. 模型目录决策
 
@@ -5586,3 +5587,20 @@ Markdown 源码，不是 `text/html` 负载；对禁用行内 HTML 的外部编�
   `packages/agent-runtime/src/attachment-history.test.ts`、
   `apps/desktop/test/prompt-inline-attachments.test.mjs` 以及 host-core 的
   `tools::image_dimensions` / `read_refuses_images_past_the_pixel_limit` 测试覆盖。
+## 2026-10-28 — 按轮文件变更汇总（D674）
+
+- D674 在每条回合记录了至少一条工作区审核变更的已完成回复下方，新增只读的
+  `TurnChangesCard`（issue #1891，设计 10）。它与回复插件槽一起挂载，因此流式期间
+  和失败回合都不会出现，`entryExtra` 块始终在它下方。
+- 卡片只通过 `reviewChangeFromMessage` 读取该回合消息拥有的 `details.review`
+  记录；不改变采集、IPC、持久化或 host-core。按路径合并多次编辑：回合以删除该文件
+  结束时为 `D`，否则只要有一次创建即为 `A`，其余为 `M`；计数累加；所有编辑都已
+  回滚的文件保留在列表中并显示删除线。
+- 自适应密度：不超过四个文件用 25px 宽松行；更多时切换为 21px 密集行并显示目录数；
+  超过 12 行折叠为 `+N more`，并附打开审阅的链接。卡片是一个无边框的 `--ds-tile`
+  平面（D297）。
+- 点击一行会打开来源会话的审阅选项卡，滚动到该文件的第一条记录变更并展开；
+  通过渲染层的临时聚焦请求（`lib/review-focus-request.ts`）实现，而不是 app-store
+  状态。逐次调用的审核行和审阅选项卡的其他行为不变。
+- 由 `apps/desktop/test/turn-changes-card.test.mjs` 覆盖。见
+  `04-ux/08-component-spec.md` §4.4 与 E2E-CHAT-turn-changed-files-summary。

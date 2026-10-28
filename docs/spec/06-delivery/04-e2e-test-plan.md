@@ -4834,6 +4834,31 @@ window; opening a normal panel afterward must still work.
 - **Milestone**: M5
 - **Status**: Unit-covered (`chat-review-entry.test.mjs`); full UI scenario Draft
 
+#### E2E-CHAT-turn-changed-files-summary: A finished turn lists the files it changed
+
+- **Preconditions**: A project-bound Agent session with a writable workspace.
+- **Steps**: 1) Ask the agent to create one file and edit another; watch the
+  turn while it streams. 2) After the reply finishes, inspect the area below
+  the answer. 3) Ask for a change touching more than twelve files across
+  several directories. 4) Click a row, then the `View all N files in Review`
+  link. 5) Roll back one file's change in Review and return to the turn.
+  6) Ask a question that writes no files. 7) Switch sessions and come back.
+- **Expected**: No summary appears while a turn streams or after a failed
+  turn. A finished turn that wrote workspace files shows one borderless
+  `Changes this turn` card below its answer and above plugin `entryExtra`
+  blocks, with the file count and summed `+`/`−`. Each path appears once with
+  its merged status letter and counts; up to four files use relaxed rows,
+  more use dense rows with a directory count, and rows past 12 fold into
+  `+N more`. A row click opens the session's Review tab scrolled to that file
+  with its changes expanded; the link opens Review without expanding. The
+  rolled-back file stays listed, struck through. Every earlier finished turn
+  keeps its own card, a turn without writes has none, and a session switch
+  fetches nothing extra. The per-call review rows are unchanged.
+- **Specs linked**: `04-ux/08-component-spec.md` §4.4, D674
+- **Acceptance**: D (workspace), Quality
+- **Milestone**: M5
+- **Status**: Unit-covered (`turn-changes-card.test.mjs`); full UI scenario Draft
+
 #### E2E-058: Built-in interactive terminal is absent
 
 - **Preconditions**: A workspace is open and the Agent has completed a Bash
