@@ -15,6 +15,12 @@ export const mcZhCNEntries: McReleaseNotes[] = [
   {
     version: "1.0.27",
     date: "2026-10-28",
+    features: [
+      "会话的工作面板新增「画布」：让 Agent 画原型、界面或几版方案对比，画板可以直接点着试。",
+      "在画板上点选元素或留评论发给 Agent，它能准确知道你指的是哪个按钮、哪段文字，改完会在评论里回复。",
+      "Agent 改过的画板可以一键恢复成上一版；画板出错时可以点「让 Agent 修」。",
+      "画布可以导出成一个 HTML 文件，发给别人用浏览器直接打开，画板照样能点。",
+    ],
     improvements: [
       "导入对话框的 Codex 页说明只能导入本机 Codex 会话：ChatGPT 网页版或桌面版 Chat / Work 里的云端对话和 ChatGPT 项目不在本机，无法导入；Codex 会话过多只扫描了最新一部分时也会提示。",
     ],

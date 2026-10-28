@@ -11,6 +11,12 @@ export const mcEnEntries: McReleaseNotes[] = [
   {
     version: "1.0.27",
     date: "2026-10-28",
+    features: [
+      "The session work panel has a new Canvas: ask the Agent to draw prototypes, screens, or side-by-side options, and click through the boards directly.",
+      "Select an element on a board or leave a comment for the Agent, and it knows exactly which button or text you mean; it replies in the comment when done.",
+      "Restore a board the Agent changed to its previous version in one click; when a board breaks, click \"Ask the agent to fix\".",
+      "Export a canvas as one HTML file that others can open in a browser, with boards still clickable.",
+    ],
     improvements: [
       "The Codex tab of the import dialog explains that only sessions stored on this computer can be imported; cloud chats and ChatGPT projects from ChatGPT on the web or the desktop app's Chat / Work are not local. It also says when only the newest Codex sessions were scanned.",
     ],
