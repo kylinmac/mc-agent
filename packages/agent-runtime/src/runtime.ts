@@ -22,6 +22,7 @@ import { forkBrief, forkableParentMessages } from "./mc-subagent-fork.js";
 import type { McUserHook } from "@pi-desktop/shared";
 import { runUserHooks, hookFeedbackText, MAX_STOP_CONTINUATIONS } from "./mc-user-hooks.js";
 import { REMEMBER_TOOL_NAME, rememberDescription, rememberParameters } from "./mc-memory-tool.js";
+import { CANVAS_TOOL_NAMES, canvasToolDescriptions, canvasToolParameters } from "./mc-canvas-tools.js";
 import {
   CREATE_PROJECT_TOOL_NAME,
   PROJECT_TEMPLATES_TOOL_NAME,
@@ -3447,6 +3448,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       if (toolName === "SaveCreativeAsset") return saveCreativeAssetDescription;
       // mc-agent project memory notes (MC-ADR-0019).
       if (toolName === REMEMBER_TOOL_NAME) return rememberDescription;
+      // mc-agent prototype canvas (docs/mc-agent/prototype-canvas.md).
+      if (toolName in canvasToolDescriptions) return canvasToolDescriptions[toolName as keyof typeof canvasToolDescriptions];
       // mc-agent project creation from the conversation (MC-ADR-0023).
       if (toolName === PROJECT_TEMPLATES_TOOL_NAME) return projectTemplatesDescription;
       if (toolName === CREATE_PROJECT_TOOL_NAME) return createProjectDescription;
@@ -3511,6 +3514,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       GenerateImages: imageGenerationParameters,
       SaveCreativeAsset: saveCreativeAssetParameters,
       [REMEMBER_TOOL_NAME]: rememberParameters,
+      ...canvasToolParameters,
       [PROJECT_TEMPLATES_TOOL_NAME]: projectTemplatesParameters,
       [CREATE_PROJECT_TOOL_NAME]: createProjectParameters,
       TodoWrite: todoWriteParameters,
@@ -4147,6 +4151,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       tools.push("PluginScaffold", "PluginPack", "GenerateImages", "SaveCreativeAsset", ...Object.keys(scheduledToolParameters));
       // mc-agent: only a conversation in a project has a memory to write.
       if (this.projectPath && !this.remoteWorkspace) tools.push(REMEMBER_TOOL_NAME);
+      // mc-agent: a canvas belongs to a local project.
+      if (this.projectPath && !this.remoteWorkspace) tools.push(...CANVAS_TOOL_NAMES);
       // mc-agent: projects are created on this machine (MC-ADR-0023).
       if (!this.remoteWorkspace) tools.push(PROJECT_TEMPLATES_TOOL_NAME, CREATE_PROJECT_TOOL_NAME);
     }

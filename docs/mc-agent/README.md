@@ -26,6 +26,7 @@
 | [决策清单](decisions.md) | 集中处理待确认问题 |
 | [新增功能工程结构评审](engineering-structure-review.md) | 契约与模块整理、目录位置、核心概念边界；2026-10-22 已按文档实施，各条结果见第 10 节 |
 | [创作工作台方案](creative-studio.md) | 生图、生视频的入口、布局和分期（一期已实现） |
+| [原型画布方案](prototype-canvas.md) | R18 原型画布：Agent 在会话工作面板里画 HTML 原型，人看、试交互、评论与 @Agent，视图上下文（A 档已实现）；B 档原型跳转与导出、C 档所见即所得编辑（待评审） |
 | [macOS 权限归属与授权体验](macos-permissions.md) | 权限调用进程、签名身份、分步授权、复检；2026-10-22 已实施，结果见第 9 节 |
 | [电脑操作方案](computer-use.md) | 内置 Computer Use 插件：macOS 与 Windows 后端、权限及验证边界 |
 | [Windows 安装与更新](windows-install-update.md) | R15：暗色单页安装、后台下载、原目录静默更新 |
@@ -47,6 +48,7 @@
 | [MC-ADR-0012](adr/mc-0012-releases-and-updates.md) | 发布到 GitHub Releases 与更新提醒 |
 | [MC-ADR-0017](adr/mc-0017-post-update-whats-new.md) | 更新后的“更新内容”与版本更新说明 |
 | [MC-ADR-0013](adr/mc-0013-creative-studio.md) | 创作工作台（一期：图片） |
+| [MC-ADR-0024](adr/mc-0024-prototype-canvas.md) | 原型画布（A 档） |
 | [MC-ADR-0014](adr/mc-0014-computer-use.md) | 电脑操作（Computer Use）内置插件 |
 | [MC-ADR-0015](adr/mc-0015-macos-permissions.md) | macOS 系统权限页与授权归属 |
 | [MC-ADR-0004](adr/mc-0004-app-rail-and-title-tabs.md) | 左侧竖栏、顶部标签栏与设置标签 |

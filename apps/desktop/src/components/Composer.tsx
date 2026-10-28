@@ -32,6 +32,8 @@ import { ComposerAutocomplete } from "./ComposerAutocomplete";
 import { AskToolCard } from "./AskToolCard";
 import { ProjectProposalSlot } from "../features/project-create/ProjectProposalSlot";
 import { NewProjectIntentBar } from "../features/project-create/NewProjectIntentBar";
+import { CanvasContextBar } from "../features/canvas/CanvasContextBar";
+import { withCanvasContext } from "../features/canvas/canvas-session";
 import { NEW_PROJECT_PREFIX, useNewProjectIntent } from "../features/project-create/new-project-intent";
 import { PlanApprovalBar } from "./PlanApprovalBar";
 import { TaskDock } from "./TaskDock";
@@ -458,7 +460,9 @@ export function Composer({
     pasting,
     activeFileReferences,
     t,
-    sendPrompt,
+    // mc-agent: a message carries what the Canvas tab shows (prototype-canvas.md).
+    sendPrompt: (content, draft, target, onAccepted) =>
+      sendPrompt(withCanvasContext(target ?? activeSessionId ?? undefined, content), draft, target, onAccepted),
     steerPrompt,
     showToast,
     recordHistory: inputHistory.record,
@@ -602,6 +606,7 @@ export function Composer({
           <AskToolCard key={pendingAsk.requestId} request={pendingAsk} queued={queuedAsks} />
         ) : null}
         {localToolsAllowed ? <ProjectProposalSlot sessionId={activeSessionId} /> : null}
+        {localToolsAllowed ? <CanvasContextBar sessionId={activeSessionId} /> : null}
         {variant === "home" && localToolsAllowed ? (
           <NewProjectIntentBar
             draft={value}

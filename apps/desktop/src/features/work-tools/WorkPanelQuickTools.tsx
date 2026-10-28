@@ -3,10 +3,10 @@ import { useTranslation } from "react-i18next";
 import { useAppStore } from "../../stores/app-store";
 import { TooltipButton } from "../../components/ui";
 import type { IconProps } from "../../components/icons";
-import { IconActivity, IconDiff, IconFolder, IconGlobe, IconTerminal } from "../../components/icons";
+import { IconActivity, IconBrowser, IconDiff, IconFolder, IconGlobe, IconTerminal } from "../../components/icons";
 import { pluginWorkPanelTab, toolWorkPanelTab } from "../../lib/work-panel-tabs";
 import { isRemoteSession } from "../../lib/remote-session-safety";
-import { backgroundTab, browserTab, FILES_VIEW, terminalTab } from "./tool-tabs";
+import { backgroundTab, browserTab, canvasTab, FILES_VIEW, terminalTab } from "./tool-tabs";
 import { useBackgroundShells } from "./background-shells";
 import { paneOf, type PaneId } from "./work-panes-model";
 import { expandPane } from "./pane-layout";
@@ -45,6 +45,16 @@ export function WorkPanelQuickTools() {
     disabled?: boolean;
     open: () => void;
   }> = [
+    {
+      // The project's prototype canvas (docs/mc-agent/prototype-canvas.md).
+      pane: "canvas",
+      icon: IconBrowser,
+      label: t("mcProject.paneCanvas"),
+      tooltip: cwd ? undefined : t("mcProject.canvasNoProject"),
+      disabled: !cwd,
+      // Reopening keeps the canvas it showed.
+      open: () => openWorkPanelTab(tabs.find((tab) => tab.kind === "canvas") ?? canvasTab()),
+    },
     {
       pane: "terminal",
       icon: IconTerminal,

@@ -6,6 +6,7 @@ import { cx } from "../../components/ui";
 import type { IconProps } from "../../components/icons";
 import {
   IconActivity,
+  IconBrowser,
   IconChevronDown,
   IconChevronRight,
   IconClose,
@@ -42,6 +43,7 @@ import { browserTab, terminalTab } from "./tool-tabs";
 */
 
 export const PANE_ICONS: Record<PaneId, ComponentType<IconProps>> = {
+  canvas: IconBrowser,
   terminal: IconTerminal,
   background: IconActivity,
   browser: IconGlobe,
@@ -194,7 +196,7 @@ export function WorkPanes({ tabs, activeTabId, terminalCwd, labelFor, iconFor, r
         // A pane holding just its own single tool needs no tab chip.
         const showChips = !(
           group.tabs.length === 1 &&
-          (group.id === "review" || group.id === "files" || group.id === "background")
+          (group.id === "review" || group.id === "files" || group.id === "background" || group.id === "canvas")
         );
         const canAdd = (group.id === "terminal" && Boolean(terminalCwd)) || group.id === "browser";
         return (

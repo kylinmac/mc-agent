@@ -1,5 +1,6 @@
 mod config_sync_rpc;
 mod gen_ui;
+mod mc_canvas_rpc;
 mod mc_creative_rpc;
 mod plugin_reviews_rpc;
 mod project_tasks_rpc;
@@ -2151,6 +2152,11 @@ async fn handle_request(
         method if method.starts_with("project.tasks.") => {
             let st = state.lock().await;
             project_tasks_rpc::handle(&st, method, &params)
+        }
+        // mc-agent: the prototype canvas of a project.
+        method if method.starts_with("canvas.") => {
+            let st = state.lock().await;
+            mc_canvas_rpc::handle(&st, method, &params)
         }
         // mc-agent: the creative studio's assets, generations and comparisons.
         method if method.starts_with("creative.") => {

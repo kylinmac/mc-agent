@@ -29,6 +29,7 @@ import type { IconProps } from "../icons";
 import {
   IconActivity,
   IconBot,
+  IconBrowser,
   IconClose,
   IconDiff,
   IconFileText,
@@ -46,6 +47,7 @@ import { TerminalTab } from "../../features/work-tools/TerminalTab";
 import { useTerminalCwd, WorkPanelQuickTools } from "../../features/work-tools/WorkPanelQuickTools";
 import { WorkPanes } from "../../features/work-tools/WorkPanes";
 import { BackgroundPane } from "../../features/work-tools/BackgroundPane";
+import { CanvasTab } from "../../features/canvas/CanvasTab";
 import {
   MAIN_PANE_MIN_WIDTH,
   WORK_PANEL_COMPACT_MIN_WIDTH,
@@ -65,6 +67,7 @@ const TAB_ICONS = {
   subagent: IconBot,
   terminal: IconTerminal,
   background: IconActivity,
+  canvas: IconBrowser,
 } as const;
 
 type WorkPanelResizeState = {
@@ -102,6 +105,7 @@ function tabLabel(
   if (tab.kind === "subagent") return tab.label ?? t("panel.tabs.subagent");
   if (tab.kind === "terminal") return tab.label ?? t("mcProject.quickToolTerminal");
   if (tab.kind === "background") return t("mcProject.paneBackground");
+  if (tab.kind === "canvas") return t("mcProject.paneCanvas");
   if (tab.kind !== "file") return t(`panel.tabs.${tab.kind}`);
   const path = tab.resource ?? "";
   return path.split("/").filter(Boolean).pop() || t("panel.tabs.file");
@@ -478,6 +482,13 @@ function LocalWorkPanel({
       return (
         <div key={tab.id} {...surfaceProps}>
           <BackgroundPane />
+        </div>
+      );
+    }
+    if (tab.kind === "canvas") {
+      return (
+        <div key={tab.id} {...surfaceProps}>
+          <CanvasTab canvasId={tab.resource} />
         </div>
       );
     }

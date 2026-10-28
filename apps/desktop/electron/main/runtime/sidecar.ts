@@ -21,6 +21,7 @@ import {
 import { createImageGenerationTool } from "../services/image-generation-service";
 import { mergeAccountImageModels, type ProviderPublic } from "@pi-desktop/shared";
 import { createCreativeGenerator, emitCreativeJob, setCreativeGenerator } from "../creative/creative-generation";
+import { createCanvasTools } from "../canvas/canvas-tools";
 import { measureImage } from "../creative/measure-image";
 import { registerPluginDevTools } from "../plugin-dev-tools";
 import { resolveLocalFile } from "../browser-view";
@@ -600,6 +601,11 @@ export function createSidecarRuntime({
     creative: creative.toolRoute,
   }));
   s.setLocalTool("SaveCreativeAsset", creative.saveAssetTool);
+  // mc-agent: the prototype canvas (docs/mc-agent/prototype-canvas.md).
+  const canvasTools = createCanvasTools(() => runtimeState.host);
+  s.setLocalTool("CanvasRead", canvasTools.read);
+  s.setLocalTool("CanvasWrite", canvasTools.write);
+  s.setLocalTool("CanvasComment", canvasTools.comment);
   // mc-agent: the agent's notes in project memory (MC-ADR-0019).
   s.setLocalTool("Remember", createRememberTool(() => runtimeState.host));
   // mc-agent: project creation from the conversation (MC-ADR-0023).
