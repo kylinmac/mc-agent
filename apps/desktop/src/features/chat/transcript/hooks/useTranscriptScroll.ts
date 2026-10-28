@@ -192,6 +192,11 @@ export function useTranscriptScroll({
         contentRef.current,
       );
       if (!isScrollGestureInput(event.type as ScrollInputType, input)) return;
+      // Minimap / jump navigation runs in the browser, independently of our
+      // follow rAF. Real input must retire that animation at its current offset
+      // before its queued frames can overwrite the reader's next movement.
+      const scroller = scrollRef.current;
+      if (scroller) scroller.scrollTo({ top: scroller.scrollTop, behavior: "instant" });
       cancelReadingPosition();
       lastScrollGestureAtRef.current = performance.now();
       // Real input takes the viewport back from a held disclosure position.

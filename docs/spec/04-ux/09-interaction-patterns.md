@@ -735,6 +735,10 @@ may be retained while exactly one workspace supplies the visible shell context.
 - The first upward manual scroll movement pauses auto-scroll immediately and
   cancels any pending follow frame; small trackpad deltas must not snap back to
   the bottom
+- Scroll input owned by the transcript also cancels an in-flight browser smooth
+  navigation at its current offset. A previous minimap or jump navigation must
+  not resume after the reader takes over; nested-scroll input and ordinary row
+  controls do not cancel the transcript's navigation.
 - Sending a new prompt, retrying, or regenerating always re-pins follow mode and jumps to the bottom before the turn continues, even if the user had scrolled up
 - "Scroll to bottom" floating button appears as soon as manual upward scrolling
   releases follow mode
