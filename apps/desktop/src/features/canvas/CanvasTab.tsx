@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { CanvasThread, ProjectGroupRecord } from "@pi-desktop/shared";
-import { IconPencil, IconPlus, IconTrash } from "../../components/icons";
+import { IconDownload, IconPencil, IconPlus, IconTrash } from "../../components/icons";
 import { api } from "../../lib/api";
 import { isRemoteSession } from "../../lib/remote-session-safety";
 import { useAppStore } from "../../stores/app-store";
@@ -92,6 +92,17 @@ export function CanvasTab({ canvasId }: { canvasId?: string }) {
     await reload();
   };
 
+  const exportCanvas = async () => {
+    if (!shown) return;
+    try {
+      await api.canvas.export(groupId, shown.id);
+    } catch (failure) {
+      window.alert(
+        t("mcProject.canvasExportFailed", { message: failure instanceof Error ? failure.message : String(failure) }),
+      );
+    }
+  };
+
   /** Give a thread to this conversation: now, or with its next message. */
   const sendThread = async (thread: CanvasThread, queue: boolean) => {
     if (!shown) return;
@@ -150,6 +161,15 @@ export function CanvasTab({ canvasId }: { canvasId?: string }) {
             onClick={() => setNaming({ mode: "rename", value: shown.title })}
           >
             <IconPencil size={13} />
+          </button>
+          <button
+            type="button"
+            className="mc-canvas-icon"
+            title={t("mcProject.canvasExport")}
+            aria-label={t("mcProject.canvasExport")}
+            onClick={() => void exportCanvas()}
+          >
+            <IconDownload size={13} />
           </button>
           <button
             type="button"

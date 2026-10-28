@@ -3826,6 +3826,8 @@ sklm: {
     canvasNew: "新建画布",
     canvasTitleHint: "画布名称",
     canvasRename: "重命名",
+    canvasExport: "导出为 HTML",
+    canvasExportFailed: "导出画布失败：{{message}}",
     canvasDeleteCanvas: "删除画布…",
     canvasDeleteCanvasConfirm: "删除画布“{{title}}”及其中的画板和评论？",
     canvasEmptyHint: "画布还是空的。在对话里让 Agent 在这里画一个原型。",

@@ -3770,6 +3770,8 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
     canvasNew: "New canvas",
     canvasTitleHint: "Canvas name",
     canvasRename: "Rename",
+    canvasExport: "Export as HTML",
+    canvasExportFailed: "Could not export the canvas: {{message}}",
     canvasDeleteCanvas: "Delete canvas…",
     canvasDeleteCanvasConfirm: "Delete the canvas “{{title}}” with its artboards and comments?",
     canvasEmptyHint: "This canvas is empty. Ask the agent in the conversation to draw a prototype here.",

@@ -24,6 +24,7 @@ const {
   canvasResponseHeaders,
 } = await import("../electron/main/canvas/canvas-document.ts");
 const { CANVAS_SCHEME_PRIVILEGES, resolveCanvasRequest } = await import("../electron/main/canvas/canvas-protocol.ts");
+const { buildCanvasExport, canvasExportFileName } = await import("../electron/main/canvas/canvas-export.ts");
 const { createCanvasTools, onCanvasChanged } = await import("../electron/main/canvas/canvas-tools.ts");
 const model = await import("../src/features/canvas/canvas-model.ts");
 const { canvasBoardUrl, stripCanvasData } = await import("@pi-desktop/shared");
@@ -263,4 +264,34 @@ test("the renderer reaches the user's canvas methods only, never the agent's or 
     "canvas.comments.agentReply",
     "canvas.comments.agentSetStatus",
   ]);
+});
+
+test("an exported canvas is one offline page: artboards sandboxed in place, text escaped", () => {
+  const canvas = {
+    v: 1,
+    id: "c1",
+    title: "登录页 <两版>",
+    version: 3,
+    elements: [
+      { id: "t", type: "title", x: 0, y: -140, w: 800, h: 0, text: "登录页", rev: 0, hasPrev: false },
+      { id: "a", type: "frame", x: 0, y: 0, w: 390, h: 844, title: "A", rev: 2, hasPrev: true },
+      { id: "n", type: "note", x: 470, y: 0, w: 240, h: 0, text: "<b>说明</b>", color: "blue", rev: 0, hasPrev: false },
+    ],
+  };
+  const page = buildCanvasExport(canvas, { a: '<button data-mc-id="go" onclick="this.textContent=\'ok\'">登录</button>' });
+  assert.match(page, /<title>登录页 &lt;两版&gt;<\/title>/);
+  assert.match(page, /default-src 'none'/);
+  assert.match(page, /connect-src 'none'/);
+  // Each artboard is its own document in an opaque-origin frame, with the canvas policy and no host runtime.
+  const frame = page.match(/<iframe sandbox="allow-scripts"[^>]*srcdoc="([^"]*)"/);
+  assert.ok(frame);
+  assert.match(frame[1], /Content-Security-Policy/);
+  assert.match(frame[1], /data-mc-id=&quot;go&quot;/);
+  assert.doesNotMatch(frame[1], /postMessage/);
+  // Positions shift so the top-left element sits at the page padding.
+  assert.match(page, /class="el title" style="left:64px;top:64px;/);
+  assert.match(page, /&lt;b&gt;说明&lt;\/b&gt;/);
+  assert.match(page, /background:#d6e8ff/);
+  assert.equal(canvasExportFileName('a/b: "c"'), "a b c.html");
+  assert.equal(canvasExportFileName("  "), "canvas.html");
 });

@@ -4219,6 +4219,16 @@
     "zh-CN": "重命名",
     "zh-TW": "重新命名"
   },
+  "canvasExport": {
+    "en": "Export as HTML",
+    "zh-CN": "导出为 HTML",
+    "zh-TW": "匯出為 HTML"
+  },
+  "canvasExportFailed": {
+    "en": "Could not export the canvas: {{message}}",
+    "zh-CN": "导出画布失败：{{message}}",
+    "zh-TW": "匯出畫布失敗：{{message}}"
+  },
   "canvasDeleteCanvas": {
     "en": "Delete canvas…",
     "zh-CN": "删除画布…",

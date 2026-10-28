@@ -3728,6 +3728,8 @@ sklm: {
     canvasNew: "New canvas",
     canvasTitleHint: "Canvas name",
     canvasRename: "Rename",
+    canvasExport: "Export as HTML",
+    canvasExportFailed: "Could not export the canvas: {{message}}",
     canvasDeleteCanvas: "Delete canvas…",
     canvasDeleteCanvasConfirm: "Delete the canvas “{{title}}” with its artboards and comments?",
     canvasEmptyHint: "This canvas is empty. Ask the agent in the conversation to draw a prototype here.",

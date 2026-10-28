@@ -131,18 +131,18 @@ const SHELL_CSS = `:root { color-scheme: light; }
 html, body { margin: 0; height: 100%; background: #fff; color: #111; }
 body { font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }`;
 
-function escapeAttribute(value: string): string {
+export function escapeAttribute(value: string): string {
   return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 
-function shell(head: string, body: string): string {
+function shell(head: string, body: string, runtime = true): string {
   return `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="${escapeAttribute(CANVAS_CONTENT_SECURITY_POLICY)}">
 <style>${SHELL_CSS}</style>
-<script>${RUNTIME_SCRIPT}</script>
+${runtime ? `<script>${RUNTIME_SCRIPT}</script>` : ""}
 ${head}
 </head>
 <body>
@@ -155,6 +155,11 @@ ${body}
 /** Wrap an annotated artboard fragment (host-core numbered it). */
 export function buildCanvasBoardDocument(fragment: string): string {
   return shell("", fragment);
+}
+
+/** An artboard's own source in the same shell, without the host runtime (for export). */
+export function buildCanvasStandaloneBoard(fragment: string): string {
+  return shell("", fragment, false);
 }
 
 /**

@@ -2193,6 +2193,9 @@ export const api = {
     /** A host `canvas.*` method; the name fixes its parameters and result. */
     call: <M extends CanvasMethod>(method: M, params: CanvasParams<M>) =>
       invoke<CanvasResult<M>>(IPC.invoke.canvasCall, { method, params }),
+    /** Save a canvas as one HTML file where the user picks. */
+    export: (groupId: string, canvasId: string) =>
+      invoke<{ path?: string; canceled?: true }>(IPC.invoke.canvasExport, { groupId, canvasId }),
     /** The agent changed a canvas or its comments. */
     onChanged: (listener: (change: CanvasChange) => void) => {
       if (!window.piDesktop?.on) return () => undefined;
