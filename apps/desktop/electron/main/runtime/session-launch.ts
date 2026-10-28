@@ -48,7 +48,15 @@ import type { RuntimeProvider } from "./provider-catalog";
 import type { LoadedSkillDocument } from "../skill-document";
 import { getActiveRemoteHostsBoot } from "../bootstrap/remote-hosts";
 import { loadRemoteWorkspaceInstructions } from "../remote/remote-workspace-instructions.js";
-import { rememberPromptMatch, resolvePromptTemplate, templatePrompt, type PromptConfig } from "../mc-system-prompts";
+import {
+  enabledAppendPrompts,
+  rememberAppendPrompts,
+  rememberPromptMatch,
+  resolvePromptTemplate,
+  templatePrompt,
+  withAppendPrompts,
+  type PromptConfig,
+} from "../mc-system-prompts";
 import { creativeSessionHint } from "../creative/creative-generation";
 
 const ErrorCodes = {
@@ -536,7 +544,8 @@ export function createSessionLaunchRuntime({
     }
     // mc-agent (MC-ADR-0010): a matching template (the one picked for this
     // conversation, else project, else model, else global) applies whole, in
-    // place of SYSTEM.md / APPEND_SYSTEM.md.
+    // place of SYSTEM.md / APPEND_SYSTEM.md. Enabled append prompts then go
+    // after whatever that leaves appended.
     try {
       const { config } = await runtimeState.host!.call<{ config: PromptConfig }>("mcPrompts.get", {});
       const sessionTemplateId = await runtimeState
@@ -549,6 +558,13 @@ export function createSessionLaunchRuntime({
       });
       rememberPromptMatch(sessionId, resolved);
       if (resolved) customSystemPrompt = templatePrompt(resolved.template);
+      const appendPrompts = enabledAppendPrompts(config);
+      rememberAppendPrompts(
+        sessionId,
+        appendPrompts.map((prompt) => prompt.name),
+        !resolved && Boolean(customSystemPrompt?.append),
+      );
+      customSystemPrompt = withAppendPrompts(customSystemPrompt, appendPrompts);
     } catch {
       // Templates are best effort; the files and defaults still apply.
     }

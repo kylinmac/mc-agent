@@ -11,15 +11,23 @@
   template replaces only the persona and adds rules after the base prompt;
   the runtime's operational rules, the project's AGENTS.md and its memory
   always stay.
+
+  Append prompts sit beside the templates: every enabled one is added, in
+  list order, after what the template (or APPEND_SYSTEM.md) appends, whichever
+  template applies or none. No rule picks them and they replace nothing.
 */
 
 export type PromptTemplate = { id: string; name: string; persona: string; append: string };
+
+export type AppendPrompt = { id: string; name: string; text: string; enabled: boolean };
 
 export type PromptConfig = {
   templates: PromptTemplate[];
   globalTemplateId?: string | null;
   modelRules: Array<{ pattern: string; templateId: string }>;
   projectRules: Array<{ path: string; templateId: string }>;
+  /** Absent in documents saved before append prompts existed. */
+  appendPrompts?: AppendPrompt[];
 };
 
 export type PromptMatch =
@@ -92,6 +100,21 @@ export function templatePrompt(template: PromptTemplate): { replace?: string; ap
   return { ...(persona ? { replace: persona } : {}), ...(append ? { append } : {}) };
 }
 
+/** The enabled append prompts with text, in the order they apply. */
+export function enabledAppendPrompts(config: PromptConfig | null | undefined): AppendPrompt[] {
+  return (config?.appendPrompts ?? []).filter((prompt) => prompt.enabled && prompt.text.trim());
+}
+
+/** Adds the append prompts after whatever `custom` already appends. */
+export function withAppendPrompts(
+  custom: { replace?: string; append?: string } | undefined,
+  prompts: readonly AppendPrompt[],
+): { replace?: string; append?: string } | undefined {
+  if (prompts.length === 0) return custom;
+  const append = [custom?.append, ...prompts.map((prompt) => prompt.text.trim())].filter(Boolean).join("\n\n");
+  return { ...(custom ?? {}), append };
+}
+
 /** The template each conversation's latest launch used, for the prompt viewer. */
 const lastMatches = new Map<string, { templateName: string; match: PromptMatch } | null>();
 
@@ -102,4 +125,19 @@ export function rememberPromptMatch(sessionId: string, resolved: ResolvedPromptT
 
 export function promptMatchFor(sessionId: string): { templateName: string; match: PromptMatch } | null {
   return lastMatches.get(sessionId) ?? null;
+}
+
+/**
+ * The append prompts each conversation's latest launch added, and whether
+ * APPEND_SYSTEM.md was appended too, for the prompt viewer.
+ */
+const lastAppends = new Map<string, { names: string[]; fileAppend: boolean }>();
+
+export function rememberAppendPrompts(sessionId: string, names: string[], fileAppend: boolean): void {
+  lastAppends.set(sessionId, { names, fileAppend });
+  if (lastAppends.size > 500) lastAppends.delete(lastAppends.keys().next().value as string);
+}
+
+export function appendPromptsFor(sessionId: string): { names: string[]; fileAppend: boolean } | null {
+  return lastAppends.get(sessionId) ?? null;
 }

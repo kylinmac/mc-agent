@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { modelMatches, resolvePromptTemplate, templatePrompt } from "../electron/main/mc-system-prompts.ts";
+import { readFileSync } from "node:fs";
+import {
+  enabledAppendPrompts,
+  modelMatches,
+  resolvePromptTemplate,
+  templatePrompt,
+  withAppendPrompts,
+} from "../electron/main/mc-system-prompts.ts";
 
 // mc-agent: one system prompt template per conversation (MC-ADR-0010).
 
@@ -82,4 +89,42 @@ test("the template chosen for a conversation beats project, model and global rul
     resolvePromptTemplate({ ...config, globalTemplateId: null }, { projectPaths: [], sessionTemplateId: "claude" }).template.id,
     "claude",
   );
+});
+
+const appendPrompt = (id, text, enabled = true) => ({ id, name: id.toUpperCase(), text, enabled });
+
+test("enabled append prompts with text apply in list order", () => {
+  const withAppends = {
+    ...config,
+    appendPrompts: [appendPrompt("b", "B"), appendPrompt("off", "X", false), appendPrompt("blank", "  "), appendPrompt("a", " A ")],
+  };
+  assert.deepEqual(enabledAppendPrompts(withAppends).map((prompt) => prompt.id), ["b", "a"]);
+  // Documents saved before append prompts existed have none.
+  assert.deepEqual(enabledAppendPrompts(config), []);
+  assert.deepEqual(enabledAppendPrompts(null), []);
+});
+
+test("append prompts go after the template's rules and replace nothing", () => {
+  const prompts = [appendPrompt("b", "B"), appendPrompt("a", " A ")];
+  assert.deepEqual(withAppendPrompts({ replace: "P", append: "rules" }, prompts), { replace: "P", append: "rules\n\nB\n\nA" });
+  // With no template and no APPEND_SYSTEM.md they still apply.
+  assert.deepEqual(withAppendPrompts(undefined, prompts), { append: "B\n\nA" });
+  assert.deepEqual(withAppendPrompts({ replace: "SYSTEM.md" }, prompts), { replace: "SYSTEM.md", append: "B\n\nA" });
+  // None enabled: the template's prompt is unchanged.
+  const template = { replace: "P", append: "rules" };
+  assert.equal(withAppendPrompts(template, []), template);
+  assert.equal(withAppendPrompts(undefined, []), undefined);
+});
+
+test("append prompts never take part in choosing the template", () => {
+  // An append prompt id in a rule or as the session choice matches nothing.
+  const withAppends = { ...config, globalTemplateId: null, appendPrompts: [appendPrompt("extra", "E")] };
+  assert.equal(resolvePromptTemplate(withAppends, { projectPaths: [], sessionTemplateId: "extra" }), null);
+});
+
+test("a launch adds the append prompts after choosing the template", () => {
+  const source = readFileSync(new URL("../electron/main/runtime/session-launch.ts", import.meta.url), "utf8");
+  const chosen = source.indexOf("customSystemPrompt = templatePrompt(resolved.template)");
+  const appended = source.indexOf("customSystemPrompt = withAppendPrompts(customSystemPrompt, appendPrompts)");
+  assert.ok(chosen > 0 && appended > chosen);
 });

@@ -257,11 +257,15 @@ export type UsageSummary = {
 
 /** mc-agent: system prompt templates and the rules that apply them (MC-ADR-0010). */
 export type SystemPromptTemplate = { id: string; name: string; persona: string; append: string };
+/** Added after whatever the chosen template appends; never replaces anything. */
+export type SystemPromptAppend = { id: string; name: string; text: string; enabled: boolean };
 export type SystemPromptConfig = {
   templates: SystemPromptTemplate[];
   globalTemplateId?: string | null;
   modelRules: Array<{ pattern: string; templateId: string }>;
   projectRules: Array<{ path: string; templateId: string }>;
+  /** Enabled ones apply to every conversation, in this order. */
+  appendPrompts?: SystemPromptAppend[];
   updatedAt?: number;
 };
 
@@ -281,6 +285,8 @@ export type SessionSystemPrompt = {
       | { kind: "model"; pattern: string }
       | { kind: "global" };
   } | null;
+  /** Names of the append prompts the launch added, in order. */
+  appendPrompts?: string[];
 };
 
 export type SessionContextBreakdown = {

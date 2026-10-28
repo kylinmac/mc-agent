@@ -289,6 +289,16 @@
     "zh-CN": "新建任务",
     "zh-TW": "新增任務"
   },
+  "taskStartFolderLabel": {
+    "en": "Run in",
+    "zh-CN": "执行目录",
+    "zh-TW": "執行目錄"
+  },
+  "newTaskStartFolderMenu": {
+    "en": "Start new task in",
+    "zh-CN": "新建任务的起始目录",
+    "zh-TW": "新增任務的起始目錄"
+  },
   "taskTitlePlaceholder": {
     "en": "Task title",
     "zh-CN": "任务标题",
@@ -1274,6 +1284,16 @@
     "zh-CN": "导入的对话可以在这里接着聊；其他智能体的数据只读取、不修改。",
     "zh-TW": "匯入的對話可以在這裡接著聊；其他智能體的資料只讀取、不修改。"
   },
+  "importCodexScope": {
+    "en": "Codex lists the sessions stored on this computer (sessions and archived_sessions under ~/.codex, shared by the CLI, the desktop app and the IDE extension). Cloud chats from ChatGPT on the web or the desktop app’s Chat / Work, and ChatGPT projects, are not stored locally and cannot be imported here.",
+    "zh-CN": "Codex 只读取本机的 Codex 会话记录（~/.codex 下的 sessions 与已归档的 archived_sessions，命令行、桌面版、IDE 插件共用）。ChatGPT 网页版或桌面版「Chat / Work」里的云端对话和 ChatGPT 项目不保存在本机，无法从这里导入。",
+    "zh-TW": "Codex 只讀取本機的 Codex 會話紀錄（~/.codex 下的 sessions 與已封存的 archived_sessions，命令列、桌面版、IDE 外掛共用）。ChatGPT 網頁版或桌面版「Chat / Work」裡的雲端對話和 ChatGPT 專案不保存在本機，無法從這裡匯入。"
+  },
+  "importCodexTruncated": {
+    "en": "Codex has many sessions; only the newest {{count}} session files were scanned, so older conversations are not listed.",
+    "zh-CN": "Codex 会话较多，这次只扫描了最新的 {{count}} 个会话记录文件，更早的对话没有列出。",
+    "zh-TW": "Codex 會話較多，這次只掃描了最新的 {{count}} 個會話紀錄檔，更早的對話沒有列出。"
+  },
   "importCancel": {
     "en": "Cancel",
     "zh-CN": "取消",
@@ -1543,6 +1563,66 @@
     "en": "Rules added after the base prompt, such as answer style or output format.",
     "zh-CN": "追加在基础提示之后的规则，例如回答风格、输出格式。",
     "zh-TW": "附加在基礎提示之後的規則，例如回答風格、輸出格式。"
+  },
+  "promptAppendPrompts": {
+    "en": "Append prompts",
+    "zh-CN": "追加提示词",
+    "zh-TW": "追加提示詞"
+  },
+  "promptAppendPromptsDesc": {
+    "en": "Added after whatever the template above appends (or APPEND_SYSTEM.md), in every conversation, top to bottom. They never replace anything.",
+    "zh-CN": "在每个对话中，按从上到下的顺序追加在模板的附加规则（或 APPEND_SYSTEM.md）之后，不替换任何内容。",
+    "zh-TW": "在每個對話中，依由上到下的順序追加在範本的附加規則（或 APPEND_SYSTEM.md）之後，不取代任何內容。"
+  },
+  "promptAddAppendPrompt": {
+    "en": "Add append prompt",
+    "zh-CN": "新建追加提示词",
+    "zh-TW": "新增追加提示詞"
+  },
+  "promptNoAppendPrompts": {
+    "en": "No append prompts yet.",
+    "zh-CN": "还没有追加提示词。",
+    "zh-TW": "還沒有追加提示詞。"
+  },
+  "promptAppendNewName": {
+    "en": "Append prompt {{n}}",
+    "zh-CN": "追加提示词 {{n}}",
+    "zh-TW": "追加提示詞 {{n}}"
+  },
+  "promptAppendEnabled": {
+    "en": "Use {{name}} in conversations",
+    "zh-CN": "在对话中启用 {{name}}",
+    "zh-TW": "在對話中啟用 {{name}}"
+  },
+  "promptAppendEmpty": {
+    "en": "Empty, not added",
+    "zh-CN": "内容为空，不会追加",
+    "zh-TW": "內容為空，不會追加"
+  },
+  "promptAppendText": {
+    "en": "Text",
+    "zh-CN": "内容",
+    "zh-TW": "內容"
+  },
+  "promptAppendTextPlaceholder": {
+    "en": "Text added at the end of the appended rules, such as “Reply in Chinese.”",
+    "zh-CN": "追加在附加规则末尾的内容，例如“用中文回答”。",
+    "zh-TW": "追加在附加規則末尾的內容，例如「用中文回答」。"
+  },
+  "promptMoveUp": {
+    "en": "Move {{name}} up",
+    "zh-CN": "上移 {{name}}",
+    "zh-TW": "上移 {{name}}"
+  },
+  "promptMoveDown": {
+    "en": "Move {{name}} down",
+    "zh-CN": "下移 {{name}}",
+    "zh-TW": "下移 {{name}}"
+  },
+  "promptAppliedAppends": {
+    "en": "appended: {{names}}",
+    "zh-CN": "追加：{{names}}",
+    "zh-TW": "追加：{{names}}"
   },
   "promptRules": {
     "en": "Where templates apply",
