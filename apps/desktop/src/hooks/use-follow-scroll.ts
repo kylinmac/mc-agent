@@ -14,7 +14,7 @@ import {
   TRANSCRIPT_SCROLL_ROUNDING_TOLERANCE_PX,
   type ScrollInputType,
 } from "../lib/transcript-scroll";
-import { readScrollInputContext } from "../lib/scroll-input";
+import { readScrollInputContext, stopSmoothScroll } from "../lib/scroll-input";
 import type { DisclosureAnchorNotifier } from "../lib/disclosure-anchor-context";
 import { useDisclosureAnchor } from "./use-disclosure-anchor";
 
@@ -92,6 +92,7 @@ export function useFollowScroll(): FollowScroll {
         contentRef.current,
       );
       if (!isScrollGestureInput(event.type as ScrollInputType, input)) return;
+      stopSmoothScroll(scrollRef.current);
       lastScrollGestureAtRef.current = performance.now();
       releaseDisclosureAnchor();
     },
