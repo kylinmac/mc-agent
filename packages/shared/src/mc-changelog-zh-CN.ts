@@ -13,6 +13,17 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.27",
+    date: "2026-10-28",
+    improvements: [
+      "导入对话框的 Codex 页说明只能导入本机 Codex 会话：ChatGPT 网页版或桌面版 Chat / Work 里的云端对话和 ChatGPT 项目不在本机，无法导入；Codex 会话过多只扫描了最新一部分时也会提示。",
+    ],
+    fixes: [
+      "从 Codex 导入时，用 Codex 桌面版或 IDE 插件发起的对话不再被漏掉：这类消息前面带有编辑器上下文，以前整条被当成系统注入而跳过，没有标题的会话就不显示；现在会取出「My request for Codex」后面的真实提问作为标题和内容。",
+      "从 Codex 导入时也会列出已归档的会话（~/.codex/archived_sessions），并支持 CODEX_HOME 指定的 Codex 目录。",
+    ],
+  },
+  {
     version: "1.0.26",
     date: "2026-10-27",
     improvements: [

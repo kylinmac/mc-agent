@@ -237,6 +237,23 @@
   border-top: 1px solid var(--ds-border-subtle);
 }
 
+/* Codex scope and scan-cap notes, shown above the list (not an error). */
+.mc-import-hint {
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--ds-border-subtle);
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-body);
+}
+
+.mc-import-hint p {
+  margin: 0;
+}
+
+.mc-import-hint p + p {
+  margin-top: 4px;
+}
+
 .mc-import-note {
   min-width: 0;
   flex: 1;

@@ -3239,6 +3239,8 @@ sklm: {
     importAlready: "已导入",
     importCompleteCopy: "重新导入完整副本（保留原会话）",
     importNote: "导入的对话可以在这里接着聊；其他智能体的数据只读取、不修改。",
+    importCodexScope: "Codex 只读取本机的 Codex 会话记录（~/.codex 下的 sessions 与已归档的 archived_sessions，命令行、桌面版、IDE 插件共用）。ChatGPT 网页版或桌面版「Chat / Work」里的云端对话和 ChatGPT 项目不保存在本机，无法从这里导入。",
+    importCodexTruncated: "Codex 会话较多，这次只扫描了最新的 {{count}} 个会话记录文件，更早的对话没有列出。",
     importCancel: "取消",
     importRun: "导入 {{count}} 个",
     importRunning: "正在导入…",
