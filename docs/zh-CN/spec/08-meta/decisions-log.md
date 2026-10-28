@@ -339,6 +339,7 @@
 | D669 | `@` 查询越过被截断的文件索引 | **修订 D124：8000 条的 `fs/index` 快照被截断时，非空的 `@` 查询会在输入停顿后，通过只读的 Electron 通道 `pi-desktop/fs/search` 在该根目录的完整清单中搜索，最好的 50 行与本地匹配合并。完整的索引从不搜索。远程会话保持使用快照。不改变主机 RPC、存储或 schema。** | 只保留最浅 8000 条的索引，会让深几层目录里的脚本对任何查询都匹配不到，而截断提示还在邀请用户细化查询（issue #1781）。 |
 | D671 | 对话内联生成式 UI 可视化 | **修订 D114：本地会话新增第二个由宿主拥有的受控根目录 `<data_dir>/visualizations/<sessionId>/`，仅用于 `.html` 片段（Read/Write/Edit，与 scratch 一样免确认，远程会话和合约会话中不提供）。回复中单独一行 `::visualize{"path","title"}` 会通过沙箱化的 `pi-genui://session/<sid>/<file>` iframe（`sandbox="allow-scripts"`、严格 CSP、无网络）内联渲染该片段。内置 skill `pi-desktop/visualize`。不改变 schema。** | 交互式讲解需要内嵌页面；见 ADR gen-ui-inline-visualization。 |
 | D675 | 内联图片同时按像素尺寸与字节准入 | **修订 D361：PNG/JPEG/GIF/WebP 文件头显示最长边超过 `MAX_INLINE_IMAGE_EDGE_PX`（8000）的图片永不内联。Host Read 以 `TOOL_FAILED` 拒绝；提示附件与恢复的历史走既有的 `@path` 回退；运行时在最后的提供商视图中把这类图片块（用户或工具结果）替换为写明尺寸的文本说明。探测只读文件头（无解码器）；读不出尺寸时保留仅按字节的规则。不改变协议、schema 或持久化格式。** | Issue #1913：一张 1.89 MB、780 x 14182 的整页截图通过了所有字节检查，提供商以不可重试的 400 拒绝，重放使该会话此后每个请求都失败。同样的字节总是被同样地丢弃，请求前缀与提示缓存保持稳定；重采样需要图像解码器，留待以后。 |
+| D676 | 读者跟随的已完成回合停在它的提示处 | **修订流完成规则：转录可见且仍在跟随流时回合完成，渲染层会把该回合最新的用户消息滚动到转录顶部预留的标题栏带下方 16px 处（除非减少动态效果，否则平滑滚动），退出跟随模式并显示“滚动到底部”。提示已在视野内、回复失败或被中止、面板隐藏或处于阅读窗口、披露位置被保持、或在移动前开始了新的运行时，都不移动。仅渲染层；不新增设置，不改变 IPC 或持久化。** | Issue #1889：长回复结束后读者停在最后一行，得自己往上滑才能找到回答的开头。 |
 
 ## M0. 模型目录决策
 
@@ -5586,3 +5587,16 @@ Markdown 源码，不是 `text/html` 负载；对禁用行内 HTML 的外部编�
   `packages/agent-runtime/src/attachment-history.test.ts`、
   `apps/desktop/test/prompt-inline-attachments.test.mjs` 以及 host-core 的
   `tools::image_dimensions` / `read_refuses_images_past_the_pixel_limit` 测试覆盖。
+
+## 2026-10-28 — 已完成回合停在它的提示处（D676）
+
+- D676 取代“流完成时保持跟随的读者在底部”：被跟随的回合完成时，它的提示滚动到
+  视口顶部并出现“滚动到底部”（issue #1889）。滚动离开的读者保持原位。
+- 移动会等待回复的最终状态，在完成后的回复布局好之后再等一帧执行；回合失败或被
+  中止、提示已在视野内、面板隐藏或处于阅读窗口、披露位置被保持、以及排队的后续
+  提示先开始时都会跳过。
+- 逻辑位于 `apps/desktop/src/lib/turn-completion-scroll.ts` 以及
+  `useTranscriptScroll` 旁的 `useTurnCompletionScroll` hook。由
+  `apps/desktop/test/turn-completion-scroll.test.mjs` 与
+  `pnpm test:e2e:transcript-turn-completion`
+  （E2E-CHAT-completed-turn-scrolls-to-prompt）覆盖。

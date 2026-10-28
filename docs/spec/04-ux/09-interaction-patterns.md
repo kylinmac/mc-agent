@@ -744,7 +744,13 @@ may be retained while exactly one workspace supplies the visible shell context.
   even if the original pane is hidden or unmounted before scrolling finishes.
   Returning follows the latest output rather than restoring the old reading
   offset. Manual upward reading without that click still retains its position.
-- Stream completion: if user was auto-scrolling, keep at bottom; if manual, stay at position
+- Stream completion (D676): if the user was following a turn that completes,
+  its prompt scrolls to 16px below the titlebar band at the top of the
+  viewport so the answer
+  reads from its start, follow mode is released, and jump-to-latest appears.
+  The view does not move when the prompt is already in view, the turn failed
+  or was aborted, the pane is hidden, or a queued follow-up starts at once. If
+  the user had scrolled manually, the view stays at their position
 - An asynchronously completed diagram height update follows the same rule:
   ResizeObserver keeps a pinned transcript at the bottom, while a user who has
   scrolled upward remains at their reading position.

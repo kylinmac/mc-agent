@@ -45,6 +45,7 @@ import {
   transcriptRevealOwnership,
 } from "../../../../lib/transcript-reading-position";
 import { useTranscriptReadingPosition, type RestoreTranscriptReading } from "../../../../hooks/use-transcript-reading-position";
+import { useTurnCompletionScroll } from "./useTurnCompletionScroll";
 
 type UseTranscriptScrollOptions = {
   sessionId: string | undefined;
@@ -476,6 +477,13 @@ export function useTranscriptScroll({
     scheduleFollowScroll,
     scrollToBottom,
   ]);
+
+  // A completed turn the reader followed ends at its prompt, not its last line.
+  useTurnCompletionScroll({
+    isRunning, paneVisible, readingWindow, messages, scrollRef, contentRef,
+    isFollowing: () => pinnedRef.current && !isDisclosureAnchorHeld(),
+    onAnchored: releaseFollow,
+  });
 
   useLayoutEffect(() => {
     scheduleFollowScroll();
