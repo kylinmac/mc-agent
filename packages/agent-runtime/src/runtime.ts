@@ -21,7 +21,20 @@ import {
 import { forkBrief, forkableParentMessages } from "./mc-subagent-fork.js";
 import type { McUserHook } from "@pi-desktop/shared";
 import { runUserHooks, hookFeedbackText, MAX_STOP_CONTINUATIONS } from "./mc-user-hooks.js";
-import { REMEMBER_TOOL_NAME, rememberDescription, rememberParameters } from "./mc-memory-tool.js";
+import {
+  RECALL_TOOL_NAME,
+  REMEMBER_TOOL_NAME,
+  recallDescription,
+  recallParameters,
+  rememberDescription,
+  rememberParameters,
+} from "./mc-memory-tool.js";
+import {
+  MEMORY_REVIEW_MIN_NEW_MESSAGES,
+  memoryReviewRequest,
+  parseMemoryReview,
+  type MemoryReviewSuggestion,
+} from "./mc-memory-review.js";
 import {
   CREATE_PROJECT_TOOL_NAME,
   PROJECT_TEMPLATES_TOOL_NAME,
@@ -2114,6 +2127,10 @@ export class DesktopAgentRuntime {
   };
   /** mc-agent: the in-flight next-prompt suggestion; a new turn cancels it. */
   private suggestionAbort?: AbortController;
+  /** mc-agent (MC-ADR-0024): the memory review in flight, and what it last covered. */
+  private memoryReviewAbort?: AbortController;
+  private memoryReviewedAt = 0;
+  private memoryReviewedReply?: unknown;
   /** mc-agent: the suggestion made for a reply, and one still being made. */
   private suggestion?: { reply: unknown; text: string | null };
   private suggestionInFlight?: { reply: unknown; result: Promise<string | null | undefined> };
@@ -3447,6 +3464,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       if (toolName === "SaveCreativeAsset") return saveCreativeAssetDescription;
       // mc-agent project memory notes (MC-ADR-0019).
       if (toolName === REMEMBER_TOOL_NAME) return rememberDescription;
+      if (toolName === RECALL_TOOL_NAME) return recallDescription;
       // mc-agent project creation from the conversation (MC-ADR-0023).
       if (toolName === PROJECT_TEMPLATES_TOOL_NAME) return projectTemplatesDescription;
       if (toolName === CREATE_PROJECT_TOOL_NAME) return createProjectDescription;
@@ -3511,6 +3529,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       GenerateImages: imageGenerationParameters,
       SaveCreativeAsset: saveCreativeAssetParameters,
       [REMEMBER_TOOL_NAME]: rememberParameters,
+      [RECALL_TOOL_NAME]: recallParameters,
       [PROJECT_TEMPLATES_TOOL_NAME]: projectTemplatesParameters,
       [CREATE_PROJECT_TOOL_NAME]: createProjectParameters,
       TodoWrite: todoWriteParameters,
@@ -4146,7 +4165,9 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     if (this.mode === "agent") {
       tools.push("PluginScaffold", "PluginPack", "GenerateImages", "SaveCreativeAsset", ...Object.keys(scheduledToolParameters));
       // mc-agent: only a conversation in a project has a memory to write.
-      if (this.projectPath && !this.remoteWorkspace) tools.push(REMEMBER_TOOL_NAME);
+      // mc-agent (MC-ADR-0024): a conversation outside any project still has
+      // the memory about the user.
+      if (!this.remoteWorkspace) tools.push(REMEMBER_TOOL_NAME, RECALL_TOOL_NAME);
       // mc-agent: projects are created on this machine (MC-ADR-0023).
       if (!this.remoteWorkspace) tools.push(PROJECT_TEMPLATES_TOOL_NAME, CREATE_PROJECT_TOOL_NAME);
     }
@@ -9119,6 +9140,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     if (this.disposed) throw new Error("runtime disposed");
     this.assertNotRunning();
     this.suggestionAbort?.abort();
+    this.memoryReviewAbort?.abort();
     const turnId = durableTurnId?.trim() || randomUUID();
     return this.trackTurnOperation(turnId, () =>
       this.promptTurn(input, userMessageId, turnId),
@@ -9512,13 +9534,35 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
   }
 
   /** The suggestion request itself; undefined when it was cancelled. */
-  private async requestNextPrompt(
+  private requestNextPrompt(
     last: NonNullable<DesktopAgentRuntime["lastModelRequest"]>,
     reply: AssistantMessage,
   ): Promise<string | null | undefined> {
-    this.suggestionAbort?.abort();
+    return this.requestAfterReply(last, reply, NEXT_PROMPT_SUGGESTION_REQUEST, "suggestion", nextPromptSuggestionText);
+  }
+
+  /**
+   * One extra request after a finished reply: the turn's last request as it
+   * was sent, the reply, and `request`, so a prompt cache serves the rest.
+   * The answer stays out of the conversation; its usage is recorded on the
+   * turn. Undefined when cancelled (a new turn, or another request in the
+   * same slot), null on failure.
+   */
+  private async requestAfterReply<T>(
+    last: NonNullable<DesktopAgentRuntime["lastModelRequest"]>,
+    reply: AssistantMessage,
+    request: string,
+    slot: "suggestion" | "memory",
+    read: (message: AssistantMessage) => T | null,
+  ): Promise<T | null | undefined> {
     const abort = new AbortController();
-    this.suggestionAbort = abort;
+    if (slot === "suggestion") {
+      this.suggestionAbort?.abort();
+      this.suggestionAbort = abort;
+    } else {
+      this.memoryReviewAbort?.abort();
+      this.memoryReviewAbort = abort;
+    }
     const timer = setTimeout(() => abort.abort(), NEXT_PROMPT_SUGGESTION_TIMEOUT_MS);
     const turnId = this.turnId;
     const m = last.model;
@@ -9532,7 +9576,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         ...answered,
         {
           role: "user",
-          content: [{ type: "text", text: NEXT_PROMPT_SUGGESTION_REQUEST }],
+          content: [{ type: "text", text: request }],
           timestamp: Date.now(),
         },
       ],
@@ -9589,13 +9633,38 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       );
       const message = await stream.result();
       if (abort.signal.aborted) return undefined;
-      return nextPromptSuggestionText(message);
+      return read(message);
     } catch {
       return abort.signal.aborted ? undefined : null;
     } finally {
       clearTimeout(timer);
       if (this.suggestionAbort === abort) this.suggestionAbort = undefined;
+      if (this.memoryReviewAbort === abort) this.memoryReviewAbort = undefined;
     }
+  }
+
+  /**
+   * mc-agent (MC-ADR-0024): look back over the conversation once it went
+   * idle and suggest memory notes to add, update or remove. `memory` lists
+   * the current notes. Automatic reviews wait for two new user messages since
+   * the last one; `consolidate` reviews anyway, with tidying as the focus.
+   * Null when there is nothing to review or the session is busy.
+   */
+  async reviewMemory(memory: string, mode: "auto" | "consolidate"): Promise<MemoryReviewSuggestion[] | null> {
+    if (this.disposed || this.getStatus().isRunning) return null;
+    const last = this.lastModelRequest;
+    const reply = this.agent.state.messages.at(-1);
+    if (!last || !reply || reply.role !== "assistant" || reply.stopReason !== "stop" || reply !== last.reply) {
+      return null;
+    }
+    const userMessages = this.agent.state.messages.filter((message) => message.role === "user").length;
+    if (mode === "auto" && userMessages - this.memoryReviewedAt < MEMORY_REVIEW_MIN_NEW_MESSAGES) return null;
+    if (mode === "auto" && this.memoryReviewedReply === reply) return null;
+    const result = await this.requestAfterReply(last, reply, memoryReviewRequest(memory, mode), "memory", parseMemoryReview);
+    if (result === undefined) return null;
+    this.memoryReviewedAt = userMessages;
+    this.memoryReviewedReply = reply;
+    return result ?? [];
   }
 
   /**
@@ -9680,6 +9749,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     this.hostCloseUnsubscribe = undefined;
     this.agent.abort();
     this.suggestionAbort?.abort();
+    this.memoryReviewAbort?.abort();
     this.providerRetryAbort?.abort();
     this.cleanupActiveToolProgress();
     if (this.compactionInProgress) this.compactionAborted = true;

@@ -170,3 +170,97 @@
   color: var(--ds-text-muted);
   font-size: var(--text-xs);
 }
+
+/* mc-agent (MC-ADR-0024): a note's kind and source, and suggestions waiting for the user. */
+.mc-memory-meta {
+  margin-top: 4px;
+  color: var(--ds-text-faint);
+  font-size: var(--text-xs);
+}
+
+.mc-memory-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: 1px dashed color-mix(in oklab, var(--ds-accent) 45%, transparent);
+  border-radius: var(--radius-md);
+}
+
+.mc-memory-suggestions-head {
+  display: flex;
+  flex-direction: column;
+  color: var(--ds-text-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.mc-memory-suggestion {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--ds-border-subtle);
+}
+
+.mc-memory-suggestion-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--text-sm);
+}
+
+.mc-memory-suggestion-action {
+  color: var(--ds-accent);
+  font-size: var(--text-xs);
+}
+
+.mc-memory-suggestion-action[data-action="remove"] {
+  color: var(--ds-error);
+}
+
+.mc-memory-suggestion-title {
+  color: var(--ds-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.mc-memory-suggestion-content {
+  color: var(--ds-text-secondary);
+  white-space: pre-wrap;
+}
+
+.mc-memory-suggestion-actions {
+  display: flex;
+  flex: none;
+  gap: 6px;
+}
+
+.mc-memory-user-note {
+  align-items: stretch;
+}
+
+.mc-memory-user-fields {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mc-memory-user-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mc-memory-user-actions {
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.mc-memory-kind-select {
+  min-width: 120px;
+}

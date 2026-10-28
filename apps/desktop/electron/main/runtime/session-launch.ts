@@ -1,3 +1,4 @@
+import { sessionMemoryPrompt } from "../mc-memory";
 import { join } from "node:path";
 import { loadUserHooks } from "../mc-user-hooks-store";
 import {
@@ -16,6 +17,7 @@ import {
   type ModelBinding,
   type ProjectFolderGuideNote,
   type ProjectFolderGuideRoot,
+  type ProjectMemoryEntry,
   type Mode,
   type Risk,
   type SessionThinkingLevel,
@@ -474,6 +476,9 @@ export function createSessionLaunchRuntime({
     // per launch; a change retires the runtime through the reuse match.
     let customSystemPrompt = await loadCustomSystemPrompt(localInstructionRoot);
     let projectMemory: string | undefined;
+    // mc-agent (MC-ADR-0024): the project's notes as stored, for the memory
+    // text the session starts with (whole when small, else an index).
+    let memoryRecord: { entries?: ProjectMemoryEntry[] | null; content?: string } | undefined;
     // mc-agent (MC-ADR-0010): the conversation's folder and its project's
     // other folders, for project-bound system prompt templates.
     const projectRoots: string[] = projectPath ? [projectPath] : [];
@@ -484,7 +489,7 @@ export function createSessionLaunchRuntime({
             roots?: ProjectFolderGuideRoot[];
             notes?: ProjectFolderGuideNote[];
             instructions?: string;
-            memory?: { content?: string };
+            memory?: { content?: string; entries?: ProjectMemoryEntry[] | null };
           } | null;
         }>("project.group.context", { path: projectPath });
         const groupRoots = result.context?.roots ?? [];
@@ -514,21 +519,24 @@ export function createSessionLaunchRuntime({
         }
         const groupMemory = result.context?.memory?.content?.trim();
         if (groupMemory) projectMemory = groupMemory;
+        if (result.context?.memory) memoryRecord = result.context.memory;
         if (!result.context) {
           const legacy = await runtimeState.host!.call<{
-            memory?: { content?: string };
+            memory?: { content?: string; entries?: ProjectMemoryEntry[] | null };
           }>("project.memory.get", { path: projectPath });
           const content = legacy.memory?.content?.trim();
           if (content) projectMemory = content;
+          if (legacy.memory) memoryRecord = legacy.memory;
         }
       } catch {
         // Project context is best effort; it must never prevent a session launch.
         try {
           const legacy = await runtimeState.host!.call<{
-            memory?: { content?: string };
+            memory?: { content?: string; entries?: ProjectMemoryEntry[] | null };
           }>("project.memory.get", { path: projectPath });
           const content = legacy.memory?.content?.trim();
           if (content) projectMemory = content;
+          if (legacy.memory) memoryRecord = legacy.memory;
         } catch {
           // Legacy memory is also best effort.
         }
@@ -799,7 +807,11 @@ export function createSessionLaunchRuntime({
         ...(workspaceRoot ? { workspaceRoot } : {}),
         customSystemPrompt,
         projectInstructions,
-        projectMemory,
+        // mc-agent (MC-ADR-0024): project notes plus the notes about the user;
+        // a launch that cannot read the user's notes keeps the project's.
+        projectMemory: remoteWorkspace
+          ? projectMemory
+          : await sessionMemoryPrompt(dataDir, memoryRecord).catch(() => projectMemory),
         // mc-agent (MC-ADR-0021): read at every launch, so edits apply to the next prompt.
         userHooks: await loadUserHooks(dataDir),
         provider: {

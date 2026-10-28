@@ -23,6 +23,7 @@ import {
 import { LifecycleConfirmationDialog } from "../../components/LifecycleConfirmationDialog";
 import { ProjectCreateDialog } from "../../components/ProjectCreateDialog";
 import { ProjectImportDialog } from "../project-import/ProjectImportDialog";
+import { MemorySuggestionToast } from "../memory/MemorySuggestionToast";
 import { McWhatsNew } from "./McWhatsNew";
 import { SearchDialog } from "../../components/SearchDialog";
 import { Sidebar } from "../../components/Sidebar";
@@ -419,6 +420,7 @@ export function AppShell() {
       <LifecycleConfirmationDialog />
       {/* mc-agent (MC-ADR-0017): what changed, once after an update. */}
       {ready && !showSplash ? <McWhatsNew /> : null}
+      <MemorySuggestionToast />
       {splash}
       {startupRecovery}
     </div>

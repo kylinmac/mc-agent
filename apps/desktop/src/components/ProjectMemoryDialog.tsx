@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useBlockingOverlay } from "../lib/blocking-overlay";
-import { isAgentMemoryEntry, type ProjectMemory, type ProjectMemoryEntry } from "@pi-desktop/shared";
+import { isAgentMemoryEntry, resolveMemorySuggestion, type ProjectMemory, type ProjectMemoryEntry } from "@pi-desktop/shared";
+import { MemoryNoteMeta, MemorySuggestions, MemoryTidyButton } from "../features/memory/MemoryParts";
 import { api } from "../lib/api";
 import { OverlayBackdrop, Button, Input, Textarea, TooltipButton } from "./ui";
 import { IconClose, IconPlus, IconSparkles, IconTrash } from "./icons";
@@ -24,6 +25,8 @@ function entriesFromMemory(memory: ProjectMemory): ProjectMemoryEntry[] {
 function normalizeEntries(entries: ProjectMemoryEntry[]): ProjectMemoryEntry[] {
   return entries
     .map((entry) => ({
+      // mc-agent (MC-ADR-0024): keep kind, hook, source and pending.
+      ...entry,
       id: entry.id.trim(),
       title: entry.title.trim(),
       content: entry.content.trim(),
@@ -53,6 +56,8 @@ export function ProjectMemoryDialog({
   const [savedEntries, setSavedEntries] = useState<ProjectMemoryEntry[]>([]);
   const [saving, setSaving] = useState(false);
 
+  const [loadNonce, setLoadNonce] = useState(0);
+  const reload = () => setLoadNonce((value) => value + 1);
   useEffect(() => {
     let cancelled = false;
     const load = project.groupId && !project.legacy
@@ -70,7 +75,7 @@ export function ProjectMemoryDialog({
     return () => {
       cancelled = true;
     };
-  }, [project.groupId, project.legacy, project.path]);
+  }, [project.groupId, project.legacy, project.path, loadNonce]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -86,8 +91,8 @@ export function ProjectMemoryDialog({
     );
   };
 
-  const save = async () => {
-    const normalized = normalizeEntries(entries);
+  const save = async (from: ProjectMemoryEntry[] = entries) => {
+    const normalized = normalizeEntries(from);
     setSaving(true);
     try {
       const result = project.groupId && !project.legacy
@@ -106,6 +111,7 @@ export function ProjectMemoryDialog({
   };
 
   const dirty = memory !== null && !entriesEqual(entries, savedEntries);
+  const notes = entries.filter((entry) => !entry.pending);
   const dialog = (
     <OverlayBackdrop
       className="overlay project-instructions-dialog-overlay"
@@ -143,8 +149,15 @@ export function ProjectMemoryDialog({
         <p className="project-memory-dialog-description">{t("project.memoryDescription")}</p>
         <div className="project-memory-dialog-toolbar">
           <span className="project-memory-dialog-count">
-            {t("project.memoryCount", { count: entries.length })}
+            {t("project.memoryCount", { count: notes.length })}
           </span>
+          {/* mc-agent (MC-ADR-0024): a consolidating review on a recent conversation. */}
+          <MemoryTidyButton
+            path={project.path}
+            groupId={project.groupId}
+            disabled={memory === null || saving || dirty}
+            onDone={reload}
+          />
           <Button
             type="button"
             size="sm"
@@ -156,9 +169,19 @@ export function ProjectMemoryDialog({
             {t("project.memoryAdd")}
           </Button>
         </div>
-        {entries.length > 0 ? (
+        <MemorySuggestions
+          entries={entries}
+          disabled={memory === null || saving}
+          onResolve={(id, keep) => {
+            const next = resolveMemorySuggestion(entries, id, keep);
+            setEntries(next);
+            // A decision on a suggestion is saved at once, like a toggle.
+            if (!dirty) void save(next);
+          }}
+        />
+        {notes.length > 0 ? (
           <div className="project-memory-dialog-list" role="list">
-            {entries.map((entry, index) => (
+            {notes.map((entry, index) => (
               <article className="project-memory-card" key={entry.id} role="listitem">
                 <div className="project-memory-card-head">
                   {/* mc-agent (MC-ADR-0019): a note the agent saved with Remember. */}
@@ -198,6 +221,7 @@ export function ProjectMemoryDialog({
                   disabled={memory === null || saving}
                   onChange={(event) => updateEntry(entry.id, { content: event.target.value })}
                 />
+                <MemoryNoteMeta entry={entry} />
               </article>
             ))}
           </div>

@@ -2122,3 +2122,55 @@ fn migrates_v21_to_v22_replaces_session_index() {
         "idx_sessions_updated_id should be created"
     );
 }
+
+/// mc-agent (MC-ADR-0024): note fields survive a save, and a suggestion
+/// waiting for the user is stored but not rendered into the memory.
+#[test]
+fn memory_note_fields_round_trip_and_pending_notes_stay_out() {
+    let dir = tempfile::tempdir().unwrap();
+    let project = dir.path().join("project");
+    std::fs::create_dir_all(&project).unwrap();
+    let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+    let entries = serde_json::json!([
+        {
+            "id": "agent-1",
+            "title": "Tests",
+            "content": "Run the Node tests, not the browser ones.",
+            "kind": "feedback",
+            "hook": "which tests to run",
+            "source": { "sessionId": "s1", "at": 1 },
+            "unknown": "dropped"
+        },
+        {
+            "id": "agent-2",
+            "title": "Release",
+            "content": "Tag before running the release workflow.",
+            "pending": { "reason": "said twice" }
+        },
+        {
+            "id": "agent-3",
+            "title": "Huge",
+            "content": "kept",
+            "hook": "x".repeat(5000)
+        }
+    ]);
+    let saved = db
+        .set_project_memory_entries(project.to_str().unwrap(), &entries)
+        .unwrap();
+    assert_eq!(
+        saved.content,
+        "## Tests\n\nRun the Node tests, not the browser ones.\n\n## Huge\n\nkept"
+    );
+    let read = db
+        .get_project_memory(project.to_str().unwrap())
+        .unwrap()
+        .entries
+        .unwrap();
+    assert_eq!(read[0].extra.get("kind").unwrap(), "feedback");
+    assert_eq!(read[0].extra.get("hook").unwrap(), "which tests to run");
+    assert!(read[0].extra.get("unknown").is_none());
+    assert!(read[1].extra.get("pending").is_some());
+    assert!(read[2].extra.is_empty(), "oversized extras are dropped");
+    let wire = serde_json::to_value(&read[0]).unwrap();
+    assert_eq!(wire["kind"], "feedback");
+}

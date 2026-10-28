@@ -522,6 +522,7 @@ pub(crate) fn parse_project_memory_entries(value: &Value) -> Option<Vec<ProjectM
                 id: entry.get("id")?.as_str()?.to_string(),
                 title: entry.get("title")?.as_str()?.to_string(),
                 content: entry.get("content")?.as_str()?.to_string(),
+                extra: memory_entry_extra(entry),
             })
         })
         .collect()
@@ -558,14 +559,47 @@ pub(crate) fn normalize_project_memory_entries(
             id: id.to_string(),
             title: title.to_string(),
             content: content.to_string(),
+            extra: memory_entry_extra(entry),
         });
     }
     Ok(normalized)
 }
 
+/// mc-agent (MC-ADR-0024): the optional note fields a memory entry keeps.
+/// Anything else, or an oversized value, is dropped rather than stored.
+const MEMORY_ENTRY_EXTRA_KEYS: [&str; 5] = ["kind", "hook", "source", "pending", "updatedAt"];
+const MAX_MEMORY_ENTRY_EXTRA_BYTES: usize = 4 * 1024;
+
+pub(crate) fn memory_entry_extra(entry: &Value) -> serde_json::Map<String, Value> {
+    let mut extra = serde_json::Map::new();
+    for key in MEMORY_ENTRY_EXTRA_KEYS {
+        if let Some(value) = entry.get(key) {
+            if !value.is_null() {
+                extra.insert(key.to_string(), value.clone());
+            }
+        }
+    }
+    let size = serde_json::to_string(&extra)
+        .map(|text| text.len())
+        .unwrap_or(usize::MAX);
+    if size > MAX_MEMORY_ENTRY_EXTRA_BYTES {
+        return serde_json::Map::new();
+    }
+    extra
+}
+
+/// A suggestion waiting for the user is stored but not part of the memory.
+fn memory_entry_pending(entry: &ProjectMemoryEntryRecord) -> bool {
+    entry
+        .extra
+        .get("pending")
+        .is_some_and(|value| !value.is_null())
+}
+
 pub(crate) fn render_project_memory_entries(entries: &[ProjectMemoryEntryRecord]) -> String {
     entries
         .iter()
+        .filter(|entry| !memory_entry_pending(entry))
         .map(|entry| {
             if entry.title.is_empty() {
                 entry.content.clone()

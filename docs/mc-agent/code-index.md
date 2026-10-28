@@ -168,6 +168,7 @@ host-core 也可作为内部工具子进程启动（`tools::INTERNAL_TOOL_RUNNER
 | 资料目录创建、模板、改名跟随 | `crates/host-core/src/resource_dirs.rs`；路径改写复用 `data_relocation.rs::rewrite_database_paths` |
 | 新建类型、转换与解除（R1.7） | 对话框 `apps/desktop/src/features/project-workbench/ProjectKindPicker.tsx`；转换 `ConvertToManaged.tsx`；解除 `db/project_resources.rs::detach_project_resource_root`；接回旧目录在 `resource_dirs.rs::ensure_project_resources` |
 | 用对话新建项目（R16，MC-ADR-0023） | 共享类型与参数校验 `packages/shared/src/mc-project-proposal.ts`；工具声明 `packages/agent-runtime/src/mc-project-tools.ts`；工具实现与卡片中转 `apps/desktop/electron/main/mc-project-create.ts`、IPC `ipc/mc-project-create-ipc.ts`；技能 `apps/desktop/resources/skills/new-project.md`；界面 `apps/desktop/src/features/project-create/`（方案卡片、完成卡片、首页建议条、创建步骤）；只用这一次的模板 `crates/host-core/src/project_draft_template.rs`（`project.resources.ensureDraft`） |
+| 记忆沉淀（R17，MC-ADR-0024） | 字段与注入拼装 `packages/shared/src/mc-memory.ts`；回顾指令与解析 `packages/agent-runtime/src/mc-memory-review.ts`（运行时 `reviewMemory`，sidecar `agent.reviewMemory`）；关于我、`Recall`、回顾调度 `apps/desktop/electron/main/mc-memory.ts`、IPC `ipc/mc-memory-ipc.ts`；`Remember` 在 `mc-agent-memory.ts`；界面 `features/memory/`、设置页 `features/settings/MemoryPage.tsx`；host-core 条目字段保留在 `db/repositories.rs` |
 | 工作区说明（`workspaces.md`） | `crates/host-core/src/workspace_notes.rs` |
 | 资料清单、确认、项目目标 | `crates/host-core/src/resource_catalog.rs`；分类索引 `resource_index.rs`（`INDEX.md`）；总索引 `resource_overview.rs`（`RESOURCES.md`）；模板元数据 `resource_templates.rs` |
 | 项目任务、执行、验收 | `crates/host-core/src/project_tasks.rs` |
