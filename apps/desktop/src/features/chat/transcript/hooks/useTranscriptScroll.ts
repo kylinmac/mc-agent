@@ -144,6 +144,15 @@ export function useTranscriptScroll({
     onRestore: onRestoreReading, onMissing: readingPositionMissing,
   });
 
+  // State transition only: completion calls this after starting its own
+  // prompt navigation, which must be allowed to finish.
+  const leaveFollow = useCallback(() => {
+    cancelReadingPosition();
+    cancelFollowScroll();
+    pinnedRef.current = false;
+    setShowJump(true);
+  }, [cancelFollowScroll, cancelReadingPosition]);
+
   /*
     Leave follow mode. Every reader-driven move inside the transcript starts
     here: while the scroller is still pinned, a scroll that carries no input
@@ -151,11 +160,9 @@ export function useTranscriptScroll({
     the view one frame later and undoes the move.
   */
   const releaseFollow = useCallback(() => {
-    cancelReadingPosition();
-    cancelFollowScroll();
-    pinnedRef.current = false;
-    setShowJump(true);
-  }, [cancelFollowScroll, cancelReadingPosition]);
+    stopSmoothScroll(scrollRef.current);
+    leaveFollow();
+  }, [leaveFollow]);
 
   // A manual disclosure (a tool, thinking or activity title; #324) hands this
   // scroller the very title it was toggled from, before the expansion state
@@ -486,7 +493,7 @@ export function useTranscriptScroll({
   useTurnCompletionScroll({
     isRunning, paneVisible, readingWindow, messages, scrollRef, contentRef,
     isFollowing: () => pinnedRef.current && !isDisclosureAnchorHeld(),
-    onAnchored: releaseFollow,
+    onAnchored: leaveFollow,
   });
 
   useLayoutEffect(() => {
@@ -616,6 +623,7 @@ export function useTranscriptScroll({
   );
 
   const releaseSearchFollow = useCallback((fresh: boolean) => {
+    stopSmoothScroll(scrollRef.current);
     cancelReadingPosition();
     if (fresh) prependHeightRef.current = null;
     releaseDisclosureAnchor();

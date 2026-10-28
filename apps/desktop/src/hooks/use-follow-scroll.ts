@@ -77,6 +77,7 @@ export function useFollowScroll(): FollowScroll {
   } = useDisclosureAnchor(
     scrollRef,
     useCallback(() => {
+      stopSmoothScroll(scrollRef.current);
       cancelFollowScroll();
       pinnedRef.current = false;
       setShowJump(true);
@@ -205,6 +206,7 @@ export function useFollowScroll(): FollowScroll {
   }, [releaseDisclosureAnchor, scrollToBottom]);
 
   const releaseFollow = useCallback(() => {
+    stopSmoothScroll(scrollRef.current);
     releaseDisclosureAnchor();
     cancelFollowScroll();
     pinnedRef.current = false;

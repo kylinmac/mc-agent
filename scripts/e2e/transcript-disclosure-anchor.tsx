@@ -684,10 +684,16 @@ globalThis.transcriptDisclosureProbe = async () => {
     await waitForLayout({ label: "interruption mount", scroller: interruptScroller,
       content: interruptContent, title: interruptTitle,
       expected: () => interruptTitle.isConnected, direction: "initial" });
+    const beforeDisclosureNavigation = geometry(interruptScroller, interruptTitle);
     await waitForLayout({ label: "interruption disclosure", scroller: interruptScroller,
       content: interruptContent, title: interruptTitle,
       expected: () => interruptTitle.getAttribute("aria-expanded") === "true", direction: "grow",
-      trigger: () => interruptTitle.click() });
+      trigger: () => {
+        interruptScroller.scrollTo({ top: 0, behavior: "smooth" });
+        interruptTitle.click();
+      } });
+    assert(Math.abs(geometry(interruptScroller, interruptTitle).titleTop - beforeDisclosureNavigation.titleTop) < 2,
+      "a pending navigation moved the manually toggled disclosure title");
     assert(interruptScroller.scrollTop > 0, "interruption fixture has no scroll range");
     interruptScroller.scrollTo({ top: 0, behavior: "smooth" });
     const interruptedTop = interruptScroller.scrollTop;
@@ -719,10 +725,16 @@ globalThis.transcriptDisclosureProbe = async () => {
     await waitForLayout({ label: "nested interruption mount", scroller: nestedScroller,
       content: nestedContent, title: nestedTitle,
       expected: () => nestedTitle.isConnected, direction: "initial" });
+    const beforeNestedDisclosureNavigation = geometry(nestedScroller, nestedTitle);
     await waitForLayout({ label: "nested interruption disclosure", scroller: nestedScroller,
       content: nestedContent, title: nestedTitle,
       expected: () => nestedTitle.getAttribute("aria-expanded") === "true", direction: "grow",
-      trigger: () => nestedTitle.click() });
+      trigger: () => {
+        nestedScroller.scrollTo({ top: 0, behavior: "smooth" });
+        nestedTitle.click();
+      } });
+    assert(Math.abs(geometry(nestedScroller, nestedTitle).titleTop - beforeNestedDisclosureNavigation.titleTop) < 2,
+      "a pending nested navigation moved the manually toggled disclosure title");
     const nestedTop = nestedScroller.scrollTop;
     assert(nestedTop > 0, "nested fixture has no scroll range");
     nestedScroller.scrollTo({ top: 0, behavior: "smooth" });
