@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.28",
+    date: "2026-10-28",
+    features: [
+      "设置 → 系统提示词 新增「追加提示词」：内容追加在原有系统提示词后面，不替换模板或默认提示；可逐条开关、调整顺序，对所有对话生效。",
+    ],
+  },
+  {
     version: "1.0.27",
     date: "2026-10-28",
     features: [
