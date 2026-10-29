@@ -20,6 +20,8 @@ export interface ExternalSessionSummary {
   filePath: string;
   /** Main-process-only ordered segments; never supplied by the renderer. */
   filePaths?: string[];
+  /** Main-process-only: Codex thread history database holding this thread's turns. */
+  historyDb?: string;
 }
 
 export interface ImportedUiMessage {

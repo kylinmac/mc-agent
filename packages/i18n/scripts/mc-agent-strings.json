@@ -1285,9 +1285,9 @@
     "zh-TW": "匯入的對話可以在這裡接著聊；其他智能體的資料只讀取、不修改。"
   },
   "importCodexScope": {
-    "en": "Codex lists the sessions stored on this computer (sessions and archived_sessions under ~/.codex, shared by the CLI, the desktop app and the IDE extension). Cloud chats from ChatGPT on the web or the desktop app’s Chat / Work, and ChatGPT projects, are not stored locally and cannot be imported here.",
-    "zh-CN": "Codex 只读取本机的 Codex 会话记录（~/.codex 下的 sessions 与已归档的 archived_sessions，命令行、桌面版、IDE 插件共用）。ChatGPT 网页版或桌面版「Chat / Work」里的云端对话和 ChatGPT 项目不保存在本机，无法从这里导入。",
-    "zh-TW": "Codex 只讀取本機的 Codex 會話紀錄（~/.codex 下的 sessions 與已封存的 archived_sessions，命令列、桌面版、IDE 外掛共用）。ChatGPT 網頁版或桌面版「Chat / Work」裡的雲端對話和 ChatGPT 專案不保存在本機，無法從這裡匯入。"
+    "en": "Codex lists the sessions stored on this computer (session files, archived sessions and the thread history database under ~/.codex, shared by the CLI, the desktop app and the IDE extension). Cloud chats from ChatGPT on the web or the desktop app’s Chat / Work, and ChatGPT projects, are not stored locally and cannot be imported here.",
+    "zh-CN": "Codex 只读取本机的 Codex 会话记录（~/.codex 下的会话文件、已归档会话和对话历史数据库，命令行、桌面版、IDE 插件共用）。ChatGPT 网页版或桌面版「Chat / Work」里的云端对话和 ChatGPT 项目不保存在本机，无法从这里导入。",
+    "zh-TW": "Codex 只讀取本機的 Codex 會話紀錄（~/.codex 下的會話檔案、已封存會話和對話歷史資料庫，命令列、桌面版、IDE 外掛共用）。ChatGPT 網頁版或桌面版「Chat / Work」裡的雲端對話和 ChatGPT 專案不保存在本機，無法從這裡匯入。"
   },
   "importCodexTruncated": {
     "en": "Codex has many sessions; only the newest {{count}} session files were scanned, so older conversations are not listed.",
