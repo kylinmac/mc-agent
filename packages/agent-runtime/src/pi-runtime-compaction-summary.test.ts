@@ -104,6 +104,20 @@ describe("compaction summary handoff", () => {
     expect(result.ok && result.value.summary.startsWith(text)).toBe(true);
   });
 
+  it("prioritizes a complete handoff within a small model's generation budget without clipping its input", async () => {
+    const { models, completeSimple } = fixture();
+    await compact(preparation, models, { ...model, maxTokens: 1024 }, undefined, "low", undefined, undefined, undefined);
+    const context = completeSimple.mock.calls[0]?.[1];
+    expect(completeSimple.mock.calls[0]?.[2]?.maxTokens).toBe(1024);
+    expect(context?.systemPrompt).toContain("generation budget is 1024 tokens");
+    expect(context?.systemPrompt).toContain("takes precedence over the soft length target");
+    const prompt = JSON.stringify(context);
+    expect(prompt).toContain(preparation.previousSummary);
+    for (const message of preparation.messagesToSummarize) {
+      if (message.role === "user") expect(prompt).toContain(String(message.content));
+    }
+  });
+
   it("rejects a partially generated summary instead of treating the missing ending as complete", async () => {
     const { models } = fixture("length", "Partial summary without the final authorization constraints");
     const result = await compact(preparation, models, model, undefined, "medium", undefined, undefined, undefined);
