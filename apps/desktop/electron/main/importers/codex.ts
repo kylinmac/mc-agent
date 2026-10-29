@@ -12,6 +12,8 @@ import type {
 } from "./types";
 import { importedSessionId, toIso, truncateTitle } from "./types";
 import { groupCodexSegments, mergeCodexRecords, readCodexTitles } from "./codex-segments";
+import { isSyntheticUserText, userRequestText } from "./codex-text";
+import { convertCodexHistory, scanCodexHistory } from "./codex-history";
 
 /** Codex honors `$CODEX_HOME` before falling back to `~/.codex`. */
 function codexHome(): string {
@@ -93,9 +95,6 @@ interface ParsedCodexFile {
   items: Array<{ item: CodexItem; timestamp: string | null }>;
 }
 
-/** Delimiter Codex places between injected IDE context and the user's request. */
-const CODEX_REQUEST_MARKER = "## My request for Codex:";
-
 function itemText(item: CodexItem): string {
   if (!Array.isArray(item.content)) return "";
   const text = item.content
@@ -107,47 +106,7 @@ function itemText(item: CodexItem): string {
     .map((c) => c.text)
     .join("\n")
     .trim();
-  if (item.role === "user") {
-    // The desktop app and IDE extension serialize IDE context (active file,
-    // open tabs, selections, in-app browser, ...) into the same user message,
-    // ending with this marker and then the real request. Codex itself replays
-    // the text after the LAST marker, so do the same; otherwise the whole turn
-    // looked synthetic and a session whose every turn carried IDE context
-    // vanished from the scan.
-    const marker = text.lastIndexOf(CODEX_REQUEST_MARKER);
-    if (marker !== -1) return text.slice(marker + CODEX_REQUEST_MARKER.length).trim();
-  }
-  // Attachment wrappers also contain the user's actual request; don't discard that turn.
-  if (item.role === "user" && text.startsWith("# Files mentioned by the user:")) {
-    const request = text.match(/(?:^|\n)## My request:\s*([\s\S]*)$/);
-    if (request) return request[1].trim();
-  }
-  return text;
-}
-
-// Codex prepends synthetic user messages carrying repo instructions, IDE
-// context, and tooling state, so the first real user message (the scan title)
-// must skip them. The list is evidence-driven from real archives (#265):
-// newer Codex builds inject an IDE-context family alongside the original
-// AGENTS.md block. Real user messages can legitimately start with "# "
-// (pasted markdown such as "# Role: …"), so matching stays on the exact
-// evidenced prefixes instead of a blanket "#" rule — extend the list when a
-// new injection shows up, one archive sample at a time.
-const SYNTHETIC_USER_PREFIXES = [
-  "<",
-  "# AGENTS.md",
-  "# Context from my IDE setup",
-  "# In app browser:",
-  "# Browser comments:",
-  "# Files mentioned by the user:",
-  "# Diff comments:",
-  "# Selected text:",
-  "# Review findings:",
-  "You are Codex",
-];
-
-function isSyntheticUserText(text: string): boolean {
-  return SYNTHETIC_USER_PREFIXES.some((prefix) => text.startsWith(prefix));
+  return item.role === "user" ? userRequestText(text) : text;
 }
 
 async function parseFile(filePath: string): Promise<ParsedCodexFile | null> {
@@ -294,6 +253,8 @@ interface CodexScanMeta {
   itemCount: number | null;
   /** Whether any item line was seen (mirrors `parsed.items.length > 0`). */
   sawItem: boolean;
+  /** A sub-agent's rollout (guardian reviews, spawned workers), never a conversation of its own. */
+  subagent: boolean;
   firstUserText: string | null;
 }
 
@@ -306,6 +267,7 @@ function newScanMeta(): CodexScanMeta {
     mtimeMs: null,
     itemCount: 0,
     sawItem: false,
+    subagent: false,
     firstUserText: null,
   };
 }
@@ -325,6 +287,7 @@ function applyCodexLine(line: string, meta: CodexScanMeta): void {
     meta.externalId = obj.payload.id ?? meta.externalId;
     meta.cwd = obj.payload.cwd ?? meta.cwd;
     meta.startedAt = obj.payload.timestamp ?? obj.timestamp ?? meta.startedAt;
+    meta.subagent ||= Boolean(obj.payload.source && typeof obj.payload.source === "object" && "subagent" in obj.payload.source);
     return;
   }
   if (obj.type === "response_item" && obj.payload) {
@@ -494,7 +457,7 @@ export async function scanCodexSessionsResult(
   const sessions: ExternalSessionSummary[] = [];
   for (const filePath of files) {
     const meta = await scanFile(filePath);
-    if (!meta) continue;
+    if (!meta || meta.subagent) continue;
     // A corrupt or out-of-range stored timestamp must not rewrite the
     // session's history to the import moment (#265): the file's own mtime is
     // the honest fallback for both ends.
@@ -511,7 +474,15 @@ export async function scanCodexSessionsResult(
       filePath,
     });
   }
-  return { sessions: groupCodexSegments(sessions, await readCodexTitles(dir)), truncated };
+  // Threads whose rollout files the history migration removed are listed from
+  // Codex's own databases; a thread with a rollout file keeps reading it.
+  let migrated: ExternalSessionSummary[] = [];
+  try {
+    migrated = await scanCodexHistory(path.join(dir, ".."), new Set(sessions.map((session) => session.externalId)));
+  } catch (error) {
+    console.warn("[codex-import] Could not read the Codex thread history", String(error));
+  }
+  return { sessions: groupCodexSegments([...sessions, ...migrated], await readCodexTitles(dir)), truncated };
 }
 
 export async function scanCodexSessions(
@@ -531,6 +502,7 @@ export const codexImporter: SessionImporter = {
   },
 
   async convert(summary: ExternalSessionSummary): Promise<ImportedSession> {
+    if (summary.historyDb) return importedCodexSession(summary, await convertCodexHistory(summary));
     const segments: ParsedCodexFile[] = [];
     for (const file of summary.filePaths ?? [summary.filePath]) {
       const parsed = await parseFile(file);
@@ -587,18 +559,22 @@ export const codexImporter: SessionImporter = {
       }
     }
 
-    return {
-      session: {
-        id: importedSessionId("codex", summary.externalId),
-        title: summary.title,
-        projectPath: summary.projectPath,
-        modelId: summary.model,
-        providerId: null,
-        mode: "agent",
-        createdAt: summary.createdAt,
-        updatedAt: summary.updatedAt,
-      },
-      messages,
-    };
+    return importedCodexSession(summary, messages);
   },
 };
+
+function importedCodexSession(summary: ExternalSessionSummary, messages: ImportedUiMessage[]): ImportedSession {
+  return {
+    session: {
+      id: importedSessionId("codex", summary.externalId),
+      title: summary.title,
+      projectPath: summary.projectPath,
+      modelId: summary.model,
+      providerId: null,
+      mode: "agent",
+      createdAt: summary.createdAt,
+      updatedAt: summary.updatedAt,
+    },
+    messages,
+  };
+}

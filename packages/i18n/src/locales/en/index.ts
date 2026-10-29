@@ -3308,7 +3308,7 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     importAlready: "Imported",
     importCompleteCopy: "Re-import a complete copy (keep existing conversation)",
     importNote: "Imported conversations can be continued here. The other agents' data is only read.",
-    importCodexScope: "Codex lists the sessions stored on this computer (sessions and archived_sessions under ~/.codex, shared by the CLI, the desktop app and the IDE extension). Cloud chats from ChatGPT on the web or the desktop app’s Chat / Work, and ChatGPT projects, are not stored locally and cannot be imported here.",
+    importCodexScope: "Codex lists the sessions stored on this computer (session files, archived sessions and the thread history database under ~/.codex, shared by the CLI, the desktop app and the IDE extension). Cloud chats from ChatGPT on the web or the desktop app’s Chat / Work, and ChatGPT projects, are not stored locally and cannot be imported here.",
     importCodexTruncated: "Codex has many sessions; only the newest {{count}} session files were scanned, so older conversations are not listed.",
     importCancel: "Cancel",
     importRun: "Import {{count}}",
