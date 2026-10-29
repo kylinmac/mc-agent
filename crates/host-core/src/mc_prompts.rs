@@ -5,6 +5,10 @@
 //! the rules that pick one for a conversation, by project, by model, or as
 //! the global default. Electron main resolves which applies; this module only
 //! keeps the document valid.
+//!
+//! Append prompts are a separate list: each enabled one is added, in list
+//! order, after whatever the chosen template (or APPEND_SYSTEM.md) appends,
+//! so they never replace anything and no rule can pick them.
 
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
@@ -36,6 +40,21 @@ pub struct PromptTemplate {
     pub append: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AppendPrompt {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub text: String,
+    #[serde(default = "enabled_by_default")]
+    pub enabled: bool,
+}
+
+fn enabled_by_default() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ModelRule {
@@ -62,6 +81,8 @@ pub struct PromptConfig {
     #[serde(default)]
     pub project_rules: Vec<ProjectRule>,
     #[serde(default)]
+    pub append_prompts: Vec<AppendPrompt>,
+    #[serde(default)]
     pub updated_at: i64,
 }
 
@@ -79,8 +100,10 @@ fn valid_id(id: &str) -> bool {
 
 /// Checks a document before it is stored; returns it with blank rules dropped.
 pub fn validate(mut config: PromptConfig) -> Result<PromptConfig> {
-    if config.templates.len() > MAX_TEMPLATES {
-        return Err(invalid(format!("at most {MAX_TEMPLATES} templates")));
+    if config.templates.len() + config.append_prompts.len() > MAX_TEMPLATES {
+        return Err(invalid(format!(
+            "at most {MAX_TEMPLATES} templates and append prompts"
+        )));
     }
     let mut ids = HashSet::new();
     for template in &mut config.templates {
@@ -102,7 +125,30 @@ pub fn validate(mut config: PromptConfig) -> Result<PromptConfig> {
             )));
         }
     }
-    let known = |id: &str| ids.contains(id);
+    let template_ids = ids.clone();
+    for prompt in &mut config.append_prompts {
+        if !valid_id(&prompt.id) {
+            return Err(invalid(
+                "append prompt id must be 1-64 letters, digits, - or _",
+            ));
+        }
+        if !ids.insert(prompt.id.clone()) {
+            return Err(invalid(format!("duplicate template id {}", prompt.id)));
+        }
+        prompt.name = prompt.name.trim().to_string();
+        if prompt.name.is_empty() || prompt.name.chars().count() > MAX_NAME_CHARS {
+            return Err(invalid(format!(
+                "append prompt name must be 1-{MAX_NAME_CHARS} characters"
+            )));
+        }
+        if prompt.text.len() > MAX_TEXT_BYTES {
+            return Err(invalid(format!(
+                "append prompt text exceeds {MAX_TEXT_BYTES} bytes"
+            )));
+        }
+    }
+    // Rules pick a template; an append prompt is never one of them.
+    let known = |id: &str| template_ids.contains(id);
     if let Some(id) = config.global_template_id.as_deref() {
         if id.is_empty() {
             config.global_template_id = None;
@@ -272,6 +318,83 @@ mod tests {
         )
         .is_err());
         assert!(set(&db, json!({ "templates": [{ "id": "x", "name": "" }] })).is_err());
+    }
+
+    #[test]
+    fn stores_append_prompts_and_reads_older_documents() {
+        let (_dir, db) = db();
+        // A document saved before append prompts existed still reads.
+        db.kv_set(
+            NAMESPACE,
+            KEY,
+            &json!({ "templates": [{ "id": "a", "name": "A", "persona": "P", "append": "R" }], "globalTemplateId": "a" }),
+        )
+        .unwrap();
+        let old = get(&db).unwrap();
+        assert_eq!(old.global_template_id.as_deref(), Some("a"));
+        assert!(old.append_prompts.is_empty());
+        let saved = set(
+            &db,
+            json!({
+                "templates": [{ "id": "a", "name": "A" }],
+                "appendPrompts": [
+                    { "id": "zh", "name": " Chinese ", "text": "Reply in Chinese.", "enabled": false },
+                    { "id": "tests", "name": "Tests", "text": "Run tests." }
+                ]
+            }),
+        )
+        .unwrap();
+        assert_eq!(saved.append_prompts[0].name, "Chinese");
+        assert!(!saved.append_prompts[0].enabled);
+        // Missing `enabled` means on.
+        assert!(saved.append_prompts[1].enabled);
+        assert_eq!(get(&db).unwrap().append_prompts, saved.append_prompts);
+    }
+
+    #[test]
+    fn rejects_rules_for_append_prompts_and_shared_ids() {
+        let (_dir, db) = db();
+        let append = json!({ "id": "x", "name": "X", "text": "t" });
+        assert!(set(
+            &db,
+            json!({ "appendPrompts": [append.clone()], "globalTemplateId": "x" })
+        )
+        .is_err());
+        assert!(set(
+            &db,
+            json!({ "appendPrompts": [append.clone()], "modelRules": [{ "pattern": "gpt-*", "templateId": "x" }] })
+        )
+        .is_err());
+        assert!(set(
+            &db,
+            json!({ "templates": [{ "id": "x", "name": "X" }], "appendPrompts": [append.clone()] })
+        )
+        .is_err());
+        assert!(set(
+            &db,
+            json!({ "appendPrompts": [{ "id": "y", "name": " " }] })
+        )
+        .is_err());
+        let many: Vec<Value> = (0..=MAX_TEMPLATES)
+            .map(|n| json!({ "id": format!("p{n}"), "name": "P" }))
+            .collect();
+        assert!(set(&db, json!({ "appendPrompts": many })).is_err());
+    }
+
+    #[test]
+    fn a_session_cannot_pick_an_append_prompt() {
+        let (_dir, db) = db();
+        set(
+            &db,
+            json!({ "appendPrompts": [{ "id": "x", "name": "X" }] }),
+        )
+        .unwrap();
+        let session = crate::sessions::create_session_with_options(
+            &db,
+            crate::sessions::SessionCreateOptions::default(),
+        )
+        .unwrap();
+        assert!(set_session_template(&db, &session.id, Some("x")).is_err());
     }
 
     #[test]

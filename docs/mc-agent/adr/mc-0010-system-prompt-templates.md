@@ -42,3 +42,18 @@
 | 模板被删 | 选择作废，回到目录／模型／全局规则，不报错 |
 | 可选时机 | 对话没有任何消息时才显示选择器；发出第一条消息后隐藏，之后只能在系统提示查看器里看命中的模板（显示“本对话指定”） |
 | 范围 | 仅本机对话；远程对话不显示。分叉出的对话不继承选择（跟随默认规则） |
+
+## 修订（2026-10-28）：追加提示词
+
+第 3 条“覆盖而非叠加”只管模板。另加一类“追加提示词”，只追加、不替换：
+
+| 项 | 决定 |
+|---|---|
+| 存储 | 同一文档 `mc.systemPrompts` 新增 `appendPrompts: [{ id, name, text, enabled }]`；旧文档没有该字段时按空列表读，模板和规则行为不变 |
+| 生效 | 每个启用且有内容的追加提示词都生效，按列表顺序接在命中模板的附加规则之后；没有命中模板时接在 `APPEND_SYSTEM.md` 之后。仍在项目 AGENTS.md 和记忆之前，属于系统提示词，不改用户消息 |
+| 范围 | 只有全局开关；目录、模型、对话规则和对话选择器都不能选它（host-core 校验拒绝引用） |
+| 校验 | 与模板合计 ≤ 50 条、id 不与模板重复、名称 1–80 字、正文 ≤ 64KB |
+| 界面 | 设置 → 系统提示词新增“追加提示词”一节：开关、上下移动、编辑、删除；系统提示查看器显示“追加：A、B” |
+| 改动 | `crates/host-core/src/mc_prompts.rs`、`electron/main/mc-system-prompts.ts`、`runtime/session-launch.ts`、`ipc/mc-session-insight-ipc.ts`、`packages/shared` 类型、`SystemPromptsPage.tsx`、`SystemPromptDialog.tsx`；不改 agent-runtime |
+
+按目录或模型启用追加提示词留待需要时再加。
