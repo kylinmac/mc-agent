@@ -125,6 +125,9 @@ export function SystemPromptDialog({ sessionId, onClose }: { sessionId: string; 
                     // With a template, persona and appended rules are the template's.
                     !prompt.template && prompt.customPersona ? t("mcProject.systemPromptCustomPersona") : "",
                     !prompt.template && prompt.customAppend ? t("mcProject.systemPromptCustomAppend") : "",
+                    prompt.appendPrompts?.length
+                      ? t("mcProject.promptAppliedAppends", { names: prompt.appendPrompts.join("、") })
+                      : "",
                   ]
                     .filter(Boolean)
                     .join(" · ")

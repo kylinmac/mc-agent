@@ -1,6 +1,6 @@
 import { ErrorCodes, IPC } from "@pi-desktop/shared";
 import type { IpcRegistrar } from "./types";
-import { promptMatchFor } from "../mc-system-prompts.ts";
+import { appendPromptsFor, promptMatchFor } from "../mc-system-prompts.ts";
 
 /**
  * mc-agent session information panel: a session's estimated context use by
@@ -63,10 +63,17 @@ export function registerSessionInsightIpc({
       }
     }
     const loaded = (await sidecar.call("agent.systemPrompt", { sessionId })) as { prompt: unknown };
-    // Which template the launch applied (MC-ADR-0010).
-    return loaded?.prompt && typeof loaded.prompt === "object"
-      ? { prompt: { ...(loaded.prompt as object), template: promptMatchFor(sessionId) } }
-      : loaded;
+    // Which template and append prompts the launch applied (MC-ADR-0010).
+    // `customAppend` then means APPEND_SYSTEM.md only, not the append prompts.
+    if (!loaded?.prompt || typeof loaded.prompt !== "object") return loaded;
+    const appended = appendPromptsFor(sessionId);
+    return {
+      prompt: {
+        ...(loaded.prompt as object),
+        template: promptMatchFor(sessionId),
+        ...(appended?.names.length ? { appendPrompts: appended.names, customAppend: appended.fileAppend } : {}),
+      },
+    };
   });
 
   // mc-agent: suggest the next message after a finished reply. Only while the

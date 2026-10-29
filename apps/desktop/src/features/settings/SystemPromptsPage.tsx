@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ProjectGroupRecord, SystemPromptConfig, SystemPromptTemplate } from "@pi-desktop/shared";
+import type { ProjectGroupRecord, SystemPromptAppend, SystemPromptConfig, SystemPromptTemplate } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
-import { Button, Input } from "../../components/ui";
-import { IconPlus, IconTrash } from "../../components/icons";
+import { Button, Input, SettingsToggle } from "../../components/ui";
+import { IconArrowDown, IconArrowUp, IconPlus, IconTrash } from "../../components/icons";
 import { SettingsMenuSelect } from "../../components/settings/SettingsMenuSelect";
 import { SettingsCard } from "./primitives";
 
@@ -14,9 +14,11 @@ import { SettingsCard } from "./primitives";
   rules added after the base prompt. One template applies to a conversation,
   whole: its project's, else its model's, else the global default; with none,
   SYSTEM.md / APPEND_SYSTEM.md and the built-in prompt apply as before.
+  Append prompts are listed apart: every enabled one is added, in list order,
+  after what the template appends, and no rule can pick one.
 */
 
-const EMPTY: SystemPromptConfig = { templates: [], globalTemplateId: null, modelRules: [], projectRules: [] };
+const EMPTY: SystemPromptConfig = { templates: [], globalTemplateId: null, modelRules: [], projectRules: [], appendPrompts: [] };
 const NONE = "";
 
 function newTemplateId(): string {
@@ -102,6 +104,32 @@ export function SystemPromptsPage() {
     }));
     setEditing(id);
   };
+
+  const appendPrompts = draft.appendPrompts ?? [];
+  const updateAppend = (id: string, patch: Partial<SystemPromptAppend>) =>
+    update((current) => ({
+      ...current,
+      appendPrompts: (current.appendPrompts ?? []).map((prompt) => (prompt.id === id ? { ...prompt, ...patch } : prompt)),
+    }));
+  const addAppend = () => {
+    const id = newTemplateId();
+    update((current) => {
+      const list = current.appendPrompts ?? [];
+      return {
+        ...current,
+        appendPrompts: [...list, { id, name: t("mcProject.promptAppendNewName", { n: list.length + 1 }), text: "", enabled: true }],
+      };
+    });
+    setEditing(id);
+  };
+  const moveAppend = (index: number, by: -1 | 1) =>
+    update((current) => {
+      const list = [...(current.appendPrompts ?? [])];
+      const target = index + by;
+      if (target < 0 || target >= list.length) return current;
+      [list[index], list[target]] = [list[target]!, list[index]!];
+      return { ...current, appendPrompts: list };
+    });
 
   // A removed template takes its rules with it.
   const removeTemplate = (id: string) =>
@@ -363,6 +391,102 @@ export function SystemPromptsPage() {
             />
           </div>
         </div>
+      </SettingsCard>
+
+      <SettingsCard
+        title={t("mcProject.promptAppendPrompts")}
+        description={t("mcProject.promptAppendPromptsDesc")}
+        action={
+          <Button variant="secondary" size="sm" onClick={addAppend}>
+            <IconPlus size={13} aria-hidden /> {t("mcProject.promptAddAppendPrompt")}
+          </Button>
+        }
+      >
+        {appendPrompts.length === 0 ? (
+          <div className="settings-row">
+            <div className="settings-row-copy mc-prompts-muted">{t("mcProject.promptNoAppendPrompts")}</div>
+          </div>
+        ) : (
+          appendPrompts.map((prompt, index) => {
+            const open = editing === prompt.id;
+            const name = prompt.name || t("mcProject.promptUntitled");
+            return (
+              <div key={prompt.id} className="settings-row mc-prompts-template" data-open={open ? "true" : undefined}>
+                <div className="mc-prompts-template-row">
+                  <SettingsToggle
+                    checked={prompt.enabled}
+                    label={t("mcProject.promptAppendEnabled", { name })}
+                    onChange={() => updateAppend(prompt.id, { enabled: !prompt.enabled })}
+                  />
+                  <button
+                    type="button"
+                    className="settings-row-copy mc-prompts-template-toggle"
+                    aria-expanded={open}
+                    onClick={() => setEditing(open ? null : prompt.id)}
+                  >
+                    <span className="settings-row-title">{name}</span>
+                    <span className="settings-row-detail">
+                      {prompt.text.trim()
+                        ? t("mcProject.promptHasAppend", { chars: prompt.text.trim().length })
+                        : t("mcProject.promptAppendEmpty")}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="mc-prompts-icon"
+                    aria-label={t("mcProject.promptMoveUp", { name })}
+                    title={t("mcProject.promptMoveUp", { name })}
+                    disabled={index === 0}
+                    onClick={() => moveAppend(index, -1)}
+                  >
+                    <IconArrowUp size={14} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    className="mc-prompts-icon"
+                    aria-label={t("mcProject.promptMoveDown", { name })}
+                    title={t("mcProject.promptMoveDown", { name })}
+                    disabled={index === appendPrompts.length - 1}
+                    onClick={() => moveAppend(index, 1)}
+                  >
+                    <IconArrowDown size={14} aria-hidden />
+                  </button>
+                  <Button variant="ghost" size="sm" onClick={() => setEditing(open ? null : prompt.id)}>
+                    {open ? t("mcProject.promptCollapse") : t("mcProject.promptEdit")}
+                  </Button>
+                  {removeButton(t("mcProject.promptRemoveTemplate", { name: prompt.name }), () =>
+                    update((current) => ({
+                      ...current,
+                      appendPrompts: (current.appendPrompts ?? []).filter((item) => item.id !== prompt.id),
+                    })),
+                  )}
+                </div>
+                {open ? (
+                  <div className="mc-prompts-editor">
+                    <label className="mc-prompts-field">
+                      <span>{t("mcProject.promptName")}</span>
+                      <Input
+                        value={prompt.name}
+                        maxLength={80}
+                        onChange={(event) => updateAppend(prompt.id, { name: event.target.value })}
+                      />
+                    </label>
+                    <label className="mc-prompts-field">
+                      <span>{t("mcProject.promptAppendText")}</span>
+                      <textarea
+                        className="field-textarea mc-prompts-textarea"
+                        value={prompt.text}
+                        placeholder={t("mcProject.promptAppendTextPlaceholder")}
+                        spellCheck={false}
+                        onChange={(event) => updateAppend(prompt.id, { text: event.target.value })}
+                      />
+                    </label>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })
+        )}
       </SettingsCard>
 
       <div className="mc-prompts-actions">
