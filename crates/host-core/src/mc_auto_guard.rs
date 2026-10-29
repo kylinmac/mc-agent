@@ -19,6 +19,7 @@ use std::sync::OnceLock;
 struct Rule {
     pattern: Regex,
     reason: &'static str,
+    command_only: bool,
 }
 
 /// One shell segment: no `;`, `&`, `|` or newline inside, so a match never
@@ -31,6 +32,11 @@ fn rules() -> &'static [Rule] {
         let rule = |pattern: String, reason: &'static str| Rule {
             pattern: Regex::new(&pattern).expect("auto guard pattern"),
             reason,
+            command_only: false,
+        };
+        let command_rule = |pattern: String, reason| Rule {
+            command_only: true,
+            ..rule(pattern, reason)
         };
         let git = |rest: &str| format!(r"\bgit\b{SEG}{rest}");
         vec![
@@ -54,7 +60,7 @@ fn rules() -> &'static [Rule] {
                 r"\b(npm|pnpm|yarn|cargo|gem|poetry|twine|dotnet\s+nuget)\s+(publish|push|upload)\b".to_string(),
                 "Auto mode still asks: publishes a package",
             ),
-            rule(
+            command_rule(
                 format!(r"\brm\s+{SEG}-[a-zA-Z]*[rRf]{SEG}\s(/|~|\$HOME\b|\$\{{HOME\}})"),
                 "Auto mode still asks: deletes outside the project",
             ),
@@ -70,12 +76,122 @@ fn rules() -> &'static [Rule] {
                 r"\b(terraform\s+(apply|destroy)|kubectl\s+(apply|delete|drain)|helm\s+(install|upgrade|uninstall|delete)|docker\s+(system\s+prune|push))\b".to_string(),
                 "Auto mode still asks: changes live infrastructure or a registry",
             ),
-            rule(
+            command_rule(
                 r"\b(mkfs(\.\w+)?|diskutil\s+(erase\w*|partition\w*)|shutdown|reboot)\b|\bdd\b[^;&|\n]*\bof=/dev/".to_string(),
                 "Auto mode still asks: changes disks or the machine's power state",
             ),
         ]
     })
+}
+
+/// Keep quoted arguments together: `--rm` is a flag and `grep 'x|shutdown|y'`
+/// contains no shutdown command. This remains a heuristic, not a shell sandbox.
+fn shell_commands(command: &str) -> Vec<Vec<String>> {
+    let mut commands = Vec::new();
+    let mut words = Vec::new();
+    let mut word = String::new();
+    let mut quote = None;
+    let mut escaped = false;
+    for ch in command.chars().chain(std::iter::once('\n')) {
+        if escaped {
+            if ch != '\n' {
+                word.push(ch);
+            }
+            escaped = false;
+        } else if ch == '\\' && quote != Some('\'') {
+            escaped = true;
+        } else if Some(ch) == quote {
+            quote = None;
+        } else if quote.is_none() && matches!(ch, '\'' | '"') {
+            quote = Some(ch);
+        } else if quote.is_none() && (ch.is_whitespace() || ";&|()".contains(ch)) {
+            if !word.is_empty() {
+                words.push(std::mem::take(&mut word));
+            }
+            if (ch == '\n' || ";&|()".contains(ch)) && !words.is_empty() {
+                commands.push(std::mem::take(&mut words));
+            }
+        } else {
+            word.push(ch);
+        }
+    }
+    commands
+}
+
+fn command_rule_matches(rule: &Rule, command: &str) -> bool {
+    // shortcut: substitutions and here-documents keep the original conservative
+    // scan; use a full shell parser before narrowing those forms.
+    if needs_conservative_scan(command) {
+        return rule.pattern.is_match(command);
+    }
+    let commands = shell_commands(command);
+    let command_text = |words: &[String]| {
+        let name = words[0].rsplit('/').next().unwrap_or(&words[0]);
+        std::iter::once(name)
+            .chain(words[1..].iter().filter_map(|word| {
+                // docker's --rm removes its own stopped container, not host files.
+                (name != "docker" || word != "--rm").then_some(word.as_str())
+            }))
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    // A shell can consume earlier pipeline output; inspecting only its arguments
+    // would miss commands printed by another stage.
+    if commands.iter().any(|words| {
+        words.iter().any(|word| {
+            matches!(
+                word.rsplit('/').next(),
+                Some("sh" | "bash" | "zsh" | "dash" | "ksh")
+            )
+        })
+    }) {
+        return commands
+            .iter()
+            .any(|words| rule.pattern.is_match(&command_text(words)));
+    }
+    for words in commands {
+        let Some(executable) = words.first() else {
+            continue;
+        };
+        let name = executable.rsplit('/').next().unwrap_or(executable);
+        // These programs consume argument text, except ripgrep's preprocessor.
+        // Unknown executors (find -exec, xargs, ssh, eval, etc.) keep the old scan.
+        if matches!(name, "grep" | "egrep" | "fgrep" | "rg" | "javap")
+            && !words
+                .iter()
+                .any(|word| word == "--pre" || word.starts_with("--pre="))
+        {
+            continue;
+        }
+        if rule.pattern.is_match(&command_text(&words)) {
+            return true;
+        }
+    }
+    false
+}
+
+fn needs_conservative_scan(command: &str) -> bool {
+    let mut quote = None;
+    let mut escaped = false;
+    let mut chars = command.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if escaped {
+            escaped = false;
+        } else if ch == '\\' && quote != Some('\'') {
+            escaped = true;
+        } else if Some(ch) == quote {
+            quote = None;
+        } else if quote.is_none() && matches!(ch, '\'' | '"') {
+            quote = Some(ch);
+        } else if quote != Some('\'')
+            && (ch == '`'
+                || (ch == '$' && chars.peek() == Some(&'('))
+                || (ch == '<' && chars.peek() == Some(&'<')))
+        {
+            return true;
+        }
+    }
+    quote.is_some() || escaped
 }
 
 /// Why this call needs a card even in Auto mode, or `None` when Auto may run it.
@@ -86,7 +202,13 @@ pub fn auto_mode_reason(tool_name: &str, args: &Value) -> Option<&'static str> {
     let command = args.get("command").and_then(Value::as_str)?;
     rules()
         .iter()
-        .find(|rule| rule.pattern.is_match(command))
+        .find(|rule| {
+            if rule.command_only {
+                command_rule_matches(rule, command)
+            } else {
+                rule.pattern.is_match(command)
+            }
+        })
         .map(|rule| rule.reason)
 }
 
@@ -151,6 +273,54 @@ mod tests {
             "echo sudo is a word",
         ] {
             assert!(!guarded(command), "{command} should stay automatic");
+        }
+    }
+
+    #[test]
+    fn flags_and_search_patterns_are_not_commands() {
+        for command in [
+            "docker run --rm --network none --entrypoint /bin/sh flink:test -c 'find /opt/flink -iname \"*metrics*\"'",
+            "docker run --rm --entrypoint sh flink:test -c 'find /opt/flink -iname \"*metrics*\"; java -version'",
+            "javap -p -c Example | grep -A65 -E 'releaseClassLoader|shutdown|close'",
+            "rg 'shutdown|reboot|mkfs' src",
+            "grep '$(shutdown -h now)' notes.txt",
+            "grep '`reboot`' notes.txt",
+        ] {
+            assert!(!guarded(command), "{command} is only an argument or search pattern");
+        }
+    }
+
+    #[test]
+    fn actual_commands_still_ask() {
+        for command in [
+            "shutdown -h now",
+            "reboot",
+            "/sbin/shutdown -h now",
+            "printf done;reboot",
+            "echo ok|shutdown -h now",
+            "env MODE=test /bin/rm -rf /tmp/test",
+            "command rm -rf /tmp/test",
+            "command -p rm -rf /tmp/test",
+            "env -i /sbin/shutdown -h now",
+            "echo \"$(shutdown -h now)\"",
+            "echo `reboot`",
+            "echo \"`reboot`\"",
+            "sh <<'EOF'\nrm -rf /tmp/test\nEOF",
+            "bash -c 'rm -rf /tmp/test'",
+            "bash -c -e 'rm -rf /tmp/test'",
+            "bash -c -- 'shutdown -h now'",
+            "docker run --rm --entrypoint sh test -c 'shutdown -h now'",
+            "docker exec test rm -rf /tmp/test",
+            "xargs rm -rf /tmp/test",
+            "eval 'rm -rf /tmp/test'",
+            "ssh host shutdown -h now",
+            "find . -exec rm -rf /tmp/test \\;",
+            "echo shutdown | sh",
+            "grep shutdown commands.txt | docker run --rm -i image sh",
+            "rg --pre 'shutdown -h now' pattern /tmp/test",
+            "bash -c \"grep 'shutdown' notes | sh\"",
+        ] {
+            assert!(guarded(command), "{command} should still ask");
         }
     }
 

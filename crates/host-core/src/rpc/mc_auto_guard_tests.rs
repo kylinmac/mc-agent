@@ -44,4 +44,14 @@ async fn auto_mode_still_asks_for_guarded_commands() {
     assert_eq!(evaluate("git status").await, json!("allow-once"));
     assert_eq!(evaluate("git push --force origin main").await, Value::Null);
     assert_eq!(evaluate("gh pr merge 23").await, Value::Null);
+    assert_eq!(
+        evaluate("docker run --rm --entrypoint /bin/sh image -c 'find /opt/app -name x'").await,
+        json!("allow-once")
+    );
+    assert_eq!(
+        evaluate("javap -c Example | grep -E 'close|shutdown|reboot'").await,
+        json!("allow-once")
+    );
+    assert_eq!(evaluate("rm -rf /tmp/test").await, Value::Null);
+    assert_eq!(evaluate("shutdown -h now").await, Value::Null);
 }
