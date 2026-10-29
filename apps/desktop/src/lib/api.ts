@@ -567,6 +567,14 @@ export function validateSettingsWrite(settings: AppSettings): AppSettings {
       });
     }
   }
+  if ("askToolAutoContinue" in value && typeof value.askToolAutoContinue !== "boolean") {
+    throw Object.assign(new Error("askToolAutoContinue is invalid"), { errorCode: "INVALID_PARAMS" });
+  }
+  if ("askToolTimeoutSeconds" in value &&
+      (typeof value.askToolTimeoutSeconds !== "number" || !Number.isInteger(value.askToolTimeoutSeconds) ||
+       value.askToolTimeoutSeconds < 10 || value.askToolTimeoutSeconds > 300)) {
+    throw Object.assign(new Error("askToolTimeoutSeconds must be an integer from 10 to 300"), { errorCode: "INVALID_PARAMS" });
+  }
   if (
     Object.prototype.hasOwnProperty.call(value, "infiniteProviderRetry") &&
     typeof value.infiniteProviderRetry !== "boolean"

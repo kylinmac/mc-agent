@@ -125,6 +125,7 @@ function toAskToolRequest(
 ): AskToolRequest {
   return {
     requestId: input.id,
+    ...(input.autoContinueAt ? { autoContinueAt: input.autoContinueAt } : {}),
     sessionId: remoteSessionId,
     // Ask-tool needs a toolCallId to attach the answer to; the RACP schema
     // supplies it as `parentToolCallId` when the input came from a subagent,
@@ -134,6 +135,7 @@ function toAskToolRequest(
       question: question.question,
       options: question.options,
       multiSelect: question.multiSelect,
+      ...(question.recommendedOption ? { recommendedOption: question.recommendedOption } : {}),
     })),
   };
 }

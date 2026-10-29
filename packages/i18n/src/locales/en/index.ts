@@ -817,6 +817,12 @@ export const en = {
     dismiss: "Dismiss",
   },
   settings: {
+    askToolTitle: "Optional questions",
+    askToolAutoContinue: "Continue with recommendations after a timeout",
+    askToolAutoContinueDesc: "Off by default. Only optional questions with valid recommendations can time out. Important decisions and permission approvals still require your answer. Applies to newly started runs.",
+    askToolTimeout: "Wait time (seconds)",
+    askToolTimeoutDesc: "10–300 seconds; default 30. You can still answer from the question card in the conversation history afterward.",
+
     storage: {
       unavailableHint: "The storage directory is currently unavailable. Reconnect the drive before starting; the app will not create empty data or switch to another directory.",
       browserSource: "Browser data source",
@@ -2083,6 +2089,14 @@ sklm: {
     queued_other: "{{count}} more requests are waiting",
   },
   askTool: {
+    autoContinueCountdown: "Continues with recommendations in {{count}} seconds",
+    autoContinued: "No answer received; continued with recommendations. A later answer guides subsequent work and does not undo completed actions.",
+    lateSubmit: "Send follow-up answer",
+    lateSent: "Follow-up answer sent",
+    lateSendFailed: "Could not send your answer. Try again.",
+    lateMessageIntro: "Follow-up answer to an earlier optional question (guides subsequent work; does not undo completed actions):",
+    recommended: "Recommended",
+
     title: "A few questions",
     historyTitle: "Questions and answers",
     answerLabel: "Answer",

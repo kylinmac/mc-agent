@@ -169,6 +169,8 @@ function createRuntime(
     history: UiMessage[];
     compaction: ContextCompactionRecord;
     compactionSettings: ContextCompactionSettings;
+    askToolAutoContinue: boolean;
+    askToolTimeoutSeconds: number;
     compactionStrategy: CompactionStrategy;
     projectPath: string;
     remoteWorkspace: { hostKey: string; path: string };
@@ -202,6 +204,8 @@ function createRuntime(
     history: overrides.history,
     compaction: overrides.compaction,
     compactionSettings: overrides.compactionSettings,
+    askToolAutoContinue: overrides.askToolAutoContinue,
+    askToolTimeoutSeconds: overrides.askToolTimeoutSeconds,
     compactionStrategy: overrides.compactionStrategy,
     projectPath: overrides.projectPath,
     remoteWorkspace: overrides.remoteWorkspace,
@@ -2570,6 +2574,105 @@ describe("DesktopAgentRuntime deferred tool catalog", () => {
       details: { answers: [["**Blue**"], null] },
     });
     await runtime.dispose();
+  });
+
+  it("continues optional questions at the configured deadline without claiming consent", async () => {
+    vi.useFakeTimers();
+    const events: AgentEventEnvelope[] = [];
+    const runtime = createRuntime({
+      askToolAutoContinue: true, askToolTimeoutSeconds: 10,
+      onEvent: (value) => events.push(value as AgentEventEnvelope),
+    });
+    try {
+      const pending = runtimeTool(runtime, "asktool").execute("optional", { questions: [{
+        question: "Color?", options: ["Red", { label: "Blue", description: "Recommended" }],
+        importance: "optional", recommendedOption: "Blue",
+      }] });
+      const request = events.find((item) => item.event.type === "asktool_request")?.event;
+      if (request?.type !== "asktool_request") throw new Error("No question event");
+      expect(request.request.autoContinueAt).toBe(Date.now() + 10_000);
+      await vi.advanceTimersByTimeAsync(9_999);
+      expect(events.filter((item) => item.event.type === "asktool_request")).toHaveLength(1);
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(pending).resolves.toMatchObject({
+        content: [{ text: expect.stringContaining("NOT user consent or permission") }],
+        details: { answers: [["Blue"]], autoContinued: true,
+          request: { ...request.request, autoContinued: true } },
+      });
+      expect(events.filter((item) => item.event.type === "asktool_request")).toHaveLength(2);
+      expect(() => runtime.resolveAskTool({ requestId: request.request.requestId,
+        sessionId: "session-1", answers: [["Red"]] })).toThrow("no longer pending");
+    } finally { await runtime.dispose(); vi.useRealTimers(); }
+  });
+
+  it.each([
+    { enabled: false, questions: [{ importance: "optional", recommendedOption: "Blue" }] },
+    { enabled: true, questions: [{}] },
+    { enabled: true, questions: [{ importance: "required", recommendedOption: "Blue" }] },
+    { enabled: true, questions: [{ importance: "optional" }] },
+    { enabled: true, questions: [{ importance: "optional", recommendedOption: "missing" }] },
+    { enabled: true, questions: [{ importance: "optional", recommendedOption: "Blue" }, { importance: "required" }] },
+  ])("does not infer authorization or a recommendation for $questions", async ({ enabled, questions }) => {
+    vi.useFakeTimers();
+    const events: AgentEventEnvelope[] = [];
+    const runtime = createRuntime({ askToolAutoContinue: enabled,
+      onEvent: (value) => events.push(value as AgentEventEnvelope) });
+    try {
+      const pending = runtimeTool(runtime, "asktool").execute("required", {
+        questions: questions.map((question) => ({ question: "Color?", options: ["Red", "Blue"], ...question })),
+      });
+      await vi.advanceTimersByTimeAsync(600_000);
+      const request = events.find((item) => item.event.type === "asktool_request")?.event;
+      if (request?.type !== "asktool_request") throw new Error("No question event");
+      expect(request.request.autoContinueAt).toBeUndefined();
+      expect(events.filter((item) => item.event.type === "asktool_request")).toHaveLength(1);
+      runtime.resolveAskTool({ requestId: request.request.requestId,
+        sessionId: "session-1", answers: questions.map(() => ["Red"]) });
+      await expect(pending).resolves.toMatchObject({ details: { answers: questions.map(() => ["Red"]) } });
+    } finally { await runtime.dispose(); vi.useRealTimers(); }
+  });
+
+  it.each<[number | undefined, number]>([[undefined, 30], [NaN, 30], [0, 10], [999, 300]])(
+    "normalizes reused runtime timeout %s to %s seconds", async (configured, expected) => {
+      vi.useFakeTimers();
+      const events: AgentEventEnvelope[] = [];
+      const runtime = createRuntime({ onEvent: (value) => events.push(value as AgentEventEnvelope) });
+      try {
+        runtime.setAskToolSettings(true, configured);
+        const pending = runtimeTool(runtime, "asktool").execute("settings", { questions: [{
+          question: "Color?", options: ["Blue"], importance: "optional", recommendedOption: "Blue",
+        }] });
+        const request = events.find((item) => item.event.type === "asktool_request")?.event;
+        if (request?.type !== "asktool_request") throw new Error("No question event");
+        expect(request.request.autoContinueAt).toBe(Date.now() + expected * 1000);
+        await runtime.dispose();
+        await pending;
+      } finally { await runtime.dispose(); vi.useRealTimers(); }
+    },
+  );
+
+  it.each(["answer", "abort", "dispose"])("clears the question timer after %s", async (finish) => {
+    vi.useFakeTimers();
+    const events: AgentEventEnvelope[] = [];
+    const runtime = createRuntime({ askToolAutoContinue: true, askToolTimeoutSeconds: 10,
+      onEvent: (value) => events.push(value as AgentEventEnvelope) });
+    const controller = new AbortController();
+    try {
+      const pending = runtimeTool(runtime, "asktool").execute("race", { questions: [{
+        question: "Color?", options: ["Red", "Blue"], importance: "optional", recommendedOption: "Blue",
+      }] }, controller.signal);
+      const request = events.find((item) => item.event.type === "asktool_request")?.event;
+      if (request?.type !== "asktool_request") throw new Error("No question event");
+      await vi.advanceTimersByTimeAsync(9_999);
+      if (finish === "answer") runtime.resolveAskTool({ requestId: request.request.requestId,
+        sessionId: "session-1", answers: [["Red"]] });
+      else if (finish === "abort") controller.abort();
+      else await runtime.dispose();
+      const result = await pending;
+      expect(result.details).not.toHaveProperty("autoContinued");
+      await vi.advanceTimersByTimeAsync(600_000);
+      expect(events.filter((item) => item.event.type === "asktool_request")).toHaveLength(1);
+    } finally { await runtime.dispose(); vi.useRealTimers(); }
   });
 
   it("rejects asktool questions over 300 Unicode characters before opening a card", async () => {

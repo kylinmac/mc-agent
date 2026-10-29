@@ -799,6 +799,8 @@ export function createSessionLaunchRuntime({
         ...(overrides.turnId ? { turnId: overrides.turnId } : {}),
         thinkingLevel,
         infiniteProviderRetry: settings.infiniteProviderRetry === true,
+        askToolAutoContinue: settings.askToolAutoContinue === true,
+        askToolTimeoutSeconds: settings.askToolTimeoutSeconds,
         ...(jevApiKey ? { jevApiKey } : {}),
         commandShell,
         scratchDir: join(dataDir, "scratch", sessionId),

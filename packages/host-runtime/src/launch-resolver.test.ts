@@ -142,6 +142,17 @@ describe("createHeadlessLaunchResolver", () => {
     expect(unbound.sidecarParams.provider.modelId).toBe(routedId);
   });
 
+  it("forwards optional-question preferences without enabling them by default", async () => {
+    const { host } = hostWith([provider], { p1: "sk-test" });
+    const resolver = createHeadlessLaunchResolver({ getHost: () => host, dataDir: "/data", log: () => undefined });
+    const defaults = await resolver.resolve("s1", { providerId: "p1", modelId: "gpt-a" }, {});
+    expect(defaults.sidecarParams.askToolAutoContinue).toBe(false);
+    const configured = await resolver.resolve("s1", { providerId: "p1", modelId: "gpt-a" }, {
+      askToolAutoContinue: true, askToolTimeoutSeconds: 10,
+    });
+    expect(configured.sidecarParams).toMatchObject({ askToolAutoContinue: true, askToolTimeoutSeconds: 10 });
+  });
+
   it("forwards the opt-in infinite provider retry setting", async () => {
     const { host } = hostWith([provider], { p1: "sk-test" });
     const resolver = createHeadlessLaunchResolver({ getHost: () => host, dataDir: "/data", log: () => undefined });

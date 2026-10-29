@@ -355,6 +355,7 @@ export const RacpInputRequestSchema = Type.Object({
   sessionId: Type.String({ minLength: 1 }),
   turnId: Type.String({ minLength: 1 }),
   expiresAt: Type.String(),
+  autoContinueAt: Type.Optional(Type.Number()),
   agentName: Type.Optional(Type.String()),
   parentToolCallId: Type.Optional(Type.String()),
   nestedParentToolCallId: Type.Optional(Type.String()),
@@ -362,6 +363,7 @@ export const RacpInputRequestSchema = Type.Object({
     Type.Object({
       id: Type.String({ minLength: 1 }),
       question: Type.String(),
+      recommendedOption: Type.Optional(Type.String()),
       options: Type.Array(Type.String()),
       multiSelect: Type.Boolean(),
     }),

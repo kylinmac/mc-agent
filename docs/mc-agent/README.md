@@ -87,3 +87,5 @@ Fork 已建立：`origin` 为 kylinmac/mc-agent，`upstream` 为 vastsa/PI-Deskt
 ## 放在哪
 
 mc-agent 自己的文档都在 `docs/mc-agent/`，ADR 用 `MC-ADR-` 编号放 `docs/mc-agent/adr/`。`docs/` 其余内容（spec、adr、guide、zh-CN 和 VitePress 站点）属于上游，原样保留，便于同步。
+
+[可选提问超时继续](question-auto-continue.md)（R19；P10；V58）。

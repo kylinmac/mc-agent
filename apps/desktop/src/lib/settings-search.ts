@@ -111,6 +111,9 @@ export const SETTINGS_NAV: SettingsNavEntry[] = [
     group: "preferences",
     keywordKeys: [
       "settings.permissions",
+      "settings.askToolTitle",
+      "settings.askToolAutoContinue",
+      "settings.askToolTimeout",
       "settings.permissionMode",
       "settings.permissionModeAsk",
       "settings.permissionModeAcceptEdits",

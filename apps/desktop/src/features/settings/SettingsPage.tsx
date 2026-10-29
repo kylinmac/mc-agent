@@ -72,6 +72,7 @@ import { StorageSettingsSection } from "./StorageSettingsSection";
 import { SystemPromptsPage } from "./SystemPromptsPage";
 import { UsagePage } from "./UsagePage";
 import { ProjectTemplatesPage } from "./ProjectTemplatesPage";
+import { AskToolSettings } from "./AskToolSettings";
 import { SystemPermissionsPage } from "./SystemPermissionsPage";
 
 type SettingsTab = ReturnType<typeof useAppStore.getState>["settingsTab"];
@@ -547,6 +548,8 @@ export function SettingsPage() {
                   />
                 </SettingsRow>
               </SettingsCard>
+
+              <AskToolSettings settings={settings} saveSettings={saveSettings} />
 
               <SettingsCard title={t("settings.defaultsTitle")}>
                 <SettingsRow title={t("settings.mode")} description={t("settings.modeDesc")}>

@@ -35,7 +35,7 @@ import {
   type SessionMeta,
 } from "../../lib/sidebar-preferences";
 import { api } from "../../lib/api";
-import { dropAskDraft } from "../../lib/pending-asks";
+import { beginAskRestore, dropAskDraft } from "../../lib/pending-asks";
 import { isRemoteSession, safeSessionSummary, sessionAllows } from "../../lib/remote-session-safety";
 import { createRefreshCoordinator } from "../../lib/refresh-coordinator";
 import { openRemoteProjectSession, remoteProjectForSession } from "../../lib/remote-project-session";
@@ -307,6 +307,7 @@ export function createSessionSlice({
         ),
       );
 
+      const askRestore = beginAskRestore(runtime, sessionId);
       let pending: PendingInteractiveRequests;
       try {
         pending = await api.pendingInteractive(sessionId);
@@ -314,6 +315,8 @@ export function createSessionSlice({
         // Silent and non-destructive: an unavailable Main leaves the queues
         // exactly as the live stream left them.
         return;
+      } finally {
+        askRestore.finish();
       }
       if (
         pendingInteractiveRestoreGenerations.get(sessionId) !== generation
@@ -328,7 +331,7 @@ export function createSessionSlice({
         const pendingAsks = reconcilePendingQueue(
           state.pendingAsks[sessionId] ?? [],
           initialAskIds,
-          pending.asks,
+          pending.asks.filter((ask) => !askRestore.settled.has(ask.requestId)),
         );
         const pendingPermissions = reconcilePendingQueue(
           state.pendingPermissions[sessionId] ?? [],

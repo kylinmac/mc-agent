@@ -782,6 +782,12 @@ export const es = {
     "dismiss": "Descartar"
   },
   "settings": {
+    askToolTitle: en.settings.askToolTitle,
+    askToolAutoContinue: en.settings.askToolAutoContinue,
+    askToolAutoContinueDesc: en.settings.askToolAutoContinueDesc,
+    askToolTimeout: en.settings.askToolTimeout,
+    askToolTimeoutDesc: en.settings.askToolTimeoutDesc,
+
     storage: {
       unavailableHint: "El directorio de almacenamiento no está disponible. Vuelve a conectar la unidad antes de iniciar; la aplicación no creará datos vacíos ni cambiará a otro directorio.",
       browserSource: "Origen de los datos del navegador",
@@ -2040,6 +2046,14 @@ sklm: {
     "queued_other": "{{count}} más solicitudes están esperando"
   },
   "askTool": {
+    autoContinueCountdown: en.askTool.autoContinueCountdown,
+    autoContinued: en.askTool.autoContinued,
+    lateSubmit: en.askTool.lateSubmit,
+    lateSent: en.askTool.lateSent,
+    lateSendFailed: en.askTool.lateSendFailed,
+    lateMessageIntro: en.askTool.lateMessageIntro,
+    recommended: en.askTool.recommended,
+
     "title": "Algunas preguntas",
     "historyTitle": "Preguntas y respuestas",
     "answerLabel": "Respuesta",

@@ -29,6 +29,8 @@ import {
   dropToolCallAskDrafts,
   enqueueAsk,
   removeAskForToolCall,
+  removeAsk,
+  recordSettledAskDuringRestore,
 } from "../../lib/pending-asks";
 import {
   clearSessionPermissions,
@@ -234,6 +236,9 @@ export function createEventsSlice({
         }
       }
       const event = envelope.event;
+      if (event.type === "asktool_request" && event.request.autoContinued) {
+        recordSettledAskDuringRestore(runtime, event.request.sessionId, event.request.requestId);
+      }
       if (event.type === "agent_end" || event.type === "error") {
         runtime.submittedComposerDrafts.delete(envelope.sessionId);
       }
@@ -503,9 +508,11 @@ export function createEventsSlice({
           });
         } else if (event.type === "asktool_request") {
           set((state) => ({
-            pendingAsks: enqueueAsk(state.pendingAsks, event.request),
+            pendingAsks: event.request.autoContinued
+              ? removeAsk(state.pendingAsks, event.request.sessionId, event.request.requestId)
+              : enqueueAsk(state.pendingAsks, event.request),
           }));
-          notifyInteractivePrompt(envelope.sessionId, "ask", {
+          if (!event.request.autoContinued) notifyInteractivePrompt(envelope.sessionId, "ask", {
             question: event.request.questions?.[0]?.question,
           });
         } else if (event.type === "agent_end") {
@@ -680,9 +687,11 @@ export function createEventsSlice({
           break;
         case "asktool_request":
           set((state) => ({
-            pendingAsks: enqueueAsk(state.pendingAsks, event.request),
+            pendingAsks: event.request.autoContinued
+              ? removeAsk(state.pendingAsks, event.request.sessionId, event.request.requestId)
+              : enqueueAsk(state.pendingAsks, event.request),
           }));
-          notifyInteractivePrompt(envelope.sessionId, "ask", {
+          if (!event.request.autoContinued) notifyInteractivePrompt(envelope.sessionId, "ask", {
             question: event.request.questions?.[0]?.question,
           });
           break;

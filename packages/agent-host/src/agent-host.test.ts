@@ -883,6 +883,26 @@ describe("AgentHost approvals and inputs", () => {
     expect(approvals.contract).toEqual([{ proposalId: "prop_1", sessionId: "s1", action: "approve", permissionMode: "accept-edits", version: 3 }]);
   });
 
+  it("removes timed-out optional inputs without recording user approval", async () => {
+    const { host, runtime, received } = build();
+    host.ingest(envelope("s1", "rt_1", { type: "agent_start" }));
+    const request = {
+      requestId: "optional_1", sessionId: "s1", toolCallId: "c9",
+      autoContinueAt: 30_000,
+      questions: [{ question: "Which format?", options: ["Table", "List"], recommendedOption: "Table" }],
+    };
+    host.ingest(envelope("s1", "rt_1", { type: "asktool_request", request }));
+    expect(host.pendingInputRequests("s1")).toHaveLength(1);
+    const raised = received.find((event) => event.kind === "input.requested")!;
+    expect(raised.payload).toMatchObject({ autoContinueAt: 30_000 });
+    host.ingest(envelope("s1", "rt_1", { type: "asktool_request", request: { ...request, autoContinued: true } }));
+    expect(host.pendingInputRequests("s1")).toEqual([]);
+    expect(host.getTurn("rt_1").status).toBe("running");
+    expect(runtime.inputs).toEqual([]);
+    expect(received.at(-1)).toMatchObject({ kind: "input.resolved", payload: { status: "auto-continued" } });
+    await expect(host.respondInput(controller, { inputId: "optional_1", answers: [["List"]], context: { requestId: "late" } })).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
   it("relays asktool answers with skip semantics", async () => {
     const { host, runtime, received } = build();
     host.ingest(envelope("s1", "rt_1", { type: "agent_start" }));

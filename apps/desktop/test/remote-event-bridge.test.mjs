@@ -220,10 +220,11 @@ test("input.requested synthesizes an asktool_request keyed by the RACP input id"
         sessionId: HOST_SESSION_ID,
         turnId: "turn-1",
         expiresAt: "2026-09-18T10:05:00.000Z",
+        autoContinueAt: 30_000,
         agentName: "codex",
         parentToolCallId: "tc-parent",
         questions: [
-          { id: "q1", question: "which?", options: ["a", "b"], multiSelect: false },
+          { id: "q1", question: "which?", options: ["a", "b"], multiSelect: false, recommendedOption: "a" },
         ],
       },
     }),
@@ -235,6 +236,8 @@ test("input.requested synthesizes an asktool_request keyed by the RACP input id"
   assert.equal(request.toolCallId, "tc-parent");
   assert.equal(request.questions.length, 1);
   assert.equal(request.questions[0].multiSelect, false);
+  assert.equal(request.autoContinueAt, 30_000);
+  assert.equal(request.questions[0].recommendedOption, "a");
 });
 
 test("terminal and resync kinds are silently dropped in Stage 2 — later stages own them", () => {

@@ -791,6 +791,12 @@ export const tr = {
     dismiss: "Kapat",
   },
   settings: {
+    askToolTitle: en.settings.askToolTitle,
+    askToolAutoContinue: en.settings.askToolAutoContinue,
+    askToolAutoContinueDesc: en.settings.askToolAutoContinueDesc,
+    askToolTimeout: en.settings.askToolTimeout,
+    askToolTimeoutDesc: en.settings.askToolTimeoutDesc,
+
     storage: {
       unavailableHint: "Depolama dizini şu anda kullanılamıyor. Başlatmadan önce sürücüyü yeniden bağlayın; uygulama boş veri oluşturmaz veya başka bir dizine geçmez.",
       browserSource: "Tarayıcı verisi kaynağı",
@@ -2050,6 +2056,14 @@ sklm: {
     queued_other: "{{count}} istek daha bekliyor",
   },
   askTool: {
+    autoContinueCountdown: en.askTool.autoContinueCountdown,
+    autoContinued: en.askTool.autoContinued,
+    lateSubmit: en.askTool.lateSubmit,
+    lateSent: en.askTool.lateSent,
+    lateSendFailed: en.askTool.lateSendFailed,
+    lateMessageIntro: en.askTool.lateMessageIntro,
+    recommended: en.askTool.recommended,
+
     title: "Birkaç soru",
     historyTitle: "Sorular ve yanıtlar",
     answerLabel: "Yanıt",

@@ -78,6 +78,10 @@ export type AppSettings = {
   /** @deprecated Retained for one-time migration into pi.prompt-enhancement. */
   promptEnhancementThinkingLevel?: ThinkingLevel;
   defaultPermissionMode?: GlobalPermissionMode;
+  /** Optional questions only; never applies to permission or plan approval. */
+  askToolAutoContinue?: boolean;
+  /** Seconds before adopting valid recommendations; 10–300, default 30. */
+  askToolTimeoutSeconds?: number;
   theme: ThemePreference;
   /**
    * macOS only: keep the native `sidebar` vibrancy material behind a

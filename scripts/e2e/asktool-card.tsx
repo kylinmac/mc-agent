@@ -19,6 +19,8 @@ import i18n from "i18next";
 import { I18nextProvider } from "react-i18next";
 import { en } from "@pi-desktop/i18n";
 import { MAX_ASK_TOOL_QUESTION_CHARS } from "../../packages/shared/src/types/agent";
+import { AskToolSettings } from "../../apps/desktop/src/features/settings/AskToolSettings";
+import { continuedAskFromMessage } from "../../apps/desktop/src/lib/ask-tool-history";
 import { AskToolCard } from "../../apps/desktop/src/components/AskToolCard";
 import { api } from "../../apps/desktop/src/lib/api";
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";
@@ -135,7 +137,7 @@ export async function asktoolCardProbe() {
   const headerButtons = () => ({
     decline: element<HTMLButtonElement>(".asktool-decline"),
     skip: element<HTMLButtonElement>(
-      ".asktool-card-header-actions .btn-ghost",
+      ".asktool-card-header-actions .btn-ghost:not(.asktool-decline)",
     ),
     primary: element<HTMLButtonElement>(
       ".asktool-card-header-actions .btn-primary",
@@ -177,7 +179,7 @@ export async function asktoolCardProbe() {
       tabbables.findIndex((node) => node.matches(selector));
     const declineAt = orderOf(".asktool-decline");
     const skipAt = orderOf(
-      ".asktool-card-header-actions .btn-ghost",
+      ".asktool-card-header-actions .btn-ghost:not(.asktool-decline)",
     );
     const primaryAt = orderOf(
       ".asktool-card-header-actions .btn-primary",
@@ -260,12 +262,12 @@ export async function asktoolCardProbe() {
     flushSync(() =>
       element(".asktool-custom-option").click(),
     );
-    const input = element<HTMLInputElement>(".asktool-custom-input");
+    const input = element<HTMLTextAreaElement>(".asktool-custom-input");
     // Bypass React's instance value tracker: a plain assignment updates the
     // tracker too, so the input event would read as unchanged and onChange
     // would never fire. The prototype setter leaves the tracker behind.
     const nativeValueSetter = Object.getOwnPropertyDescriptor(
-      window.HTMLInputElement.prototype,
+      window.HTMLTextAreaElement.prototype,
       "value",
     )!.set!;
     nativeValueSetter.call(input, "my reason");
@@ -428,6 +430,81 @@ export async function asktoolCardProbe() {
       "the answer selected before the remount is still selected",
     );
 
+    const timed = { ...askRequest("ask-timed", [QUESTIONS[0]!]), autoContinueAt: Date.now() + 10_000 };
+    flushSync(() => root.render(
+      <I18nextProvider i18n={i18n}><AskToolCard key={timed.requestId} request={timed} /></I18nextProvider>,
+    ));
+    assert(host.querySelector("p[role=status]")?.textContent?.includes("10"), "countdown starts from the runtime deadline");
+    await until(() => host.querySelector("p[role=status]")?.textContent?.includes("9") === true, "countdown updates without resolving the question");
+    assert(resolutions.length === 5, "renderer countdown does not resolve a tool");
+
+    // A retained timeout card sends a new message to its original session,
+    // even while another session is selected; rejected sends remain editable.
+    const late = continuedAskFromMessage({
+      toolName: "asktool",
+      toolResult: { details: { request: { ...askRequest("ask-late", [QUESTIONS[0]!]), autoContinued: true } } },
+    }, SESSION_ID);
+    assert(late, "persisted timeout result rebuilds an answerable card");
+    const prompts: Array<{ content: string; target?: string }> = [];
+    let acceptLate = false;
+    useAppStore.setState({
+      activeSessionId: "another-session",
+      sendPrompt: async (content, _draft, target) => {
+        prompts.push({ content, target });
+        return acceptLate;
+      },
+    });
+    flushSync(() => root.render(
+      <I18nextProvider i18n={i18n}>
+        <AskToolCard key={late.requestId} request={late} />
+      </I18nextProvider>,
+    ));
+    assert(host.querySelector(".asktool-decline") === null, "a completed tool is not declined again");
+    flushSync(() => options()[1]!.click());
+    const lateSubmit = () => element<HTMLButtonElement>(".asktool-card-header-actions .btn-primary");
+    flushSync(() => lateSubmit().click());
+    await until(() => prompts.length === 1 && !lateSubmit().disabled, "failed late send can retry");
+    assert(prompts[0]!.target === SESSION_ID, "late answer is routed to its original session");
+    assert(prompts[0]!.content.includes("Which upgrade path?：beta"), "late answer includes question and choice");
+    assert(resolutions.length === 5, "late answer never resolves an ended tool");
+    acceptLate = true;
+    flushSync(() => { lateSubmit().click(); lateSubmit().click(); });
+    await until(() => prompts.length === 2 && lateSubmit().disabled && !options()[0]!.disabled, "accepted late send is marked sent");
+    flushSync(() => options()[0]!.click());
+    assert(!lateSubmit().disabled, "user can revise a late choice explicitly");
+
+    // Configure the feature through the real settings controls.
+    let settings = { ...initial.settings, askToolAutoContinue: false, askToolTimeoutSeconds: 30 };
+    const saved: unknown[] = [];
+    const renderSettings = () => root.render(
+      <I18nextProvider i18n={i18n}>
+        <AskToolSettings settings={settings} saveSettings={async (patch) => {
+          saved.push(patch);
+          settings = { ...settings, ...patch };
+          renderSettings();
+        }} />
+      </I18nextProvider>,
+    );
+    flushSync(renderSettings);
+    const timeoutInput = () => element<HTMLInputElement>('input[type="number"]');
+    assert(timeoutInput().disabled, "timeout is disabled while the feature is off");
+    flushSync(() => element<HTMLButtonElement>('[role="switch"]').click());
+    await until(() => !timeoutInput().disabled, "switch enables timeout setting");
+    const setSeconds = async (value: string) => {
+      const input = timeoutInput();
+      input.focus();
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")!.set!.call(input, value);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      await frame();
+      flushSync(() => input.dispatchEvent(new FocusEvent("focusout", { bubbles: true })));
+      await frame();
+    };
+    await setSeconds("10");
+    assert(settings.askToolTimeoutSeconds === 10, `10-second timeout saves: ${JSON.stringify(saved)}, input=${timeoutInput().value}`);
+    const savedCount = saved.length;
+    await setSeconds("9");
+    assert(timeoutInput().value === "10" && saved.length === savedCount, "out-of-range input reverts without saving");
+
     assert(errors.length === 0, `render errors: ${errors.map(String)}`);
     return { ok: true, resolutions: resolutions.length };
   } catch (error) {
@@ -442,6 +519,8 @@ export async function asktoolCardProbe() {
     useAppStore.setState({
       pendingAsks: initial.pendingAsks,
       activeSessionId: initial.activeSessionId,
+      sendPrompt: initial.sendPrompt,
+      askDrafts: initial.askDrafts,
     });
   }
 }

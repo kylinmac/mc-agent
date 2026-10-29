@@ -809,6 +809,12 @@ export const zhCN = {
     dismiss: "关闭",
   },
   settings: {
+    askToolTitle: "可选提问",
+    askToolAutoContinue: "等待超时后按建议继续",
+    askToolAutoContinueDesc: "默认关闭。仅明确标为可选且有有效推荐项的问题可超时继续；重要决策和权限审批仍需你回答。对新启动的运行生效。",
+    askToolTimeout: "等待时间（秒）",
+    askToolTimeoutDesc: "10–300 秒，默认 30 秒。超时后仍可在对话历史中的选项卡补选发送。",
+
     storage: {
       unavailableHint: "保存目录暂时不可用。请重新连接磁盘后启动；应用不会创建空白数据或切换到其他目录。",
       browserSource: "浏览器数据来源",
@@ -2057,6 +2063,14 @@ sklm: {
     queued_other: "还有 {{count}} 个请求在排队",
   },
   askTool: {
+    autoContinueCountdown: "{{count}} 秒后按建议继续",
+    autoContinued: "未收到回答，已按建议继续。补充回答用于后续工作，不会撤回已完成操作。",
+    lateSubmit: "发送补充回答",
+    lateSent: "补充回答已发送",
+    lateSendFailed: "回答发送失败，请重试。",
+    lateMessageIntro: "对之前可选问题的补充回答（用于调整后续工作，不撤回已完成操作）：",
+    recommended: "推荐",
+
     title: "需要回答几个问题",
     historyTitle: "问答摘要",
     answerLabel: "回答",

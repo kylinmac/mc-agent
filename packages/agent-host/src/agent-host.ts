@@ -335,6 +335,12 @@ export class AgentHost {
       }
       case "asktool_request": {
         const turn = turnId ? state.turns.get(turnId) : undefined;
+        if (event.request.autoContinued) {
+          state.pendingInputs.delete(event.request.requestId);
+          if (turn?.status === "waiting_input" && state.pendingInputs.size === 0) turn.status = "running";
+          this.emit(state, "input.resolved", { inputId: event.request.requestId, status: "auto-continued" }, meta2);
+          return;
+        }
         if (turn) turn.status = "waiting_input";
         const request = this.inputFromAsktool(event.request, state, turn?.id ?? turnId ?? "", envelope);
         state.pendingInputs.set(request.id, { request, original: event.request });
@@ -1324,6 +1330,7 @@ export class AgentHost {
   ): RacpInputRequest {
     return {
       id: request.requestId,
+      ...(request.autoContinueAt ? { autoContinueAt: request.autoContinueAt } : {}),
       sessionId: state.id,
       turnId,
       expiresAt: new Date(this.clock.now() + this.approvalLifetime(state)).toISOString(),
@@ -1333,6 +1340,7 @@ export class AgentHost {
       questions: request.questions.map((question, index) => ({
         id: `${request.requestId}:${index}`,
         question: question.question,
+        ...(question.recommendedOption ? { recommendedOption: question.recommendedOption } : {}),
         // RACP v1 keeps answer choices as labels; the desktop-only description
         // remains local to the inline asktool card.
         options: question.options.map(askToolOptionLabel),

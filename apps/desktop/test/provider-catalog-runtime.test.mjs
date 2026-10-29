@@ -248,3 +248,16 @@ test("a user-pinned context window is never replaced by the catalog number (#117
   }).models;
   assert.equal(inherited[0].contextWindow, 128_000, "a catalog-sourced window follows the published value");
 });
+
+
+test("optional-question timeout settings reject invalid writes", async () => {
+  const { runtime } = await fixtureRuntime();
+  for (const askToolTimeoutSeconds of [10, 30, 300]) {
+    const settings = { askToolAutoContinue: true, askToolTimeoutSeconds };
+    assert.equal(runtime.validateSettingsWrite(settings), settings);
+  }
+  for (const askToolTimeoutSeconds of [0, 9, 301, 10.5, NaN, Infinity, "30", null]) {
+    assert.throws(() => runtime.validateSettingsWrite({ askToolTimeoutSeconds }), /askToolTimeoutSeconds/);
+  }
+  assert.throws(() => runtime.validateSettingsWrite({ askToolAutoContinue: "true" }), /askToolAutoContinue/);
+});
