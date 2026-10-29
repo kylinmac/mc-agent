@@ -271,9 +271,14 @@ test("ignored directories are not searched", async () => {
   assert.equal(await resolve("openimage.js", { workspace }), null);
 });
 
-test("a directory with a matching name never matches", async () => {
+test("a directory with a file-like name resolves as that folder, never as a file", async () => {
   const workspace = tempTree("ws", ["openimage.js/placeholder.txt"]);
-  assert.equal(await resolve("openimage.js", { workspace }), null);
+  const match = await resolve("openimage.js", { workspace });
+  assert.equal(match?.directory, true);
+  assert.equal(match?.relativePath, "openimage.js");
+  // Below the root it is still only an exact path, not a suffix match.
+  const nested = tempTree("ws-nested", ["src/openimage.js/placeholder.txt"]);
+  assert.equal(await resolve("openimage.js", { workspace: nested }), null);
 });
 
 test("a content-addressed attachment blob resolves against the attachment store", async () => {
@@ -450,4 +455,49 @@ test("an absolute path outside every root is still reported as restricted", asyn
   const options = roots({ scratch: null, containment: [{ kind: "scratch", path: store }] });
   assert.equal(await isChatRefOutsideRoots(image, options), true);
   assert.equal(await resolveChatFileRef(image, options), null);
+});
+
+/*
+  A link to a folder that exists names that folder. Only an exact path does:
+  a bare folder name is not completed by suffix, so it cannot pick some other
+  folder, and the containment rules are the same as for files.
+*/
+test("an existing project folder resolves as a directory", async () => {
+  const workspace = tempTree("dir-ref", ["分析成果/系统提示词/a.md", "分析成果/b.md"]);
+  const match = await resolve("分析成果/系统提示词", { workspace });
+  assert.equal(match?.root, "workspace");
+  assert.equal(match?.directory, true);
+  assert.equal(match?.matchedBy, "exact-relative");
+  assert.equal(match?.relativePath, "分析成果/系统提示词");
+  assert.equal(match?.absolutePath, join(workspace, "分析成果", "系统提示词"));
+  // A trailing slash names the same folder.
+  assert.equal((await resolve("分析成果/系统提示词/", { workspace }))?.relativePath, "分析成果/系统提示词");
+  // Files in it still resolve as files.
+  const file = await resolve("分析成果/系统提示词/a.md", { workspace });
+  assert.equal(file?.directory, undefined);
+  assert.equal(file?.relativePath, "分析成果/系统提示词/a.md");
+});
+
+test("an absolute folder path inside the project resolves as a directory", async () => {
+  const workspace = tempTree("dir-abs", ["docs/a.md"]);
+  const match = await resolve(join(workspace, "docs"), { workspace });
+  assert.equal(match?.directory, true);
+  assert.equal(match?.matchedBy, "exact-absolute");
+  assert.equal(match?.relativePath, "docs");
+});
+
+test("a missing folder, a bare folder name and an escaping folder link stay unresolved", async () => {
+  const workspace = tempTree("dir-missing", ["分析成果/系统提示词/a.md"]);
+  assert.equal(await resolve("分析成果/没有这个目录", { workspace }), null);
+  // Only an exact path names a folder; its name alone is not completed.
+  assert.equal(await resolve("系统提示词", { workspace }), null);
+  const outside = tempTree("dir-outside", ["page.md"]);
+  symlinkSync(outside, join(workspace, "linked"), process.platform === "win32" ? "junction" : "dir");
+  assert.equal(await resolve("linked", { workspace }), null);
+  assert.equal(await resolve(join(workspace, "linked"), { workspace }), null);
+});
+
+test("attachment folders never resolve as directories", async () => {
+  const attachments = tempTree("dir-attachments", ["nested/x.bin"]);
+  assert.equal(await resolve(join(attachments, "nested"), { attachments }), null);
 });
