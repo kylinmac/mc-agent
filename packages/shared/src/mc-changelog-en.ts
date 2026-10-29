@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.31",
+    date: "2026-10-28",
+    fixes: [
+      "Importing from Codex now lists every Codex conversation on this computer, including the Codex projects in the ChatGPT desktop app; after newer Codex builds moved older chats into their database, only a dozen or so showed up. Guardian reviews and sub-agent runs no longer appear in the list.",
+    ],
+  },
+  {
     version: "1.0.30",
     date: "2026-10-28",
     fixes: [

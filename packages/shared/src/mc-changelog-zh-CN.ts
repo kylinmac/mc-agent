@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.31",
+    date: "2026-10-28",
+    fixes: [
+      "从 Codex 导入时，能列出本机全部 Codex 对话，包括 ChatGPT 桌面版里 Codex 的项目；以前新版 Codex 把旧对话迁进数据库后，只能看到十几个。Guardian 审查和子智能体的记录不再混在列表里。",
+    ],
+  },
+  {
     version: "1.0.30",
     date: "2026-10-28",
     fixes: [
