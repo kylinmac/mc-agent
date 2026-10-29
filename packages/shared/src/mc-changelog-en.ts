@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.28",
+    date: "2026-10-28",
+    features: [
+      "Settings → System prompts has new Append prompts: their text is added after the existing system prompt and never replaces a template or the default; turn each on or off and reorder them, and they apply to every conversation.",
+    ],
+  },
+  {
     version: "1.0.27",
     date: "2026-10-28",
     features: [
