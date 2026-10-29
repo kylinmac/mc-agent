@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.30",
+    date: "2026-10-28",
+    fixes: [
+      "对话里指向文件夹的链接，点击会在文件管理器中打开该文件夹，右键也能复制完整路径和相对路径；以前会提示“没有匹配的文件”。",
+    ],
+  },
+  {
     version: "1.0.29",
     date: "2026-10-28",
     fixes: [
