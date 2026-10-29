@@ -9,6 +9,14 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.32",
+    date: "2026-10-29",
+    fixes: [
+      "Codex import no longer stops at the newest 250 session files. Older conversations and earlier continuation segments are included instead of being missed or imported only in part.",
+      "On Windows, ordinary and extended paths and case differences for the same directory now share one import project, keeping its conversations together.",
+    ],
+  },
+  {
     version: "1.0.31",
     date: "2026-10-28",
     fixes: [

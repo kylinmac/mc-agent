@@ -13,6 +13,14 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.32",
+    date: "2026-10-29",
+    fixes: [
+      "从 Codex 导入时不再只扫描最新 250 个会话文件，较早的对话和同一对话的早期分段也会列入，避免漏掉旧对话或只导入后半段。",
+      "Windows 导入列表中，同一目录的普通路径、扩展路径和大小写差异会归为一个项目，不再把对话拆散到重复项目下。",
+    ],
+  },
+  {
     version: "1.0.31",
     date: "2026-10-28",
     fixes: [
