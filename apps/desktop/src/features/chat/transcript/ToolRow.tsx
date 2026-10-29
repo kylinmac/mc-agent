@@ -63,7 +63,7 @@ import {
   IconCircleAlert,
   IconStop,
 } from "../../../components/icons";
-import { TooltipButton } from "../../../components/ui";
+import { Button, TooltipButton } from "../../../components/ui";
 import { DisclosureAnchorContext } from "../../../lib/disclosure-anchor-context";
 import {
   AssistantErrorMessage,
@@ -93,7 +93,7 @@ type ToolRowProps = {
   message: UiMessage;
   /** Rows the delegate produced, when this row is a `Task` call (ADR 0062). */
   delegate?: SubagentRun;
-  /** Card treatment used when several Task calls form a delegation topology. */
+  /** Card treatment for one or more Task calls. */
   variant?: "default" | "topology";
   /** The containing turn renders image results outside its process disclosure. */
   imagesInTurn?: boolean;
@@ -185,6 +185,7 @@ function HostToolRow({
   const localToolsAllowed = useChatSessionCapability("canUseLocalTools");
   const paneSessionId = useSlotSessionId();
   const activeSessionId = useAppStore((s) => s.activeSessionId);
+  const canOpenSubagent = localToolsAllowed && Boolean(activeSessionId) && (!paneSessionId || paneSessionId === activeSessionId);
   const continuedAsk = continuedAskFromMessage(message, paneSessionId || activeSessionId || undefined);
   const root = useAppStore((s) => localToolsAllowed ? s.workspace?.path : undefined);
   const openTarget = useOpenPreviewTarget();
@@ -407,12 +408,12 @@ function HostToolRow({
           className="subagent-topology-node-header"
           aria-expanded={panelOpen}
           aria-controls={panelOpen ? `work-panel-surface-subagent:${panelSelectionId}` : undefined}
-          disabled={!hasDetails}
+          disabled={!hasDetails || !canOpenSubagent}
           title={[agentName || rawName, modelLabel, summary].filter(Boolean).join(" · ")}
           onClick={() => {
             if (!hasDetails) return;
             onUserInteraction?.();
-            localToolsAllowed && openSubagentTab(panelSelectionId, agentName || undefined);
+            canOpenSubagent && openSubagentTab(panelSelectionId, agentName || undefined);
           }}
         >
           <span className="subagent-topology-avatar" aria-hidden>
@@ -593,6 +594,28 @@ function HostToolRow({
             label={t("chat.collapseToolOutput")}
             onCollapse={collapseRow}
           />
+          {canOpenSubagent && roster.length > 0 ? (
+            <div className="subagent-roster-links">
+              {roster.map((entry, index) => (
+                <Button
+                  key={`${entry.delegationId}:${index}`}
+                  type="button"
+                  size="sm"
+                  className="subagent-roster-link"
+                  data-delegation-id={entry.delegationId}
+                  onClick={() => {
+                    onUserInteraction?.();
+                    openSubagentTab(entry.delegationId, entry.agentName || undefined);
+                  }}
+                >
+                  <IconBot size={13} aria-hidden />
+                  {t("chat.viewSubagent", { name: `${entry.agentName || t("chat.subagentUnnamed")} ${index + 1}` })}
+                  {` · ${t(`chat.subagentStatus.${entry.status}`)}`}
+                  {entry.durationMs ? ` · ${formatToolDuration(entry.durationMs / 1000)}` : ""}
+                </Button>
+              ))}
+            </div>
+          ) : null}
           <ToolDetailBlocks blocks={blocks} plain={runHead} streaming={status === "running"} />
         </div>
       ) : null}

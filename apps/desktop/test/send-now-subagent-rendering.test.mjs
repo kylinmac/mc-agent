@@ -45,9 +45,16 @@ test("a steering response keeps the earlier delegation card live until parent se
     assert.match(live, /Subagent working/);
     assert.match(live, /Stop explorer/);
     assert.doesNotMatch(live, /Subagent finished with warnings/);
+    assert.match(live, /<section class="turn-process open">/,
+      "steering must leave the earlier process open without marking that segment active");
+    assert.match(live, /class="turn-process-body"[^>]*aria-hidden="false"/);
+    assert.match(live, /class="tool-activity-collapse"[^>]*aria-hidden="false"/,
+      "the live delegation card must be visible, not just present in hidden markup");
     const settled = render(collectLiveDelegationEntries(history, entries.at(-1), false));
     assert.doesNotMatch(settled, /Subagent working/);
     assert.doesNotMatch(settled, /Stop explorer/);
+    assert.match(settled, /<section class="turn-process">/);
+    assert.match(settled, /class="turn-process-body"[^>]*hidden=""/);
     const beforeReply = entries.slice(0, -1);
     assert.equal(collectLiveDelegationEntries(beforeReply.slice(0, -1), beforeReply.at(-1), true).has("task"), true);
     const nextUser = { kind: "message", message: message("next", "user", "Next task.") };
@@ -64,5 +71,16 @@ test("a steering response keeps the earlier delegation card live until parent se
           liveDelegations: collectLiveDelegationEntries(completeHistory, completeEntries.at(-1), true) }))));
     assert.match(completedHtml, /Subagent completed/);
     assert.doesNotMatch(completedHtml, /Stop explorer/);
+    assert.match(completedHtml, /<section class="turn-process">/,
+      "a settled delegation must not hold an earlier process open");
+    // Task returns its running handle before the first lifecycle poll exists.
+    const unpolledEntries = buildTranscriptEntries(messages.filter(m => m.id !== "wait")).entries;
+    const unpolledHistory = unpolledEntries.slice(0, -1);
+    const unpolled = renderToStaticMarkup(createElement(I18nextProvider, { i18n },
+      createElement(SlotSessionProvider, { sessionId: "fixture" },
+        createElement(TranscriptHistory, { entries: unpolledHistory, isRunning: true,
+          liveDelegations: collectLiveDelegationEntries(unpolledHistory, unpolledEntries.at(-1), true) }))));
+    assert.match(unpolled, /<section class="turn-process open">/,
+      "a live Task payload must keep its card visible even without TaskWait or TaskList");
   } finally { await vite.close(); }
 });

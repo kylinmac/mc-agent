@@ -38,6 +38,7 @@ export function createTranscriptReadingRuntime({ get, set }: StoreAccess, read: 
             : (state.retainedTranscripts[sessionId] ?? EMPTY_TRANSCRIPT),
         messageStart: state.sessionHistory[sessionId]?.messageStart ?? 0,
         hasMoreBefore: state.sessionHistory[sessionId]?.hasMoreBefore === true,
+        messageParents: state.sessionHistory[sessionId]?.messageParents,
         hasMoreAfter: false,
         focus: null,
         loading: null,
@@ -168,6 +169,7 @@ export function createTranscriptReadingRuntime({ get, set }: StoreAccess, read: 
       if (view.loading || !(direction === "before" ? view.hasMoreBefore : view.hasMoreAfter))
         return;
       const limit = view.focus ? TRANSCRIPT_SEARCH_PAGE_SIZE : TRANSCRIPT_PAGE_SIZE;
+      const liveParents = new Map((get().sessionHistory[sessionId]?.messageParents ?? []).map((parent) => [parent.id, parent]));
       const pending: TranscriptView = { ...view, loading: direction };
       publish(sessionId, pending);
       try {
@@ -180,6 +182,20 @@ export function createTranscriptReadingRuntime({ get, set }: StoreAccess, read: 
         if (get().transcriptViews[sessionId] !== pending) return;
         if (!session) throw new Error("Conversation no longer exists.");
         const extended = extendTranscriptView(pending, session, direction);
+        // A fresh page can settle an off-page Task. Refresh only existing live
+        // anchors, so returning to latest does not retain unrelated older cards.
+        if (!extended.focus && !(extended.restored && extended.hasMoreAfter) && session.messageParents?.length) {
+          const parents = new Map(session.messageParents.map((parent) => [parent.id, parent]));
+          set((state) => {
+            const history = state.sessionHistory[sessionId];
+            if (!history?.messageParents?.some((parent) => parent === liveParents.get(parent.id) && parents.has(parent.id))) return {};
+            return { sessionHistory: { ...state.sessionHistory, [sessionId]: {
+              ...history,
+              messageParents: history.messageParents.map((parent) => parent === liveParents.get(parent.id)
+                ? parents.get(parent.id) ?? parent : parent),
+            } } };
+          });
+        }
         // Remote numeric values represent opaque Host item cursors. Preserve
         // the returned cursor rather than depending on its ordering. Local
         // transcripts continue merging physical message offsets unchanged.

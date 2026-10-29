@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { SessionCollaborationSummary, SessionContextBreakdown } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
+import { transcriptViewMessages } from "../../lib/transcript-reading";
 import { latestTurnContextInspector } from "../../lib/latest-turn-context";
 import { calculateContextUsage, resolveContextUsageDisplay } from "../../lib/context-usage";
 import { reviewChangesFromMessages, summarizeReviewChanges } from "../../lib/workspace-review";
@@ -139,6 +140,7 @@ export function SessionInfo({
       ? s.messages
       : ((sessionId ? s.retainedTranscripts[sessionId] : undefined) ?? EMPTY_MESSAGES),
   );
+  const messageParents = useAppStore((s) => sessionId ? s.sessionHistory[sessionId]?.messageParents : undefined);
   const isRunning = useAppStore((s) =>
     s.activeSessionId === sessionId ? s.isRunning : Boolean(sessionId && s.runningSessions[sessionId]),
   );
@@ -278,7 +280,10 @@ export function SessionInfo({
   const changes = useMemo(() => summarizeReviewChanges(reviewChangesFromMessages(messages)), [messages]);
   // Subtasks: this conversation's `Task` subagents, then the sessions it
   // dispatched (MC-ADR-0005 follow-up).
-  const subagents = useMemo(() => sessionSubagents(messages, { turnLive: isRunning }), [messages, isRunning]);
+  const subagents = useMemo(
+    () => sessionSubagents(transcriptViewMessages(messages, undefined, messageParents), { turnLive: isRunning }),
+    [messages, messageParents, isRunning],
+  );
   // The poller is shared with the work panel header, which follows the
   // active session too, so both always ask for the same list.
   const shells = useBackgroundShells(sessionId);

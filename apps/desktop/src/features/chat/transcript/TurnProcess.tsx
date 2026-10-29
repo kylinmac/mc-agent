@@ -61,6 +61,7 @@ export function TurnProcess({
   visibleSteps,
   delegationStatuses,
   isActive,
+  hasRunningDelegations = false,
   failed,
   activity,
   children,
@@ -71,6 +72,8 @@ export function TurnProcess({
   /** Visible steps the process reveals; `0` draws no disclosure. */
   visibleSteps: number;
   isActive: boolean;
+  /** Earlier segments can still own live delegates after a steering message. */
+  hasRunningDelegations?: boolean;
   /** The turn recorded a failure of its own, so the header must not claim success. */
   failed: boolean;
   /** Live runtime stage, when the runtime reports one. */
@@ -86,12 +89,13 @@ export function TurnProcess({
     processParts.flatMap((part) => part.kind === "activity" ? part.items : []), delegationStatuses,
   ), [processParts, delegationStatuses]);
   const thinkingNow = useMemo(() => isTurnThinking(turnParts, isActive), [turnParts, isActive]);
-  // Active processes start open and untouched completed ones close by default;
+  // Active processes and segments with live delegates start open;
+  // untouched completed ones close by default;
   // an explicit user choice stays authoritative. This does not depend on the
   // thinking preference, and a recorded failure keeps an untouched active
   // process open through recovery because it stays active until the turn ends.
   const disclosure = useAutomaticDisclosure(
-    isActive,
+    isActive || hasRunningDelegations,
     revealRequest,
     disclosureKey("turn", turnId),
   );

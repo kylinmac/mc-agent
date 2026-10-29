@@ -260,6 +260,96 @@ pub fn read_tool_call(
     Ok(None)
 }
 
+/// Resolve all missing Task anchors in one reverse pass, without loading the history.
+pub fn read_delegation_parents(
+    data_dir: &Path,
+    session_id: &str,
+    layout: &TranscriptLayout,
+    call_ids: &std::collections::HashSet<String>,
+    delegation_ids: &std::collections::HashSet<String>,
+) -> Result<Vec<MessageRecord>> {
+    let mut calls = call_ids.clone();
+    let mut delegations = delegation_ids.clone();
+    if calls.is_empty() && delegations.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut reader = BufReader::new(File::open(transcript_path(data_dir, session_id)?)?);
+    let mut raw = Vec::new();
+    let mut line = String::new();
+    let mut parents = Vec::new();
+    let verbatim = calls
+        .iter()
+        .chain(&delegations)
+        .all(|id| is_json_verbatim(id));
+    // shortcut: an orphan reference can scan the history once; add a derived call index if this becomes a measured hotspot.
+    for offset in layout.message_offsets.iter().rev() {
+        let invalid_utf8 = read_layout_line(&mut reader, *offset, "message", &mut raw, &mut line)?;
+        if verbatim
+            && !calls
+                .iter()
+                .chain(&delegations)
+                .any(|id| line.contains(id.as_str()))
+        {
+            continue;
+        }
+        let record: MessageRecord = match serde_json::from_str(&line) {
+            Ok(record) => record,
+            Err(error) if invalid_utf8 => {
+                tracing::warn!(%error, "skipping invalid indexed delegation parent");
+                continue;
+            }
+            Err(error) => return Err(error).context("decode indexed delegation parent"),
+        };
+        if record.role != "tool" {
+            continue;
+        }
+        let Some(block) = record
+            .blocks
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|block| block.get("type").and_then(Value::as_str) == Some("tool_call"))
+        else {
+            continue;
+        };
+        let name = record
+            .tool_name
+            .as_deref()
+            .unwrap_or_default()
+            .rsplit('.')
+            .next()
+            .unwrap_or_default()
+            .chars()
+            .filter(char::is_ascii_alphanumeric)
+            .collect::<String>()
+            .to_ascii_lowercase();
+        if !matches!(name.as_str(), "task" | "subagent") {
+            continue;
+        }
+        let call_id = block.get("callId").and_then(Value::as_str);
+        let result = block.get("result");
+        let payload = result.and_then(|result| {
+            result
+                .get("details")
+                .filter(|value| !value.is_null())
+                .or(Some(result))
+        });
+        let delegation_id = payload
+            .and_then(|result| result.get("delegationId"))
+            .and_then(Value::as_str);
+        let found_call = call_id.is_some_and(|id| calls.remove(id));
+        let found_delegation = delegation_id.is_some_and(|id| delegations.remove(id));
+        if found_call || found_delegation {
+            parents.push(record);
+        }
+        if calls.is_empty() && delegations.is_empty() {
+            break;
+        }
+    }
+    parents.reverse();
+    Ok(parents)
+}
+
 /// Read one line from the reader into `line_buf`, tolerating mid-append torn UTF-8 bytes.
 /// If `raw_buf` contains valid UTF-8, it is preserved verbatim. If torn/corrupt
 /// bytes are encountered, they are decoded lossily via `String::from_utf8_lossy`
@@ -2421,6 +2511,62 @@ mod tests {
         assert!(read_tool_call(dir.path(), "s1", &layout, "absent")
             .unwrap()
             .is_none());
+    }
+
+    #[test]
+    fn delegation_parent_batch_resolves_latest_tasks_with_escaped_ids_in_session_order() {
+        let dir = tempdir().unwrap();
+        let task = |id: &str, name: &str, call: &str, delegation: &str, status: &str| {
+            let mut task = tool_record(id, call);
+            task.tool_name = Some(name.into());
+            task.blocks = json!([{ "type": "tool_call", "callId": call,
+                "status": status, "result": { "details": { "delegationId": delegation } } }]);
+            task
+        };
+        let escaped = "quote\"and\\slash";
+        for record in [
+            task("first", "Task", "call-first", escaped, "running"),
+            task(
+                "second",
+                "functions.Subagent",
+                "call-second",
+                "second-delegation",
+                "completed",
+            ),
+            task("first", "Task", "call-first", escaped, "completed"),
+            task("other-tool", "Bash", "call-third", "missing", "completed"),
+        ] {
+            append_message(dir.path(), "s1", "2026-07-26T00:00:00Z", &record).unwrap();
+        }
+        append_message(
+            dir.path(),
+            "other-session",
+            "2026-07-26T00:00:00Z",
+            &task("foreign", "Task", "call-third", "missing", "completed"),
+        )
+        .unwrap();
+        let parents = read_delegation_parents(
+            dir.path(),
+            "s1",
+            &line_offsets(dir.path(), "s1"),
+            &[
+                "call-first".into(),
+                "call-second".into(),
+                "call-third".into(),
+            ]
+            .into_iter()
+            .collect(),
+            &[escaped.into(), "missing".into()].into_iter().collect(),
+        )
+        .unwrap();
+        assert_eq!(
+            parents
+                .iter()
+                .map(|parent| parent.id.as_str())
+                .collect::<Vec<_>>(),
+            ["second", "first"]
+        );
+        assert_eq!(parents[1].blocks[0]["status"], "completed");
     }
 
     #[test]

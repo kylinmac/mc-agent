@@ -562,6 +562,7 @@ export function createSessionSlice({
           ? {
               messageStart: detail.session.messageStart ?? 0,
               hasMoreBefore: detail.session.hasMoreBefore === true,
+              messageParents: detail.session.messageParents,
               contentLimited: true,
             }
           : { messageStart: 0, hasMoreBefore: false };

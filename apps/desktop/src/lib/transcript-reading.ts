@@ -22,6 +22,7 @@ export type TranscriptView = {
   hasMoreBefore: boolean;
   hasMoreAfter: boolean;
   parentMessage?: UiMessage;
+  messageParents?: UiMessage[];
   focus: TranscriptSearchTarget | null;
   /** A bookmarked historical range, without search navigation/highlighting. */
   restored?: boolean;
@@ -44,6 +45,7 @@ export function transcriptViewFromSession(
     hasMoreBefore: session.hasMoreBefore === true,
     hasMoreAfter: session.hasMoreAfter === true,
     parentMessage: session.navigationParent,
+    messageParents: session.messageParents,
     focus,
     loading: null,
   };
@@ -70,6 +72,23 @@ function withNavigationParent(messages: UiMessage[], parent?: UiMessage): UiMess
   const next = messages.slice();
   next[index] = parent;
   return registerSessionMessageReplacement(messages, next, index);
+}
+
+function withMessageParents(messages: UiMessage[], parents?: UiMessage[], live = messages): UiMessage[] {
+  if (!parents?.length) return messages;
+  const positions = getSessionMessageSnapshot(messages).positions;
+  const livePositions = getSessionMessageSnapshot(live).positions;
+  const missing: UiMessage[] = [];
+  let next = messages;
+  for (const parent of dedupeSessionMessages(parents)) {
+    const index = positions.get(parent.id);
+    if (index === undefined) missing.push(parent);
+    else if (!livePositions.has(parent.id) && messages[index] !== parent) {
+      if (next === messages) next = messages.slice();
+      next[index] = parent;
+    }
+  }
+  return missing.length ? [...missing, ...next] : next;
 }
 
 function replaceReadingOverlap(
@@ -105,12 +124,12 @@ function replaceReadingOverlap(
 }
 
 /** Live output remains authoritative outside an explicit historical search. */
-export function transcriptViewMessages(live: UiMessage[], view?: TranscriptView): UiMessage[] {
-  if (!view) return live;
+export function transcriptViewMessages(live: UiMessage[], view?: TranscriptView, messageParents?: UiMessage[]): UiMessage[] {
+  if (!view) return withMessageParents(live, messageParents);
   // Search holds its selected snapshot. Restoration only stays isolated while
   // unread physical pages separate it from the live tail.
   if (view.focus || (view.restored && view.hasMoreAfter))
-    return withNavigationParent(view.messages, view.parentMessage);
+    return withMessageParents(withNavigationParent(view.messages, view.parentMessage), view.messageParents);
 
   const normalized = dedupeSessionMessages(live);
   const source = getSessionMessageSnapshot(normalized);
@@ -141,7 +160,7 @@ export function transcriptViewMessages(live: UiMessage[], view?: TranscriptView)
     getSessionMessageSnapshot(messages);
   }
   projections.set(source.owner, { source, messages });
-  return messages;
+  return withMessageParents(messages, [...view.messageParents ?? [], ...messageParents ?? []], normalized);
 }
 
 export function extendTranscriptView(
@@ -159,6 +178,7 @@ export function extendTranscriptView(
   return {
     ...view,
     messages,
+    messageParents: dedupeSessionMessages([...view.messageParents ?? [], ...session.messageParents ?? []]),
     messageStart: Math.min(view.messageStart, session.messageStart ?? 0),
     messageEnd: Math.max(view.messageEnd ?? 0, session.messageEnd ?? 0),
     hasMoreBefore: direction === "before" ? session.hasMoreBefore === true : view.hasMoreBefore,

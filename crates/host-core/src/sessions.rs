@@ -11,6 +11,7 @@ use std::collections::HashMap;
 use crate::transcripts::{self, CompactionRecord, MessageRecord, RevisionRecord};
 
 mod fork_files;
+mod message_parents;
 mod model_system;
 mod usage;
 pub use usage::record_usage;
@@ -290,6 +291,9 @@ pub struct SessionDetail {
     /// Owning Task for a nested messageAround target, outside the page cursors.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub navigation_parent: Option<UiMessage>,
+    /// Task anchors for this page's children and roster, outside its cursors.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub message_parents: Vec<UiMessage>,
     /// Zero-based offset of the first returned message when the caller asked
     /// for a window. Omitted for the full-history form.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1648,6 +1652,11 @@ pub fn get_session_with_options(
         .filter_map(|message| message.tool_call_id.as_deref())
         .collect();
     let plan_history = crate::plans::history_for_tool_calls(db, id, &plan_calls)?;
+    let message_parents = if message_start.is_some() {
+        message_parents::read(db, id, &messages, options.content_limit)?
+    } else {
+        Vec::new()
+    };
     let parent_call_id = options.message_around.as_deref().and_then(|target| {
         messages
             .iter()
@@ -1668,6 +1677,7 @@ pub fn get_session_with_options(
         summary,
         plan_history,
         navigation_parent,
+        message_parents,
         message_start,
         message_end,
         has_more_after,
@@ -1865,6 +1875,7 @@ pub fn fork_session_through(
         summary,
         plan_history: Vec::new(),
         navigation_parent: None,
+        message_parents: Vec::new(),
         message_start: None,
         message_end: None,
         has_more_after: None,
@@ -5708,6 +5719,91 @@ mod tests {
                 .unwrap()
                 .content,
             "body 5 newest snapshot"
+        );
+    }
+
+    #[test]
+    fn bounded_reads_keep_delegation_parents_outside_physical_page_cursors() {
+        let db = test_db();
+        let session = create_session(&db, None, None, None, None, None).unwrap();
+        for n in 0..2 {
+            let mut task = user_msg(&format!("task-{n}"), "parent", "2026-10-30T00:00:00Z");
+            task.role = "tool".into();
+            task.tool_name = Some("Task".into());
+            task.tool_call_id = Some(format!("call-{n}"));
+            task.tool_result =
+                Some(json!({ "details": { "delegationId": format!("delegate-{n}") } }));
+            append_message(&db, &session.id, &task, None).unwrap();
+        }
+        for n in 0..4 {
+            append_message(
+                &db,
+                &session.id,
+                &user_msg(&format!("m{n}"), "neighbor", "2026-10-30T00:00:01Z"),
+                None,
+            )
+            .unwrap();
+        }
+        let mut child = user_msg("child", "delegate output", "2026-10-30T00:00:02Z");
+        child.role = "assistant".into();
+        child.parent_tool_call_id = Some("call-0".into());
+        append_message(&db, &session.id, &child, None).unwrap();
+        let mut list = user_msg("list", "roster", "2026-10-30T00:00:03Z");
+        list.role = "tool".into();
+        list.tool_name = Some("TaskList".into());
+        list.tool_result =
+            Some(json!({ "details": { "delegations": [{ "delegationId": "delegate-1" }] } }));
+        append_message(&db, &session.id, &list, None).unwrap();
+        let tail = get_session_with_options(
+            &db,
+            &session.id,
+            SessionReadOptions {
+                message_limit: Some(2),
+                content_limit: Some(128),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(tail.message_start, Some(6));
+        assert_eq!(tail.message_end, Some(8));
+        assert_eq!(tail.has_more_before, Some(true));
+        assert_eq!(
+            tail.messages
+                .iter()
+                .map(|m| m.id.as_str())
+                .collect::<Vec<_>>(),
+            ["child", "list"]
+        );
+        let json = serde_json::to_value(&tail).unwrap();
+        assert_eq!(
+            json["messageParents"].as_array().map(|parents| parents
+                .iter()
+                .map(|m| m["id"].as_str().unwrap())
+                .collect::<Vec<_>>()),
+            Some(vec!["task-0", "task-1"])
+        );
+        let whole = serde_json::to_value(get_session(&db, &session.id).unwrap().unwrap()).unwrap();
+        assert!(
+            whole.get("messageParents").is_none(),
+            "canonical reads stay unchanged"
+        );
+        let page = get_session_with_options(
+            &db,
+            &session.id,
+            SessionReadOptions {
+                message_limit: Some(8),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .unwrap();
+        assert!(
+            serde_json::to_value(page)
+                .unwrap()
+                .get("messageParents")
+                .is_none(),
+            "in-page parents are not duplicated"
         );
     }
 

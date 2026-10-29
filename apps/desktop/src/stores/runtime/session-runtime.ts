@@ -183,6 +183,7 @@ export function createSessionRuntime({ get, set }: StoreAccess): SessionRuntime 
           cacheSessionTranscript(id, messages, {
             messageStart: detail.session.messageStart ?? 0,
             hasMoreBefore: detail.session.hasMoreBefore === true,
+            messageParents: detail.session.messageParents,
             contentLimited: options?.contentLimit !== undefined,
           });
         }

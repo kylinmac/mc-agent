@@ -605,6 +605,9 @@ export const zhCN = {
     subagentCoordinator: "主 Agent",
     subagentCoordinating_one: "正在协调 {{count}} 个委派任务",
     subagentCoordinating_other: "正在协调 {{count}} 个委派任务",
+    subagentCoordinationEnded_one: "委派已结束 · {{count}} 个任务",
+    subagentCoordinationEnded_other: "委派已结束 · {{count}} 个任务",
+    viewSubagent: "查看子代理 {{name}}",
     subagentTopology: "委派任务",
     // Chinese has one plural category, so `_one` never resolves and `_other`
     // has to carry every count. The noun is left unmarked instead of carrying
