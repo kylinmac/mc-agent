@@ -39,7 +39,7 @@ export function SubagentTopology({
         <span className="subagent-topology-root-copy">
           <strong id={labelId}>{t("chat.subagentCoordinator")}</strong>
           <span>
-            {t("chat.subagentCoordinating", { count: summary.total })}
+            {t(summary.running > 0 ? "chat.subagentCoordinating" : "chat.subagentCoordinationEnded", { count: summary.total })}
           </span>
         </span>
       </div>

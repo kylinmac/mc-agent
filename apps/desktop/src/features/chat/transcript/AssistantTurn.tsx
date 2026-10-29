@@ -18,6 +18,8 @@ import {
 import {
   collectDelegationStatuses,
   collectDelegationTimings,
+  isDelegationActivityItem,
+  subagentOutcome,
 } from "../../../lib/subagent-topology";
 import {
   segmentTurnProcess,
@@ -363,6 +365,11 @@ export const AssistantTurn = memo(function AssistantTurn({
   );
   statusesRef.current = turnDelegationStatuses;
   timingsRef.current = turnDelegationTimings;
+  const hasRunningDelegations = useMemo(
+    () => delegationsLive === true && delegationItems.some((item) =>
+      isDelegationActivityItem(item) && subagentOutcome(item.message, turnDelegationStatuses) === "running"),
+    [delegationsLive, delegationItems, turnDelegationStatuses],
+  );
   const { process, responses } = summary;
   // Read at render time, never at entry-build time: the projection cache is keyed
   // by messages and compactions only, so a grouping decision made there would
@@ -406,6 +413,7 @@ export const AssistantTurn = memo(function AssistantTurn({
             turnParts={entry.parts}
             visibleSteps={visibleSteps}
             isActive={isActive}
+            hasRunningDelegations={hasRunningDelegations}
             delegationStatuses={turnDelegationStatuses}
             failed={summary.hasError}
             activity={runtimeActivity}

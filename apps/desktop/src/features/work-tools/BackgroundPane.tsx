@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { BackgroundShell } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
+import { transcriptViewMessages } from "../../lib/transcript-reading";
 import { formatElapsed, sessionSubagents } from "../session-info/session-subagents";
 import { refreshBackgroundShells, useBackgroundFocus, useBackgroundShells } from "./background-shells";
 
@@ -61,6 +62,7 @@ export function BackgroundPane() {
   const { t } = useTranslation();
   const sessionId = useAppStore((s) => s.activeSessionId);
   const messages = useAppStore((s) => s.messages);
+  const messageParents = useAppStore((s) => sessionId ? s.sessionHistory[sessionId]?.messageParents : undefined);
   const isRunning = useAppStore((s) => s.isRunning);
   const openSubagentTab = useAppStore((s) => s.openSubagentTab);
   const shells = useBackgroundShells(sessionId);
@@ -81,10 +83,10 @@ export function BackgroundPane() {
   const [now, setNow] = useState(() => Date.now());
   const subagents = useMemo(
     () =>
-      sessionSubagents(messages, { turnLive: isRunning }).filter(
+      sessionSubagents(transcriptViewMessages(messages, undefined, messageParents), { turnLive: isRunning }).filter(
         (item) => item.status === "running" || item.status === "creating",
       ),
-    [messages, isRunning],
+    [messages, messageParents, isRunning],
   );
   const anyRunning = shells.some((shell) => shell.status === "running") || subagents.length > 0;
   useEffect(() => {

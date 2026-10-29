@@ -6,7 +6,7 @@ register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
 const { createTranscriptReadingRuntime } = await import(
   "../src/stores/runtime/transcript-reading-runtime.ts"
 );
-const { transcriptViewMessages, transcriptViewFromSession } = await import("../src/lib/transcript-reading.ts");
+const { transcriptViewMessages, transcriptViewFromSession, extendTranscriptView } = await import("../src/lib/transcript-reading.ts");
 const { getSessionMessageSnapshot } = await import("../src/lib/session-transcript-updates.ts");
 const { mergeLiveSessionMessages, upsertLiveSessionMessage, projectMessageEnd, removeLiveSessionMessage } = await import("../src/lib/session-transcript.ts");
 const { buildTranscriptEntries } = await import("../src/lib/assistant-turns.ts");
@@ -69,7 +69,7 @@ function reader(read, overrides = {}) {
     ...runtime.actions,
     errors,
     view: () => state.transcriptViews.s,
-    visible: () => transcriptViewMessages(state.messages, state.transcriptViews.s),
+    visible: () => transcriptViewMessages(state.messages, state.transcriptViews.s, state.sessionHistory.s?.messageParents),
   };
 }
 
@@ -229,6 +229,104 @@ test("a nested result opens its real Task and exposes its answer even outside th
   assert.equal(task.delegate.items[0].message.id, child.id);
   assert.equal(r.view().messageStart, 20, "parent context does not move physical cursors");
   r.returnToLatestTranscript("s");
+});
+
+test("page parents render missing cards without entering canonical history or changing cursors", async () => {
+  const parent = message("task", "current parent", { role: "tool", toolName: "Task", toolCallId: "call" });
+  const child = message("child", "answer", { role: "assistant", parentToolCallId: "call" });
+  const live = [child];
+  const visible = transcriptViewMessages(live, undefined, [parent]);
+  assert.deepEqual(live, [child]);
+  const { entries } = buildTranscriptEntries(visible);
+  assert.equal(entries[0].parts[0].items[0].message.id, "task");
+  assert.equal(entries[0].parts[0].items[0].delegate.items[0].message.id, "child");
+
+  const r = reader(async () => page([message("middle")], {
+    messageStart: 100, messageEnd: 120, messageParents: [parent],
+  }), {
+    messages: live,
+    sessionHistory: { s: { messageStart: 120, hasMoreBefore: true, messageParents: [parent] } },
+  });
+  await r.loadTranscriptPage("s", "before");
+  assert.deepEqual(r.view().messages.map((m) => m.id), ["middle", "child"]);
+  assert.equal(r.view().messageStart, 100);
+  assert.equal(r.view().messageEnd, 120);
+  assert.deepEqual(r.visible().map((m) => m.id), ["task", "middle", "child"]);
+  assert.equal(r.get().messages, live);
+
+  const canonical = { ...parent, content: "canonical parent" };
+  const withParent = transcriptViewFromSession(page([canonical, child], { messageParents: [parent] }).session);
+  const loaded = transcriptViewMessages([canonical, child], withParent);
+  assert.deepEqual(loaded.map((m) => m.id), ["task", "child"]);
+  assert.equal(loaded[0], canonical, "normal page rows outrank presentation-only anchors");
+});
+
+test("fresh parent snapshots settle ordinary views while live rows and historical isolation win", async () => {
+  const running = message("task", "running", { role: "tool", toolName: "Task", toolCallId: "call", status: "running" });
+  const completed = { ...running, content: "completed", status: "completed" };
+  const child = message("child", "answer", { parentToolCallId: "call" });
+  const view = transcriptViewFromSession(page([child], {
+    messageParents: [running], hasMoreAfter: false,
+  }).session);
+  assert.equal(transcriptViewMessages([child], view, [completed])[0], completed);
+  assert.equal(transcriptViewMessages([child], { ...view, messages: [running, child] }, [completed])[0], completed);
+  assert.equal(transcriptViewMessages([completed, child], view, [running])[0], completed);
+  assert.equal(transcriptViewMessages([child], { ...view, focus: target("child") }, [completed])[0], running);
+  assert.equal(transcriptViewMessages([child], { ...view, restored: true, hasMoreAfter: true }, [completed])[0], running);
+
+  const freshPage = page([message("middle")], {
+    messageStart: 10, messageEnd: 20, messageParents: [completed],
+  });
+  const extended = extendTranscriptView(view, freshPage.session, "before");
+  assert.equal(transcriptViewMessages([child], extended)[0], completed);
+  const r = reader(async () => freshPage, {
+    messages: [child],
+    sessionHistory: { s: { messageStart: 20, hasMoreBefore: true, messageParents: [running] } },
+  });
+  await r.loadTranscriptPage("s", "before");
+  assert.equal(r.visible()[0], completed, "new page metadata must outrank previously cached live anchors");
+  r.returnToLatestTranscript("s");
+  assert.equal(r.visible()[0], completed);
+  assert.equal(r.get().sessionHistory.s.messageStart, 20);
+});
+
+test("a page response cannot replace parent metadata revalidated while it was loading", async () => {
+  const running = message("task", "running", { role: "tool", toolName: "Task", toolCallId: "call" });
+  const completed = { ...running, content: "completed" };
+  const otherRunning = { ...running, id: "other-task", toolCallId: "other-call" };
+  const otherCompleted = { ...otherRunning, content: "completed" };
+  const child = message("child", "answer", { parentToolCallId: "call" });
+  const response = deferred();
+  const r = reader(() => response.promise, {
+    messages: [child],
+    sessionHistory: { s: { messageStart: 20, hasMoreBefore: true, messageParents: [running, otherRunning] } },
+  });
+  const loading = r.loadTranscriptPage("s", "before");
+  r.set({ sessionHistory: { s: { ...r.get().sessionHistory.s, messageParents: [completed, otherRunning] } } });
+  response.resolve(page([message("older")], { messageStart: 10, messageEnd: 20, messageParents: [running, otherCompleted] }));
+  await loading;
+  assert.equal(r.get().sessionHistory.s.messageParents[0], completed);
+  assert.equal(r.visible()[0], completed);
+  assert.equal(r.get().sessionHistory.s.messageParents[1], otherCompleted);
+  assert.equal(r.visible()[1], otherCompleted, "an unchanged sibling still accepts the fresh page result");
+});
+
+test("restored parents join current metadata only after paging closes the historical gap", async () => {
+  const running = message("task", "running", { role: "tool", toolName: "Task", toolCallId: "call" });
+  const completed = { ...running, content: "completed" };
+  const child = message("child", "answer", { parentToolCallId: "call" });
+  const restored = { ...transcriptViewFromSession(page([message("old")], { messageParents: [running] }).session), restored: true };
+  const r = reader(async () => page([child], {
+    messageStart: 80, messageEnd: 100, messageParents: [completed], hasMoreAfter: false,
+  }), {
+    messages: [child],
+    sessionHistory: { s: { messageStart: 80, hasMoreBefore: true, messageParents: [running] } },
+    transcriptViews: { s: restored },
+  });
+  await r.loadTranscriptPage("s", "after");
+  assert.equal(r.view().hasMoreAfter, false);
+  assert.equal(r.get().sessionHistory.s.messageParents[0], completed);
+  assert.equal(r.visible()[0], completed);
 });
 
 test("a failed search cannot restore a cancelled page's loading state or ownership", async () => {

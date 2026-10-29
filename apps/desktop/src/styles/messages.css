@@ -3581,6 +3581,21 @@
   font-style: italic;
 }
 
+.subagent-roster-links {
+  display: flex;
+  max-height: 260px;
+  flex-wrap: wrap;
+  gap: 6px;
+  overflow: auto;
+  overscroll-behavior-y: contain;
+}
+
+.subagent-roster-link {
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+}
+
 /* Scalar payload entries (plugin tools, argument previews). Bounded like every
    other detail block (`.tool-row-content`, `.tool-file-list`): a roster of ten
    delegates or a payload with thirty fields must not push the reading position

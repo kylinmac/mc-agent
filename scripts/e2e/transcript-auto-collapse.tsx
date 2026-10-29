@@ -74,7 +74,7 @@ export async function transcriptAutoCollapseProbe() {
   };
   const configure = (patch: Partial<AppSettings> = {}) =>
     flushSync(() => useAppStore.setState({ settings: { ...settings, ...patch } }));
-  const render = (id: string, messages: UiMessage[], active: boolean) => {
+  const render = (id: string, messages: UiMessage[], active: boolean, delegationsLive = false) => {
     const entry = buildTranscriptEntries(messages).entries.find(
       (item) => item.kind === "assistant-turn",
     );
@@ -83,7 +83,7 @@ export async function transcriptAutoCollapseProbe() {
       root.render(
         <I18nextProvider i18n={i18n}>
           <TranscriptDisclosureProvider key={id}>
-            <AssistantTurn entry={entry} isActive={active} />
+            <AssistantTurn entry={entry} isActive={active} delegationsLive={delegationsLive} />
           </TranscriptDisclosureProvider>
         </I18nextProvider>,
       ),
@@ -132,6 +132,41 @@ export async function transcriptAutoCollapseProbe() {
     });
 
   try {
+    configure();
+
+    const task = message("delegate", "tool", "", {
+      toolName: "Task", toolCallId: "delegate", toolStatus: "success",
+      toolArgs: { agent: "explorer", task: "Investigate" },
+      toolResult: { details: { delegationId: "delegate-run", status: "running" } },
+    });
+    const completedTask: UiMessage = { ...task,
+      toolResult: { details: { delegationId: "delegate-run", status: "completed" } },
+    };
+    for (const mode of ["fully-folded", "command-first", "flat"] as const) {
+      configure({ transcriptDisplayMode: mode });
+      const key = `live-delegate-${mode}`;
+      render(key, [task], true, true);
+      render(key, [task], false, true);
+      const topology = container.querySelector<HTMLElement>(".subagent-topology");
+      check(expanded(header()) && Boolean(topology?.getBoundingClientRect().height) &&
+        !topology?.closest("[hidden], [inert], [aria-hidden=true]"),
+      `${mode}: steering keeps the earlier live delegation card visible`);
+      check(!container.querySelector(".turn-process.active") &&
+        header()?.textContent?.includes("Finished"),
+      `${mode}: live delegates do not rewrite the earlier segment's turn status`);
+      render(key, [completedTask], false, true);
+      check(!expanded(header()), `${mode}: settling the last delegate restores automatic folding`);
+
+      render(`${key}-manual`, [task], true, true);
+      click(header());
+      render(`${key}-manual`, [task], false, true);
+      check(!expanded(header()) && container.querySelector<HTMLElement>(".turn-process-body")?.hidden,
+        `${mode}: steering and live delegates respect a manually collapsed process`);
+
+      render(`${key}-history`, [task], false, false);
+      check(!expanded(header()) && !container.textContent?.includes("Subagent working"),
+        `${mode}: old running payloads do not reopen a completed runtime turn`);
+    }
     configure();
 
     // A mere press is not a disclosure choice: the automatic close at settle

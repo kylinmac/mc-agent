@@ -583,6 +583,9 @@ export const zhTW = {
     subagentCoordinator: "主 Agent",
     subagentCoordinating_one: "正在協調 {{count}} 個委派任務",
     subagentCoordinating_other: "正在協調 {{count}} 個委派任務",
+    subagentCoordinationEnded_one: "委派已結束 · {{count}} 個任務",
+    subagentCoordinationEnded_other: "委派已結束 · {{count}} 個任務",
+    viewSubagent: "查看子代理 {{name}}",
     subagentTopology: "委派任務",
     // Chinese has one plural category, so `_one` never resolves and `_other`
     // has to carry every count. The noun is left unmarked instead of carrying

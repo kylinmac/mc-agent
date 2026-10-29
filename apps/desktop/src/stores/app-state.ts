@@ -90,6 +90,8 @@ export type PendingPlanRefreshResult = "pending" | "terminal" | "unavailable";
 export type SessionHistoryWindow = {
   messageStart: number;
   hasMoreBefore: boolean;
+  /** Presentation-only Task anchors; never part of the canonical message window. */
+  messageParents?: UiMessage[];
   /** A display-capped tail is not canonical action input, even in a short chat. */
   contentLimited?: boolean;
 };

@@ -84,6 +84,8 @@ export type SessionDetail = SessionSummary & {
   planHistory?: PlanHistoryEntry[];
   /** Owning Task for a nested search target; context only, outside page cursors. */
   navigationParent?: UiMessage;
+  /** Task anchors needed by this page's child messages or roster, outside its cursors. */
+  messageParents?: UiMessage[];
   /** Zero-based offset of the first message returned by a bounded history read. */
   messageStart?: number;
   /** Exclusive physical end of a bounded read; not the deduplicated length. */

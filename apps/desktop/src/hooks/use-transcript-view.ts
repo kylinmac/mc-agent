@@ -11,7 +11,8 @@ export function useTranscriptView(sessionId: string) {
   );
   const history = useAppStore((state) => state.sessionHistory[sessionId]);
   const view = useAppStore((state) => state.transcriptViews[sessionId]);
-  const messages = useMemo(() => transcriptViewMessages(live, view), [live, view]);
+  const parents = history?.messageParents;
+  const messages = useMemo(() => transcriptViewMessages(live, view, parents), [live, view, parents]);
   return {
     messages,
     hasMoreBefore: view?.hasMoreBefore ?? history?.hasMoreBefore ?? false,
