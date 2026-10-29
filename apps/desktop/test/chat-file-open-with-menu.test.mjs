@@ -257,6 +257,53 @@ test("the File Manager opens the resolved project or scratch path", async () => 
   assert.equal(calls.tabs[0].location, "C:/data/scratch/session-1/page.html");
 });
 
+/** The match the main process reports for an existing folder of the project. */
+function folderMatch(overrides = {}) {
+  return projectMatch({
+    relativePath: "分析成果/系统提示词",
+    absolutePath: "C:/project/分析成果/系统提示词",
+    directory: true,
+    ...overrides,
+  });
+}
+
+/** Click a reference the way the transcript does, optionally at a line. */
+async function clickRef(path, options) {
+  let open = null;
+  function Harness() {
+    open = previewTarget.useOpenChatFileRef();
+    return null;
+  }
+  renderToStaticMarkup(React.createElement(Harness));
+  open(path, undefined, undefined, options);
+  await flush();
+}
+
+test("a folder link opens that folder in the File Manager, never as a file", async () => {
+  reset(folderMatch());
+  await clickRef("分析成果/系统提示词");
+  assert.deepEqual(calls.tabs.map((tab) => tab.location), ["分析成果/系统提示词"]);
+  assert.deepEqual(calls.files, []);
+  assert.deepEqual(calls.toasts, []);
+  // A line number means nothing for a folder; it still opens the folder.
+  reset(folderMatch());
+  await clickRef("分析成果/系统提示词", { line: 3 });
+  assert.deepEqual(calls.tabs.map((tab) => tab.location), ["分析成果/系统提示词"]);
+  assert.deepEqual(calls.files, []);
+  // A folder of a sibling project folder travels by its absolute path.
+  reset(folderMatch({ absolutePath: "C:/second/docs", relativePath: "docs", projectRoot: { primary: false } }));
+  await clickRef("docs");
+  assert.deepEqual(calls.tabs.map((tab) => tab.location), ["C:/second/docs"]);
+});
+
+test("a folder link copies its full address and its project-relative one", async () => {
+  reset(folderMatch());
+  copied.length = 0;
+  await copyRef("分析成果/系统提示词", "absolute");
+  await copyRef("分析成果/系统提示词", "relative");
+  assert.deepEqual(copied, ["C:/project/分析成果/系统提示词", "分析成果/系统提示词"]);
+});
+
 test("HTML can open in the embedded or default browser at its resolved address", async () => {
   reset(projectMatch({ relativePath: "page.html", absolutePath: "C:/project/page.html" }));
   await openWithDestination("page.html", "built-in-browser");

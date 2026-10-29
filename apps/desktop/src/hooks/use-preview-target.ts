@@ -86,6 +86,8 @@ export type ResolvedChatFileRef = {
   primary: boolean;
   /** Session-owned generated artifacts, rather than imported attachments. */
   scratch: boolean;
+  /** The reference names an existing folder; only the File Manager shows it. */
+  directory: boolean;
 };
 
 export type ChatFileOpenDestination =
@@ -210,6 +212,7 @@ function useResolveChatFileRef() {
           inProject: false,
           primary: false,
           scratch: match.sessionScratch === true,
+          directory: match.directory === true,
         };
       }
       // A project group can hold several folders, and a relative path always
@@ -223,6 +226,7 @@ function useResolveChatFileRef() {
         inProject: true,
         primary,
         scratch: false,
+        directory: match.directory === true,
       };
     },
     [paneSessionId, sessionId, showToast, t, workspacePath],
@@ -323,6 +327,23 @@ export function useOpenChatFileRef() {
               variant: "error",
             });
           }
+          return;
+        }
+        // A folder has no file view and no line to scroll to: it opens in the
+        // File Manager or not at all.
+        if (resolved.directory) {
+          if (current.workspace?.remote || !(await ensureFileManagerView(workspacePath))) {
+            showToast(t("chat.fileManagerUnavailable"), { variant: "error" });
+            return;
+          }
+          const latest = useAppStore.getState();
+          if (
+            (latest.workspace?.path ?? null) !== workspacePath ||
+            latest.activeSessionId !== sessionId
+          ) {
+            return;
+          }
+          openTab(fileManagerPluginTab(resolved.inProject ? resolved.path : resolved.absolutePath));
           return;
         }
         const hasPosition = line !== undefined || column !== undefined;

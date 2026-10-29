@@ -117,9 +117,15 @@ export type FsChatRefMatch = {
   sessionScratch?: boolean;
   /** POSIX path relative to the matched root. */
   relativePath: string;
-  /** Native absolute path of the matched regular file. */
+  /** Native absolute path of the matched regular file or folder. */
   absolutePath: string;
   matchedBy: FsChatRefMatchKind;
+  /**
+   * The reference named an existing folder, not a file. Only an exact path
+   * (relative or absolute) in the project or scratch roots matches a folder;
+   * suffix completion and attachments stay file-only.
+   */
+  directory?: true;
   /**
    * Which folder of the project answered, for `root: "workspace"`. The caller
    * needs it to decide how to address the file: relative for the primary
