@@ -22,7 +22,8 @@ try {
     platform: "browser",
     format: "iife",
     jsx: "automatic",
-    define: { "process.env.NODE_ENV": '"production"' },
+    define: { "process.env.NODE_ENV": '"production"', "import.meta.env": "{}" },
+    loader: { ".css": "empty" },
     alias: {
       "@pi-desktop/i18n": join(root, "packages/i18n/src/index.ts"),
       react: join(root, "apps/desktop/node_modules/react"),
@@ -106,7 +107,7 @@ app.whenReady().then(async () => {
       { modelId: "model-b", thinkingLevel: "low" },
     ],
   );
-  console.log("PASS Composer applies a switched model default and preserves same-model manual thinking");
+  console.log("PASS Composer model/reasoning selection, pending/applying/failed notices, compaction progress and independent timing");
 } finally {
   await rm(temp, { recursive: true, force: true });
 }

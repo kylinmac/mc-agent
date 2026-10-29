@@ -10495,13 +10495,15 @@ describe("DesktopAgentRuntime compaction request headers", () => {
     };
   }
 
-  /** Replaces the collection with a recorder; only `completeSimple` is used. */
+  /** Replaces the summary stream with an immediate recorder. */
   function captureSummaryRequest(runtime: DesktopAgentRuntime) {
     const calls: any[] = [];
     (runtime as any).models = {
-      completeSimple: async (_model: unknown, _context: unknown, options: unknown) => {
+      streamSimple: (_model: unknown, _context: unknown, options: unknown) => {
         calls.push(options);
-        return assistantMessage({ content: [{ type: "text", text: "Older work." }] });
+        const stream = createAssistantMessageEventStream();
+        stream.end(assistantMessage({ content: [{ type: "text", text: "Older work." }] }) as AssistantMessage);
+        return stream;
       },
     };
     return calls;
@@ -10542,9 +10544,67 @@ describe("DesktopAgentRuntime compaction request headers", () => {
     expect(calls[0]?.headers).toEqual({ "X-Team": "platform" });
     await runtime.dispose();
   });
+
+  it("keeps omitted reasoning omitted through the full summary request", async () => {
+    const runtime = createRuntime({ thinkingLevel: "omit", provider: {
+      ...provider, supportsReasoning: true, supportedThinkingLevels: ["off", "minimal", "medium"],
+    } });
+    const seen: { reasoning?: unknown; off?: string | null }[] = [];
+    const internal = runtime as unknown as {
+      models: { streamSimple: (model: { thinkingLevelMap?: { off?: string | null } }, context: unknown, options?: { reasoning?: unknown }) => ReturnType<typeof createAssistantMessageEventStream> };
+      generateCompaction: (input: ReturnType<typeof preparation>, signal: AbortSignal) => Promise<{ ok: boolean }>;
+    };
+    internal.models = { streamSimple: (model, _context, options) => {
+      seen.push({ reasoning: options?.reasoning, off: model.thinkingLevelMap?.off });
+      const stream = createAssistantMessageEventStream();
+      stream.end(assistantMessage({ content: [{ type: "text", text: "Critical context retained" }] }) as AssistantMessage);
+      return stream;
+    } };
+    try {
+      expect((await internal.generateCompaction(preparation(), new AbortController().signal)).ok).toBe(true);
+      expect(seen).toEqual([{ reasoning: undefined, off: null }]);
+    } finally {
+      await runtime.dispose();
+    }
+  });
 });
 
 describe("DesktopAgentRuntime compaction summary retry and sizing (#543, ADR 0282)", () => {
+  it.each(["manual", "threshold"] as const)("does not install a truncated %s summary as a successful checkpoint", async (reason) => {
+    const host = { call: vi.fn().mockResolvedValue(undefined) };
+    const runtime = createRuntime({ host, history: [
+      { id: "goal", role: "user", content: "Keep database migrations reversible; finish the upgrade.", createdAt: "2026-10-30T00:00:00Z", status: "complete" },
+      { id: "evidence", role: "assistant", content: "Rollback test passed; compatibility test is still pending.", createdAt: "2026-10-30T00:00:01Z", status: "complete" },
+    ] });
+    const internal = runtime as unknown as {
+      models: { streamSimple: () => ReturnType<typeof createAssistantMessageEventStream> };
+      runCompaction: (reason: "manual" | "threshold", willRetry: boolean, retentionMode: "active_turn") => Promise<boolean>;
+    };
+    internal.models = { streamSimple: () => {
+      const stream = createAssistantMessageEventStream();
+      stream.end(assistantMessage({ content: [{ type: "text", text: "INCOMPLETE CHECKPOINT" }], stopReason: "length" }) as AssistantMessage);
+      return stream;
+    } };
+    try {
+      const ok = await internal.runCompaction(reason, false, "active_turn");
+      const writes = host.call.mock.calls.filter(([method]) => method === "session.appendCompaction");
+      if (reason === "manual") {
+        expect(ok).toBe(false);
+        expect(writes).toHaveLength(0);
+      } else {
+        expect(ok).toBe(true);
+        expect(writes).toHaveLength(1);
+        const checkpoint = writes[0]![1].compaction as ContextCompactionRecord;
+        expect(checkpoint.details).toMatchObject({ fallback: "retained_tail", failureReason: "summary_provider" });
+        expect(checkpoint.summary).not.toContain("INCOMPLETE CHECKPOINT");
+        expect(JSON.stringify(checkpoint.retainedTail)).toContain("Keep database migrations reversible");
+        expect(JSON.stringify(checkpoint.retainedTail)).toContain("compatibility test is still pending");
+      }
+    } finally {
+      await runtime.dispose();
+    }
+  });
+
   /** The shape `prepareCompaction` returns for a single-turn history. */
   function preparation(messagesToSummarize: unknown[] = [
     {
@@ -10575,15 +10635,17 @@ describe("DesktopAgentRuntime compaction summary retry and sizing (#543, ADR 028
     };
   }
 
-  /** Scripted `completeSimple` responses; the recorder returns them in order. */
-  function scriptSummaryRequests(runtime: DesktopAgentRuntime, responses: unknown[]) {
+  /** Scripted summary streams; the recorder returns them in order. */
+  function scriptSummaryRequests(runtime: DesktopAgentRuntime, responses: ReturnType<typeof assistantMessage>[]) {
     const calls: unknown[] = [];
     (runtime as any).models = {
-      completeSimple: async (_model: unknown, _context: unknown, options: unknown) => {
+      streamSimple: (_model: unknown, _context: unknown, options: unknown) => {
         calls.push(options);
         const next = responses.shift();
         if (!next) throw new Error("unexpected summary request");
-        return next;
+        const stream = createAssistantMessageEventStream();
+        stream.end(next as AssistantMessage);
+        return stream;
       },
     };
     return calls;
@@ -10621,6 +10683,43 @@ describe("DesktopAgentRuntime compaction summary retry and sizing (#543, ADR 028
       expect(result.value.summary).toContain("Older work.");
       await runtime.dispose();
     } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reports summary stages and retry attempts without resetting compression elapsed time", async () => {
+    vi.useFakeTimers();
+    const runtime = createRuntime();
+    const streams: ReturnType<typeof createAssistantMessageEventStream>[] = [];
+    const internal = runtime as unknown as {
+      agentActivity: { phase: "compacting"; since: number; reason: "manual" };
+      models: { streamSimple: () => ReturnType<typeof createAssistantMessageEventStream> };
+      generateCompaction: (input: ReturnType<typeof preparation>, signal: AbortSignal) => Promise<{ ok: boolean }>;
+    };
+    internal.agentActivity = { phase: "compacting", since: 7, reason: "manual" };
+    internal.models = { streamSimple: () => {
+      const stream = createAssistantMessageEventStream();
+      streams.push(stream);
+      return stream;
+    } };
+    try {
+      const pending = internal.generateCompaction(preparation(), new AbortController().signal);
+      expect(runtime.getStatus().activity).toMatchObject({ since: 7, stage: "waiting", attempt: 1 });
+      streams[0]!.end(providerError("503 Service Unavailable") as AssistantMessage);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(runtime.getStatus().activity).toMatchObject({ since: 7, stage: "retrying", attempt: 2, retryDelayMs: 2_000 });
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(runtime.getStatus().activity).toMatchObject({ since: 7, stage: "waiting", attempt: 2 });
+      expect(runtime.getStatus().activity).not.toHaveProperty("retryDelayMs");
+      const response = assistantMessage({ content: [{ type: "text", text: "Context retained" }] }) as AssistantMessage;
+      streams[1]!.push({ type: "text_delta", contentIndex: 0, delta: "Context retained", partial: response });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(runtime.getStatus().activity).toMatchObject({ since: 7, stage: "generating", attempt: 2 });
+      streams[1]!.end(response);
+      expect((await pending).ok).toBe(true);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      await runtime.dispose();
       vi.useRealTimers();
     }
   });

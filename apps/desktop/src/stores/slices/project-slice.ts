@@ -230,6 +230,7 @@ function clearLocalSessionState(
       sessionMeta,
       sessions,
       runningSessions,
+      sessionConfigurationStatus: withoutRecordKey(state.sessionConfigurationStatus ?? {}, id),
       agentStatuses,
       sessionOutcomes,
       queuedPrompts,

@@ -7323,6 +7323,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       phase: "compacting",
       since: Date.now(),
       reason,
+      stage: "waiting",
     });
     try {
       const runner = this.extensionRunner;
@@ -7889,6 +7890,17 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     const requestId = randomUUID();
     this.compactionRequestShape = undefined;
     this.compactionShapeLogged = false;
+    const progress = (
+      stage: "waiting" | "generating" | "retrying",
+      attempt: number,
+      retryDelayMs?: number,
+    ) => {
+      if (signal.aborted || this.agentActivity?.phase !== "compacting") return;
+      const { since, reason } = this.agentActivity;
+      this.setAgentActivity({ phase: "compacting", since, reason, stage, attempt,
+        ...(retryDelayMs !== undefined ? { retryDelayMs } : {}) });
+    };
+    let attempt = 0;
     const models = withCompactionRequestHeaders(
       this.models,
       this.provider,
@@ -7902,6 +7914,10 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
           ...shape,
         });
       },
+      (stage) => {
+        if (stage === "waiting") attempt++;
+        progress(stage, attempt);
+      },
     );
     try {
       const result = await compact(
@@ -7912,12 +7928,12 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         models,
         this.model,
         undefined,
-        agentThinkingLevel(this.thinkingLevel),
+        this.thinkingLevel,
         // Without a policy pi-ai returns the first failed response as-is, which
         // made a single dropped stream or 503 discard the whole summary (#543).
         // pi's classifier decides what is transient; the waits honour `signal`.
         COMPACTION_SUMMARY_RETRY_POLICY,
-        undefined,
+        { onRetryScheduled: (_retry, _max, delayMs) => progress("retrying", attempt + 1, delayMs) },
         signal,
       );
       if (!result.ok) {

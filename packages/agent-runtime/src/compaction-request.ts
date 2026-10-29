@@ -36,6 +36,7 @@ import {
   withSessionPromptCacheKey,
 } from "./session-affinity.js";
 import { compactionRequestShape, type CompactionRequestShape } from "./compaction-diagnostics.js";
+import { completeCompactionStream, type CompactionRequestStage } from "./compaction-stream.js";
 
 /**
  * The header set `streamFn` puts on a turn, applied to a summary request.
@@ -55,7 +56,8 @@ export function compactionRequestOptions(input: {
   return withSessionAffinityOptions(
     withProviderHeaders(
       withOpenCodeSessionHeaders(
-        { ...options, sessionId, reasoning: requestThinkingLevel(model, options?.reasoning ?? "off") },
+        { ...options, sessionId,
+          ...(options?.reasoning !== undefined ? { reasoning: requestThinkingLevel(model, options.reasoning) } : {}) },
         { ...openCodeEndpointFromProvider(provider, model), sessionId },
       ),
       mergeProviderHeaders(
@@ -116,6 +118,7 @@ export function withCompactionRequestHeaders(
   sessionId: string,
   onUsage?: UsageObserver,
   onRequestShape?: (shape: CompactionRequestShape) => void,
+  onStage?: (stage: CompactionRequestStage) => void,
 ): Models {
   const completeSimple: Models["completeSimple"] = async (model, context, options) => {
     const identity = { ...requestUsageIdentity(model, provider.id), costStatus: nativeCostStatus(provider.modelConfig?.nativeCost) };
@@ -160,7 +163,7 @@ export function withCompactionRequestHeaders(
         return keyed === base ? replacement : keyed;
       };
     }
-    const result = await models.completeSimple(model, context, requestOptions);
+    const result = await completeCompactionStream(models, model, context, requestOptions, onStage);
     return onUsage ? accountModelResult(result, identity, onUsage) : result;
   };
   return new Proxy(models, {

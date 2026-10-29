@@ -14,6 +14,21 @@ describe("ParentHostProxy RPC deadlines", () => {
     vi.restoreAllMocks();
   });
 
+  it("keeps active compaction open past the old deadline but rejects it on transport close", async () => {
+    vi.useFakeTimers();
+    stubStdout();
+    const proxy = new ParentHostProxy();
+    const pending = proxy.call("agent.compact", { sessionId: "summary" });
+    const settled = vi.fn();
+    void pending.then(settled, settled);
+    await vi.advanceTimersByTimeAsync(20 * 60_000);
+    expect(settled).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+    const rejected = expect(pending).rejects.toThrow("parent host proxy disposed");
+    await proxy.dispose();
+    await rejected;
+  });
+
   it("exposes the stable error code received from the host", async () => {
     const stdout = stubStdout();
     const proxy = new ParentHostProxy();

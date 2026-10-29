@@ -60,6 +60,7 @@ import { switchWorkPanelSession } from "./work-panel-slice";
 
 export type SessionSliceDependencies = StoreAccess & {
   runtime: SessionRuntime;
+  flushPendingSessionConfiguration: (sessionId: string, throwOnFailure?: boolean) => Promise<void>;
   decorateSessions: (
     sessions: SessionSummary[],
     meta: Record<string, SessionMeta>,
@@ -148,6 +149,7 @@ export function createSessionSlice({
   get,
   set,
   runtime,
+  flushPendingSessionConfiguration,
   decorateSessions,
   withoutRecordKey,
   sessionModeForPlanningState,
@@ -174,7 +176,11 @@ export function createSessionSlice({
   const refreshSessionList = createRefreshCoordinator(async () => {
     const result = await api.listSessions();
     set((state) => {
-      const next = result.sessions.map(safeSessionSummary);
+      const next = result.sessions.map((session) => {
+        const safe = safeSessionSummary(session);
+        const pending = runtime.pendingSessionConfigurations.get(session.id);
+        return pending ? applyOptimisticSessionConfiguration(safe, pending) : safe;
+      });
       const active = state.sessions.find((session) => session.id === state.activeSessionId);
       // A disconnected host may temporarily disappear from inventory; keep the
       // active identity fail-closed until an authoritative detail/list replaces it.
@@ -809,47 +815,25 @@ export function createSessionSlice({
       }
       if (!sessionAllows(get().sessions.find((session) => session.id === sessionId), "canConfigureModel")) return;
       if (get().pendingPlans[sessionId]?.status === "pending") return;
-      if (
-        get().runningSessions[sessionId] ||
-        runtime.sessionConfigurationFlushes.has(sessionId)
-      ) {
-        runtime.pendingSessionConfigurations.set(
-          sessionId,
-          runtime.mergeSessionConfiguration(
-            runtime.pendingSessionConfigurations.get(sessionId),
-            config,
-          ),
-        );
-        set((state) => ({
-          sessions: state.sessions.map((session) =>
-            session.id === sessionId
-              ? applyOptimisticSessionConfiguration(session, config)
-              : session,
-          ),
-        }));
-        return;
-      }
-      const payload = runtime.mergeSessionConfiguration(
-        runtime.pendingSessionConfigurations.get(sessionId),
-        config,
+      runtime.pendingSessionConfigurations.set(
+        sessionId,
+        runtime.mergeSessionConfiguration(
+          runtime.pendingSessionConfigurations.get(sessionId),
+          config,
+        ),
       );
-      runtime.pendingSessionConfigurations.delete(sessionId);
-      const result = await api.configureSession(sessionId, payload);
       set((state) => ({
+        sessionConfigurationStatus: {
+          ...state.sessionConfigurationStatus,
+          [sessionId]: state.runningSessions[sessionId] ? "pending" : "applying",
+        },
         sessions: state.sessions.map((session) =>
           session.id === sessionId
-            ? {
-                ...result.session,
-                pinned: sessionIsPinned(sessionId, state.sessionMeta),
-                archived: sessionIsArchived(sessionId, state.sessionMeta),
-              }
+            ? applyOptimisticSessionConfiguration(session, config)
             : session,
         ),
-        planningStates: {
-          ...state.planningStates,
-          [sessionId]: result.session.mode === "plan" ? "planning" : "inactive",
-        },
       }));
+      if (!get().runningSessions[sessionId]) await flushPendingSessionConfiguration(sessionId, true);
     },
 
     /** Abort one session's running turn, whether or not it is the visible one. */

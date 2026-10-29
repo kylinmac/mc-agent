@@ -276,11 +276,9 @@ describe("Plan protocol contracts", () => {
     expect(rpcTimeoutMs("worktree.merge", {})).toBe(130_000);
   });
 
-  it("outlasts the whole model request a manual compaction spends (#795)", () => {
-    // One summary prompt plus the sidecar's retry budget: every attempt that
-    // stops producing events is cut by the stream watchdog, and each retry pays
-    // its backoff wait. A flat 130s fired on a ~158s compaction, so Electron
-    // reported a failure while the sidecar persisted the checkpoint anyway.
+  it("lets the sidecar own summary idle time without an aggregate RPC deadline", () => {
+    // Existing exports remain readable, but are not a wall-clock ceiling for
+    // a summary that keeps producing events or needs several sequential chunks.
     expect(STREAM_IDLE_TIMEOUT_MS).toBe(180_000);
     expect(COMPACTION_SUMMARY_MAX_RETRIES).toBe(3);
     expect(COMPACTION_SUMMARY_RETRY_BUDGET_MS).toBe(14_000);
@@ -290,9 +288,7 @@ describe("Plan protocol contracts", () => {
         COMMAND_RPC_BUFFER_MS,
     );
     expect(AGENT_COMPACT_RPC_TIMEOUT_MS).toBe(744_000);
-    expect(rpcTimeoutMs("agent.compact", { sessionId: "s" })).toBe(
-      AGENT_COMPACT_RPC_TIMEOUT_MS,
-    );
+    expect(rpcTimeoutMs("agent.compact", { sessionId: "s" })).toBeUndefined();
     // The deadline is per-method on purpose: widening the global default would
     // hide a genuinely lost reply on every other call.
     expect(rpcTimeoutMs("agent.getStatus", { sessionId: "s" })).toBe(130_000);

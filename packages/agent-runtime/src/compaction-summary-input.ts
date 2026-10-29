@@ -30,8 +30,8 @@ import { DEFAULT_MAX_TOKENS } from "./provider-binding.js";
  * Retries after the first failed summary request. pi-ai only retries responses
  * its classifier calls transient (overload, 5xx, dropped streams, timeouts);
  * quota, auth, and malformed-request failures return on the first attempt.
- * Waits are 2s, 4s, 8s, so a flapping provider costs at most ~14s of extra
- * wall clock before the retained-tail fallback runs.
+ * Waits add at most 14s of backoff (2s, 4s, 8s), in addition to the time each
+ * attempt spends receiving or waiting for provider events.
  */
 export const COMPACTION_SUMMARY_MAX_RETRIES = 3;
 export const COMPACTION_SUMMARY_RETRY_BASE_MS = 2_000;

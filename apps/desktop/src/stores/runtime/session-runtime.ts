@@ -55,7 +55,7 @@ export type SessionRuntime = {
   readonly sessionHistoryCache: Map<string, SessionHistoryWindow>;
   readonly submittedComposerDrafts: Map<string, SubmittedComposerDraft>;
   readonly pendingSessionConfigurations: Map<string, SessionConfiguration>;
-  readonly sessionConfigurationFlushes: Map<string, Promise<void>>;
+  readonly sessionConfigurationFlushes: Map<string, Promise<Error | undefined>>;
   beginNavigationIntent: () => number;
   navigationIntentIsCurrent: (intent: number) => boolean;
   newSessionScopeKey: (projectPath?: string | null) => string;
@@ -133,7 +133,7 @@ export function createSessionRuntime({ get, set }: StoreAccess): SessionRuntime 
   const sessionHistoryCache = new Map<string, SessionHistoryWindow>();
   const submittedComposerDrafts = new Map<string, SubmittedComposerDraft>();
   const pendingSessionConfigurations = new Map<string, SessionConfiguration>();
-  const sessionConfigurationFlushes = new Map<string, Promise<void>>();
+  const sessionConfigurationFlushes = new Map<string, Promise<Error | undefined>>();
   const sessionDetailLoads = new Map<string, ReturnType<typeof api.getSession>>();
   const toolStartsByCallId = new Map<string, ToolStart>();
   const planSyncGenerations = new Map<string, number>();

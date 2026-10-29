@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { AgentActivity } from "@pi-desktop/shared";
 import type { AssistantTurnPart } from "../../../lib/assistant-turns";
 import { formatToolDuration } from "../../../lib/tool-display";
+import { compactionProgressLabel } from "../../../lib/compaction-progress";
 import { cachedActivitySummary } from "../../../lib/transcript-activity-summary";
 import { TranscriptSearchContext } from "../../../lib/transcript-search-context";
 import {
@@ -111,8 +112,10 @@ export function TurnProcess({
   // render. Hidden reasoning superseded by a separate answer is exactly this
   // case: the reader gets the answer, and the process does not exist.
   if (visibleSteps === 0) return <>{children}</>;
-  const seconds = startedAt === undefined ? 0 : Math.max(
-    0, Math.floor(((isActive ? now : (endedAt ?? startedAt)) - startedAt) / 1000),
+  const compacting = isActive && activity?.phase === "compacting" ? activity : undefined;
+  const elapsedStart = compacting?.since ?? startedAt;
+  const seconds = elapsedStart === undefined ? 0 : Math.max(
+    0, Math.floor(((isActive ? now : (endedAt ?? elapsedStart)) - elapsedStart) / 1000),
   );
   const elapsed = formatToolDuration(seconds);
   // The header states the turn's outcome and its bounded metadata: status,
@@ -120,7 +123,7 @@ export function TurnProcess({
   // long, so echoing the current one would push that metadata off the row.
   // `startedAt` is absent for history that recorded no timing, and "0s" would be
   // a lie there, so the duration is dropped instead.
-  const hasTiming = startedAt !== undefined && seconds > 0;
+  const hasTiming = elapsedStart !== undefined && seconds > 0;
   const phase = turnProcessPhase({ parts: turnParts, isActive, failed, activity });
   // The header's label is the status alone. Duration and tool count are separate
   // values so each can be omitted independently, and the caret can follow the
@@ -129,6 +132,7 @@ export function TurnProcess({
     if (phase.kind === "failed") return t("chat.processFailed");
     if (phase.kind === "stopped") return t("chat.processStopped");
     if (phase.kind === "completed") return t("chat.processCompleted");
+    if (compacting) return compactionProgressLabel(compacting, t);
     // Live: only stages with their own settled wording get their own label. The
     // rest describe an instant at the start of a request, and naming them would
     // make the row flicker instead of telling the reader anything.
@@ -159,7 +163,7 @@ export function TurnProcess({
         {hasTiming ? (
           <>
             <span className="turn-sep" aria-hidden>·</span>
-            <span className="turn-duration">{elapsed}</span>
+            <span className="turn-duration" title={compacting ? t("chat.compactionElapsed") : undefined}>{elapsed}</span>
           </>
         ) : null}
         {toolCount > 0 ? (

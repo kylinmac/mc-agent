@@ -202,6 +202,10 @@ export type AgentActivity =
       phase: "compacting";
       since: number;
       reason: ContextCompactionReason;
+      stage?: "waiting" | "generating" | "retrying";
+      /** Request number, starting at 1; since remains the compaction start. */
+      attempt?: number;
+      retryDelayMs?: number;
     }
   | { phase: "recovering"; since: number }
   | {

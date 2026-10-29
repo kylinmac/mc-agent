@@ -31,10 +31,10 @@ test("staged next-turn configuration merges per field instead of replacing", () 
     sessionSlice,
     /runtime\.pendingSessionConfigurations\.set\(\n\s*sessionId,\n\s*runtime\.mergeSessionConfiguration\(\n\s*runtime\.pendingSessionConfigurations\.get\(sessionId\),\n\s*config,\n\s*\),\n\s*\)/,
   );
-  // The direct (idle) path folds a leftover staged entry under the new fields.
+  // Idle changes use the same serialized queue, including a leftover failed entry.
   assert.match(
     sessionSlice,
-    /const payload = runtime\.mergeSessionConfiguration\(\n\s*runtime\.pendingSessionConfigurations\.get\(sessionId\),\n\s*config,\n\s*\);\n\s*runtime\.pendingSessionConfigurations\.delete\(sessionId\);\n\s*const result = await api\.configureSession\(sessionId, payload\);/,
+    /if \(!get\(\)\.runningSessions\[sessionId\]\) await flushPendingSessionConfiguration\(sessionId, true\);/,
   );
 });
 
@@ -45,7 +45,7 @@ test("a failed flush keeps the staged configuration instead of dropping it", () 
     "\n  function rememberSessionCompactions",
   );
   const call = flush.indexOf("await api.configureSession(sessionId, config)");
-  const drop = flush.indexOf("runtime.pendingSessionConfigurations.delete(sessionId)");
+  const drop = flush.indexOf("runtime.pendingSessionConfigurations.delete(sessionId)", call);
   assert.ok(call >= 0 && drop > call, "the entry must outlive the host call");
   // Only the exact entry that was sent is cleared, so a choice staged while
   // the call was in flight survives.
@@ -55,6 +55,6 @@ test("a failed flush keeps the staged configuration instead of dropping it", () 
   );
   // On failure the loop exits rather than retrying the same payload blind, and
   // the settle handler does not immediately re-enter the flush.
-  assert.match(flush, /catch \(error\) \{[\s\S]*?failed = true;\n\s*break;/);
+  assert.match(flush, /catch \(error\) \{[\s\S]*?failure = error instanceof Error \? error : new Error\(String\(error\)\);\n\s*break;/);
   assert.match(flush, /!failed &&\n\s*runtime\.pendingSessionConfigurations\.has\(sessionId\)/);
 });

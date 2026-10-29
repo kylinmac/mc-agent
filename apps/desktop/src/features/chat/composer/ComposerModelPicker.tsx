@@ -4,6 +4,8 @@ import { ComposerModelList } from "./ComposerModelList";
 import { AnchoredMenu } from "../../../components/settings/AnchoredMenu";
 import { IconBot, IconChevronDown } from "../../../components/icons";
 import { TooltipButton } from "../../../components/ui";
+import type { AppState } from "../../../stores/app-state";
+import { configurationNotice } from "./ComposerConfigurationNotice";
 import type { useComposerModelMenu } from "./hooks/useComposerModelMenu";
 import { ThinkingLevelSlider } from "./ThinkingLevelSlider";
 
@@ -18,6 +20,7 @@ export type ComposerModelPickerProps = {
   selectedProviderId?: string;
   selectedModelId?: string;
   controlsBlocked: boolean;
+  configurationStatus?: AppState["sessionConfigurationStatus"][string];
   onCloseOtherMenus: () => void;
   rootActions?: ReactNode;
 };
@@ -32,6 +35,7 @@ export function ComposerModelPicker({
   selectedProviderId,
   selectedModelId,
   controlsBlocked,
+  configurationStatus,
   onCloseOtherMenus,
   rootActions,
 }: ComposerModelPickerProps) {
@@ -54,6 +58,8 @@ export function ComposerModelPicker({
     commitThinkingLevel,
     onMenuKeyDown,
   } = controller;
+  const notice = configurationNotice(t, configurationStatus);
+  const configurationSuffix = notice ? ` · ${notice}` : "";
 
   return (
     <AnchoredMenu
@@ -72,8 +78,8 @@ export function ComposerModelPicker({
           ref={ref}
           type="button"
           className={`icon-btn composer-model-thinking-chip ${open ? "active" : ""}`}
-          tooltip={`${modelLabel} · ${t("chat.reasoningLevel")}: ${thinkingLabel}`}
-          ariaLabel={`${t("chat.model")}: ${modelLabel}. ${t("chat.reasoningLevel")}: ${thinkingLabel}`}
+          tooltip={`${modelLabel} · ${t("chat.reasoningLevel")}: ${thinkingLabel}${configurationSuffix}`}
+          ariaLabel={`${t("chat.model")}: ${modelLabel}. ${t("chat.reasoningLevel")}: ${thinkingLabel}${configurationSuffix}`}
           aria-haspopup="menu"
           aria-expanded={open}
           disabled={controlsBlocked}

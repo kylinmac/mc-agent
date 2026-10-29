@@ -4,6 +4,7 @@ import type {
   SessionSummary,
   UiMessage,
 } from "@pi-desktop/shared";
+import i18n from "i18next";
 import {
   contextCompactionMark,
   initialThinkingLevelForBinding,
@@ -12,6 +13,7 @@ import {
 } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { sameComposerModelId } from "../../lib/composer-models";
+import { applyOptimisticSessionConfiguration } from "../../lib/session-thinking";
 import { scheduleHomeDraftAdopt } from "../../lib/composer-draft-cache";
 import {
   commitForkedSessionState,
@@ -42,7 +44,7 @@ export type PersistSessionOptions = {
 };
 
 export type SessionCoordination = {
-  flushPendingSessionConfiguration: (sessionId: string) => Promise<void>;
+  flushPendingSessionConfiguration: (sessionId: string, throwOnFailure?: boolean) => Promise<void>;
   rememberSessionCompactions: (
     sessionId: string,
     session:
@@ -81,26 +83,48 @@ export function createSessionCoordination({
   withoutRecordKey,
   untitledTaskTitle,
 }: SessionCoordinationDependencies): SessionCoordination {
-  function flushPendingSessionConfiguration(sessionId: string): Promise<void> {
+  function flushPendingSessionConfiguration(sessionId: string, throwOnFailure = false): Promise<void> {
+    const discardIfRemoved = () => {
+      if (get().sessions.some((session) => session.id === sessionId)) return undefined;
+      runtime.pendingSessionConfigurations.delete(sessionId);
+      set((state) => ({
+        sessionConfigurationStatus: withoutRecordKey(state.sessionConfigurationStatus ?? {}, sessionId),
+      }));
+      return new Error(i18n.t("chat.configurationSessionRemoved"));
+    };
+    const resultForCaller = (task: Promise<Error | undefined>) => task.then((error) => {
+      if (throwOnFailure && error) throw error;
+    });
     const active = runtime.sessionConfigurationFlushes.get(sessionId);
-    if (active) return active;
+    if (active) return resultForCaller(active);
     if (get().runningSessions[sessionId]) return Promise.resolve();
 
     const flush = (async () => {
-      let failed = false;
+      let failure: Error | undefined;
       while (!get().runningSessions[sessionId]) {
+        failure = discardIfRemoved();
+        if (failure) break;
         const config = runtime.pendingSessionConfigurations.get(sessionId);
         if (!config) break;
+        set((state) => ({
+          sessionConfigurationStatus: { ...state.sessionConfigurationStatus, [sessionId]: "applying" },
+        }));
         try {
           const result = await api.configureSession(sessionId, config);
+          failure = discardIfRemoved();
+          if (failure) break;
           if (runtime.pendingSessionConfigurations.get(sessionId) === config) {
             runtime.pendingSessionConfigurations.delete(sessionId);
           }
+          const pending = runtime.pendingSessionConfigurations.get(sessionId);
           set((state) => ({
+            sessionConfigurationStatus: pending
+              ? { ...state.sessionConfigurationStatus, [sessionId]: "pending" }
+              : withoutRecordKey(state.sessionConfigurationStatus ?? {}, sessionId),
             sessions: state.sessions.map((session) =>
               session.id === sessionId
                 ? {
-                    ...result.session,
+                    ...(pending ? applyOptimisticSessionConfiguration(result.session, pending) : result.session),
                     pinned: sessionIsPinned(sessionId, state.sessionMeta),
                     archived: sessionIsArchived(sessionId, state.sessionMeta),
                   }
@@ -113,7 +137,9 @@ export function createSessionCoordination({
             },
           }));
         } catch (error) {
-          get().showToast(
+          failure = discardIfRemoved();
+          if (failure) break;
+          if (!throwOnFailure) get().showToast(
             error instanceof Error ? error.message : String(error),
             { variant: "error" },
           );
@@ -121,16 +147,18 @@ export function createSessionCoordination({
           if (runtime.pendingSessionConfigurations.get(sessionId) !== config) {
             continue;
           }
-          failed = true;
+          set((state) => ({
+            sessionConfigurationStatus: { ...state.sessionConfigurationStatus, [sessionId]: "failed" },
+          }));
+          failure = error instanceof Error ? error : new Error(String(error));
           break;
         }
       }
-      return failed;
+      return failure;
     })();
-    const settled = flush.then(() => undefined);
-    runtime.sessionConfigurationFlushes.set(sessionId, settled);
+    runtime.sessionConfigurationFlushes.set(sessionId, flush);
     void flush.then((failed) => {
-      if (runtime.sessionConfigurationFlushes.get(sessionId) === settled) {
+      if (runtime.sessionConfigurationFlushes.get(sessionId) === flush) {
         runtime.sessionConfigurationFlushes.delete(sessionId);
       }
       if (
@@ -141,7 +169,7 @@ export function createSessionCoordination({
         void flushPendingSessionConfiguration(sessionId);
       }
     });
-    return settled;
+    return resultForCaller(flush);
   }
 
   function rememberSessionCompactions(

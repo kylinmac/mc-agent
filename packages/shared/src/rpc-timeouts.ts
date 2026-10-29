@@ -34,21 +34,10 @@ export const STREAM_IDLE_TIMEOUT_MS = 180_000;
 export const COMPACTION_SUMMARY_MAX_RETRIES = 3;
 export const COMPACTION_SUMMARY_RETRY_BUDGET_MS = 14_000;
 /**
- * `agent.compact` is a blocking RPC that spends a whole model request inside
- * the sidecar: pi serializes the conversation into one summary prompt, streams
- * the summary, and may retry a transient failure. No part of that budget is a
- * wall clock the transport can read, so this deadline is derived from the
- * ceilings the sidecar does enforce — an attempt that stops producing events is
- * cut by its stream watchdog, and the retries add at most
- * `COMPACTION_SUMMARY_RETRY_BUDGET_MS` of backoff:
- *
- *   (1 + retries) * stream watchdog + retry backoff + transport slack
- *
- * With the flat 130s default Electron gave up while the sidecar was still
- * summarizing a large context (~158s), reported a failed compaction, and the
- * sidecar persisted that checkpoint anyway (issue #795). Deliberately
- * per-method: a wider global default would also hide a genuinely lost reply on
- * every other call.
+ * @deprecated Historical transport deadline, retained for import compatibility.
+ * Idle time is not wall time: a healthy summary can emit events for longer
+ * than this, especially when several chunks are summarized. agent.compact now
+ * lets the sidecar own its idle timeout, cancellation and bounded retries.
  */
 export const AGENT_COMPACT_RPC_TIMEOUT_MS =
   (1 + COMPACTION_SUMMARY_MAX_RETRIES) * STREAM_IDLE_TIMEOUT_MS +
@@ -87,13 +76,14 @@ export function isRpcTimeoutError(error: unknown): boolean {
  * Host-owned and has no aggregate deadline; individual S3 requests keep their
  * own bounds. Renderer navigation does not cancel the Main/Host request, while
  * process shutdown remains the lifecycle boundary. Other methods keep their
- * explicit ceilings.
+ * explicit ceilings. agent.compact also has no aggregate deadline: a summary
+ * stream's idle watchdog owns failure, and Stop or process shutdown cancels it.
  */
 export function rpcTimeoutMs(
   method: string,
   _params: unknown,
 ): number | undefined {
-  if (method === "agent.compact") return AGENT_COMPACT_RPC_TIMEOUT_MS;
+  if (method === "agent.compact") return undefined;
   if (method === "worktree.delegate.create" || method === "worktree.delegate.settle") {
     return WORKTREE_DELEGATE_RPC_TIMEOUT_MS;
   }

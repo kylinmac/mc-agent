@@ -9,6 +9,7 @@ import {
   type PluginComposerTransformMeta,
 } from "@pi-desktop/shared";
 import type { AppState } from "../../../stores/app-store";
+import { useAppStore } from "../../../stores/app-store";
 import { ComposerModePicker } from "./ComposerModePicker";
 import { ComposerPermissionPicker } from "./ComposerPermissionPicker";
 import { ContextUsageInspector } from "../../../components/ContextUsageInspector";
@@ -24,6 +25,7 @@ import {
 } from "../../../components/icons";
 import { LiveVoiceControls } from "../../voice/live/LiveVoiceControls";
 import { ComposerModelPicker } from "./ComposerModelPicker";
+import { ComposerConfigurationNotice } from "./ComposerConfigurationNotice";
 import { SubscriptionQuotaChip } from "./SubscriptionQuotaChip";
 import type { useComposerModelMenu } from "./hooks/useComposerModelMenu";
 
@@ -112,9 +114,13 @@ export function ComposerToolbar({
   workSessionId,
   workSessionLabel,
 }: ComposerToolbarProps) {
+  const configurationStatus = useAppStore((state) => workSessionId
+    ? state.sessionConfigurationStatus?.[workSessionId] : undefined);
   const platform = (window.piDesktop?.platform ?? "darwin") as ShortcutPlatform;
   const steeringShortcut = keybindingDisplayParts("Alt+Enter", platform).join("+");
   return (
+    <>
+    <ComposerConfigurationNotice t={t} status={configurationStatus} />
     <div className="composer-toolbar">
       <div className="composer-left">
         <div className="composer-plus">
@@ -206,6 +212,7 @@ export function ComposerToolbar({
           modelLabel={modelLabel}
           thinkingLabel={thinkingLabel}
           thinkingLevel={thinkingLevel}
+          configurationStatus={configurationStatus}
           selectedProviderId={providerId}
           selectedModelId={modelId}
           controlsBlocked={controlsBlocked}
@@ -284,5 +291,6 @@ export function ComposerToolbar({
         )}
       </div>
     </div>
+    </>
   );
 }
