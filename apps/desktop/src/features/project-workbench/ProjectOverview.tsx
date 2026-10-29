@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectTask, ResourceItem, ResourceListing } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
+import { Input } from "../../components/ui";
 import { attentionItems } from "./resource-view";
 
 /*
@@ -25,18 +26,24 @@ export function ProjectOverview({
   const { t } = useTranslation();
   const [goal, setGoal] = useState("");
   const [savedGoal, setSavedGoal] = useState("");
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let canceled = false;
+    setLoaded(false);
     void api
       .getProjectGoal(groupId)
       .then(({ goal: loaded }) => {
         if (canceled) return;
         setGoal(loaded);
         setSavedGoal(loaded);
+        setLoaded(true);
       })
-      .catch(() => {
-        // An unreadable goal shows an empty field; saving reports errors.
+      .catch((error: unknown) => {
+        if (!canceled) onError(t("mcProject.goalError", {
+          message: error instanceof Error ? error.message : String(error),
+        }));
       });
     return () => {
       canceled = true;
@@ -44,14 +51,16 @@ export function ProjectOverview({
   }, [groupId]);
 
   const saveGoal = async () => {
-    if (goal.trim() === savedGoal.trim()) return;
+    if (!loaded || saving || goal.trim() === savedGoal.trim()) return;
+    setSaving(true);
     try {
       const { goal: stored } = await api.setProjectGoal(groupId, goal);
       setGoal(stored);
       setSavedGoal(stored);
     } catch (error) {
       onError(t("mcProject.goalError", { message: error instanceof Error ? error.message : String(error) }));
-      setGoal(savedGoal);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -63,11 +72,12 @@ export function ProjectOverview({
       <label className="mc-workbench-label" htmlFor={`mc-goal-${groupId}`}>
         {t("mcProject.goalLabel")}
       </label>
-      <input
+      <Input
         id={`mc-goal-${groupId}`}
         className="mc-workbench-description"
         placeholder={t("mcProject.goalPlaceholder")}
         value={goal}
+        disabled={!loaded || saving}
         onChange={(event) => setGoal(event.target.value)}
         onBlur={() => void saveGoal()}
         onKeyDown={(event) => {

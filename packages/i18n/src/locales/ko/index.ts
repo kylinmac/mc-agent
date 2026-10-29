@@ -628,6 +628,14 @@ export const ko = {
     startingTurn: "시작하는 중…",
     preparingNextRequest: "다음 요청 준비 중…",
     compactingContext: "컨텍스트 압축 중…",
+    compactionWaiting: "컨텍스트 압축 · 모델 대기 중…",
+    compactionGenerating: "컨텍스트 압축 · 요약 생성 중…",
+    compactionRetrying: "컨텍스트 압축 · 재시도 중 ({{attempt}}번째 시도)…",
+    compactionElapsed: "이번 컨텍스트 압축에 걸린 시간",
+    configurationPending: "이번 턴 종료 후 적용",
+    configurationApplying: "설정 적용 중…",
+    configurationFailed: "설정이 적용되지 않음",
+    configurationSessionRemoved: "설정을 적용하기 전에 대화가 삭제되었습니다.",
     recoveringTurn: "빈 응답 복구 중…",
     retryingModel: "{{delaySeconds}}초 후 재시도 · {{attempt}}/{{maxAttempts}}번째 시도",
     waitingForSubagentNamed: "{{name}} 대기 중",
@@ -791,6 +799,12 @@ export const ko = {
     dismiss: "닫기",
   },
   settings: {
+    askToolTitle: en.settings.askToolTitle,
+    askToolAutoContinue: en.settings.askToolAutoContinue,
+    askToolAutoContinueDesc: en.settings.askToolAutoContinueDesc,
+    askToolTimeout: en.settings.askToolTimeout,
+    askToolTimeoutDesc: en.settings.askToolTimeoutDesc,
+
     storage: {
       unavailableHint: "저장 폴더를 현재 사용할 수 없습니다. 드라이브를 다시 연결한 후 시작하세요. 앱은 빈 데이터를 생성하거나 다른 폴더로 전환하지 않습니다.",
       browserSource: "브라우저 데이터 원본",
@@ -2056,6 +2070,14 @@ sklm: {
     queued_other: "요청 {{count}}개가 더 대기 중",
   },
   askTool: {
+    autoContinueCountdown: en.askTool.autoContinueCountdown,
+    autoContinued: en.askTool.autoContinued,
+    lateSubmit: en.askTool.lateSubmit,
+    lateSent: en.askTool.lateSent,
+    lateSendFailed: en.askTool.lateSendFailed,
+    lateMessageIntro: en.askTool.lateMessageIntro,
+    recommended: en.askTool.recommended,
+
     title: "몇 가지 질문",
     historyTitle: "질문과 답변",
     answerLabel: "답변",

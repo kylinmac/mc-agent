@@ -54,10 +54,7 @@ test("host-core dispatches through the shared dispatch deadline", () => {
   );
 });
 
-test("the manual-compaction deadline outlasts the summary request it wraps", () => {
-  // The mirrored constants are the drift risk: if the sidecar raises its stream
-  // watchdog or its retry count, the shared deadline has to follow, otherwise
-  // Electron times out a compaction the sidecar is still working on (#795).
+test("manual compaction uses the runtime idle watchdog without a false wall-clock deadline", () => {
   const providerRetry = source("packages/agent-runtime/src/provider-retry.ts");
   const summaryInput = source("packages/agent-runtime/src/compaction-summary-input.ts");
   const watchdog = constMs(providerRetry, "STREAM_IDLE_TIMEOUT_DEFAULT_MS");
@@ -73,9 +70,10 @@ test("the manual-compaction deadline outlasts the summary request it wraps", () 
   // The constants can be right while the call site ignores them.
   assert.match(
     sharedTimeouts,
-    /method === "agent\.compact"[\s\S]{0,60}?AGENT_COMPACT_RPC_TIMEOUT_MS/,
-    "agent.compact must not fall back to the flat default deadline",
+    /method === "agent\.compact"\) return undefined/,
+    "agent.compact must let the sidecar own its stream lifetime",
   );
+  assert.match(source("packages/agent-runtime/src/compaction-stream.ts"), /withStreamIdleTimeout\(stream, model, streamIdleTimeoutMs\(\)/);
 });
 
 test("host-core execution budgets remain mirrored while approval has no deadline", () => {

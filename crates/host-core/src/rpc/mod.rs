@@ -2,6 +2,7 @@ mod config_sync_rpc;
 mod gen_ui;
 mod mc_canvas_rpc;
 mod mc_creative_rpc;
+mod mc_memory_rpc;
 mod plugin_reviews_rpc;
 mod project_tasks_rpc;
 mod remote_tools;
@@ -2213,6 +2214,13 @@ async fn handle_request(
                 .get("entries")
                 .ok_or_else(|| rpc_err(1002, "entries required", "INVALID_PARAMS"))?;
             let st = state.lock().await;
+            if let Some(expected) = params.get("expectedMemory") {
+                let current = st
+                    .db
+                    .get_project_group_memory(id)
+                    .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
+                mc_memory_rpc::check_expected(expected, current)?;
+            }
             let memory = st
                 .db
                 .set_project_group_memory(id, entries)
@@ -2365,6 +2373,13 @@ async fn handle_request(
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| rpc_err(1002, "path required", "INVALID_PARAMS"))?;
             let st = state.lock().await;
+            if let Some(expected) = params.get("expectedMemory") {
+                let current = st
+                    .db
+                    .get_project_memory(path)
+                    .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
+                mc_memory_rpc::check_expected(expected, current)?;
+            }
             if let Some(entries) = params.get("entries") {
                 let memory = st
                     .db

@@ -194,6 +194,8 @@ export function createProviderCatalogRuntime({
     const value = settings as T & {
       defaultCommandShell?: unknown;
       infiniteProviderRetry?: unknown;
+      askToolAutoContinue?: unknown;
+      askToolTimeoutSeconds?: unknown;
       keepAwakeWhileRunning?: unknown;
       jevEnabled?: unknown;
       promptSuggestions?: unknown;
@@ -204,6 +206,14 @@ export function createProviderCatalogRuntime({
       macosWindowTranslucency?: unknown;
       transcriptDisplayMode?: unknown;
     };
+    if ("askToolAutoContinue" in value && typeof value.askToolAutoContinue !== "boolean") {
+      throw Object.assign(new Error("askToolAutoContinue is invalid"), { errorCode: ErrorCodes.INVALID_PARAMS });
+    }
+    if ("askToolTimeoutSeconds" in value &&
+        (typeof value.askToolTimeoutSeconds !== "number" || !Number.isInteger(value.askToolTimeoutSeconds) ||
+         value.askToolTimeoutSeconds < 10 || value.askToolTimeoutSeconds > 300)) {
+      throw Object.assign(new Error("askToolTimeoutSeconds must be an integer from 10 to 300"), { errorCode: ErrorCodes.INVALID_PARAMS });
+    }
     if (Object.prototype.hasOwnProperty.call(value, "dictation")) parseDictationSettings(value.dictation);
     if (
       Object.prototype.hasOwnProperty.call(value, "defaultCommandShell") &&

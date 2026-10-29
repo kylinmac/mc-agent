@@ -513,6 +513,35 @@ describe("AgentHost turns", () => {
 
     expect(result.turn.status).toBe("completed");
     expect(host.getTurn(result.turn.id).status).toBe("completed");
+    const snapshot = await host.snapshot("s1");
+    expect(snapshot.session.status).toBe("idle");
+    expect(snapshot.session.activeTurnId).toBeUndefined();
+  });
+
+  it.each(["completed", "failed"] as const)("drains the next queued input when a %s turn finishes before its prompt acknowledgement", async (outcome) => {
+    const { host, runtime } = build();
+    const first = await host.startTurn(owner, { sessionId: "s1", input: { text: "one" }, context: { requestId: "first" } });
+    const second = await host.startTurn(owner, { sessionId: "s1", admission: "queue", input: { text: "two" }, context: { requestId: "second" } });
+    const third = await host.startTurn(owner, { sessionId: "s1", admission: "queue", input: { text: "three" }, context: { requestId: "third" } });
+    runtime.promptOverride = async (request) => {
+      if (request.content === "two") {
+        host.ingest(envelope("s1", "runtime-second", { type: "agent_start" }));
+        host.ingest(envelope("s1", "runtime-second", outcome === "completed"
+          ? { type: "agent_end", messageIds: [] }
+          : { type: "error", error: { code: "INTERNAL", message: "failed early", retriable: false, traceId: "" } }));
+        return { turnId: "runtime-second" };
+      }
+      return { turnId: "runtime-third" };
+    };
+
+    host.ingest(envelope("s1", first.turn.id, { type: "agent_end", messageIds: [] }));
+
+    await vi.waitFor(() => expect(runtime.prompts.map((request) => request.content)).toEqual(["one", "two", "three"]));
+    expect(host.getTurn(second.turn.id).status).toBe(outcome);
+    expect(host.getTurn(third.turn.id).status).toBe("running");
+    const snapshot = await host.snapshot("s1");
+    expect(snapshot.session.activeTurnId).toBe(third.turn.id);
+    expect(snapshot.queuedTurns).toEqual([]);
   });
 
 
@@ -881,6 +910,26 @@ describe("AgentHost approvals and inputs", () => {
     ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
     await host.respondApproval(owner, { approvalId: "prop_1", decision: "approve", permissionMode: "accept-edits", context: { requestId: "r" } });
     expect(approvals.contract).toEqual([{ proposalId: "prop_1", sessionId: "s1", action: "approve", permissionMode: "accept-edits", version: 3 }]);
+  });
+
+  it("removes timed-out optional inputs without recording user approval", async () => {
+    const { host, runtime, received } = build();
+    host.ingest(envelope("s1", "rt_1", { type: "agent_start" }));
+    const request = {
+      requestId: "optional_1", sessionId: "s1", toolCallId: "c9",
+      autoContinueAt: 30_000,
+      questions: [{ question: "Which format?", options: ["Table", "List"], recommendedOption: "Table" }],
+    };
+    host.ingest(envelope("s1", "rt_1", { type: "asktool_request", request }));
+    expect(host.pendingInputRequests("s1")).toHaveLength(1);
+    const raised = received.find((event) => event.kind === "input.requested")!;
+    expect(raised.payload).toMatchObject({ autoContinueAt: 30_000 });
+    host.ingest(envelope("s1", "rt_1", { type: "asktool_request", request: { ...request, autoContinued: true } }));
+    expect(host.pendingInputRequests("s1")).toEqual([]);
+    expect(host.getTurn("rt_1").status).toBe("running");
+    expect(runtime.inputs).toEqual([]);
+    expect(received.at(-1)).toMatchObject({ kind: "input.resolved", payload: { status: "auto-continued" } });
+    await expect(host.respondInput(controller, { inputId: "optional_1", answers: [["List"]], context: { requestId: "late" } })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
   it("relays asktool answers with skip semantics", async () => {

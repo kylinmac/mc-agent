@@ -134,7 +134,7 @@ test("a session with nothing pending keeps no empty queue", () => {
   assert.equal(headPermission(emptied, undefined), undefined);
 });
 
-test("asktool requests queue independently and never expire", () => {
+test("asktool requests queue independently without renderer-side expiry", () => {
   const first = {
     sessionId: "session-a",
     requestId: "ask-a",
@@ -156,11 +156,14 @@ test("asktool requests queue independently and never expire", () => {
   assert.deepEqual(Object.keys(clearSessionAsks(next, "session-a")), []);
 });
 
-test("asktool card is a stepwise, non-expiring composer question surface", () => {
+test("asktool stays stepwise with an optional runtime countdown and retained late answers", () => {
   assert.match(chatSurfaceSource, /pendingAsk/);
   assert.match(composerSource, /<AskToolCard/);
   assert.match(composerSource, /headAsk\(s\.pendingAsks/);
-  assert.doesNotMatch(transcriptSource, /AskToolCard/);
+  // Only completed auto-continued questions get history cards; live requests
+  // still use their session's composer queue.
+  assert.match(transcriptSource, /continuedAsk && variant === "default" \? <AskToolCard/);
+  assert.doesNotMatch(transcriptSource, /headAsk\(|pendingAsks/);
   // Each retained pane subscribes to its own session's ask queue (ADR 0137).
   assert.match(sessionPaneSource, /askPending=\{transcript\.historical \? false : askPending\}/);
   assert.match(sessionPaneSource, /headAsk\(state\.pendingAsks, sessionId\)/);
@@ -169,7 +172,16 @@ test("asktool card is a stepwise, non-expiring composer question surface", () =>
   assert.match(askCardSource, /customOption/);
   assert.match(askCardSource, /Decline all|askTool\.decline/);
   assert.match(askCardSource, /draft\.skipped/);
-  assert.doesNotMatch(askCardSource, /permissionSecondsLeft|setInterval/);
+  assert.doesNotMatch(askCardSource, /permissionSecondsLeft/);
+  const countdown = askCardSource.match(/useEffect\(\(\) => \{([\s\S]*?)\}, \[request\.autoContinueAt, late\]\);/)?.[1];
+  assert.ok(countdown, "countdown follows the deadline supplied by runtime");
+  assert.match(countdown, /if \(!request\.autoContinueAt \|\| late\) return;/);
+  assert.match(countdown, /setInterval\(\(\) => setNow\(Date\.now\(\)\), 1000\)/);
+  assert.match(countdown, /return \(\) => clearInterval\(timer\)/);
+  // Missing deadlines (required questions and disabled auto-continue) never
+  // acquire a renderer timeout. A visual tick cannot answer or grant consent.
+  assert.doesNotMatch(countdown, /resolveAsk|submit\(|sendPrompt/);
+  assert.doesNotMatch(askCardSource, /autoContinueAt\s*\?\?|Date\.now\(\)\s*\+/);
   assert.match(messageStyleSource, /\.asktool-options[\s\S]*?overflow-y:\s*auto/);
   assert.match(messageStyleSource, /\.asktool-options[\s\S]*?max-height:\s*min\(208px,\s*24dvh\)/);
   assert.match(messageStyleSource, /\.asktool-options[\s\S]*?overscroll-behavior-y:\s*contain/);

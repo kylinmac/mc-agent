@@ -85,7 +85,9 @@ import {
   delegateThinkingLevel,
 } from "./model";
 import { PluginToolCard } from "./PluginToolCard";
-import { useSlotEntryForKey } from "../../../plugins/renderer-slots/use-slots";
+import { AskToolCard } from "../../../components/AskToolCard";
+import { continuedAskFromMessage } from "../../../lib/ask-tool-history";
+import { useSlotSessionId, useSlotEntryForKey } from "../../../plugins/renderer-slots/use-slots";
 
 type ToolRowProps = {
   message: UiMessage;
@@ -181,6 +183,9 @@ function HostToolRow({
   const { t } = useTranslation();
   const detailsId = useId();
   const localToolsAllowed = useChatSessionCapability("canUseLocalTools");
+  const paneSessionId = useSlotSessionId();
+  const activeSessionId = useAppStore((s) => s.activeSessionId);
+  const continuedAsk = continuedAskFromMessage(message, paneSessionId || activeSessionId || undefined);
   const root = useAppStore((s) => localToolsAllowed ? s.workspace?.path : undefined);
   const openTarget = useOpenPreviewTarget();
   const { fileMenu, openFileMenu, closeFileMenu } = useChatFileMenu();
@@ -591,6 +596,7 @@ function HostToolRow({
           <ToolDetailBlocks blocks={blocks} plain={runHead} streaming={status === "running"} />
         </div>
       ) : null}
+      {continuedAsk && variant === "default" ? <AskToolCard key={continuedAsk.requestId} request={continuedAsk} /> : null}
       {!imagesInTurn && <GeneratedImages message={message} />}
       {inlineOpen && delegate ? (
         <SubagentRunRows

@@ -216,11 +216,17 @@ function readSessions(db: Db): Row[] {
 }
 
 function readRows(db: Db, sessionIds: string[]): Row[] {
-  const list = selectList(db, "messages", MESSAGE_REQUIRED, MESSAGE_OPTIONAL);
+  // Older node:sqlite truncates TEXT at NUL, including Hermes' \0json: prefix.
+  const list = selectList(db, "messages", MESSAGE_REQUIRED, MESSAGE_OPTIONAL)
+    .replace('"content"', 'CAST("content" AS BLOB) AS "content"');
   const marks = sessionIds.map(() => "?").join(", ");
-  return db.prepare(
+  const rows = db.prepare(
     `SELECT ${list} FROM messages WHERE session_id IN (${marks}) ORDER BY id ASC`,
   ).all(...sessionIds) as Row[];
+  for (const row of rows) {
+    if (row.content instanceof Uint8Array) row.content = Buffer.from(row.content).toString("utf8");
+  }
+  return rows;
 }
 
 function toolCallParts(raw: unknown): Array<{ id: string; name: string; args: unknown }> {

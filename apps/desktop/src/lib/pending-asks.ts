@@ -129,3 +129,27 @@ export function dropToolCallAskDrafts(
   }
   return next;
 }
+
+// Only in-flight reads retain settlement IDs; a late snapshot must not reopen a timed-out card.
+const askRestoreReads = new WeakMap<object, Map<string, Set<Set<string>>>>();
+
+export function beginAskRestore(runtime: object, sessionId: string) {
+  let sessions = askRestoreReads.get(runtime);
+  if (!sessions) askRestoreReads.set(runtime, sessions = new Map());
+  let reads = sessions.get(sessionId);
+  if (!reads) sessions.set(sessionId, reads = new Set());
+  const settled = new Set<string>();
+  reads.add(settled);
+  return {
+    settled,
+    finish() {
+      reads.delete(settled);
+      if (reads.size === 0) sessions.delete(sessionId);
+      if (sessions.size === 0) askRestoreReads.delete(runtime);
+    },
+  };
+}
+
+export function recordSettledAskDuringRestore(runtime: object, sessionId: string, requestId: string): void {
+  for (const read of askRestoreReads.get(runtime)?.get(sessionId) ?? []) read.add(requestId);
+}

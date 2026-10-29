@@ -346,10 +346,10 @@ export function createAgentHostBridge(options: AgentHostBridgeOptions) {
      * longer exists; both lists are bounded.
      */
     async pendingInteractiveRequests(sessionId: string): Promise<PendingInteractiveRequests> {
+      const pending = await listPendingToolRequests(options.getHost, sessionId);
       const asks = agentHost.pendingInputRequests(sessionId)
         .slice(0, MAX_PENDING_INTERACTIVE)
         .map((entry) => entry.original);
-      const pending = await listPendingToolRequests(options.getHost, sessionId);
       return {
         asks,
         permissions: pending.slice(0, MAX_PENDING_INTERACTIVE).map(

@@ -140,6 +140,8 @@ type RuntimeParams = {
   /** mc-agent (MC-ADR-0021): user-configured shell hooks. */
   userHooks?: McUserHook[];
   compactionSettings?: ContextCompactionSettings;
+  askToolAutoContinue?: boolean;
+  askToolTimeoutSeconds?: number;
   attachmentsDir?: string;
   userMessageId?: string;
   sessionMessage?: SessionMessageOrigin;
@@ -263,6 +265,7 @@ async function runtimeFor(
   if (reusable) {
     reusable.setPluginSkills(pluginSkills);
     reusable.setCompactionSettings(params.compactionSettings);
+    reusable.setAskToolSettings(params.askToolAutoContinue, params.askToolTimeoutSeconds);
     reusable.setInfiniteProviderRetry(params.infiniteProviderRetry === true);
     reusable.setMode(mode);
     return reusable;
@@ -316,6 +319,8 @@ async function runtimeFor(
     history,
     compaction,
     compactionSettings: params.compactionSettings,
+    askToolAutoContinue: params.askToolAutoContinue,
+    askToolTimeoutSeconds: params.askToolTimeoutSeconds,
     pluginTools,
     pluginSkills,
     trustedExtensions,

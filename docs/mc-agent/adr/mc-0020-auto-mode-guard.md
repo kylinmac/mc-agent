@@ -21,6 +21,7 @@
 - 新增 `crates/host-core/src/mc_auto_guard.rs`（含单元测试）和 `rpc/mc_auto_guard_tests.rs`；`rpc/mod.rs` 两处各加几行；三种语言的设置说明改一句（其余语言沿用上游原文）。
 - 这是对命令文本的模式匹配，不是沙箱：刻意换个写法可以绕过。它防的是常规任务里顺手做了这些事。
 - 以绝对路径删除项目内的目录（`rm -rf /Users/...`）也会询问。
+- 2026-10-30 修正：外部删除和磁盘/关机规则排除 Docker 的 `--rm` 标志、明确文本消费命令的参数，避免把 `docker --rm`、`grep 'shutdown'` 当作危险命令。未知执行器、命令替换、here-doc 等仍按原规则保守扫描。依据与测试见[排查记录](../auto-permission-diagnosis.md)。
 
 ## 重访条件
 

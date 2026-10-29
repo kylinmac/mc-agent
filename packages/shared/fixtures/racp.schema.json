@@ -1210,6 +1210,9 @@
             "expiresAt": {
               "type": "string"
             },
+            "autoContinueAt": {
+              "type": "number"
+            },
             "agentName": {
               "type": "string"
             },
@@ -1235,6 +1238,9 @@
                     "minLength": 1
                   },
                   "question": {
+                    "type": "string"
+                  },
+                  "recommendedOption": {
                     "type": "string"
                   },
                   "options": {
@@ -1616,6 +1622,9 @@
       "expiresAt": {
         "type": "string"
       },
+      "autoContinueAt": {
+        "type": "number"
+      },
       "agentName": {
         "type": "string"
       },
@@ -1641,6 +1650,9 @@
               "minLength": 1
             },
             "question": {
+              "type": "string"
+            },
+            "recommendedOption": {
               "type": "string"
             },
             "options": {

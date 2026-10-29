@@ -152,6 +152,8 @@ export type AppState = {
   isRunning: boolean;
   /** Run state per session id — sessions run independent agents. */
   runningSessions: Record<string, boolean>;
+  /** A toolbar choice may be queued while its current turn still uses the old binding. */
+  sessionConfigurationStatus: Record<string, "pending" | "applying" | "failed">;
   /** Runtime-owned phase for explaining quiet intervals in active turns. */
   agentStatuses: Record<string, AgentStatus>;
   /** Latest in-memory result for each session, used by the active transcript. */

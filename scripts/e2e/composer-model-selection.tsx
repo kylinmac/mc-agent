@@ -1,13 +1,19 @@
 import { ComposerModelPicker } from "../../apps/desktop/src/features/chat/composer/ComposerModelPicker";
+import { ComposerConfigurationNotice } from "../../apps/desktop/src/features/chat/composer/ComposerConfigurationNotice";
 import { createInstance } from "i18next";
 import { en } from "@pi-desktop/i18n";
 const i18n = createInstance();
 import { useState } from "react";
+import { I18nextProvider } from "react-i18next";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import type { ModelInfo, ProviderPublic, SessionThinkingLevel } from "@pi-desktop/shared";
 import { useComposerModelMenu } from "../../apps/desktop/src/features/chat/composer/hooks/useComposerModelMenu";
 import { useAppStore } from "./fixtures/composer-model-selection-store";
+import { TurnProcess } from "../../apps/desktop/src/features/chat/transcript/TurnProcess";
+import type { AssistantTurnPart } from "../../apps/desktop/src/lib/assistant-turns";
+import type { AppState } from "../../apps/desktop/src/stores/app-state";
+import type { AgentActivity } from "@pi-desktop/shared";
 
 type MenuController = ReturnType<typeof useComposerModelMenu>;
 
@@ -60,11 +66,21 @@ const host = document.createElement("div");
 document.body.append(host);
 const root = createRoot(host);
 const writes: Array<{ providerId?: string; modelId?: string; thinkingLevel: SessionThinkingLevel }> = [];
+type ConfigurationStatus = AppState["sessionConfigurationStatus"][string] | undefined;
+let setConfigurationStatus: (status: ConfigurationStatus) => void;
+let setActivity: (activity: AgentActivity | undefined) => void;
+const processParts: AssistantTurnPart[] = [{ kind: "activity", items: [{ kind: "tool", message: {
+  id: "fixture-read", role: "tool", content: "", toolName: "Read", createdAt: new Date(Date.now() - 3_600_000).toISOString(),
+} }] }];
 
 function Fixture() {
   const [modelId, setModelId] = useState("model-a");
   // Start with a manual value that differs from Model A's default.
   const [thinkingLevel, setThinkingLevel] = useState<SessionThinkingLevel>("low");
+  const [configurationStatus, updateConfigurationStatus] = useState<ConfigurationStatus>();
+  const [activity, updateActivity] = useState<AgentActivity>();
+  setConfigurationStatus = updateConfigurationStatus;
+  setActivity = updateActivity;
   const controller = useComposerModelMenu({
     mode: "agent",
     activeSessionId: "fixture-session",
@@ -77,19 +93,26 @@ function Fixture() {
       writes.push(configuration);
       setModelId(configuration.modelId ?? "model-a");
       setThinkingLevel(configuration.thinkingLevel);
+      updateConfigurationStatus("pending");
     },
   });
   globalThis.composerModelSelectionController = controller;
   return (
     <div className="composer-stack" style={{ position: "absolute", left: 120, top: 300, width: 640 }}>
+      <ComposerConfigurationNotice t={i18n.t} status={configurationStatus} />
       <ComposerModelPicker
         t={i18n.t} controller={controller} modelLabel={modelId}
         thinkingLabel={thinkingLevel} thinkingLevel={thinkingLevel}
         selectedProviderId={provider.id} selectedModelId={modelId}
         controlsBlocked={false} onCloseOtherMenus={() => {}}
+        configurationStatus={configurationStatus}
       />
       <span className="selected-model">{modelId}</span>
       <span className="selected-thinking-level">{thinkingLevel}</span>
+      <TurnProcess turnId="fixture-turn" processParts={processParts} turnParts={processParts}
+        visibleSteps={1} isActive={true} failed={false} activity={activity}>
+        <span>Recorded work</span>
+      </TurnProcess>
     </div>
   );
 }
@@ -100,7 +123,7 @@ const settle = () => new Promise<void>((resolve) =>
 
 globalThis.composerModelSelectionProbe = async () => {
   await i18n.init({ lng: "en", resources: { en: { translation: en } }, interpolation: { escapeValue: false } });
-  flushSync(() => root.render(<Fixture />));
+  flushSync(() => root.render(<I18nextProvider i18n={i18n}><Fixture /></I18nextProvider>));
   await settle();
   document.querySelector<HTMLButtonElement>(".composer-model-thinking-chip")!.click();
   await settle();
@@ -134,6 +157,9 @@ globalThis.composerModelSelectionProbe = async () => {
   }
 
   const switchedLevel = document.querySelector(".selected-thinking-level")?.textContent?.trim() ?? "";
+  if (document.querySelector(".composer-configuration-notice")?.textContent !== "Applies after this turn") {
+    throw new Error("A changed reasoning/model choice must remain explicitly pending");
+  }
   await globalThis.composerModelSelectionController!.commitThinkingLevel("low");
   await settle();
   const disclosure = document.querySelector<HTMLButtonElement>(".composer-menu-root [aria-expanded]")!;
@@ -163,6 +189,30 @@ globalThis.composerModelSelectionProbe = async () => {
   }
   useAppStore.setState({ recentModels: restored });
   await settle();
+  for (const [status, expected] of [
+    ["applying", "Applying settings…"], ["failed", "Settings not applied"],
+  ] as const) {
+    flushSync(() => setConfigurationStatus(status));
+    if (document.querySelector(".composer-configuration-notice")?.textContent !== expected
+      || !document.querySelector(".composer-model-thinking-chip")?.getAttribute("aria-label")?.includes(expected)) {
+      throw new Error(`Configuration status ${status} must be visible and accessible`);
+    }
+  }
+  flushSync(() => setConfigurationStatus(undefined));
+  if (document.querySelector(".composer-configuration-notice")) throw new Error("Acknowledgement must clear the pending notice");
+  const since = Date.now() - 6_000;
+  for (const [stage, expected] of [
+    ["waiting", "waiting for model"], ["generating", "generating summary"], ["retrying", "attempt 2"],
+  ] as const) {
+    flushSync(() => setActivity({ phase: "compacting", since, reason: "threshold", stage, attempt: 2 }));
+    if (!document.querySelector(".turn-process .tool-activity-label")?.textContent?.includes(expected)) {
+      throw new Error(`Compaction stage ${stage} must be visible`);
+    }
+    const elapsed = document.querySelector(".turn-process .turn-duration");
+    if (!elapsed?.getAttribute("title")?.includes("compacting") || !/^\d+s$/.test(elapsed.textContent ?? "")) {
+      throw new Error(`Compaction must show its own seconds, not the hour-long turn: ${elapsed?.textContent}`);
+    }
+  }
   return {
     model: document.querySelector(".selected-model")?.textContent?.trim() ?? "",
     switchedLevel,

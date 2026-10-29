@@ -491,7 +491,7 @@ export function normalizeSettings(settings: AppSettings): AppSettings {
   };
 }
 
-export function validateSettingsWrite(settings: AppSettings): AppSettings {
+export function validateSettingsWrite<T extends Partial<AppSettings>>(settings: T): T {
   if (
     settings.thinkingDisplayMode !== undefined &&
     settings.thinkingDisplayMode !== "detailed" &&
@@ -566,6 +566,14 @@ export function validateSettingsWrite(settings: AppSettings): AppSettings {
         errorCode: "INVALID_PARAMS",
       });
     }
+  }
+  if ("askToolAutoContinue" in value && typeof value.askToolAutoContinue !== "boolean") {
+    throw Object.assign(new Error("askToolAutoContinue is invalid"), { errorCode: "INVALID_PARAMS" });
+  }
+  if ("askToolTimeoutSeconds" in value &&
+      (typeof value.askToolTimeoutSeconds !== "number" || !Number.isInteger(value.askToolTimeoutSeconds) ||
+       value.askToolTimeoutSeconds < 10 || value.askToolTimeoutSeconds > 300)) {
+    throw Object.assign(new Error("askToolTimeoutSeconds must be an integer from 10 to 300"), { errorCode: "INVALID_PARAMS" });
   }
   if (
     Object.prototype.hasOwnProperty.call(value, "infiniteProviderRetry") &&
@@ -855,7 +863,7 @@ export const api = {
     invoke<void>(IPC.invoke.storageClearCache, input),
   removeStorageBackup: (input: { language: string }) =>
     invoke<void>(IPC.invoke.storageRemoveBackup, input),
-  setSettings: (settings: AppSettings) =>
+  setSettings: (settings: Partial<AppSettings>) =>
     invoke(IPC.invoke.settingsSet, validateSettingsWrite(settings)),
   /** Store the Jev key in Host secure storage; it is never returned to renderer state. */
   setJevApiKey: (value: string) =>

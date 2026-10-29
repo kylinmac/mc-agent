@@ -11,6 +11,7 @@ import { register } from "node:module";
 import test from "node:test";
 
 register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
+const { createEventsSlice } = await import("../src/stores/slices/events-slice.ts");
 const { createSessionSlice } = await import("../src/stores/slices/session-slice.ts");
 const { enqueueAsk } = await import("../src/lib/pending-asks.ts");
 const { enqueuePermission } = await import("../src/lib/pending-permissions.ts");
@@ -58,9 +59,10 @@ function harness({ sessions = DEFAULT_SESSIONS, pendingAsks = {}, pendingPermiss
       };
     },
   };
+  const runtime = { cacheBackgroundTranscriptEvent() {} };
   const slice = createSessionSlice({
     ...access,
-    runtime: {},
+    runtime,
     decorateSessions: (entries) => entries,
     withoutRecordKey: (record, key) =>
       Object.fromEntries(Object.entries(record).filter(([id]) => id !== key)),
@@ -71,7 +73,8 @@ function harness({ sessions = DEFAULT_SESSIONS, pendingAsks = {}, pendingPermiss
     persistSessionAndSelect: async () => null,
   });
   Object.assign(state, slice);
-  return { slice: state, get: access.get, set: access.set, toasts };
+  const events = createEventsSlice({ ...access, runtime, notifyInteractivePrompt() {} });
+  return { slice: state, get: access.get, set: access.set, toasts, events };
 }
 
 test("one ask and one permission come back as cards for the session", async (t) => {
@@ -155,6 +158,41 @@ test("a card delivered while the read was in flight is never removed", async (t)
     h.get().pendingAsks["session-a"].map((entry) => entry.requestId),
     ["ask-live", "ask-restored"],
   );
+});
+
+test("a timeout during reload cannot revive an expired question from an older snapshot", async (t) => {
+  const h = harness();
+  const expired = askFor("session-a", "ask-expired");
+  const stillPending = askFor("session-a", "ask-pending");
+  let releaseRead;
+  t.mock.method(api, "pendingInteractive", () => new Promise((resolve) => { releaseRead = resolve; }));
+  const restore = h.slice.restorePendingInteractive("session-a");
+  h.events.handleAgentEvent({ sessionId: "session-a", ts: Date.now(), event: {
+    type: "asktool_request", request: { ...expired, autoContinued: true },
+  } });
+  releaseRead({ asks: [expired, stillPending], permissions: [] });
+  await restore;
+  assert.deepEqual(h.get().pendingAsks["session-a"], [stillPending]);
+  // Settlement markers only fence this read; they do not accumulate across reads.
+  t.mock.method(api, "pendingInteractive", async () => ({ asks: [expired], permissions: [] }));
+  await h.slice.restorePendingInteractive("session-a");
+  assert.deepEqual(h.get().pendingAsks["session-a"], [expired]);
+});
+
+test("timeout recovery fences are isolated by session", async (t) => {
+  const h = harness();
+  const releases = new Map();
+  t.mock.method(api, "pendingInteractive", (id) => new Promise((resolve) => releases.set(id, resolve)));
+  const first = h.slice.restorePendingInteractive("session-a");
+  const second = h.slice.restorePendingInteractive("session-b");
+  h.events.handleAgentEvent({ sessionId: "session-a", ts: Date.now(), event: {
+    type: "asktool_request", request: { ...askFor("session-a", "same-id"), autoContinued: true },
+  } });
+  releases.get("session-a")({ asks: [askFor("session-a", "same-id")], permissions: [] });
+  releases.get("session-b")({ asks: [askFor("session-b", "same-id")], permissions: [] });
+  await Promise.all([first, second]);
+  assert.equal(h.get().pendingAsks["session-a"], undefined);
+  assert.deepEqual(h.get().pendingAsks["session-b"], [askFor("session-b", "same-id")]);
 });
 
 test("another session's queues stay untouched", async (t) => {

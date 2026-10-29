@@ -19,9 +19,12 @@ import i18n from "i18next";
 import { I18nextProvider } from "react-i18next";
 import { en } from "@pi-desktop/i18n";
 import { MAX_ASK_TOOL_QUESTION_CHARS } from "../../packages/shared/src/types/agent";
+import { AskToolSettings } from "../../apps/desktop/src/features/settings/AskToolSettings";
+import { continuedAskFromMessage } from "../../apps/desktop/src/lib/ask-tool-history";
 import { AskToolCard } from "../../apps/desktop/src/components/AskToolCard";
 import { api } from "../../apps/desktop/src/lib/api";
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";
+import { StudioChat } from "../../apps/desktop/src/features/creative/StudioChat";
 
 const SESSION_ID = "asktool-card";
 
@@ -106,6 +109,8 @@ export async function asktoolCardProbe() {
   await i18n.init({ lng: "en", resources: { en: { translation: en } } });
   const initial = useAppStore.getState();
   const originalResolve = api.resolveAskTool;
+  const studioChatKey = "mc.creative.chat.asktool-studio-fixture";
+  const previousStudioChat = localStorage.getItem(studioChatKey);
   const resolutions: Array<{ requestId: string; answers: unknown }> = [];
   api.resolveAskTool = (async (resolution: {
     requestId: string;
@@ -135,7 +140,7 @@ export async function asktoolCardProbe() {
   const headerButtons = () => ({
     decline: element<HTMLButtonElement>(".asktool-decline"),
     skip: element<HTMLButtonElement>(
-      ".asktool-card-header-actions .btn-ghost",
+      ".asktool-card-header-actions .btn-ghost:not(.asktool-decline)",
     ),
     primary: element<HTMLButtonElement>(
       ".asktool-card-header-actions .btn-primary",
@@ -177,7 +182,7 @@ export async function asktoolCardProbe() {
       tabbables.findIndex((node) => node.matches(selector));
     const declineAt = orderOf(".asktool-decline");
     const skipAt = orderOf(
-      ".asktool-card-header-actions .btn-ghost",
+      ".asktool-card-header-actions .btn-ghost:not(.asktool-decline)",
     );
     const primaryAt = orderOf(
       ".asktool-card-header-actions .btn-primary",
@@ -254,30 +259,44 @@ export async function asktoolCardProbe() {
       `decline-all nulls every answer, saw ${JSON.stringify(resolutions[2]!.answers)}`,
     );
 
-    // Flow D: a custom answer still flows through the header submit.
+    // Flow D: custom-answer Enter advances/submits; Shift+Enter and IME only edit.
     mount("ask-custom");
     await until(() => options().length > 0, "custom flow mounts");
     flushSync(() =>
       element(".asktool-custom-option").click(),
     );
-    const input = element<HTMLInputElement>(".asktool-custom-input");
+    const input = element<HTMLTextAreaElement>(".asktool-custom-input");
     // Bypass React's instance value tracker: a plain assignment updates the
     // tracker too, so the input event would read as unchanged and onChange
     // would never fire. The prototype setter leaves the tracker behind.
     const nativeValueSetter = Object.getOwnPropertyDescriptor(
-      window.HTMLInputElement.prototype,
+      window.HTMLTextAreaElement.prototype,
       "value",
     )!.set!;
     nativeValueSetter.call(input, "my reason");
     input.dispatchEvent(new Event("input", { bubbles: true }));
     await frame();
-    flushSync(() => headerButtons().primary.click());
+    const enter = (target: HTMLTextAreaElement, extra: KeyboardEventInit = {}) => {
+      const event = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true, ...extra });
+      flushSync(() => target.dispatchEvent(event));
+      return event;
+    };
+    for (const extra of [{ shiftKey: true }, { isComposing: true }, { keyCode: 229 }]) {
+      const event = enter(input, extra);
+      assert(!event.defaultPrevented && questionText().includes("Which upgrade path?") && resolutions.length === 3,
+        `editing Enter must not advance or submit: ${JSON.stringify(extra)}`);
+    }
+    assert(enter(input).defaultPrevented, "plain Enter prevents a newline and advances");
     await until(
       () => questionText().includes("Allow rollback?"),
       "custom answer advances to question 2",
     );
-    flushSync(() => options()[0]!.click());
-    flushSync(() => headerButtons().primary.click());
+    flushSync(() => element(".asktool-custom-option").click());
+    const finalInput = element<HTMLTextAreaElement>(".asktool-custom-input");
+    nativeValueSetter.call(finalInput, "gamma");
+    finalInput.dispatchEvent(new Event("input", { bubbles: true }));
+    await frame();
+    assert(enter(finalInput).defaultPrevented, "plain Enter submits the final answer");
     await until(() => resolutions.length === 4, "custom flow resolves");
     assert(
       JSON.stringify(resolutions[3]!.answers) ===
@@ -428,6 +447,117 @@ export async function asktoolCardProbe() {
       "the answer selected before the remount is still selected",
     );
 
+    const timed = { ...askRequest("ask-timed", [QUESTIONS[0]!]), autoContinueAt: Date.now() + 10_000 };
+    flushSync(() => root.render(
+      <I18nextProvider i18n={i18n}><AskToolCard key={timed.requestId} request={timed} /></I18nextProvider>,
+    ));
+    assert(host.querySelector("p[role=status]")?.textContent?.includes("10"), "countdown starts from the runtime deadline");
+    await until(() => host.querySelector("p[role=status]")?.textContent?.includes("9") === true, "countdown updates without resolving the question");
+    assert(resolutions.length === 5, "renderer countdown does not resolve a tool");
+
+    // A retained timeout card sends a new message to its original session,
+    // even while another session is selected; rejected sends remain editable.
+    const late = continuedAskFromMessage({
+      toolName: "asktool",
+      toolResult: { details: { request: { ...askRequest("ask-late", [QUESTIONS[0]!]), autoContinued: true } } },
+    }, SESSION_ID);
+    assert(late, "persisted timeout result rebuilds an answerable card");
+    const prompts: Array<{ content: string; target?: string }> = [];
+    let acceptLate = false;
+    useAppStore.setState({
+      activeSessionId: "another-session",
+      sendPrompt: async (content, _draft, target) => {
+        prompts.push({ content, target });
+        return acceptLate;
+      },
+    });
+    flushSync(() => root.render(
+      <I18nextProvider i18n={i18n}>
+        <AskToolCard key={late.requestId} request={late} />
+      </I18nextProvider>,
+    ));
+    assert(host.querySelector(".asktool-decline") === null, "a completed tool is not declined again");
+    flushSync(() => options()[1]!.click());
+    const lateSubmit = () => element<HTMLButtonElement>(".asktool-card-header-actions .btn-primary");
+    flushSync(() => lateSubmit().click());
+    await until(() => prompts.length === 1 && !lateSubmit().disabled, "failed late send can retry");
+    assert(prompts[0]!.target === SESSION_ID, "late answer is routed to its original session");
+    assert(prompts[0]!.content.includes("Which upgrade path?：beta"), "late answer includes question and choice");
+    assert(resolutions.length === 5, "late answer never resolves an ended tool");
+    acceptLate = true;
+    flushSync(() => { lateSubmit().click(); lateSubmit().click(); });
+    await until(() => prompts.length === 2 && lateSubmit().disabled && !options()[0]!.disabled, "accepted late send is marked sent");
+    flushSync(() => options()[0]!.click());
+    assert(!lateSubmit().disabled, "user can revise a late choice explicitly");
+
+    // StudioChat is a separate held transcript while the main chat stays active.
+    const studioSessionId = "studio-session";
+    localStorage.setItem(studioChatKey, studioSessionId);
+    useAppStore.setState({
+      sessions: [{ id: studioSessionId, title: "Studio", messageCount: 1, mode: "agent",
+        thinkingLevel: "off", permissionMode: "inherit", createdAt: "2026-01-01", updatedAt: "2026-01-01" }],
+      retainedTranscripts: { [studioSessionId]: [{
+        id: "studio-late-tool", role: "tool", content: "Continued automatically", createdAt: "2026-01-01",
+        toolName: "asktool", toolStatus: "success",
+        toolResult: { details: { request: { ...askRequest("studio-late", [QUESTIONS[0]!]),
+          sessionId: studioSessionId, autoContinued: true } } },
+      }] },
+    });
+    flushSync(() => root.render(
+      <I18nextProvider i18n={i18n}>
+        <StudioChat groupId="asktool-studio-fixture" projectPath="/fixture/studio" />
+      </I18nextProvider>,
+    ));
+    await until(() => options().length === 2, "studio history AskTool mounts");
+    flushSync(() => options()[0]!.click());
+    flushSync(() => lateSubmit().click());
+    await until(() => prompts.length === 3, "studio history choice sends");
+    const studioLateTarget = prompts[2]!.target;
+    const studioAsk = { ...askRequest("studio-pending", [QUESTIONS[0]!]), sessionId: studioSessionId };
+    flushSync(() => useAppStore.setState({
+      retainedTranscripts: { [studioSessionId]: [] }, pendingAsks: { [studioSessionId]: [studioAsk] },
+    }));
+    await frame();
+    const studioPendingVisible = options().length === 2;
+    assert(studioLateTarget === studioSessionId && studioPendingVisible,
+      `studio choices stay in their conversation and pending questions are answerable: target=${studioLateTarget}, pending=${studioPendingVisible}`);
+    flushSync(() => options()[1]!.click());
+    flushSync(() => headerButtons().primary.click());
+    await until(() => resolutions.length === 6, "studio pending question resolves");
+    assert(resolutions[5]?.requestId === studioAsk.requestId, "studio resolves its own pending request");
+
+    // Configure the feature through the real settings controls.
+    let settings = { ...initial.settings, askToolAutoContinue: false, askToolTimeoutSeconds: 30 };
+    const saved: unknown[] = [];
+    const renderSettings = () => root.render(
+      <I18nextProvider i18n={i18n}>
+        <AskToolSettings settings={settings} saveSettings={async (patch) => {
+          saved.push(patch);
+          settings = { ...settings, ...patch };
+          renderSettings();
+        }} />
+      </I18nextProvider>,
+    );
+    flushSync(renderSettings);
+    const timeoutInput = () => element<HTMLInputElement>('input[type="number"]');
+    assert(timeoutInput().disabled, "timeout is disabled while the feature is off");
+    flushSync(() => element<HTMLButtonElement>('[role="switch"]').click());
+    await until(() => !timeoutInput().disabled, "switch enables timeout setting");
+    const setSeconds = async (value: string) => {
+      const input = timeoutInput();
+      input.focus();
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")!.set!.call(input, value);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      await frame();
+      flushSync(() => input.dispatchEvent(new FocusEvent("focusout", { bubbles: true })));
+      await frame();
+    };
+    await setSeconds("10");
+    assert(settings.askToolTimeoutSeconds === 10, `10-second timeout saves: ${JSON.stringify(saved)}, input=${timeoutInput().value}`);
+    const savedCount = saved.length;
+    await setSeconds("9");
+    assert(timeoutInput().value === "10" && saved.length === savedCount, "out-of-range input reverts without saving");
+
     assert(errors.length === 0, `render errors: ${errors.map(String)}`);
     return { ok: true, resolutions: resolutions.length };
   } catch (error) {
@@ -442,7 +572,13 @@ export async function asktoolCardProbe() {
     useAppStore.setState({
       pendingAsks: initial.pendingAsks,
       activeSessionId: initial.activeSessionId,
+      sendPrompt: initial.sendPrompt,
+      askDrafts: initial.askDrafts,
+      sessions: initial.sessions,
+      retainedTranscripts: initial.retainedTranscripts,
     });
+    if (previousStudioChat === null) localStorage.removeItem(studioChatKey);
+    else localStorage.setItem(studioChatKey, previousStudioChat);
   }
 }
 

@@ -164,6 +164,7 @@ export const useAppStore = create<AppState>((set, get) => {
     get,
     set,
     runtime: sessionRuntime,
+    flushPendingSessionConfiguration,
     decorateSessions,
     withoutRecordKey,
     sessionModeForPlanningState,

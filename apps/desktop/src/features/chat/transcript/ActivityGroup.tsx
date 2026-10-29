@@ -1,5 +1,6 @@
 import { SubagentStopButton } from "./SubagentStopButton";
 import { activityGroupStartsOpen } from "../../../lib/activity-group-folding";
+import { compactionProgressLabel } from "../../../lib/compaction-progress";
 import { activityTimingInputs, cachedVisibleActivityItems } from "../../../lib/transcript-activity-summary";
 import { reuseReferences } from "../../../lib/transcript-summary";
 import { ActivityItems } from "./ActivityItems";
@@ -117,7 +118,7 @@ export function runActivityLabel(
     case "preparing":
       return t("chat.preparingNextRequest");
     case "compacting":
-      return t("chat.compactingContext");
+      return compactionProgressLabel(activity, t);
     case "recovering":
       return t("chat.recoveringTurn");
     case "retrying":

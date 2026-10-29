@@ -25,6 +25,8 @@
 | [验收与开发计划](validation-plan.md) | 先验证继承能力，再验证新增闭环 |
 | [决策清单](decisions.md) | 集中处理待确认问题 |
 | [新增功能工程结构评审](engineering-structure-review.md) | 契约与模块整理、目录位置、核心概念边界；2026-10-22 已按文档实施，各条结果见第 10 节 |
+| [2026-10-30 整体代码复查](project-review-2026-10-30.md) | 数据迁移、记忆并发、权限、会话生命周期与界面异步状态；记录修复和验证边界 |
+| [会话压缩与配置生效提示](compaction-performance.md) | R20：摘要保真与篇幅、推理策略、静默超时及进度、努力程度待生效提示；V59 |
 | [创作工作台方案](creative-studio.md) | 生图、生视频的入口、布局和分期（一期已实现） |
 | [原型画布方案](prototype-canvas.md) | R18 原型画布：Agent 在会话工作面板里画 HTML 原型，人看、试交互、评论与 @Agent，视图上下文（A 档已实现）；B 档原型跳转与导出、C 档所见即所得编辑（待评审） |
 | [macOS 权限归属与授权体验](macos-permissions.md) | 权限调用进程、签名身份、分步授权、复检；2026-10-22 已实施，结果见第 9 节 |
@@ -87,3 +89,5 @@ Fork 已建立：`origin` 为 kylinmac/mc-agent，`upstream` 为 vastsa/PI-Deskt
 ## 放在哪
 
 mc-agent 自己的文档都在 `docs/mc-agent/`，ADR 用 `MC-ADR-` 编号放 `docs/mc-agent/adr/`。`docs/` 其余内容（spec、adr、guide、zh-CN 和 VitePress 站点）属于上游，原样保留，便于同步。
+
+[可选提问超时继续](question-auto-continue.md)（R19；P10；V58）。

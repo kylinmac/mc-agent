@@ -351,9 +351,21 @@ fn column_exists(connection: &Connection, table: &str, column: &str) -> Result<b
 /// location below `roots.destination`, inside the caller's transaction. Shared
 /// by data-directory relocation and mc-agent resource-folder renames.
 pub(crate) fn rewrite_database_paths(connection: &Connection, roots: &Roots) -> Result<()> {
+    let project_roots = Roots {
+        source: roots.source.clone(),
+        canonical_source: roots.canonical_source.clone(),
+        project_source: roots.project_source.clone(),
+        destination: PathBuf::from(
+            crate::db::canonical_project_path(&roots.destination.to_string_lossy())
+                .context("normalize relocation project destination")?,
+        ),
+    };
     for (table, column, json) in [
         ("projects", "path", false),
         ("artifacts", "path", false),
+        ("mc_creative_assets", "path", false),
+        ("mc_creative_job_results", "path", false),
+        ("mc_creative_jobs", "snapshot", true),
         ("turn_queue", "attachments_json", true),
         ("scheduled_tasks", "config_json", true),
         // Isolated-session worktrees live under the data directory (ADR 0329);
@@ -376,11 +388,18 @@ pub(crate) fn rewrite_database_paths(connection: &Connection, roots: &Roots) -> 
             let next = if json {
                 let mut value: Value =
                     serde_json::from_str(&text).context("parse relocation database metadata")?;
-                roots.structured(&mut value).then(|| value.to_string())
+                let changed = if table == "mc_creative_jobs" {
+                    value
+                        .pointer_mut("/script/kept")
+                        .is_some_and(|path| roots.string(path))
+                } else {
+                    roots.structured(&mut value)
+                };
+                changed.then(|| value.to_string())
             } else {
                 roots.remap(&text).map(|path| {
                     if table == "projects" {
-                        crate::db::normalize_project_path(&path).unwrap_or(path)
+                        crate::db::canonical_project_path(&path).unwrap_or(path)
                     } else {
                         path
                     }
@@ -396,7 +415,7 @@ pub(crate) fn rewrite_database_paths(connection: &Connection, roots: &Roots) -> 
     }
     if column_exists(connection, "kv", "value_json")? {
         let rows = {
-            let mut statement = connection.prepare("SELECT ns, key, value_json FROM kv WHERE ns IN ('app','ui','projectGroups','projectMemory','projectInstructions')")?;
+            let mut statement = connection.prepare("SELECT ns, key, value_json FROM kv WHERE ns IN ('app','ui','projectGroups','projectMemory','projectInstructions','mc.creativeStorage')")?;
             let rows = statement
                 .query_map([], |row| {
                     Ok((
@@ -413,7 +432,7 @@ pub(crate) fn rewrite_database_paths(connection: &Connection, roots: &Roots) -> 
             {
                 roots
                     .remap(&key)
-                    .map(|path| crate::db::normalize_project_path(&path).unwrap_or(path))
+                    .map(|path| crate::db::canonical_project_path(&path).unwrap_or(path))
                     .unwrap_or_else(|| key.clone())
             } else {
                 key.clone()
@@ -421,8 +440,14 @@ pub(crate) fn rewrite_database_paths(connection: &Connection, roots: &Roots) -> 
             let mut value: Value =
                 serde_json::from_str(&text).context("parse relocation settings metadata")?;
             let changed = if namespace == "app" && key == "currentProjectId" {
-                roots.string(&mut value)
-            } else if matches!(namespace.as_str(), "app" | "ui" | "projectGroups") {
+                project_roots.string(&mut value)
+            } else if namespace == "projectGroups" {
+                project_roots.structured(&mut value)
+            } else if namespace == "mc.creativeStorage" {
+                value
+                    .get_mut("folder")
+                    .is_some_and(|folder| project_roots.string(folder))
+            } else if matches!(namespace.as_str(), "app" | "ui") {
                 roots.structured(&mut value)
             } else {
                 false

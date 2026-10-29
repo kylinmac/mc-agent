@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   askToolOptionDescription,
   askToolOptionLabel,
+  formatAskToolOutput,
 } from "@pi-desktop/shared";
 import { AskToolRichText } from "./AskToolRichText";
 import {
@@ -12,7 +13,7 @@ import {
   type PendingAsk,
 } from "../lib/pending-asks";
 import { useAppStore } from "../stores/app-store";
-import { Button } from "./ui";
+import { Button, Textarea } from "./ui";
 
 type DraftAnswer = AskDraftAnswer;
 
@@ -21,10 +22,21 @@ const CUSTOM_OPTION = "__asktool_custom__";
 export function AskToolCard({ request, queued = 0 }: { request: PendingAsk; queued?: number }) {
   const { t } = useTranslation();
   const resolveAsk = useAppStore((state) => state.resolveAsk);
+  const sendPrompt = useAppStore((state) => state.sendPrompt);
   const showToast = useAppStore((state) => state.showToast);
   const storedDraft = useAppStore((state) => state.askDrafts[request.requestId]);
   const setAskDraft = useAppStore((state) => state.setAskDraft);
   const [resolving, setResolving] = useState(false);
+  const submitting = useRef(false);
+  const [sent, setSent] = useState(false);
+  const [now, setNow] = useState(Date.now);
+  const late = request.autoContinued === true;
+  useEffect(() => {
+    if (!request.autoContinueAt || late) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [request.autoContinueAt, late]);
   // The store owns the draft, so a session switch (which unmounts this card)
   // cannot reset the answers. Read lazily rather than seeding during render.
   const draft: AskDraft =
@@ -62,6 +74,7 @@ export function AskToolCard({ request, queued = 0 }: { request: PendingAsk; queu
   );
 
   const updateCurrentDraft = (update: (answer: DraftAnswer) => DraftAnswer) => {
+    setSent(false);
     updateDraft({
       ...draft,
       answers: drafts.map((answer, draftIndex) =>
@@ -103,9 +116,17 @@ export function AskToolCard({ request, queued = 0 }: { request: PendingAsk; queu
     nextDrafts = drafts,
     explicitAnswers?: Array<string[] | null>,
   ) => {
-    if (resolving) return;
+    if (submitting.current || sent) return;
+    submitting.current = true;
     setResolving(true);
     try {
+      if (late) {
+        const content = `${t("askTool.lateMessageIntro")}\n\n${formatAskToolOutput(request.questions, explicitAnswers ?? answers(nextDrafts))}`;
+        const accepted = await sendPrompt(content, undefined, request.sessionId);
+        if (!accepted) throw new Error(t("askTool.lateSendFailed"));
+        setSent(true);
+        return;
+      }
       await resolveAsk(request.sessionId, {
         requestId: request.requestId,
         sessionId: request.sessionId,
@@ -113,6 +134,8 @@ export function AskToolCard({ request, queued = 0 }: { request: PendingAsk; queu
       });
     } catch (error) {
       showToast(error instanceof Error ? error.message : String(error), { variant: "error" });
+    } finally {
+      submitting.current = false;
       setResolving(false);
     }
   };
@@ -168,23 +191,29 @@ export function AskToolCard({ request, queued = 0 }: { request: PendingAsk; queu
           </div>
         </div>
         <div className="asktool-card-header-actions">
-          <button
-            type="button"
+          {!late && <Button
+            variant="ghost"
+            size="sm"
             className="asktool-decline"
             disabled={resolving}
             onClick={() => void submit(drafts, request.questions.map(() => null))}
           >
             {t("askTool.decline")}
-          </button>
-          <Button variant="ghost" size="sm" disabled={resolving} onClick={skip}>
+          </Button>}
+          <Button variant="ghost" size="sm" disabled={resolving || sent} onClick={skip}>
             {t("askTool.skip")}
           </Button>
-          <Button variant="primary" size="sm" disabled={resolving} onClick={next}>
-            {index === request.questions.length - 1 ? t("askTool.submit") : t("askTool.next")}
+          <Button variant="primary" size="sm" disabled={resolving || sent} onClick={next}>
+            {sent ? t("askTool.lateSent") : index === request.questions.length - 1 ? t(late ? "askTool.lateSubmit" : "askTool.submit") : t("askTool.next")}
           </Button>
         </div>
       </div>
 
+      {late ? (
+        <p role="status">{t("askTool.autoContinued")}</p>
+      ) : request.autoContinueAt ? (
+        <p role="status">{t("askTool.autoContinueCountdown", { count: Math.max(0, Math.ceil((request.autoContinueAt - now) / 1000)) })}</p>
+      ) : null}
       <h3 className="asktool-question">
         <span className="asktool-question-number">
           {t("askTool.questionNumber", { number: index + 1 })}
@@ -206,12 +235,14 @@ export function AskToolCard({ request, queued = 0 }: { request: PendingAsk; queu
               aria-pressed={current.multiSelect ? selected : undefined}
               aria-checked={!current.multiSelect ? selected : undefined}
               role={current.multiSelect ? "checkbox" : "radio"}
+              disabled={resolving}
               onClick={() => selectOption(label)}
             >
               <span className="asktool-option-mark" aria-hidden>{selected ? "✓" : ""}</span>
               <span className="asktool-option-copy">
                 <span className="asktool-option-rich-label">
                   <AskToolRichText source={label} />
+                  {current.recommendedOption === label ? <span> · {t("askTool.recommended")}</span> : null}
                 </span>
                 {description ? (
                   <span className="asktool-option-description">{description}</span>
@@ -226,6 +257,7 @@ export function AskToolCard({ request, queued = 0 }: { request: PendingAsk; queu
           aria-pressed={current.multiSelect ? currentDraft.customSelected : undefined}
           aria-checked={!current.multiSelect ? currentDraft.customSelected : undefined}
           role={current.multiSelect ? "checkbox" : "radio"}
+          disabled={resolving}
           onClick={() => selectOption(CUSTOM_OPTION)}
         >
           <span className="asktool-option-mark" aria-hidden>{currentDraft.customSelected ? "✓" : ""}</span>
@@ -233,9 +265,10 @@ export function AskToolCard({ request, queued = 0 }: { request: PendingAsk; queu
         </button>
       </div>
       {currentDraft.customSelected ? (
-        <textarea
+        <Textarea
           className="asktool-custom-input"
           rows={1}
+          disabled={resolving}
           value={currentDraft.customText}
           placeholder={t("askTool.customPlaceholder")}
           aria-label={t("askTool.customOption")}

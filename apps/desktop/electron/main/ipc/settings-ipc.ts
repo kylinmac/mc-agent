@@ -50,11 +50,9 @@ export function registerSettingsIpc({
   liveCallService,
 }: SettingsIpcDependencies): void {
   let host: HostProcess | null = null;
-  let sidecar: AgentSidecar | null = null;
   const handle = (channel: string, fn: (...args: any[]) => Promise<any>) => {
     registrar.handle(channel, async (...args) => {
       host = getHost();
-      sidecar = getSidecar();
       return fn(...args);
     });
   };
@@ -69,7 +67,9 @@ export function registerSettingsIpc({
     return testNetworkProxy(settings);
   });
 
-  handle(IPC.invoke.settingsSet, async (settings: unknown) => {
+  const persistSettings = async (settings: unknown) => {
+    const host = getHost();
+    const sidecar = getSidecar();
     if (!host) throw new Error("host unavailable");
     const validatedSettings = validateSettingsWrite(settings);
     const currentSettings = await host.call<AppSettings>("settings.get");
@@ -77,10 +77,13 @@ export function registerSettingsIpc({
       ? { ...currentSettings, ...(validatedSettings as Partial<AppSettings>) }
       : currentSettings;
     const releaseSettingsWrite = liveCallService?.beginSettingsWrite(prospectiveSettings);
-    let result: AppSettings;
+    let result: { ok: boolean };
     try {
-      result = await host.call<AppSettings>("settings.set", validatedSettings);
-      await liveCallService?.settingsWritten(result);
+      result = await host.call<{ ok: boolean }>("settings.set", validatedSettings);
+      if (liveCallService) {
+        const persisted = await host.call<AppSettings>("settings.get");
+        await liveCallService.settingsWritten(persisted);
+      }
     } finally {
       releaseSettingsWrite?.();
     }
@@ -120,6 +123,13 @@ export function registerSettingsIpc({
     );
     applyDeveloperMode(validatedSettings as { developerMode?: unknown } | null);
     return result;
+  };
+  // Persistence, voice snapshots and native side effects must share one order.
+  let settingsWriteQueue: Promise<void> = Promise.resolve();
+  handle(IPC.invoke.settingsSet, (settings: unknown) => {
+    const write = settingsWriteQueue.then(() => persistSettings(settings));
+    settingsWriteQueue = write.then(() => {}, () => {});
+    return write;
   });
 
   handle(IPC.invoke.commandShellList, async () => resolveEffectiveCommandShell());

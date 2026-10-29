@@ -619,6 +619,14 @@ export const fr = {
     "startingTurn": "Démarrage…",
     "preparingNextRequest": "Préparation de la prochaine requête…",
     "compactingContext": "Compactage du contexte…",
+    "compactionWaiting": "Compactage du contexte · en attente du modèle…",
+    "compactionGenerating": "Compactage du contexte · génération du résumé…",
+    "compactionRetrying": "Compactage du contexte · nouvelle tentative ({{attempt}})…",
+    "compactionElapsed": "Durée du compactage de ce contexte",
+    "configurationPending": "Appliqué après ce tour",
+    "configurationApplying": "Application des paramètres…",
+    "configurationFailed": "Paramètres non appliqués",
+    "configurationSessionRemoved": "La conversation a été supprimée avant l’application de ses paramètres.",
     "recoveringTurn": "Récupération d’une réponse vide…",
     "retryingModel": "Nouvel essai dans {{delaySeconds}} s · tentative {{attempt}}/{{maxAttempts}}",
     "waitingForSubagentNamed": "En attente de {{name}}",
@@ -782,6 +790,12 @@ export const fr = {
     "dismiss": "Ignorer"
   },
   "settings": {
+    askToolTitle: en.settings.askToolTitle,
+    askToolAutoContinue: en.settings.askToolAutoContinue,
+    askToolAutoContinueDesc: en.settings.askToolAutoContinueDesc,
+    askToolTimeout: en.settings.askToolTimeout,
+    askToolTimeoutDesc: en.settings.askToolTimeoutDesc,
+
     storage: {
       unavailableHint: "Le dossier de stockage est actuellement indisponible. Reconnectez le disque avant de démarrer ; l’application ne créera pas de données vides et ne changera pas de dossier.",
       browserSource: "Source des données du navigateur",
@@ -2040,6 +2054,14 @@ sklm: {
     "queued_other": "{{count}} demande supplémentaire en attente"
   },
   "askTool": {
+    autoContinueCountdown: en.askTool.autoContinueCountdown,
+    autoContinued: en.askTool.autoContinued,
+    lateSubmit: en.askTool.lateSubmit,
+    lateSent: en.askTool.lateSent,
+    lateSendFailed: en.askTool.lateSendFailed,
+    lateMessageIntro: en.askTool.lateMessageIntro,
+    recommended: en.askTool.recommended,
+
     "title": "Quelques questions",
     "historyTitle": "Questions et réponses",
     "answerLabel": "Réponse",

@@ -619,6 +619,14 @@ export const es = {
     "startingTurn": "Iniciando…",
     "preparingNextRequest": "Preparando la siguiente solicitud…",
     "compactingContext": "Compactando contexto…",
+    "compactionWaiting": "Compactando contexto · esperando al modelo…",
+    "compactionGenerating": "Compactando contexto · generando resumen…",
+    "compactionRetrying": "Compactando contexto · reintentando (intento {{attempt}})…",
+    "compactionElapsed": "Tiempo empleado en compactar este contexto",
+    "configurationPending": "Se aplica después de este turno",
+    "configurationApplying": "Aplicando ajustes…",
+    "configurationFailed": "Ajustes no aplicados",
+    "configurationSessionRemoved": "La conversación se eliminó antes de aplicar sus ajustes.",
     "recoveringTurn": "Recuperando respuesta vacía…",
     "retryingModel": "Reintentando en {{delaySeconds}} s · intento {{attempt}}/{{maxAttempts}}",
     "waitingForSubagentNamed": "Esperando a {{name}}",
@@ -782,6 +790,12 @@ export const es = {
     "dismiss": "Descartar"
   },
   "settings": {
+    askToolTitle: en.settings.askToolTitle,
+    askToolAutoContinue: en.settings.askToolAutoContinue,
+    askToolAutoContinueDesc: en.settings.askToolAutoContinueDesc,
+    askToolTimeout: en.settings.askToolTimeout,
+    askToolTimeoutDesc: en.settings.askToolTimeoutDesc,
+
     storage: {
       unavailableHint: "El directorio de almacenamiento no está disponible. Vuelve a conectar la unidad antes de iniciar; la aplicación no creará datos vacíos ni cambiará a otro directorio.",
       browserSource: "Origen de los datos del navegador",
@@ -2040,6 +2054,14 @@ sklm: {
     "queued_other": "{{count}} más solicitudes están esperando"
   },
   "askTool": {
+    autoContinueCountdown: en.askTool.autoContinueCountdown,
+    autoContinued: en.askTool.autoContinued,
+    lateSubmit: en.askTool.lateSubmit,
+    lateSent: en.askTool.lateSent,
+    lateSendFailed: en.askTool.lateSendFailed,
+    lateMessageIntro: en.askTool.lateMessageIntro,
+    recommended: en.askTool.recommended,
+
     "title": "Algunas preguntas",
     "historyTitle": "Preguntas y respuestas",
     "answerLabel": "Respuesta",

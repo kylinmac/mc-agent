@@ -1079,6 +1079,8 @@ export type AgentRuntimeOptions = {
   /** Latest host-owned checkpoint used only to rebuild model context. */
   compaction?: ContextCompactionRecord;
   compactionSettings?: ContextCompactionSettings;
+  askToolAutoContinue?: boolean;
+  askToolTimeoutSeconds?: number;
   /**
    * Which compaction family to use. Tests set it explicitly; production reads
    * `PI_DESKTOP_COMPACTION_STRATEGY` and otherwise summarizes.
@@ -2052,6 +2054,8 @@ export class DesktopAgentRuntime {
     string,
     { toolName: string; args: unknown; startedAt: number }
   >();
+  private askToolAutoContinue = false;
+  private askToolTimeoutSeconds = 30;
   private pendingAskTools = new Map<
     string,
     {
@@ -2181,6 +2185,7 @@ export class DesktopAgentRuntime {
     this.projectMemory = opts.projectMemory?.trim() || undefined;
     this.userHooks = opts.userHooks ?? [];
     this.compactionEnabled = compactionEnabled(opts.compactionSettings);
+    this.setAskToolSettings(opts.askToolAutoContinue, opts.askToolTimeoutSeconds);
     this.compactionStrategy = resolveCompactionStrategy(opts.compactionStrategy);
 
     this.rebuildToolCatalog();
@@ -3497,7 +3502,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         case "TodoWrite":
           return todoWriteDescription;
         case ASK_TOOL_NAME:
-          return `Ask the user one or more questions. Keep each question to ${MAX_ASK_TOOL_QUESTION_CHARS} characters or fewer. Use Markdown in question text and option labels when formatting helps (for example, emphasis, inline code, or lists); the desktop card renders it safely. Plain strings and existing { label, description? } options are accepted; descriptions remain plain text and answers return the selected source label. The card always provides a custom user-input option.`;
+          return `Ask the user one or more questions. Keep each question to ${MAX_ASK_TOOL_QUESTION_CHARS} characters or fewer. Use Markdown in question text and option labels when formatting helps (for example, emphasis, inline code, or lists); the desktop card renders it safely. Plain strings and existing { label, description? } options are accepted; descriptions remain plain text and answers return the selected source label. The card always provides a custom user-input option. For a reversible, nonessential preference, set importance="optional" and recommendedOption to the exact label you recommend. If the user enabled automatic continuation, the runtime may use that recommendation after its deadline; this is an assumption, never a user answer or authorization. Keep important decisions, missing essential facts, destructive actions, access grants, and external commitments required (the default). Never use asktool to bypass tool permissions or plan/goal approval. A later user answer may revise the assumption; reconcile it with work already done.`;
         case "PluginScaffold":
           return "Create a PI-Desktop plugin from a template and load it for development. `directory` is workspace-relative and must be empty or new; `template` is one of panel-basic, agent-tool-basic, skill-pack, full-demo. Use this instead of hand-writing plugin files.";
         case "PluginCheck":
@@ -4093,6 +4098,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
               ]),
             ),
             multiSelect: Type.Optional(Type.Boolean()),
+            importance: Type.Optional(Type.Union([Type.Literal("optional"), Type.Literal("required")])),
+            recommendedOption: Type.Optional(Type.String({ description: "Exact recommended option label; only for an optional preference." })),
           }),
         ),
       }),
@@ -4120,8 +4127,10 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         const answers = await this.waitForAskTool(request, signal);
         const text = formatAskToolOutput(questions, answers);
         return {
-          content: [{ type: "text", text }],
-          details: { questions, answers },
+          content: [{ type: "text", text: request.autoContinued
+            ? `No user answer was received before the deadline. Proceed with these recommended assumptions; they are NOT user consent or permission. Keep all tool and plan approvals in force. The user may answer later.\n${text}`
+            : text }],
+          details: { questions, answers, ...(request.autoContinued ? { request, autoContinued: true } : {}) },
         };
       },
     };
@@ -6348,6 +6357,10 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         question,
         options,
         ...(raw.multiSelect === true ? { multiSelect: true } : {}),
+        ...(raw.importance === "optional" || raw.importance === "required"
+          ? { importance: raw.importance } : {}),
+        ...(typeof raw.recommendedOption === "string" && seenLabels.has(raw.recommendedOption.trim())
+          ? { recommendedOption: raw.recommendedOption.trim() } : {}),
       });
     }
     return questions.length > 0 && questions.length <= 20 ? questions : undefined;
@@ -6359,18 +6372,32 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
   ): Promise<Array<string[] | null>> {
     return new Promise((resolve) => {
       let settled = false;
+      let timer: ReturnType<typeof setTimeout> | undefined;
       const finish = (answers: Array<string[] | null>) => {
         if (settled) return;
         settled = true;
+        if (timer) clearTimeout(timer);
         signal?.removeEventListener("abort", abort);
         this.pendingAskTools.delete(request.requestId);
         resolve(answers);
       };
       const abort = () => finish(request.questions.map(() => null));
+      if (signal?.aborted) { abort(); return; }
+      signal?.addEventListener("abort", abort, { once: true });
       this.pendingAskTools.set(request.requestId, { request, resolve: finish });
-      this.emit({ type: "asktool_request", request });
-      if (signal?.aborted) abort();
-      else signal?.addEventListener("abort", abort, { once: true });
+      const recommendedAnswers = request.questions.map((question) =>
+        question.importance === "optional" && question.recommendedOption
+          ? [question.recommendedOption] : null);
+      if (this.askToolAutoContinue && recommendedAnswers.every((answer) => answer !== null)) {
+        request.autoContinueAt = Date.now() + this.askToolTimeoutSeconds * 1000;
+        timer = setTimeout(() => {
+          if (settled) return;
+          request.autoContinued = true;
+          finish(recommendedAnswers);
+          this.emit({ type: "asktool_request", request: { ...request } });
+        }, this.askToolTimeoutSeconds * 1000);
+      }
+      this.emit({ type: "asktool_request", request: { ...request } });
     });
   }
 
@@ -6938,6 +6965,12 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     this.activeToolProgressCleanups.clear();
   }
 
+  setAskToolSettings(enabled?: boolean, seconds?: number): void {
+    this.askToolAutoContinue = enabled === true;
+    this.askToolTimeoutSeconds = typeof seconds === "number" && Number.isFinite(seconds)
+      ? Math.min(300, Math.max(10, Math.round(seconds))) : 30;
+  }
+
   setCompactionSettings(settings?: ContextCompactionSettings): void {
     this.compactionEnabled = compactionEnabled(settings);
     this.pendingModelCompaction = false;
@@ -7290,6 +7323,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       phase: "compacting",
       since: Date.now(),
       reason,
+      stage: "waiting",
     });
     try {
       const runner = this.extensionRunner;
@@ -7856,6 +7890,17 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     const requestId = randomUUID();
     this.compactionRequestShape = undefined;
     this.compactionShapeLogged = false;
+    const progress = (
+      stage: "waiting" | "generating" | "retrying",
+      attempt: number,
+      retryDelayMs?: number,
+    ) => {
+      if (signal.aborted || this.agentActivity?.phase !== "compacting") return;
+      const { since, reason } = this.agentActivity;
+      this.setAgentActivity({ phase: "compacting", since, reason, stage, attempt,
+        ...(retryDelayMs !== undefined ? { retryDelayMs } : {}) });
+    };
+    let attempt = 0;
     const models = withCompactionRequestHeaders(
       this.models,
       this.provider,
@@ -7869,6 +7914,10 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
           ...shape,
         });
       },
+      (stage) => {
+        if (stage === "waiting") attempt++;
+        progress(stage, attempt);
+      },
     );
     try {
       const result = await compact(
@@ -7879,12 +7928,12 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         models,
         this.model,
         undefined,
-        agentThinkingLevel(this.thinkingLevel),
+        this.thinkingLevel,
         // Without a policy pi-ai returns the first failed response as-is, which
         // made a single dropped stream or 503 discard the whole summary (#543).
         // pi's classifier decides what is transient; the waits honour `signal`.
         COMPACTION_SUMMARY_RETRY_POLICY,
-        undefined,
+        { onRetryScheduled: (_retry, _max, delayMs) => progress("retrying", attempt + 1, delayMs) },
         signal,
       );
       if (!result.ok) {

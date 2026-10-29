@@ -393,6 +393,14 @@
   opacity: 0 !important;
 }
 
+.composer-configuration-notice {
+  padding: 0 12px 4px;
+}
+
+.composer-configuration-notice .badge {
+  white-space: normal;
+}
+
 .composer-toolbar {
   display: flex;
   align-items: center;

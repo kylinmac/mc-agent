@@ -132,12 +132,13 @@ const launch: LaunchResolver = {
 function build() {
   const host = new FakeHost();
   const sidecar = new FakeSidecar();
+  let currentSidecar: RuntimeSidecarLink | null = sidecar;
   const events: AgentEventEnvelope[] = [];
   const ended: TurnEndedInfo[] = [];
   const logs: Array<{ level: string; message: string }> = [];
   const service = new RuntimeService({
     getHost: () => host,
-    getSidecar: () => sidecar,
+    getSidecar: () => currentSidecar,
     launch,
     log: (level, message) => logs.push({ level, message }),
     now: () => Date.parse("2026-09-18T00:00:00.000Z"),
@@ -146,7 +147,7 @@ function build() {
   service.attachSidecar(sidecar);
   service.onEvent((envelope) => events.push(envelope));
   service.onTurnEnded((info) => ended.push(info));
-  return { host, sidecar, service, events, ended, logs };
+  return { host, sidecar, service, events, ended, logs, setSidecar: (next: RuntimeSidecarLink | null) => { currentSidecar = next; } };
 }
 
 describe("RuntimeService manual compaction against a lost reply (#795)", () => {
@@ -352,6 +353,35 @@ describe("RuntimeService prompt lifecycle", () => {
     expect(ended[0]?.reason).toBe("aborted");
     expect(ended[0]?.errorCode).toBe("AGENT_SIDECAR_CRASHED");
     expect(service.isBusy("s1")).toBe(false);
+  });
+
+  it("settles a sidecar crash after the embedding host has cleared its process reference", async () => {
+    const { host, sidecar, service, ended, setSidecar } = build();
+    await service.prompt({ sessionId: "s1", content: "hello", effectivePermissionMode: "ask", principal: owner });
+    // pi-host's exit listener clears the process before this listener runs.
+    setSidecar(null);
+    sidecar.exit?.({ intentional: false, code: 1, signal: null });
+    await settle();
+    expect(host.calls.find((call) => call.method === "session.endTurn")?.params).toMatchObject({
+      status: "aborted", errorCode: "AGENT_SIDECAR_CRASHED", recoverInflight: true,
+    });
+    expect(ended).toHaveLength(1);
+    expect(service.isBusy("s1")).toBe(false);
+    await service.dispose();
+  });
+
+  it("ignores a replaced sidecar's exit without settling the replacement's active turn", async () => {
+    const { host, sidecar, service, ended, setSidecar } = build();
+    const replacement = new FakeSidecar();
+    setSidecar(replacement);
+    service.attachSidecar(replacement);
+    await service.prompt({ sessionId: "s1", content: "hello", effectivePermissionMode: "ask", principal: owner });
+    sidecar.exit?.({ intentional: false, code: 1, signal: null });
+    await settle();
+    expect(host.calls.some((call) => call.method === "session.endTurn")).toBe(false);
+    expect(ended).toEqual([]);
+    expect(service.isBusy("s1")).toBe(true);
+    await service.dispose();
   });
 
   it("steers only the live turn and refuses once it ended", async () => {

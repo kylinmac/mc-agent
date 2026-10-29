@@ -141,6 +141,7 @@ function sessionHarness(t, initialSessions) {
   };
   t.mock.method(api, "listSessions", () => host.read());
   const slice = createSessionSlice({
+    runtime: { pendingSessionConfigurations: new Map() },
     get: () => state,
     set: (update) => {
       const patch = typeof update === "function" ? update(state) : update;

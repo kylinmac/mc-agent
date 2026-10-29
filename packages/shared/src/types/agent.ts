@@ -224,6 +224,10 @@ export type AskToolQuestion = {
   question: string;
   options: AskToolOption[];
   multiSelect?: boolean;
+  /** Only optional preferences may continue without an answer. Omitted means required. */
+  importance?: "optional" | "required";
+  /** Exact option label, never inferred from ordering or display copy. */
+  recommendedOption?: string;
 };
 
 export type AskToolRequest = {
@@ -231,6 +235,10 @@ export type AskToolRequest = {
   sessionId: string;
   toolCallId: string;
   questions: AskToolQuestion[];
+  /** Host runtime deadline; renderer timers are display-only. */
+  autoContinueAt?: number;
+  /** The recommendation was used without user consent; the card remains answerable. */
+  autoContinued?: boolean;
 };
 
 /**

@@ -624,6 +624,14 @@ export const zhTW = {
     startingTurn: "正在開始…",
     preparingNextRequest: "正在準備下一次請求…",
     compactingContext: "正在壓縮上下文…",
+    compactionWaiting: "正在壓縮 · 等待模型…",
+    compactionGenerating: "正在壓縮 · 產生摘要…",
+    compactionRetrying: "正在壓縮 · 等待第 {{attempt}} 次嘗試…",
+    compactionElapsed: "本次上下文壓縮耗時",
+    configurationPending: "本輪結束後生效",
+    configurationApplying: "正在套用設定…",
+    configurationFailed: "設定尚未生效",
+    configurationSessionRemoved: "設定尚未生效，對話已被移除。",
     recoveringTurn: "正在補救空回覆…",
     retryingModel: "將在 {{delaySeconds}} 秒後重試 · 第 {{attempt}}/{{maxAttempts}} 次",
     waitingForSubagentNamed: "正在等待 {{name}}",
@@ -787,6 +795,12 @@ export const zhTW = {
     dismiss: "關閉",
   },
   settings: {
+    askToolTitle: en.settings.askToolTitle,
+    askToolAutoContinue: en.settings.askToolAutoContinue,
+    askToolAutoContinueDesc: en.settings.askToolAutoContinueDesc,
+    askToolTimeout: en.settings.askToolTimeout,
+    askToolTimeoutDesc: en.settings.askToolTimeoutDesc,
+
     storage: {
       unavailableHint: "儲存目錄暫時無法使用。請重新連接磁碟後啟動；應用程式不會建立空白資料或切換到其他目錄。",
       browserSource: "瀏覽器資料來源",
@@ -2035,6 +2049,14 @@ sklm: {
     queued_other: "還有 {{count}} 個請求在排隊",
   },
   askTool: {
+    autoContinueCountdown: en.askTool.autoContinueCountdown,
+    autoContinued: en.askTool.autoContinued,
+    lateSubmit: en.askTool.lateSubmit,
+    lateSent: en.askTool.lateSent,
+    lateSendFailed: en.askTool.lateSendFailed,
+    lateMessageIntro: en.askTool.lateMessageIntro,
+    recommended: en.askTool.recommended,
+
     title: "需要回答幾個問題",
     historyTitle: "問答摘要",
     answerLabel: "回答",

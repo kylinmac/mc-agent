@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AssistantMessage, Api, Model, Models, ModelsSimpleStreamOptions } from "@earendil-works/pi-ai";
+import { createAssistantMessageEventStream, type AssistantMessage, type Api, type Model, type Models, type ModelsSimpleStreamOptions } from "@earendil-works/pi-ai";
 import {
   OPENCODE_CLIENT_HEADER,
   OPENCODE_CLIENT_VALUE,
@@ -39,7 +39,36 @@ const model = {
 
 const context = { messages: [] };
 
+function summaryResponse(): AssistantMessage {
+  return { role: "assistant", content: [], api: model.api, provider: model.provider,
+    model: model.id, timestamp: Date.now(), stopReason: "stop",
+    usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } };
+}
+
+/** Header fixtures complete immediately; production uses the collection's stream. */
+function streamingCollection(collection: Models): Models {
+  return Object.assign(collection, {
+    streamSimple: (...args: Parameters<Models["streamSimple"]>) => {
+      const stream = createAssistantMessageEventStream();
+      void collection.completeSimple(...args).then((message) => stream.end(message));
+      return stream;
+    },
+  });
+}
+
 describe("compactionRequestOptions", () => {
+  it("preserves omitted reasoning when the summary model explicitly suppresses off", () => {
+    const options = compactionRequestOptions({
+      provider,
+      sessionId: "omitted-thinking",
+      model: { ...model, reasoning: true, thinkingLevelMap: { off: null } },
+      context,
+      options: { maxTokens: 4_096 },
+    });
+    expect(options.reasoning).toBeUndefined();
+  });
+
   it("carries the session id pi-agent-core's per-call fallback replaced", () => {
     const options = compactionRequestOptions({
       provider,
@@ -99,12 +128,12 @@ describe("compactionRequestOptions", () => {
       ) => {
         received = options;
         sentPayload = await options.onPayload?.({ input: [] }, responsesModel);
-        return "assistant-message";
+        return summaryResponse();
       },
     } as unknown as Models;
 
     const wrapped = withCompactionRequestHeaders(
-      collection,
+      streamingCollection(collection),
       responsesProvider,
       "session-42",
     );
@@ -158,12 +187,12 @@ describe("withCompactionRequestHeaders", () => {
   it("stamps the headers on completeSimple and leaves the collection otherwise intact", async () => {
     const completeSimple = vi.fn(
       async (_model: Model<Api>, _context: unknown, _options?: unknown) =>
-        "assistant-message",
+        summaryResponse(),
     );
     const getModel = vi.fn(() => model);
     const collection = { completeSimple, getModel } as unknown as Models;
 
-    const wrapped = withCompactionRequestHeaders(collection, provider, "session-1");
+    const wrapped = withCompactionRequestHeaders(streamingCollection(collection), provider, "session-1");
     await wrapped.completeSimple(model, context as never, { maxTokens: 4_096 });
 
     expect(completeSimple).toHaveBeenCalledOnce();
@@ -184,13 +213,13 @@ describe("withCompactionRequestHeaders", () => {
           { messages: [{ role: "user", content: "private" }], max_tokens: 512 },
           model,
         );
-        return "assistant-message";
+        return summaryResponse();
       },
     );
     const shapes: unknown[] = [];
     const collection = { completeSimple } as unknown as Models;
     const wrapped = withCompactionRequestHeaders(
-      collection,
+      streamingCollection(collection),
       provider,
       "session-1",
       undefined,
@@ -225,13 +254,13 @@ describe("compaction summary conversation key", () => {
         const payload: Record<string, unknown> = { input: [], ...seed };
         const result = await options.onPayload?.(payload, summaryModel);
         calls.push({ payload, result });
-        return "assistant-message";
+        return summaryResponse();
       },
     } as unknown as Models;
     return {
       model: summaryModel,
       calls,
-      wrapped: withCompactionRequestHeaders(collection, provider, "session-1"),
+      wrapped: withCompactionRequestHeaders(streamingCollection(collection), provider, "session-1"),
     };
   }
 
@@ -276,6 +305,7 @@ describe("compaction summary conversation key", () => {
   });
 
   it("clamps a long session id the way the Responses adapter does", async () => {
+    let sent: unknown;
     const collection = {
       completeSimple: async (
         _model: unknown,
@@ -287,17 +317,18 @@ describe("compaction summary conversation key", () => {
           payload,
           { ...model, api: "openai-responses" } as Model<Api>,
         );
-        return result === undefined ? payload : result;
+        sent = result === undefined ? payload : result;
+        return summaryResponse();
       },
     } as unknown as Models;
     const summaryModel = { ...model, api: "openai-responses" } as Model<Api>;
-    const wrapped = withCompactionRequestHeaders(collection, provider, "s".repeat(80));
+    const wrapped = withCompactionRequestHeaders(streamingCollection(collection), provider, "s".repeat(80));
 
-    const sent = (await wrapped.completeSimple(summaryModel, context as never, {
+    await wrapped.completeSimple(summaryModel, context as never, {
       maxTokens: 4_096,
-    })) as unknown as Record<string, unknown>;
+    });
 
-    expect(sent.prompt_cache_key).toBe("s".repeat(64));
+    expect(sent).toMatchObject({ prompt_cache_key: "s".repeat(64) });
   });
 
   it("keeps an existing hook's replacement and mutation semantics", async () => {
@@ -340,7 +371,7 @@ describe("compaction summary conversation key", () => {
     usage: { input: 12, output: 3, cacheRead: 0, cacheWrite: 0, totalTokens: 15,
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } });
   const completeSimple = vi.fn().mockResolvedValueOnce(response(true)).mockResolvedValueOnce(response(false));
-  const wrapped = withCompactionRequestHeaders({ completeSimple } as unknown as Models, provider, "summary-session", usage => reports.push(usage));
+  const wrapped = withCompactionRequestHeaders(streamingCollection({ completeSimple } as unknown as Models), provider, "summary-session", usage => reports.push(usage));
   const failed = await wrapped.completeSimple(model, context);
   await wrapped.completeSimple(model, context);
   expect(reports).toHaveLength(2);

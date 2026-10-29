@@ -29,7 +29,9 @@ export class PlanExecutionDispatcher {
   private readonly dispatching = new Set<string>();
   private readonly inFlightFinishes = new Set<string>();
   private readonly pendingFinishes = new Map<string, { status: PlanExecutionFinishStatus; errorCode?: string }>();
+  private readonly retries = new Map<string, ReturnType<typeof setTimeout>>();
   private drain: Promise<void> | null = null;
+  private disposed = false;
   private readonly detach: () => void;
 
   constructor(private readonly options: PlanExecutionDispatcherOptions) {
@@ -47,7 +49,14 @@ export class PlanExecutionDispatcher {
   }
 
   dispose(): void {
+    this.disposed = true;
+    for (const timer of this.retries.values()) clearTimeout(timer);
+    this.retries.clear();
     this.detach();
+  }
+
+  private requireActive(): void {
+    if (this.disposed) throw new Error("approved plan dispatcher disposed");
   }
 
   /** The execution a session is currently running, if any. */
@@ -91,6 +100,7 @@ export class PlanExecutionDispatcher {
   }
 
   async dispatchApprovedPlan(rawExecution: unknown): Promise<void> {
+    if (this.disposed) return;
     const initial = planExecutionFromUnknown(rawExecution);
     if (!initial) {
       this.options.log("warn", "approved plan execution descriptor was invalid");
@@ -98,6 +108,7 @@ export class PlanExecutionDispatcher {
     }
     await this.options.runtime.withSessionOperation(initial.sessionId, async () => {
       if (
+        this.disposed ||
         initial.state !== "queued" ||
         this.started.has(initial.id) ||
         this.finished.has(initial.id) ||
@@ -110,7 +121,12 @@ export class PlanExecutionDispatcher {
       if (!host || !sidecar) return;
       if (this.options.runtime.activeTurnId(initial.sessionId)) {
         // The submitting turn is still finalizing; look again shortly.
-        const timer = setTimeout(() => void this.dispatchApprovedPlan(initial), 250);
+        if (this.retries.has(initial.id)) return;
+        const timer = setTimeout(() => {
+          this.retries.delete(initial.id);
+          void this.dispatchApprovedPlan(initial);
+        }, 250);
+        this.retries.set(initial.id, timer);
         timer.unref?.();
         return;
       }
@@ -126,6 +142,7 @@ export class PlanExecutionDispatcher {
         }
         const execution: PlanExecution = { ...(claimedExecution ?? initial), state: "running" };
         claimed = true;
+        this.requireActive();
         const [settings, sessionResult] = await Promise.all([
           host.call<Record<string, unknown>>("settings.get"),
           host.call<{ session?: Record<string, unknown> | null }>("session.get", { id: execution.sessionId }),
@@ -133,10 +150,13 @@ export class PlanExecutionDispatcher {
         if (!sessionResult.session) {
           throw Object.assign(new Error("Session not found"), { errorCode: ErrorCodes.NOT_FOUND });
         }
+        this.requireActive();
         const launch = await this.options.launch.resolve(execution.sessionId, sessionResult.session, settings ?? {}, {
           mode: "agent",
         });
+        this.requireActive();
         turnId = await this.options.runtime.beginTurn(execution.sessionId, launch.providerId, launch.modelId);
+        this.requireActive();
         this.approvedExecutionIdsBySession.set(execution.sessionId, execution.id);
         this.executionTurns.set(execution.id, { sessionId: execution.sessionId, turnId });
         this.started.add(execution.id);
@@ -173,6 +193,7 @@ export class PlanExecutionDispatcher {
 
   /** Dispatch every queued execution the host restored, once, on boot or after a restart. */
   async drainApprovedPlanExecutions(): Promise<void> {
+    if (this.disposed) return;
     if (this.drain) return this.drain;
     this.drain = (async () => {
       const host = this.options.getHost();
@@ -195,6 +216,7 @@ export class PlanExecutionDispatcher {
 
   /** After an approval resolved, run the execution it produced. */
   async dispatchExecutionForProposal(proposalId: string): Promise<void> {
+    if (this.disposed) return;
     const host = this.options.getHost();
     if (!host) return;
     try {

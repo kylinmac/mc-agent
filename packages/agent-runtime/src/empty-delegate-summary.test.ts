@@ -15,7 +15,7 @@ import { buildProviderModel } from "./provider-binding.js";
  * evidence while reporting kind "compacted".
  */
 async function reproduce(
-  responseKind: "thinking-only" | "provider-error" | "valid-text",
+  responseKind: "thinking-only" | "truncated-text" | "provider-error" | "valid-text",
 ) {
   const model: Model<Api> = {
     ...buildProviderModel({
@@ -125,6 +125,12 @@ async function reproduce(
               },
             ]);
           }
+          if (responseKind === "truncated-text") {
+            return {
+              ...assistant([{ type: "text", text: "Only the old history; the recent evidence did not fit" }]),
+              stopReason: "length",
+            };
+          }
           return {
             ...assistant([
               { type: "thinking", thinking: "I need to summarize this." },
@@ -153,6 +159,17 @@ it("control: a reported provider error preserves recent evidence through degrada
   expect(outcome.kind).toBe("degraded");
   if (outcome.kind === "degraded") {
     expect(JSON.stringify(outcome.messages)).toContain("RECENT_FINDING");
+  }
+});
+
+it("preserves the active brief and recent evidence when a nonempty summary is truncated", async () => {
+  const outcome = await reproduce("truncated-text");
+  expect(outcome.kind).toBe("degraded");
+  if (outcome.kind === "degraded") {
+    const context = JSON.stringify(outcome.messages);
+    expect(context).toContain("RECENT_FINDING");
+    expect(context).toContain("Inspect permissions and keep the result of the latest Read.");
+    expect(context).not.toContain("Only the old history");
   }
 });
 

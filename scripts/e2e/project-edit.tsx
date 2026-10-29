@@ -5,6 +5,7 @@ import { en } from "@pi-desktop/i18n";
 import { api } from "../../apps/desktop/src/lib/api";
 import { ProjectsPage } from "../../apps/desktop/src/pages/ProjectsPage";
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";
+import { projectWorkbenchProbe } from "./project-workbench";
 
 declare global {
   var projectEditProbe: () => Promise<unknown>;
@@ -113,5 +114,6 @@ globalThis.projectEditProbe = async () => {
     groups[0]?.roots.length === 2 &&
     groups[0]?.roots[0]?.path === "/fixture/assets" &&
     groups[0]?.roots[1]?.path === "/fixture/website";
-  return { ok: saved, preserved, foldersPreserved, primaryPreserved, promoted, saved };
+  const workbench = await projectWorkbenchProbe(i18n);
+  return { ok: saved && workbench.ok, preserved, foldersPreserved, primaryPreserved, promoted, saved, workbench };
 };

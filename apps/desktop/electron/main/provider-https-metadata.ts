@@ -60,7 +60,8 @@ export async function fetchHttpsMetadata(
   }
   const agent = new Agent({ keepAlive: false, maxCachedSessions: 0 });
   agent.createConnection = () => socket;
-  const abort = () => socket.destroy(new DOMException("The operation was aborted", "AbortError"));
+  // The signal rejects the waiter; it also removes once()'s socket error listener.
+  const abort = () => socket.destroy();
   init.signal.addEventListener("abort", abort, { once: true });
   try {
     const connected = once(socket, "secureConnect", { signal: init.signal });

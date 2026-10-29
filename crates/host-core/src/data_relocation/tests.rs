@@ -21,8 +21,8 @@ fn read_json(path: &Path) -> Value {
 
 #[test]
 fn relocated_project_memory_remains_readable_through_the_repository() {
-    // Keep the synthetic profile for inspection; no user data is involved.
-    let temporary = tempfile::tempdir().unwrap().keep();
+    let directory = tempfile::tempdir().unwrap();
+    let temporary = directory.path();
     let source = temporary.join("old profile");
     let destination = temporary.join("new profile");
     let project = source.join("projects").join("saved project");
@@ -54,6 +54,168 @@ fn relocated_project_memory_remains_readable_through_the_repository() {
     assert_eq!(
         stored,
         crate::db::canonical_project_path(&moved_project.to_string_lossy()).unwrap()
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn relocated_project_keys_use_the_destination_canonical_spelling() {
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("source");
+    let real_parent = temporary.path().join("real-parent");
+    let alias_parent = temporary.path().join("alias-parent");
+    fs::create_dir_all(&real_parent).unwrap();
+    std::os::unix::fs::symlink(&real_parent, &alias_parent).unwrap();
+    let destination = alias_parent.join("destination");
+    let project = source.join("project");
+    fs::create_dir_all(&project).unwrap();
+    let database = Database::open_in_dir(&source).unwrap();
+    let group = database
+        .create_project_group("Relocated", &[project.to_string_lossy().into_owned()])
+        .unwrap();
+    database
+        .set_project_memory(&project.to_string_lossy(), "Keep this memory")
+        .unwrap();
+    let source_key = crate::db::canonical_project_path(&project.to_string_lossy()).unwrap();
+    database
+        .kv_set(
+            "projectInstructions",
+            &source_key,
+            &json!({"content": "Keep these instructions"}),
+        )
+        .unwrap();
+    drop(database);
+    copy_directory(&source, &destination);
+    relocate(&source, &destination).unwrap();
+    let moved_project = destination.join("project");
+    let key = crate::db::canonical_project_path(&moved_project.to_string_lossy()).unwrap();
+    let database = Database::open_in_dir(&destination).unwrap();
+    assert_eq!(
+        database
+            .project_group_for_path(&moved_project.to_string_lossy())
+            .unwrap()
+            .map(|group| group.id),
+        Some(group.id)
+    );
+    assert_eq!(
+        database
+            .get_project_memory(&moved_project.to_string_lossy())
+            .unwrap()
+            .content,
+        "Keep this memory"
+    );
+    assert_eq!(
+        database.kv_get("projectInstructions", &key).unwrap(),
+        Some(json!({"content": "Keep these instructions"}))
+    );
+    let paths: Vec<String> = database
+        .conn()
+        .prepare("SELECT path FROM projects")
+        .unwrap()
+        .query_map([], |row| row.get(0))
+        .unwrap()
+        .collect::<rusqlite::Result<_>>()
+        .unwrap();
+    assert_eq!(paths, vec![key]);
+    let original = Database::open_in_dir(&source).unwrap();
+    assert_eq!(
+        original
+            .get_project_memory(&project.to_string_lossy())
+            .unwrap()
+            .content,
+        "Keep this memory"
+    );
+}
+
+#[test]
+fn relocated_creative_storage_and_generated_assets_follow_the_copied_files() {
+    use crate::mc_creative as creative;
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("source");
+    let destination = temporary.path().join("destination");
+    let project = source.join("project");
+    fs::create_dir_all(&project).unwrap();
+    let database = Database::open_in_dir(&source).unwrap();
+    let group = creative::create_project(&database, "Studio", &project).unwrap();
+    let job = creative::create_job(
+        &database,
+        &group,
+        creative::JobInput {
+            entry: "form".into(),
+            session_id: None,
+            provider_id: None,
+            model_id: None,
+            snapshot: json!({"prompt":"Keep original prompt"}),
+            count: 1,
+        },
+    )
+    .unwrap();
+    let output = creative::output_dir(&database, &group, "")
+        .unwrap()
+        .join("result.png");
+    fs::write(&output, b"image bytes").unwrap();
+    let job = creative::record_result(
+        &database,
+        &group,
+        &job.id,
+        0,
+        Some(&output),
+        &creative::FileFacts::default(),
+        None,
+    )
+    .unwrap();
+    let asset_id = job.results[0].asset_id.as_ref().unwrap();
+    let script = project.join("draw.py");
+    fs::write(&script, b"print('drawing')").unwrap();
+    let drawing = project.join("drawing.png");
+    fs::write(&drawing, b"drawing bytes").unwrap();
+    let code_job = creative::register_code_drawing(
+        &database,
+        &group,
+        &drawing,
+        Some(&script),
+        "python draw.py",
+        None,
+        &creative::FileFacts::default(),
+        "",
+    )
+    .unwrap();
+    drop(database);
+    copy_directory(&source, &destination);
+    relocate(&source, &destination).unwrap();
+    let database = Database::open_in_dir(&destination).unwrap();
+    let group = database.project_group(&group.id).unwrap().unwrap();
+    let storage = creative::storage(&database, &group).unwrap();
+    assert_eq!(
+        storage.folder,
+        destination.join("project").canonicalize().unwrap()
+    );
+    let asset = creative::get_asset(&database, asset_id).unwrap().unwrap();
+    assert!(asset.file_exists);
+    assert!(Path::new(&asset.path).starts_with(&destination));
+    assert_eq!(fs::read(&asset.path).unwrap(), b"image bytes");
+    let restored_job = creative::get_job(&database, &job.id).unwrap().unwrap();
+    assert_eq!(
+        restored_job.results[0].path.as_deref(),
+        Some(asset.path.as_str())
+    );
+    assert_eq!(restored_job.snapshot, job.snapshot);
+    let code = creative::get_job(&database, &code_job.id).unwrap().unwrap();
+    let kept = Path::new(code.snapshot["script"]["kept"].as_str().unwrap());
+    assert!(kept.starts_with(&destination));
+    assert_eq!(fs::read(kept).unwrap(), b"print('drawing')");
+    assert_eq!(
+        code.snapshot["script"]["source"],
+        code_job.snapshot["script"]["source"]
+    );
+    assert_eq!(code.snapshot["command"], code_job.snapshot["command"]);
+    let original = Database::open_in_dir(&source).unwrap();
+    assert_eq!(
+        creative::get_asset(&original, asset_id)
+            .unwrap()
+            .unwrap()
+            .path,
+        output.to_string_lossy()
     );
 }
 
@@ -198,7 +360,7 @@ fn relocates_a_real_copied_profile_without_recovery_or_changing_user_content() {
         .unwrap();
     assert_eq!(
         inside,
-        crate::db::normalize_project_path(&destination.join("project").to_string_lossy()).unwrap()
+        crate::db::canonical_project_path(&destination.join("project").to_string_lossy()).unwrap()
     );
     let outside: String = connection
         .query_row(
@@ -233,7 +395,7 @@ fn relocates_a_real_copied_profile_without_recovery_or_changing_user_content() {
         .unwrap();
     assert_eq!(
         memory_key,
-        crate::db::normalize_project_path(&destination.join("project").to_string_lossy()).unwrap()
+        crate::db::canonical_project_path(&destination.join("project").to_string_lossy()).unwrap()
     );
     let group: String = connection
         .query_row(
@@ -244,7 +406,10 @@ fn relocates_a_real_copied_profile_without_recovery_or_changing_user_content() {
         .unwrap();
     assert_eq!(
         serde_json::from_str::<Value>(&group).unwrap()["roots"][0]["path"],
-        json!(destination.join("project"))
+        json!(
+            crate::db::canonical_project_path(&destination.join("project").to_string_lossy())
+                .unwrap()
+        )
     );
     assert_eq!(
         SecretStore::open(&destination)
