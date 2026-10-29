@@ -214,16 +214,19 @@ export function codexAccountId(accessToken: string): string | undefined {
  * `GET cli-chat-proxy.grok.com/v1/billing?format=credits`, the credit pool
  * the Grok Build CLI reads. One window: `creditUsagePercent` of the period
  * between `billingPeriodStart` and `billingPeriodEnd` (or `currentPeriod`).
+ * The answer leaves out a zero `creditUsagePercent` (as at the start of a
+ * period), so a period without one is 0% used; without a period either,
+ * there is no pool to show.
  */
 export function parseXaiUsage(body: unknown): SubscriptionQuotaWindow[] {
   const root = record(body);
   const config = record(root?.config) ?? root;
   if (!config) return [];
-  const used = number(config.creditUsagePercent);
-  if (used === undefined) return [];
   const period = record(config.currentPeriod);
   const start = time(config.billingPeriodStart ?? period?.start);
   const end = time(config.billingPeriodEnd ?? period?.end);
   const seconds = start !== undefined && end !== undefined && end > start ? Math.round((end - start) / 1000) : undefined;
+  const used = number(config.creditUsagePercent) ?? (seconds !== undefined ? 0 : undefined);
+  if (used === undefined) return [];
   return bySeconds([window(100 - used, seconds, end)]);
 }
