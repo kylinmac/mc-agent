@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.29",
+    date: "2026-10-28",
+    fixes: [
+      "After the Grok subscription's weekly quota resets, the quota chip in the composer no longer disappears; it shows \"Week 100%\".",
+    ],
+  },
+  {
     version: "1.0.28",
     date: "2026-10-28",
     features: [
