@@ -102,6 +102,16 @@ test("xAI reads the credit pool of the billing period, nested or not", () => {
   // Without a period it still shows what is left, unlabelled.
   assert.deepEqual(parseXaiUsage({ config: { creditUsagePercent: 130 } }), [{ remainingPercent: 0 }]);
   assert.deepEqual(parseXaiUsage({ config: {} }), []);
+  // A fresh period leaves out the zero percent: nothing used yet, not no pool.
+  assert.deepEqual(
+    parseXaiUsage({ config: {
+      currentPeriod: { type: "USAGE_PERIOD_TYPE_WEEKLY", start, end },
+      onDemandCap: { val: 0 }, billingPeriodStart: start, billingPeriodEnd: end,
+    } }),
+    [{ remainingPercent: 100, seconds: 604800, resetsAt: Date.parse(end) }],
+  );
+  // Without a usable period a missing percent still shows nothing.
+  assert.deepEqual(parseXaiUsage({ config: { billingPeriodStart: end, billingPeriodEnd: start } }), []);
   assert.deepEqual(parseXaiUsage("<html>"), []);
 });
 
