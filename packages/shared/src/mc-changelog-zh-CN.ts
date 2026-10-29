@@ -13,6 +13,17 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.34",
+    date: "2026-10-30",
+    improvements: [
+      "查看、等待或停止子代理后的结果列表，可以直接打开对应子代理详情；已结束任务不再显示「正在协调」。",
+    ],
+    fixes: [
+      "长会话翻页或重新打开时，子代理卡片能关联到较早的创建记录。",
+      "运行中发送补充指令，不再自动藏起仍在工作的子代理卡片；主动收起的选择会保留。",
+    ],
+  },
+  {
     version: "1.0.33",
     date: "2026-10-30",
     features: [

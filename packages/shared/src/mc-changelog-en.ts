@@ -9,6 +9,17 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.34",
+    date: "2026-10-30",
+    improvements: [
+      "After viewing, waiting for, or stopping a subagent, the result list can open that subagent's detail. Finished tasks no longer say they are still coordinating.",
+    ],
+    fixes: [
+      "After paging or reopening a long conversation, subagent cards still connect to earlier creation records.",
+      "Sending a follow-up while a run is active no longer auto-hides working subagent cards; manual collapse choices stay.",
+    ],
+  },
+  {
     version: "1.0.33",
     date: "2026-10-30",
     features: [
