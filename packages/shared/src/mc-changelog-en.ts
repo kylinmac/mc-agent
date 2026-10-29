@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.30",
+    date: "2026-10-28",
+    fixes: [
+      "Links to a folder in a conversation now open that folder in the File Manager, and right-click copies its full and relative path; they used to report \"no matching file\".",
+    ],
+  },
+  {
     version: "1.0.29",
     date: "2026-10-28",
     fixes: [
