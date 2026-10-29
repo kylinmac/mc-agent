@@ -3,6 +3,7 @@ import type {
   AssistantActivityItem,
   AssistantTurnEntry,
   AssistantTurnPart,
+  TranscriptEntry,
 } from "./assistant-turns";
 import { isStandaloneRunActivity } from "./assistant-turns";
 import type { TranscriptDisplayMode } from "./transcript-display-mode";
@@ -245,13 +246,42 @@ export function turnProcessPhase({
   );
   if (stopped) return { kind: "stopped" };
   if (isActive) return { kind: "running", phase: activity?.phase };
-  const unsettled = parts.some((part) =>
+  if (turnHasStreamingRows(parts)) return { kind: "unsettled" };
+  return { kind: "completed" };
+}
+
+/** A row of the turn is still streaming, so the turn has unsettled live work. */
+export function turnHasStreamingRows(
+  parts: readonly AssistantTurnPart[],
+): boolean {
+  return parts.some((part) =>
     part.kind === "message"
       ? part.message.status === "streaming"
       : part.items.some((item) => item.message.status === "streaming"),
   );
-  if (unsettled) return { kind: "unsettled" };
-  return { kind: "completed" };
+}
+
+/**
+ * The turn a running transcript is driving, when that turn is not the tail
+ * entry. Tail position alone cannot identify it: a steering message or a
+ * system row may render after the live turn (#1949), while the history list
+ * renders every entry as inactive. The last assistant-turn with streaming
+ * rows is the running one; an earlier turn with stuck rows is a crash or a
+ * lost host, which `turnProcessPhase` keeps reading as unsettled (#1923).
+ * A tail assistant-turn reports its own active state, so it yields no
+ * history id, and a turn whose rows all settled yields none either: without
+ * a streaming row the turn may genuinely have finished.
+ */
+export function liveHistoryTurnId(
+  entries: readonly TranscriptEntry[],
+  tailEntry?: TranscriptEntry | null,
+): string | undefined {
+  if (tailEntry?.kind === "assistant-turn") return undefined;
+  let live: AssistantTurnEntry | undefined;
+  for (const entry of entries) {
+    if (entry.kind === "assistant-turn") live = entry;
+  }
+  return live && turnHasStreamingRows(live.parts) ? live.id : undefined;
 }
 
 /**
