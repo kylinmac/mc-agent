@@ -9,6 +9,24 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.33",
+    date: "2026-10-30",
+    features: [
+      "Optional questions can continue with the recommended answer after a configurable 10–300 second wait. This is off by default, and question cards remain available for a later answer.",
+    ],
+    improvements: [
+      "Conversation compaction prioritizes goals, constraints, key decisions, and unfinished work while reducing repeated summary content. It now shows progress and elapsed time, with safeguards for stalled requests and cancellation.",
+      "Model and reasoning changes now show whether they will apply after the current turn, are being applied, or have not taken effect. Rapid changes no longer let older results overwrite your latest selection.",
+    ],
+    fixes: [
+      "Auto mode no longer requests Bash approval merely because search text contains dangerous command names or a Docker command uses --rm.",
+      "Project memories, creative assets, generated results, and saved scripts no longer retain broken paths after moving the data directory or renaming the resources directory.",
+      "Fixed lost drafts for project goals and directory descriptions, and updates overwriting each other when saving project memories concurrently or changing settings quickly.",
+      "Late startup results no longer mark finished tasks or exited runtime processes as running again, preventing subsequent messages from getting stuck.",
+      "Hermes imports no longer truncate or omit structured messages with special prefixes.",
+    ],
+  },
+  {
     version: "1.0.32",
     date: "2026-10-29",
     fixes: [
