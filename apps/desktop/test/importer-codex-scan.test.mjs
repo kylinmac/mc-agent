@@ -435,7 +435,7 @@ test("scans newest sessions first and bounds total files to limit", async () => 
   );
 });
 
-test("the default 250-file cap keeps the newest path-dated sessions", async () => {
+test("an explicit 250-file cap keeps the newest path-dated sessions", async () => {
   const cases = [];
   for (let i = 0; i < CODEX_SCAN_MAX_FILES; i += 1) {
     const id = `new-${String(i).padStart(3, "0")}`;
@@ -455,7 +455,7 @@ test("the default 250-file cap keeps the newest path-dated sessions", async () =
     ].join("\n"),
   ]);
   await withArchive(cases, async (dir) => {
-    const { sessions, truncated } = await scanCodexSessionsResult(dir);
+    const { sessions, truncated } = await scanCodexSessionsResult(dir, CODEX_SCAN_MAX_FILES);
     assert.equal(truncated, true);
     assert.equal(sessions.length, CODEX_SCAN_MAX_FILES);
     assert.ok(sessions.every((session) => session.externalId.startsWith("new-")));

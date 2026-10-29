@@ -45,8 +45,16 @@ function folderName(path: string): string {
   return parts[parts.length - 1] || path;
 }
 
+function displayPath(path: string | null): string {
+  let value = (path ?? "").trim().replace(/\\/g, "/");
+  if (/^\/\/\?\/UNC\//i.test(value)) value = `//${value.slice(8)}`;
+  else if (/^\/\/\?\/[A-Za-z]:\//.test(value)) value = value.slice(4);
+  return value.replace(/(?<![A-Za-z]:)\/+$/, "");
+}
+
 function normalizedPath(path: string | null): string {
-  return (path ?? "").trim().replace(/[\\/]+$/, "");
+  const value = displayPath(path);
+  return /^[A-Za-z]:\//.test(value) || value.startsWith("//") ? value.toLowerCase() : value;
 }
 
 /** Projects newest first; conversations without a project last. */
@@ -56,7 +64,8 @@ export function groupByProject(candidates: readonly ImportCandidate[]): ImportGr
     const key = normalizedPath(candidate.projectPath);
     let group = groups.get(key);
     if (!group) {
-      group = { key, path: key || null, name: key ? folderName(key) : "", items: [], sources: [], latest: "" };
+      const path = displayPath(candidate.projectPath);
+      group = { key, path: path || null, name: path ? folderName(path) : "", items: [], sources: [], latest: "" };
       groups.set(key, group);
     }
     group.items.push(candidate);

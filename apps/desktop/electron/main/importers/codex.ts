@@ -167,16 +167,16 @@ async function parseFile(filePath: string): Promise<ParsedCodexFile | null> {
 }
 
 export const CODEX_SCAN_FULL_PARSE_MAX_BYTES = 5 * 1024 * 1024;
-// Newest-first walk of ~/.codex/sessions/YYYY/MM/DD. Reverse path sort is a
-// creation-date proxy, not mtime or the session's updatedAt — a January
-// session still being appended to can fall outside this cap.
+// Default scans include every local rollout so old conversations and rotated
+// segments are not silently dropped. Keep the legacy limit for explicit callers
+// and regression tests; large archives still use bounded head/tail sampling.
 export const CODEX_SCAN_MAX_FILES = 250;
 const CODEX_SCAN_HEAD_BYTES = 1024 * 1024;
 const CODEX_SCAN_TAIL_BYTES = 256 * 1024;
 
 async function listSessionFiles(
   dir: string = SESSIONS_DIR,
-  maxFiles: number = CODEX_SCAN_MAX_FILES,
+  maxFiles: number = Number.POSITIVE_INFINITY,
   archivedDir: string | null = archivedSessionsDir(dir),
 ): Promise<{ files: string[]; truncated: boolean }> {
   const active = await listRolloutFiles(dir, maxFiles);
@@ -450,7 +450,7 @@ export interface CodexScanResult {
 
 export async function scanCodexSessionsResult(
   dir: string = SESSIONS_DIR,
-  maxFiles: number = CODEX_SCAN_MAX_FILES,
+  maxFiles: number = Number.POSITIVE_INFINITY,
   archivedDir: string | null = archivedSessionsDir(dir),
 ): Promise<CodexScanResult> {
   const { files, truncated } = await listSessionFiles(dir, maxFiles, archivedDir);
@@ -487,7 +487,7 @@ export async function scanCodexSessionsResult(
 
 export async function scanCodexSessions(
   dir: string = SESSIONS_DIR,
-  maxFiles: number = CODEX_SCAN_MAX_FILES,
+  maxFiles: number = Number.POSITIVE_INFINITY,
   archivedDir: string | null = archivedSessionsDir(dir),
 ): Promise<ExternalSessionSummary[]> {
   return (await scanCodexSessionsResult(dir, maxFiles, archivedDir)).sessions;
