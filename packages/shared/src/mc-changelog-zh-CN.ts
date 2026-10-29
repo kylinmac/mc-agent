@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.29",
+    date: "2026-10-28",
+    fixes: [
+      "Grok 订阅每周额度重置后，输入框的额度标签不再消失，会显示「周 100%」。",
+    ],
+  },
+  {
     version: "1.0.28",
     date: "2026-10-28",
     features: [
