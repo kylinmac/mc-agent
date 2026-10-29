@@ -6,6 +6,8 @@ import { TooltipButton } from "../../components/ui";
 import { IconArrowUp, IconExternal, IconPlus, IconStop } from "../../components/icons";
 import { Markdown } from "../../components/Markdown";
 import { PermissionCard } from "../../components/PermissionCard";
+import { AskToolCard } from "../../components/AskToolCard";
+import { SlotSessionProvider } from "../../plugins/renderer-slots/use-slots";
 import { api } from "../../lib/api";
 import { useHeldSession } from "../../lib/use-held-session";
 import { untitledTaskTitle } from "../../lib/session-title-utils";
@@ -132,6 +134,8 @@ export function StudioChat({
   const running = useAppStore((state) => (sessionId ? Boolean(state.runningSessions[sessionId]) : false));
   const queue = useAppStore((state) => (sessionId ? state.pendingPermissions[sessionId] : undefined));
   const permission = queue?.[0];
+  const asks = useAppStore((state) => (sessionId ? state.pendingAsks[sessionId] : undefined));
+  const ask = asks?.[0];
   const rows = messages.filter(visible);
 
   // The model: the conversation's own once it exists, else the one picked
@@ -232,6 +236,7 @@ export function StudioChat({
   };
 
   return (
+    <SlotSessionProvider sessionId={sessionId ?? ""}>
     <div className="mc-creative-chat">
       <div className="mc-creative-chat-bar">
         <span className="mc-creative-muted">{t("mcProject.creativeChatHint")}</span>
@@ -300,6 +305,7 @@ export function StudioChat({
         {permission ? (
           <PermissionCard key={permission.requestId} permission={permission} queued={(queue?.length ?? 1) - 1} />
         ) : null}
+        {ask ? <AskToolCard key={ask.requestId} request={ask} queued={(asks?.length ?? 1) - 1} /> : null}
       </div>
       {error ? <p className="mc-creative-error">{error}</p> : null}
       {context ? (
@@ -359,5 +365,6 @@ export function StudioChat({
         </div>
       </div>
     </div>
+    </SlotSessionProvider>
   );
 }

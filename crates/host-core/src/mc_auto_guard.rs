@@ -86,8 +86,9 @@ fn rules() -> &'static [Rule] {
 
 /// Keep quoted arguments together: `--rm` is a flag and `grep 'x|shutdown|y'`
 /// contains no shutdown command. This remains a heuristic, not a shell sandbox.
-fn shell_commands(command: &str) -> Vec<Vec<String>> {
-    let mut commands = Vec::new();
+fn shell_pipelines(command: &str) -> Vec<Vec<Vec<String>>> {
+    let mut pipelines = Vec::new();
+    let mut pipeline = Vec::new();
     let mut words = Vec::new();
     let mut word = String::new();
     let mut quote = None;
@@ -105,26 +106,33 @@ fn shell_commands(command: &str) -> Vec<Vec<String>> {
         } else if quote.is_none() && matches!(ch, '\'' | '"') {
             quote = Some(ch);
         } else if quote.is_none() && (ch.is_whitespace() || ";&|()".contains(ch)) {
+            // A newline after `|` continues that pipeline.
+            if ch == '\n' && word.is_empty() && words.is_empty() && !pipeline.is_empty() {
+                continue;
+            }
             if !word.is_empty() {
                 words.push(std::mem::take(&mut word));
             }
             if (ch == '\n' || ";&|()".contains(ch)) && !words.is_empty() {
-                commands.push(std::mem::take(&mut words));
+                pipeline.push(std::mem::take(&mut words));
+            }
+            if (ch == '\n' || ";&()".contains(ch)) && !pipeline.is_empty() {
+                pipelines.push(std::mem::take(&mut pipeline));
             }
         } else {
             word.push(ch);
         }
     }
-    commands
+    pipelines
 }
 
 fn command_rule_matches(rule: &Rule, command: &str) -> bool {
-    // shortcut: substitutions and here-documents keep the original conservative
-    // scan; use a full shell parser before narrowing those forms.
+    // shortcut: substitutions, groups and here-documents keep the original
+    // conservative scan; use a full shell parser before narrowing those forms.
     if needs_conservative_scan(command) {
         return rule.pattern.is_match(command);
     }
-    let commands = shell_commands(command);
+    let pipelines = shell_pipelines(command);
     let command_text = |words: &[String]| {
         let name = words[0].rsplit('/').next().unwrap_or(&words[0]);
         std::iter::once(name)
@@ -137,33 +145,35 @@ fn command_rule_matches(rule: &Rule, command: &str) -> bool {
     };
     // A shell can consume earlier pipeline output; inspecting only its arguments
     // would miss commands printed by another stage.
-    if commands.iter().any(|words| {
+    if pipelines.iter().flatten().any(|words| {
         words.iter().any(|word| {
             matches!(
                 word.rsplit('/').next(),
                 Some("sh" | "bash" | "zsh" | "dash" | "ksh")
             )
-        })
+        }) || matches!(words[0].as_str(), "eval" | "source" | ".")
     }) {
-        return commands
+        return pipelines
             .iter()
+            .flatten()
             .any(|words| rule.pattern.is_match(&command_text(words)));
     }
-    for words in commands {
-        let Some(executable) = words.first() else {
-            continue;
-        };
-        let name = executable.rsplit('/').next().unwrap_or(executable);
-        // These programs consume argument text, except ripgrep's preprocessor.
-        // Unknown executors (find -exec, xargs, ssh, eval, etc.) keep the old scan.
-        if matches!(name, "grep" | "egrep" | "fgrep" | "rg" | "javap")
-            && !words
-                .iter()
-                .any(|word| word == "--pre" || word.starts_with("--pre="))
-        {
+    for pipeline in pipelines {
+        // Text is only data when every stage consumes it as data. An unknown
+        // downstream executable (such as xargs) can run a grep match as code.
+        if pipeline.iter().all(|words| {
+            let name = words[0].rsplit('/').next().unwrap_or(&words[0]);
+            matches!(name, "grep" | "egrep" | "fgrep" | "rg" | "javap")
+                && !words
+                    .iter()
+                    .any(|word| word == "--pre" || word.starts_with("--pre="))
+        }) {
             continue;
         }
-        if rule.pattern.is_match(&command_text(&words)) {
+        if pipeline
+            .iter()
+            .any(|words| rule.pattern.is_match(&command_text(words)))
+        {
             return true;
         }
     }
@@ -183,6 +193,10 @@ fn needs_conservative_scan(command: &str) -> bool {
             quote = None;
         } else if quote.is_none() && matches!(ch, '\'' | '"') {
             quote = Some(ch);
+        } else if quote.is_none()
+            && (matches!(ch, '(' | ')') || (ch == '|' && chars.peek() == Some(&'&')))
+        {
+            return true;
         } else if quote != Some('\'')
             && (ch == '`'
                 || (ch == '$' && chars.peek() == Some(&'('))
@@ -283,6 +297,7 @@ mod tests {
             "docker run --rm --entrypoint sh flink:test -c 'find /opt/flink -iname \"*metrics*\"; java -version'",
             "javap -p -c Example | grep -A65 -E 'releaseClassLoader|shutdown|close'",
             "rg 'shutdown|reboot|mkfs' src",
+            "rg 'shutdown' .",
             "grep '$(shutdown -h now)' notes.txt",
             "grep '`reboot`' notes.txt",
         ] {
@@ -322,6 +337,25 @@ mod tests {
         ] {
             assert!(guarded(command), "{command} should still ask");
         }
+    }
+
+    #[test]
+    fn text_forwarded_to_unknown_executors_still_asks() {
+        for command in [
+            "grep shutdown commands.txt | xargs -I {} {}",
+            "rg reboot commands.txt | iex",
+            "grep shutdown commands.txt | custom-runner",
+            "grep shutdown commands.txt | tee /tmp/commands | xargs -I {} {}",
+            "grep shutdown commands.txt | (xargs -I {} {})",
+            "grep shutdown commands.txt |\nxargs -I {} {}",
+            "grep shutdown commands.txt |& xargs -I {} {}",
+            "grep shutdown commands.txt > /tmp/script; . /tmp/script",
+        ] {
+            assert!(guarded(command), "{command} executes matching text");
+        }
+        assert!(!guarded(
+            "set -e; docker cp test:/tmp/a /tmp/a; javap -c Example | grep 'shutdown|close'"
+        ));
     }
 
     #[test]

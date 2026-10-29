@@ -15,7 +15,7 @@ function customAnswerKeyDown(source) {
 // #39: Enter in the custom answer answers like the primary button.
 test("Enter in the custom answer submits; Shift+Enter and IME confirm do not", () => {
   const field = customAnswerKeyDown(cardSource);
-  assert.match(cardSource, /<textarea\s+className="asktool-custom-input"/);
+  assert.match(cardSource, /<Textarea\s+className="asktool-custom-input"/);
   assert.match(field, /onKeyDown=\{\(event\) => \{/);
   const shiftGuard = field.indexOf('event.key !== "Enter" || event.shiftKey');
   const imeGuard = field.indexOf("event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229");

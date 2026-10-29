@@ -491,7 +491,7 @@ export function normalizeSettings(settings: AppSettings): AppSettings {
   };
 }
 
-export function validateSettingsWrite(settings: AppSettings): AppSettings {
+export function validateSettingsWrite<T extends Partial<AppSettings>>(settings: T): T {
   if (
     settings.thinkingDisplayMode !== undefined &&
     settings.thinkingDisplayMode !== "detailed" &&
@@ -863,7 +863,7 @@ export const api = {
     invoke<void>(IPC.invoke.storageClearCache, input),
   removeStorageBackup: (input: { language: string }) =>
     invoke<void>(IPC.invoke.storageRemoveBackup, input),
-  setSettings: (settings: AppSettings) =>
+  setSettings: (settings: Partial<AppSettings>) =>
     invoke(IPC.invoke.settingsSet, validateSettingsWrite(settings)),
   /** Store the Jev key in Host secure storage; it is never returned to renderer state. */
   setJevApiKey: (value: string) =>

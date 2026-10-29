@@ -77,6 +77,9 @@ import { SystemPermissionsPage } from "./SystemPermissionsPage";
 
 type SettingsTab = ReturnType<typeof useAppStore.getState>["settingsTab"];
 
+// Keep writes ordered even when the settings page is closed and reopened.
+let settingsSaveQueue: Promise<void> = Promise.resolve();
+
 type NavItem = {
   id: SettingsTab;
   labelKey: string;
@@ -225,12 +228,18 @@ export function SettingsPage() {
     };
   }, [settingsAnchor, tab, t, setSettingsAnchor]);
 
-  const saveSettings = async (patch: Partial<AppSettings>) => {
-    if (!settings) return;
-    const nextSettings = { ...settings, ...patch };
-    await api.setSettings(nextSettings);
-    useAppStore.setState({ settings: nextSettings });
-    await refreshProviders();
+  const saveSettings = (patch: Partial<AppSettings>): Promise<void> => {
+    const save = settingsSaveQueue.then(async () => {
+      if (!useAppStore.getState().settings) return;
+      await api.setSettings(patch);
+      useAppStore.setState((state) => ({
+        settings: state.settings ? { ...state.settings, ...patch } : state.settings,
+      }));
+      await refreshProviders();
+    });
+    // Return failures to the caller without blocking the next queued edit.
+    settingsSaveQueue = save.catch(() => {});
+    return save;
   };
 
   const selectPluginTheme = async (theme: string) => {

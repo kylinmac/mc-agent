@@ -54,4 +54,8 @@ async fn auto_mode_still_asks_for_guarded_commands() {
     );
     assert_eq!(evaluate("rm -rf /tmp/test").await, Value::Null);
     assert_eq!(evaluate("shutdown -h now").await, Value::Null);
+    assert_eq!(
+        evaluate("grep shutdown commands.txt | xargs -I {} {}").await,
+        Value::Null
+    );
 }

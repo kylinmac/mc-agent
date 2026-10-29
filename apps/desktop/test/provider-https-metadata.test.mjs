@@ -129,13 +129,17 @@ test("the original timeout reason survives cancellation during TLS handshake", a
   const controller = new AbortController();
   const timeout = new DOMException("metadata budget exhausted", "TimeoutError");
   const { createServer: createTcpServer } = await import("node:net");
+  let peer;
   const server = createTcpServer((socket) => {
-    t.after(() => socket.destroy());
+    peer = socket;
     controller.abort(timeout);
   });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
-  t.after(() => new Promise((resolve) => server.close(resolve)));
+  t.after(() => {
+    peer?.destroy();
+    return new Promise((resolve) => server.close(resolve));
+  });
   const port = server.address().port;
   await assert.rejects(fetchHttpsMetadata(`https://localhost:${port}/models`, init(controller.signal), connect), (error) => error === timeout);
 });

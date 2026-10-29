@@ -513,6 +513,35 @@ describe("AgentHost turns", () => {
 
     expect(result.turn.status).toBe("completed");
     expect(host.getTurn(result.turn.id).status).toBe("completed");
+    const snapshot = await host.snapshot("s1");
+    expect(snapshot.session.status).toBe("idle");
+    expect(snapshot.session.activeTurnId).toBeUndefined();
+  });
+
+  it.each(["completed", "failed"] as const)("drains the next queued input when a %s turn finishes before its prompt acknowledgement", async (outcome) => {
+    const { host, runtime } = build();
+    const first = await host.startTurn(owner, { sessionId: "s1", input: { text: "one" }, context: { requestId: "first" } });
+    const second = await host.startTurn(owner, { sessionId: "s1", admission: "queue", input: { text: "two" }, context: { requestId: "second" } });
+    const third = await host.startTurn(owner, { sessionId: "s1", admission: "queue", input: { text: "three" }, context: { requestId: "third" } });
+    runtime.promptOverride = async (request) => {
+      if (request.content === "two") {
+        host.ingest(envelope("s1", "runtime-second", { type: "agent_start" }));
+        host.ingest(envelope("s1", "runtime-second", outcome === "completed"
+          ? { type: "agent_end", messageIds: [] }
+          : { type: "error", error: { code: "INTERNAL", message: "failed early", retriable: false, traceId: "" } }));
+        return { turnId: "runtime-second" };
+      }
+      return { turnId: "runtime-third" };
+    };
+
+    host.ingest(envelope("s1", first.turn.id, { type: "agent_end", messageIds: [] }));
+
+    await vi.waitFor(() => expect(runtime.prompts.map((request) => request.content)).toEqual(["one", "two", "three"]));
+    expect(host.getTurn(second.turn.id).status).toBe(outcome);
+    expect(host.getTurn(third.turn.id).status).toBe("running");
+    const snapshot = await host.snapshot("s1");
+    expect(snapshot.session.activeTurnId).toBe(third.turn.id);
+    expect(snapshot.queuedTurns).toEqual([]);
   });
 
 

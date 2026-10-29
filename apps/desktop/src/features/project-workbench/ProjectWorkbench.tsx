@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectTask, ResourceItem, ResourceListing, WorkspaceNote } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
-import { Button } from "../../components/ui";
+import { Button, Input } from "../../components/ui";
 import { IconFolder, IconPlus } from "../../components/icons";
 import { shortenPath, type ProjectIndexItem } from "../../lib/project-archive";
 import { chooseStartFolder, rememberedStartFolder, rememberStartFolder } from "./start-folder";
@@ -37,12 +37,16 @@ export function ProjectWorkbench({
 }) {
   const { t } = useTranslation();
   const resources = project.roots.find((root) => root.kind === "resources");
+  const resourcePath = resources?.path;
   const workspaces = useMemo(
     () => project.roots.filter((root) => root.kind !== "resources"),
     [project.roots],
   );
+  const workspacePaths = workspaces.map((root) => root.path).join("\u0000");
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [notesLoaded, setNotesLoaded] = useState(false);
+  const [savingNotes, setSavingNotes] = useState<Record<string, boolean>>({});
   const [listing, setListing] = useState<ResourceListing | null>(null);
   // Bumped by the template editor so the organize panel reloads templates.
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
@@ -84,8 +88,9 @@ export function ProjectWorkbench({
   };
 
   const loadNotes = useCallback(() => {
-    if (!resources) return () => {};
+    if (!resourcePath) return () => {};
     let canceled = false;
+    setNotesLoaded(false);
     void api
       .listWorkspaceNotes(project.groupId)
       .then(({ notes: loaded }) => {
@@ -93,14 +98,15 @@ export function ProjectWorkbench({
         const byPath = Object.fromEntries(loaded.map((note: WorkspaceNote) => [note.path, note.description]));
         setNotes(byPath);
         setDrafts(byPath);
+        setNotesLoaded(true);
       })
-      .catch(() => {
-        // Descriptions are optional; an unreadable file shows empty fields.
+      .catch((error: unknown) => {
+        if (!canceled) onErrorRef.current(t("mcProject.workspaceDescriptionError", { message: messageOf(error) }));
       });
     return () => {
       canceled = true;
     };
-  }, [resources, project.groupId]);
+  }, [resourcePath, workspacePaths, project.groupId]);
   useEffect(() => loadNotes(), [loadNotes]);
 
   const loadListing = useCallback(() => {
@@ -139,14 +145,16 @@ export function ProjectWorkbench({
 
   const saveNote = async (path: string) => {
     const draft = drafts[path] ?? "";
-    if (draft.trim() === (notes[path] ?? "").trim()) return;
+    if (!notesLoaded || savingNotes[path] || draft.trim() === (notes[path] ?? "").trim()) return;
+    setSavingNotes((prev) => ({ ...prev, [path]: true }));
     try {
       const { note } = await api.setWorkspaceNote(project.groupId, path, draft);
       setNotes((prev) => ({ ...prev, [path]: note.description }));
       setDrafts((prev) => ({ ...prev, [path]: note.description }));
     } catch (error) {
       onError(t("mcProject.workspaceDescriptionError", { message: messageOf(error) }));
-      setDrafts((prev) => ({ ...prev, [path]: notes[path] ?? "" }));
+    } finally {
+      setSavingNotes((prev) => ({ ...prev, [path]: false }));
     }
   };
 
@@ -258,11 +266,11 @@ export function ProjectWorkbench({
                 </>) : null}
               </span>
               {resources ? (
-              <input
+              <Input
                 className="mc-workbench-description"
                 aria-label={t("mcProject.workspaceDescriptionLabel", { name })}
                 placeholder={t("mcProject.workspaceDescriptionPlaceholder")}
-                disabled={!resources}
+                disabled={!notesLoaded || savingNotes[root.path]}
                 value={drafts[root.path] ?? ""}
                 onChange={(event) => {
                   const value = event.target.value;

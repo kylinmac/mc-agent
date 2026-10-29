@@ -848,6 +848,18 @@ mod tests {
         let attached = ensure_project_resources(&f.db, &f.home, &group.id, "software").unwrap();
         let old = attached.roots[0].path.clone();
         f.db.ensure_project(&old, false).unwrap();
+        crate::mc_creative::set_storage(&f.db, &attached, &old).unwrap();
+        let image = crate::mc_creative::output_dir(&f.db, &attached, "")
+            .unwrap()
+            .join("reference.png");
+        fs::write(&image, b"image bytes").unwrap();
+        let asset = crate::mc_creative::import_existing(
+            &f.db,
+            &attached,
+            &image,
+            &crate::mc_creative::FileFacts::default(),
+        )
+        .unwrap();
         f.db.rename_project_group(&group.id, "新名字").unwrap();
 
         let moved = follow_project_name(&f.db, &f.home, &group.id)
@@ -860,6 +872,17 @@ mod tests {
         let reloaded = f.db.project_group(&group.id).unwrap().unwrap();
         assert_eq!(reloaded.primary_path, moved.to);
         assert_eq!(reloaded.roots[0].kind, ProjectGroupRootKind::Resources);
+        assert_eq!(
+            crate::mc_creative::storage(&f.db, &reloaded)
+                .unwrap()
+                .folder,
+            Path::new(&moved.to)
+        );
+        let asset = crate::mc_creative::get_asset(&f.db, &asset.id)
+            .unwrap()
+            .unwrap();
+        assert!(asset.file_exists);
+        assert!(Path::new(&asset.path).starts_with(&moved.to));
         assert!(f
             .db
             .list_projects()

@@ -565,13 +565,15 @@ export class AgentHost {
         principal,
       });
       turn = this.ensureTurn(state, started.turnId);
-      if (!isTerminal(turn.status) && !isActive(turn.status)) turn.status = "running";
+      if (turn.status === "queued") {
+        turn.status = "running";
+        state.status = "running";
+      }
       turn.admission = admission;
       turn.effectivePermissionMode = effectivePermissionMode;
       turn.idempotencyKey = idempotencyKey;
       turn.principalSubject = principal.subject;
-      state.activeTurnId = turn.id;
-      state.status = "running";
+      if (!isTerminal(turn.status)) state.activeTurnId = turn.id;
     }
     if (idempotencyKey) this.rememberIdempotency(`${principal.subject}|${idempotencyKey}`, {
       turnId: turn.id,
@@ -1002,14 +1004,17 @@ export class AgentHost {
           });
           turn.runtimeTurnId = started.turnId;
           this.runtimeAliases.set(started.turnId, turn.id);
-          if (!isActive(turn.status)) turn.status = "running";
+          if (turn.status === "queued") {
+            turn.status = "running";
+            state.status = "running";
+          }
           turn.queuePosition = undefined;
           turn.startedAt = turn.startedAt ?? new Date(this.clock.now()).toISOString();
-          state.activeTurnId = turn.id;
-          state.status = "running";
-          this.renumberQueue(state);
+          if (!isTerminal(turn.status)) state.activeTurnId = turn.id;
           this.renumberQueue(state);
           this.notifyQueue(sessionId);
+          // Events can finish the turn before the prompt acknowledgement arrives.
+          if (isTerminal(turn.status)) continue;
           // The rest of the promoted block joins this turn as user input, so the
           // messages stay adjacent instead of waiting for their own turns
           // (ADR 0265). A runtime without steering keeps the previous behavior.

@@ -25,7 +25,7 @@
 源码确认：`mc_auto_guard.rs` 原来直接对整串文本做正则匹配。
 
 - 仅对外部删除与磁盘/关机两类规则做有限排除：识别普通命令分隔与引号，只忽略 `grep` / `rg` / `javap` 等明确读取文本的命令参数（`rg --pre` 除外），以及 Docker 独立的 `--rm` 标志。
-- `find -exec`、`xargs`、`ssh`、`eval` 等未知执行器继续保守扫描全部参数；shell `-c` 脚本、管道送入 shell、容器内的真实删除或关机仍询问。
+- `find -exec`、`xargs`、`ssh`、`eval` 等未知执行器继续保守扫描全部参数；只有全部阶段都明确读取文本的管道才享受文本参数豁免。`grep shutdown commands.txt | xargs -I {} {}` 等把匹配结果当代码执行的情况仍询问。
 - 实际命令替换、here-doc、不完整引用仍使用原来的保守扫描。没有引入 shell 解释器，也不解析动态变量指向的命令。
 - `tools.execute` 和 `permissions.evaluate` 仍调用同一个函数。其余危险规则、权限模式、审批结果和会话授权逻辑不变。
 - 回归覆盖这三类实际误报，以及真实 `rm`、关机、重启、命令替换、shell 脚本等仍被拦截的情况；RPC 预判同时覆盖安全与危险命令。
@@ -35,8 +35,8 @@
 ## 验证
 
 - 新增误报回归在修复前失败，修复后通过。
-- `cargo test -p host-core --locked mc_auto_guard -- --nocapture`：6 项通过，覆盖模块和 RPC。
+- `cargo test -p host-core --locked mc_auto_guard -- --nocapture`：7 项通过，覆盖模块和 RPC，包括分组、跨行管道和 `source`。
 - `cargo fmt --check`、`cargo clippy -p host-core --all-targets`：通过；Clippy 仅报告未改文件中的已有警告。
-- 全量 `cargo test -p host-core --locked`：沙箱内因临时监听等限制出现 33 项失败；允许临时测试服务器后重跑，1143 项通过、1 项失败、1 项忽略。唯一失败为 `data_relocation::tests::relocated_project_memory_remains_readable_through_the_repository`（迁移后项目记忆为空）。在独立临时目录导出并强制编译基线 `0c62bd274` 后，同一测试以相同断言失败，确认不是本次权限修复引入；未扩展修复这项既有问题。
-- `git diff --check` 和文档检查通过（642 页）；相对链接已核对。
+- 首轮全量发现既有迁移记忆测试失败，并在独立基线 `0c62bd274` 复现。用户随后要求整体复查，已修复该问题及其他确认的缺陷，见[整体代码复查](project-review-2026-10-30.md)。最新完整 `cargo test -p host-core --locked`：允许临时测试服务器后，1148 项通过、0 失败、1 忽略。
+- `git diff --check` 和文档检查通过（643 页）；相对链接已核对。
 - 未在用户正在运行的实例执行测试命令，也未自动确认其待审批操作。安装版需要更新后才会采用修复。

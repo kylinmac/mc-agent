@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { resolve } from "node:path";
 import {
   AGENT_MEMORY_CONTENT_MAX,
   AGENT_MEMORY_ID_PREFIX,
   AGENT_MEMORY_MAX_ENTRIES,
   AGENT_MEMORY_TITLE_MAX,
   isAgentMemoryEntry,
+  type ProjectMemory,
 } from "@pi-desktop/shared";
 import type { LocalToolHandler } from "./agent-sidecar";
 
@@ -18,7 +18,6 @@ import type { LocalToolHandler } from "./agent-sidecar";
 
 type Host = { call<T>(method: string, params?: Record<string, unknown>): Promise<T> };
 type Entry = { id: string; title: string; content: string };
-type GroupRecord = { id: string; roots: Array<{ path: string }> };
 
 export type RememberOutcome =
   | { action: "saved" | "replaced" | "removed"; title: string; agentNotes: number }
@@ -63,18 +62,16 @@ async function memoryTarget(host: Host, sessionId: string) {
   const { session } = await host.call<{ session?: { projectPath?: string } }>("session.get", { id: sessionId, messageLimit: 1 });
   const projectPath = session?.projectPath?.trim();
   if (!projectPath) return null;
-  const { groups } = await host.call<{ groups?: GroupRecord[] }>("project.groups.list");
-  const group = (groups ?? []).find((candidate) =>
-    candidate.roots.some((root) => resolve(root.path) === resolve(projectPath)));
-  if (group) {
+  const { context } = await host.call<{ context?: { groupId: string } | null }>("project.group.context", { path: projectPath });
+  if (context) {
     return {
-      read: async () => (await host.call<{ memory?: { entries?: Entry[]; content?: string } }>("project.group.memory.get", { groupId: group.id })).memory,
-      write: (entries: Entry[]) => host.call("project.group.memory.set", { groupId: group.id, entries }),
+      read: async () => (await host.call<{ memory: ProjectMemory }>("project.group.memory.get", { groupId: context.groupId })).memory,
+      write: (entries: Entry[], expectedMemory: ProjectMemory) => host.call("project.group.memory.set", { groupId: context.groupId, entries, expectedMemory }),
     };
   }
   return {
-    read: async () => (await host.call<{ memory?: { entries?: Entry[]; content?: string } }>("project.memory.get", { path: projectPath })).memory,
-    write: (entries: Entry[]) => host.call("project.memory.set", { path: projectPath, entries }),
+    read: async () => (await host.call<{ memory: ProjectMemory }>("project.memory.get", { path: projectPath })).memory,
+    write: (entries: Entry[], expectedMemory: ProjectMemory) => host.call("project.memory.set", { path: projectPath, entries, expectedMemory }),
   };
 }
 
@@ -85,25 +82,29 @@ export function createRememberTool(getHost: () => Host | null): LocalToolHandler
     if (!host) return fail("HOST_UNAVAILABLE", "Host unavailable.");
     const target = await memoryTarget(host, sessionId);
     if (!target) return fail("NO_PROJECT", "This conversation is not in a project, so there is no project memory to save to.");
-    const memory = await target.read();
-    // Memory written as one free-text block before entries existed becomes
-    // the first entry, so a note never wipes it.
-    const legacy = memory?.content?.trim();
-    const entries: Entry[] = memory?.entries ?? (legacy ? [{ id: randomUUID(), title: "", content: legacy }] : []);
-    const { entries: next, outcome } = applyRemember(entries, (args ?? {}) as { title?: unknown; content?: unknown });
-    if ("error" in outcome) return fail(outcome.error, outcome.message);
-    try {
-      await target.write(next);
-    } catch (error) {
-      return fail("SAVE_FAILED", error instanceof Error ? error.message : String(error));
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const memory = await target.read();
+      // Memory written as one free-text block before entries existed becomes
+      // the first entry, so a note never wipes it.
+      const legacy = memory.content.trim();
+      const entries: Entry[] = memory.entries ?? (legacy ? [{ id: randomUUID(), title: "", content: legacy }] : []);
+      const { entries: next, outcome } = applyRemember(entries, (args ?? {}) as { title?: unknown; content?: unknown });
+      if ("error" in outcome) return fail(outcome.error, outcome.message);
+      try {
+        await target.write(next, memory);
+      } catch (error) {
+        if (typeof error === "object" && error !== null && "errorCode" in error && error.errorCode === "MEMORY_CONFLICT") continue;
+        return fail("SAVE_FAILED", error instanceof Error ? error.message : String(error));
+      }
+      return {
+        ok: true,
+        content: {
+          kind: "remember",
+          ...outcome,
+          note: "Saved to project memory. It loads in new conversations of this project; the user can edit or delete it there.",
+        },
+      };
     }
-    return {
-      ok: true,
-      content: {
-        kind: "remember",
-        ...outcome,
-        note: "Saved to project memory. It loads in new conversations of this project; the user can edit or delete it there.",
-      },
-    };
+    return fail("MEMORY_CONFLICT", "Project memory is changing concurrently. Try saving this note again.");
   };
 }

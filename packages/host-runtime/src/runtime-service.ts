@@ -117,6 +117,7 @@ export class RuntimeService implements RuntimePort {
   private readonly events: TurnEventPipeline;
   private readonly detachers: Array<() => void> = [];
   private readonly now: () => number;
+  private attachedSidecar: RuntimeSidecarLink | null = null;
   private disposed = false;
 
   constructor(private readonly options: RuntimeServiceOptions) {
@@ -192,13 +193,16 @@ export class RuntimeService implements RuntimePort {
 
   /** Observe a (re)started sidecar: its agent events feed the lifecycle. */
   attachSidecar(sidecar: RuntimeSidecarLink): void {
+    this.attachedSidecar = sidecar;
     const offEvents = sidecar.onNotification((method, params) => {
       if (this.options.getSidecar() !== sidecar) return;
       if (method !== "agent.event") return;
       this.events.handle(params as AgentEventEnvelope);
     });
     const offExit = sidecar.onExit(({ intentional, code, signal }) => {
-      if (this.options.getSidecar() !== sidecar) return;
+      // The embedding host may clear its process reference in an earlier exit listener.
+      if (this.attachedSidecar !== sidecar) return;
+      this.attachedSidecar = null;
       const interrupted = this.events.onSidecarExit();
       if (intentional || this.disposed) return;
       for (const tool of interrupted) {
@@ -240,6 +244,7 @@ export class RuntimeService implements RuntimePort {
 
   async dispose(): Promise<void> {
     this.disposed = true;
+    this.attachedSidecar = null;
     for (const detach of this.detachers.splice(0)) detach();
     await this.events.dispose();
     this.listeners.clear();

@@ -96,7 +96,10 @@ test("an unreachable service answers with a message, not a rejection", async () 
   assert.ok(!result.message.includes(KEY), "a transport error must not leak the key");
 });
 
-test("a silent service is reported as a timeout", async () => {
+test("a silent service is reported as a timeout", async (t) => {
+  // AbortSignal.timeout is unref'ed; the fake fetch has no socket to keep Node alive.
+  const keepAlive = setTimeout(() => {}, 1_000);
+  t.after(() => clearTimeout(keepAlive));
   const { fetch } = recordingFetch(
     (_url, init) =>
       new Promise((_resolve, reject) => {
