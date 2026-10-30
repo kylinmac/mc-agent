@@ -9,6 +9,18 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.35",
+    date: "2026-10-30",
+    improvements: [
+      "After compaction, the agent can look up the original earlier messages to recover code, error text, or your exact wording the summary left out.",
+      "After compaction, the agent gets back the contents of a few files it recently read or changed, so it does not have to read them again. Files that would need approval are skipped without a prompt.",
+    ],
+    fixes: [
+      "On models with a small output limit, compaction no longer loses the whole earlier history when the summary runs too long; a cut-off summary is retried once in a shorter form.",
+      "When compaction retries, the attempt count in its progress no longer starts at 3.",
+    ],
+  },
+  {
     version: "1.0.34",
     date: "2026-10-30",
     improvements: [

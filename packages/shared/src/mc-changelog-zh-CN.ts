@@ -13,6 +13,18 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.35",
+    date: "2026-10-30",
+    improvements: [
+      "会话压缩后，Agent 可以回查压缩前的原文，找回摘要里没写全的代码、报错原文或你的原话。",
+      "会话压缩后会带回最近读过或改过的几个文件内容，Agent 不必重新读取；需要审批才能读的文件直接跳过，不会弹窗。",
+    ],
+    fixes: [
+      "输出上限较小的模型压缩时，摘要不再因篇幅过长被截断而丢掉整段旧历史；被截断时会自动改写成更短的摘要再试一次。",
+      "压缩重试时，进度里的尝试次数不再从「第 3 次」开始。",
+    ],
+  },
+  {
     version: "1.0.34",
     date: "2026-10-30",
     improvements: [
