@@ -17769,6 +17769,26 @@ the latest destination. These assertions measure work counts, not device FPS.
 - **Status:** Unit-covered (`context-calibration.test.ts`, including the CJK and
   boundary cases); desktop E2E pending
 
+### E2E-CONTEXT-reported-occupancy-drives-compaction
+
+- **Preconditions:** A production sidecar, isolated Host fixture and localhost
+  Responses gateway. The gateway reports cached input separately from a total
+  that omits it; no real provider credentials are used.
+- **Steps:** Send a turn whose input, output and cache buckets exceed the
+  automatic threshold, then send another prompt. Repeat with ordinary
+  under-budget usage and with an incomplete bucket breakdown whose reported
+  total exceeds the threshold.
+- **Expected:** The first session summarizes and persists one checkpoint before
+  the next provider request, which includes the summary and new prompt. The
+  under-budget session continues without a checkpoint. A larger reported total
+  still triggers the guard when bucket details are missing; billing totals
+  remain unchanged.
+- **Automation:** `node scripts/e2e-context-usage-compaction.mjs` after building
+  shared and the production sidecar bundle. The real Agent-loop tests in
+  `context-usage-compaction.test.ts` also cover restored sessions and compaction
+  between a tool result and the next request.
+- **Specs:** `03-runtime/02-agent-runtime.md` §5.1.
+
 ### E2E-RUNTIME-unique-tool-call-ids-per-request
 
 - **Preconditions:** A session transcript that carries the same tool call twice
