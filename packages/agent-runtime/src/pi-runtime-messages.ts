@@ -1,12 +1,15 @@
 import type { Message } from "@earendil-works/pi-ai";
 import { hostedSearchReplayProjection } from "@earendil-works/pi-ai/utils/hosted-search";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import { COMPACTION_HISTORY_HINT } from "./mc-context-history-tool.js";
 
 export type CompactionSummaryMessage = {
   role: "compactionSummary";
   summary: string;
   tokensBefore: number;
   timestamp: number;
+  /** mc-agent (R21.1): set only while the history lookup tool is callable. */
+  historyHint?: boolean;
 };
 
 export type BranchSummaryMessage = {
@@ -130,7 +133,8 @@ export function convertToLlm(messages: AgentMessage[]): Message[] {
           role: "user",
           content: [{
             type: "text",
-            text: `${COMPACTION_SUMMARY_PREFIX}${runtimeMessage.summary}${COMPACTION_SUMMARY_SUFFIX}`,
+            text: `${COMPACTION_SUMMARY_PREFIX}${runtimeMessage.summary}${COMPACTION_SUMMARY_SUFFIX}${
+              "historyHint" in runtimeMessage && runtimeMessage.historyHint === true ? `\n\n${COMPACTION_HISTORY_HINT}` : ""}`,
           }],
           timestamp: runtimeMessage.timestamp,
         }));

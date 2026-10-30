@@ -22,6 +22,15 @@ import { forkBrief, forkableParentMessages } from "./mc-subagent-fork.js";
 import type { McUserHook } from "@pi-desktop/shared";
 import { runUserHooks, hookFeedbackText, MAX_STOP_CONTINUATIONS } from "./mc-user-hooks.js";
 import { REMEMBER_TOOL_NAME, rememberDescription, rememberParameters } from "./mc-memory-tool.js";
+import {
+  CONTEXT_HISTORY_MAX_LIMIT,
+  CONTEXT_HISTORY_TOOL_NAME,
+  contextHistoryDescription,
+  contextHistoryParameters,
+  decodeHistoryCursor,
+  formatHistoryResponse,
+  type HistoryReadResponse,
+} from "./mc-context-history-tool.js";
 import { CANVAS_TOOL_NAMES, canvasToolDescriptions, canvasToolParameters } from "./mc-canvas-tools.js";
 import {
   CREATE_PROJECT_TOOL_NAME,
@@ -4239,7 +4248,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
           ]
         : [];
     const contextTools = this.compactionEnabled
-      ? [this.buildContextCompactionTool()]
+      ? [this.buildContextCompactionTool(), this.buildContextHistoryTool()]
       : [];
     // Trusted extension tools are non-core: the per-mode allowlist and
     // ToolSearch deferral treat them like plugin tools (spec 16 §7).
@@ -4349,6 +4358,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       "Bash",
       ASK_TOOL_NAME,
       CONTEXT_COMPACTION_TOOL_NAME,
+      CONTEXT_HISTORY_TOOL_NAME,
       SUBMIT_TOOL_NAMES[kind],
     ]).has(name);
   }
@@ -6529,6 +6539,73 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     };
   }
 
+  /**
+   * mc-agent (R21.1): read the transcript behind a checkpoint. The session is
+   * bound here; the model passes only a query, an anchor or an opaque cursor
+   * that pins the checkpoint it came from.
+   */
+  private buildContextHistoryTool(): AgentTool {
+    const reply = (text: string, details: Record<string, unknown> = {}) => ({
+      content: [{ type: "text" as const, text }],
+      details,
+    });
+    return {
+      name: CONTEXT_HISTORY_TOOL_NAME,
+      label: "Context History",
+      description: contextHistoryDescription,
+      parameters: contextHistoryParameters,
+      execute: async (_toolCallId, params, signal) => {
+        const input: Record<string, unknown> = isRecord(params) ? params : {};
+        const text = (key: string) => {
+          const value = input[key];
+          return typeof value === "string" && value.trim() ? value.trim() : undefined;
+        };
+        const query = text("query");
+        const rawCursor = text("cursor");
+        const cursor = rawCursor ? decodeHistoryCursor(rawCursor) : undefined;
+        if (rawCursor && !cursor) {
+          return reply("The cursor is not valid. Search again without a cursor.", { status: "cursor_invalid" });
+        }
+        const checkpointId = cursor?.checkpointId ?? this.activeCompaction?.id;
+        if (!checkpointId) {
+          return reply(formatHistoryResponse({ status: "no_compaction", messages: [], scanned: 0, reachedStart: true }, query),
+            { status: "no_compaction" });
+        }
+        const around = cursor ? undefined : text("around");
+        const limit = typeof input.limit === "number" && Number.isFinite(input.limit)
+          ? Math.min(CONTEXT_HISTORY_MAX_LIMIT, Math.max(1, Math.floor(input.limit)))
+          : undefined;
+        const request = this.host.call<HistoryReadResponse>("session.historyRead", {
+          sessionId: this.sessionId,
+          checkpointId,
+          ...(cursor ? { before: cursor.before } : {}),
+          ...(around ? { around } : {}),
+          ...(query ? { query } : {}),
+          ...(limit ? { limit } : {}),
+        });
+        // Host-core bounds the read itself; Stop only stops waiting for it.
+        let onAbort: (() => void) | undefined;
+        const aborted = new Promise<never>((_, reject) => {
+          onAbort = () => reject(new Error(`${CONTEXT_HISTORY_TOOL_NAME} was cancelled`));
+          if (signal?.aborted) onAbort();
+          else signal?.addEventListener("abort", onAbort, { once: true });
+        });
+        try {
+          const response = await Promise.race([request, aborted]);
+          return reply(formatHistoryResponse(response, query), {
+            status: response.status,
+            checkpointId,
+            returned: response.messages?.length ?? 0,
+            scanned: response.scanned,
+          });
+        } finally {
+          if (onAbort) signal?.removeEventListener("abort", onAbort);
+          request.catch(() => undefined);
+        }
+      },
+    };
+  }
+
   private emit(event: AgentEventEnvelope["event"], turnId?: string, ts = Date.now()) {
     this.onEvent({
       sessionId: this.sessionId,
@@ -7446,10 +7523,16 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
   private liveSessionContext(
     checkpoint: ContextCompactionRecord | undefined = this.activeCompaction,
   ): { messages: AgentMessage[] } {
-    return buildSessionContext(
+    const context = buildSessionContext(
       this.entriesWithCompaction(checkpoint),
       this.reasoningReplayIdentity(),
     );
+    // mc-agent (R21.1): point at the history lookup only while it is callable.
+    if (!this.compactionEnabled || !this.isToolAllowedInMode(CONTEXT_HISTORY_TOOL_NAME)) return context;
+    return {
+      messages: context.messages.map((message) =>
+        message.role === "compactionSummary" ? ({ ...message, historyHint: true } as AgentMessage) : message),
+    };
   }
 
   /**
