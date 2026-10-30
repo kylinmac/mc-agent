@@ -43,7 +43,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build workspace packages
-        run: pnpm build:js
+        # The docs site is built by docs-check.yml; the desktop bundle is not
+        # needed here (Typecheck Desktop runs tsc).
+        run: pnpm -r --filter '!@pi-desktop/docs' --filter '!@pi-desktop/desktop' --if-present build
 
       - name: Typecheck Desktop
         # Workspace dependency builds already run tsc; Vite does not check the app.
@@ -88,7 +90,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build workspace packages
-        run: pnpm build:js
+        # The docs site is built by docs-check.yml.
+        run: pnpm -r --filter '!@pi-desktop/docs' --if-present build
 
       - name: Unit tests (apps/desktop)
         working-directory: apps/desktop
@@ -133,7 +136,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # No Electron runs here: skip install scripts, which spend ~2 minutes
+        # rebuilding node-pty for Electron on Windows.
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -208,10 +213,8 @@ jobs:
           sudo chmod 4755 "$sandbox"
 
       - name: Build workspace packages
-        run: pnpm build:js
-
-      - name: Build Desktop bundle
-        run: pnpm --filter @pi-desktop/desktop build
+        # The docs site is built by docs-check.yml.
+        run: pnpm -r --filter '!@pi-desktop/docs' --if-present build
 
       - name: Build host-core
         run: cargo build -p host-core --locked

@@ -13,6 +13,15 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.36",
+    date: "2026-10-30",
+    fixes: [
+      "使用部分 Responses 或 Codex 网关时，上下文接近上限不再因缓存命中没算进用量而错过压缩，导致下一轮请求超窗。",
+      "超长会话分块压缩时，第一块不再超出模型的上下文窗口。",
+      "压缩摘要里的已读和已改文件清单，不再漏掉最近一段操作过的文件。",
+    ],
+  },
+  {
     version: "1.0.35",
     date: "2026-10-30",
     improvements: [
