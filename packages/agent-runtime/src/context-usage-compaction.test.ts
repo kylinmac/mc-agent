@@ -83,10 +83,11 @@ async function fixture(history: UiMessage[] = [], usage: WireUsage = highUsage, 
     compactionStrategy: "fresh_window",
     commandShell: { id: "bash", label: "Bash", dialect: "posix", available: true, isDefault: true },
     host: {
-      call: async <T>(method: string): Promise<T> => {
+      call: async <T>(method: string, params?: { nonInteractive?: boolean }): Promise<T> => {
         if (method === "session.appendCompaction") timeline.push("checkpoint");
         else if (method === "tools.execute") {
-          timeline.push("tool");
+          // mc-agent (R21.2): compaction re-reads recent files without prompting.
+          timeline.push(params?.nonInteractive ? "restore" : "tool");
           return { ok: true, content: "Fixture result." } as T;
         } else if (method !== "session.appendMessage") throw new Error(`Unexpected host method: ${method}`);
         return undefined as T;
@@ -136,7 +137,7 @@ describe("reported context occupancy and compaction", () => {
 
     await f.runtime.prompt("Read the fixture.", "user-1", "turn-1");
 
-    expect(f.timeline).toEqual(["request:1", "tool", "checkpoint", "request:2"]);
+    expect(f.timeline).toEqual(["request:1", "tool", "restore", "checkpoint", "request:2"]);
     expect(f.events.some(({ event }) => event.type === "compaction_end" && event.ok)).toBe(true);
   });
 

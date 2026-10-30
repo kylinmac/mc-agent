@@ -7018,9 +7018,13 @@ describe("DesktopAgentRuntime per-turn context protection", () => {
     expect([...preparation.value.fileOps.edited]).toEqual(["src/b.ts"]);
     expect([...preparation.value.fileOps.written]).toEqual([]);
 
+    // mc-agent: summaries stream (#55), so the fixture answers streamSimple.
     (runtime as any).models = {
-      completeSimple: async () =>
-        assistantMessage({ content: [{ type: "text", text: "Older work." }] }),
+      streamSimple: () => {
+        const stream = createAssistantMessageEventStream();
+        stream.end(assistantMessage({ content: [{ type: "text", text: "Older work." }] }) as AssistantMessage);
+        return stream;
+      },
     };
     const summary = await (runtime as any).generateCompaction(
       preparation.value,
