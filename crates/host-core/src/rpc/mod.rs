@@ -18,6 +18,8 @@ mod worktree_rpc;
 #[cfg(test)]
 mod mc_auto_guard_tests;
 #[cfg(test)]
+mod mc_non_interactive_tests;
+#[cfg(test)]
 mod plugin_reviews_rpc_tests;
 #[cfg(test)]
 mod visualization_tests;
@@ -4402,6 +4404,16 @@ async fn handle_request(
                             None,
                             command_shell_id.clone(),
                         )
+                    } else if p.non_interactive {
+                        // mc-agent (R21.2): skip, never prompt; no request is
+                        // created, so nothing waits on the user.
+                        return Ok(json!({
+                            "toolCallId": p.tool_call_id,
+                            "ok": false,
+                            "isError": true,
+                            "errorCode": "APPROVAL_REQUIRED",
+                            "content": "Skipped: this call would need approval.",
+                        }));
                     } else {
                         let reason = if let Some(reason) = auto_guard {
                             reason

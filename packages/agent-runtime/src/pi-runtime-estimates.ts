@@ -5,6 +5,7 @@ import {
   getLastAssistantUsageInfo,
 } from "@earendil-works/pi-ai/utils/estimate";
 import { LocalRequestError } from "@earendil-works/pi-ai";
+import { estimateRestoreTokens, type RestoredFile } from "./mc-compaction-file-restore.js";
 import { validateHostedSearchMessages } from "@earendil-works/pi-ai/utils/hosted-search";
 import type { Api, Message, Model } from "@earendil-works/pi-ai";
 
@@ -54,7 +55,9 @@ export function estimateTokens(
     case "branchSummary":
     case "compactionSummary": {
       const summary = (message as { summary?: unknown }).summary;
-      return typeof summary === "string" ? Math.ceil(summary.length / 4) : 0;
+      const restored = (message as { restoredFiles?: unknown }).restoredFiles;
+      return (typeof summary === "string" ? Math.ceil(summary.length / 4) : 0)
+        + (Array.isArray(restored) ? estimateRestoreTokens(restored as RestoredFile[]) : 0);
     }
     default:
       throw new LocalRequestError("context-validation");
