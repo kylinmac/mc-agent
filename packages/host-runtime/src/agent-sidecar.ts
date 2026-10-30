@@ -48,11 +48,23 @@ export type VendorAuthResolver = (input: {
 // `provider.resolveAuth` is answered by the embedding host itself (never
 // forwarded to host-core) and only for a provider row bound to that same
 // session, so it cannot reach a credential the session was not launched with.
+// Calls through which the embedding host hands a session to this sidecar.
+const SESSION_LAUNCH_METHODS = new Set([
+  "agent.prepare",
+  "agent.prompt",
+  "agent.steer",
+  "agent.compact",
+  "agent.executeApprovedPlan",
+]);
+
 const HOST_PROXY_ALLOWED = new Set([
   "tools.execute",
   "tools.abort",
   "tools.list",
   "session.get",
+  // mc-agent (R21.1): bounded model-facing history behind a checkpoint;
+  // admitted only for a session launched into this sidecar (see below).
+  "session.historyRead",
   "session.appendMessage",
   "session.appendCompaction",
   "session.replaceMessages",
@@ -157,6 +169,11 @@ export class AgentSidecar {
   // ask for auth it is already using, and a session that never bound an OAuth
   // row can ask for nothing at all.
   private vendorAuthBindings = new Map<string, Set<string>>();
+  // Sessions the embedding host itself launched into this sidecar and has not
+  // disposed. One sidecar runs many session runtimes and the wire carries no
+  // per-runtime identity, so this is the trusted ownership context: a history
+  // read may name a session, but only one this sidecar was given.
+  private launchedSessions = new Set<string>();
 
   constructor(options: AgentSidecarOptions) {
     const { launch, onStderr } = options;
@@ -215,6 +232,7 @@ export class AgentSidecar {
     for (const controller of this.localToolControllers.values()) controller.abort();
     this.localToolControllers.clear();
     this.handlers.clear();
+    this.launchedSessions.clear();
     this.stdoutReader?.close();
     this.stdoutReader = undefined;
     this.child.removeAllListeners("exit");
@@ -485,6 +503,15 @@ export class AgentSidecar {
             { code: -32000, data: { errorCode: "TOOL_DISABLED_IN_PLAN" } },
           );
         }
+        if (
+          method === "session.historyRead" &&
+          !this.launchedSessions.has(String(params.sessionId ?? "").trim())
+        ) {
+          throw Object.assign(
+            new Error("session is not running in this sidecar"),
+            { code: -32000, data: { errorCode: "SESSION_NOT_BOUND" } },
+          );
+        }
         if (method === "tools.abort") {
           this.localToolControllers.get(`${params.sessionId}:${params.toolCallId}`)?.abort();
         }
@@ -604,8 +631,21 @@ export class AgentSidecar {
     return () => this.handlers.delete(handler);
   }
 
+  private trackSessionOwnership(method: string, params: unknown): void {
+    const raw = params && typeof params === "object"
+      ? (params as { sessionId?: unknown }).sessionId
+      : undefined;
+    const sessionId = typeof raw === "string" ? raw.trim() : "";
+    if (!sessionId) return;
+    // Recorded before the request is written: the runtime may read history
+    // during the turn, before the launch call itself answers.
+    if (SESSION_LAUNCH_METHODS.has(method)) this.launchedSessions.add(sessionId);
+    else if (method === "agent.disposeSession") this.launchedSessions.delete(sessionId);
+  }
+
   async call<T = unknown>(method: string, params: unknown = {}): Promise<T> {
     if (this.closed) throw new Error("agent sidecar is unavailable");
+    this.trackSessionOwnership(method, params);
     const id = randomUUID();
     const timeoutMs = rpcTimeoutMs(method, params);
     const payload = JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n";

@@ -31,6 +31,7 @@ use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+pub mod history;
 pub mod layout;
 #[cfg(test)]
 use layout::refresh_layout;

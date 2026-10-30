@@ -13,6 +13,7 @@ import {
 import { formatSessionMessage, type SessionMessageOrigin } from "@pi-desktop/shared";
 import { estimateContextTokens as estimateTranscriptTokens } from "@earendil-works/pi-ai/utils/estimate";
 import { buildSessionContext } from "./session-context.js";
+import { convertToLlm } from "./pi-runtime-messages.js";
 import { estimateContextTokens as estimateAgentContextTokens, estimateTokens } from "./pi-runtime-estimates.js";
 import {
   COMPACTION_FALLBACK_MARKER,
@@ -118,6 +119,7 @@ import {
   DEFAULT_SUBAGENT_IDLE_TIMEOUT_SECONDS,
   MAX_RESUMABLE_CHAINS_PER_AGENT,
   MAX_SUBAGENT_CONCURRENCY,
+  resolveSubagentToolNames,
 } from "@pi-desktop/shared";
 import type {
   AgentEventEnvelope,
@@ -12934,5 +12936,83 @@ describe("next-prompt suggestion (mc-agent)", () => {
     expect(nextPromptSuggestionText(reply([{ type: "text", text: "x".repeat(301) }]))).toBeNull();
     expect(nextPromptSuggestionText(reply([{ type: "toolCall", id: "t", name: "Read", arguments: {} }], "toolUse"))).toBeNull();
     expect(nextPromptSuggestionText(reply([{ type: "text", text: "partial" }], "aborted"))).toBeNull();
+  });
+});
+
+describe("ContextHistory (R21.1)", () => {
+  const history: UiMessage[] = [
+    { id: "old-user", role: "user", content: "older task context", createdAt: "2026-07-28T00:00:00Z", status: "complete" },
+    { id: "recent-user", role: "user", content: "recent context", createdAt: "2026-07-28T00:00:01Z", status: "complete" },
+  ];
+  const compaction = (id: string): ContextCompactionRecord => ({
+    id,
+    summary: "The previous task summary.",
+    throughMessageId: "recent-user",
+    tokensBefore: 220_000,
+    retainedTail: [{ role: "user", content: "recent context", timestamp: 2 }],
+    createdAt: "2026-07-28T00:00:02Z",
+  });
+  const catalogTool = (runtime: DesktopAgentRuntime) =>
+    (runtime as unknown as { toolCatalog: Map<string, AgentTool> }).toolCatalog.get("ContextHistory");
+  const summaryText = (runtime: DesktopAgentRuntime) => {
+    const messages = (runtime as unknown as { liveSessionContext: () => { messages: AgentMessage[] } })
+      .liveSessionContext().messages;
+    return JSON.stringify(convertToLlm(messages));
+  };
+
+  it("is an on-demand tool bound to the session and the active checkpoint", async () => {
+    const call = vi.fn(async () => ({
+      status: "ok", checkpointId: "compact-1", scanned: 1, reachedStart: false, nextBefore: "old-user",
+      messages: [{ id: "old-user", role: "user", createdAt: "2026-07-28T00:00:00Z", text: "older task context" }],
+    }));
+    const runtime = createRuntime({ history, compaction: compaction("compact-1"), host: { call, onNotification: vi.fn(() => () => {}) } });
+    expect((runtime as any).deferredToolNames.has("ContextHistory")).toBe(true);
+    const tool = catalogTool(runtime)!;
+    const result = await tool.execute("call-1", { query: "older", sessionId: "someone-else" } as never);
+    expect(call).toHaveBeenCalledWith("session.historyRead", { sessionId: "session-1", checkpointId: "compact-1", query: "older" });
+    const text = (result.content[0] as { text: string }).text;
+    expect(text).toContain("[old-user] user");
+    const cursor = /cursor="([^"]+)"/.exec(text)?.[1];
+    expect(cursor).toBeDefined();
+
+    // A newer checkpoint does not move a cursor taken from the older one.
+    (runtime as any).activeCompaction = compaction("compact-2");
+    await tool.execute("call-2", { cursor } as never);
+    expect(call).toHaveBeenLastCalledWith("session.historyRead", { sessionId: "session-1", checkpointId: "compact-1", before: "old-user" });
+    await runtime.dispose();
+  });
+
+  it("answers without the host when nothing was compacted or the cursor is forged", async () => {
+    const call = vi.fn();
+    const runtime = createRuntime({ history, host: { call, onNotification: vi.fn(() => () => {}) } });
+    const tool = catalogTool(runtime)!;
+    expect(((await tool.execute("c", {} as never)).content[0] as { text: string }).text).toContain("not been compacted");
+    expect(((await tool.execute("c", { cursor: "not-a-cursor" } as never)).content[0] as { text: string }).text).toContain("not valid");
+    expect(call).not.toHaveBeenCalled();
+    await runtime.dispose();
+  });
+
+  it("stops waiting when the turn is stopped", async () => {
+    const call = vi.fn(() => new Promise(() => {}));
+    const runtime = createRuntime({ history, compaction: compaction("compact-1"), host: { call, onNotification: vi.fn(() => () => {}) } });
+    const controller = new AbortController();
+    const pending = catalogTool(runtime)!.execute("c", {} as never, controller.signal);
+    controller.abort();
+    await expect(pending).rejects.toThrow("ContextHistory was cancelled");
+    await runtime.dispose();
+  });
+
+  it("points at the lookup in the summary only while the tool exists", async () => {
+    const enabled = createRuntime({ history, compaction: compaction("compact-1") });
+    expect(summaryText(enabled)).toContain("read them with the ContextHistory tool");
+    await enabled.dispose();
+    const disabled = createRuntime({ history, compaction: compaction("compact-1"), compactionSettings: { enabled: false } as ContextCompactionSettings });
+    expect(catalogTool(disabled)).toBeUndefined();
+    expect(summaryText(disabled)).not.toContain("ContextHistory");
+    await disabled.dispose();
+  });
+
+  it("is never inherited by a delegate", () => {
+    expect(resolveSubagentToolNames({ tools: ["inherit"], inheritTools: true }, ["Read", "ContextHistory"])).toEqual(["Read"]);
   });
 });
