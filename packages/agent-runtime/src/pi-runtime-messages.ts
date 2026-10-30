@@ -2,6 +2,7 @@ import type { Message } from "@earendil-works/pi-ai";
 import { hostedSearchReplayProjection } from "@earendil-works/pi-ai/utils/hosted-search";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { COMPACTION_HISTORY_HINT } from "./mc-context-history-tool.js";
+import { formatRestoredFiles, type RestoredFile } from "./mc-compaction-file-restore.js";
 
 export type CompactionSummaryMessage = {
   role: "compactionSummary";
@@ -10,6 +11,8 @@ export type CompactionSummaryMessage = {
   timestamp: number;
   /** mc-agent (R21.1): set only while the history lookup tool is callable. */
   historyHint?: boolean;
+  /** mc-agent (R21.2): file snapshots kept in the checkpoint's details. */
+  restoredFiles?: RestoredFile[];
 };
 
 export type BranchSummaryMessage = {
@@ -135,7 +138,13 @@ export function convertToLlm(messages: AgentMessage[]): Message[] {
             type: "text",
             text: `${COMPACTION_SUMMARY_PREFIX}${runtimeMessage.summary}${COMPACTION_SUMMARY_SUFFIX}${
               "historyHint" in runtimeMessage && runtimeMessage.historyHint === true ? `\n\n${COMPACTION_HISTORY_HINT}` : ""}`,
-          }],
+          },
+          // One user message with two blocks: providers that reject adjacent
+          // user messages never see a separate one for the files.
+          ...("restoredFiles" in runtimeMessage && Array.isArray(runtimeMessage.restoredFiles)
+            && runtimeMessage.restoredFiles.length > 0
+            ? [{ type: "text" as const, text: formatRestoredFiles(runtimeMessage.restoredFiles) }]
+            : [])],
           timestamp: runtimeMessage.timestamp,
         }));
         break;

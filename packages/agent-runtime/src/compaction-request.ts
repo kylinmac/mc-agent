@@ -39,6 +39,39 @@ import { compactionRequestShape, type CompactionRequestShape } from "./compactio
 import { completeCompactionStream, type CompactionRequestStage } from "./compaction-stream.js";
 
 /**
+ * mc-agent (R21.3): one summary attempt as measured, before deciding whether a
+ * cache-sharing request is worth building. Counts only; no text.
+ */
+export type CompactionAttemptMeasure = {
+  durationMs: number;
+  stopReason: string;
+  /** False when the provider reported no usage at all; zeros are then unknown, not zero. */
+  usageReported: boolean;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+};
+
+export function measureCompactionAttempt(
+  result: { stopReason: string; usage?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number; totalTokens?: number } },
+  durationMs: number,
+): CompactionAttemptMeasure {
+  const usage = result.usage;
+  const count = (value: number | undefined) => (typeof value === "number" && Number.isFinite(value) ? value : 0);
+  const reported = !!usage && (count(usage.totalTokens) > 0 || count(usage.input) + count(usage.output) > 0);
+  return {
+    durationMs,
+    stopReason: result.stopReason,
+    usageReported: reported,
+    input: count(usage?.input),
+    output: count(usage?.output),
+    cacheRead: count(usage?.cacheRead),
+    cacheWrite: count(usage?.cacheWrite),
+  };
+}
+
+/**
  * The header set `streamFn` puts on a turn, applied to a summary request.
  *
  * The session id is the runtime's own, not a per-call id, so the summary reaches
@@ -119,8 +152,10 @@ export function withCompactionRequestHeaders(
   onUsage?: UsageObserver,
   onRequestShape?: (shape: CompactionRequestShape) => void,
   onStage?: (stage: CompactionRequestStage) => void,
+  onAttempt?: (attempt: CompactionAttemptMeasure) => void,
 ): Models {
   const completeSimple: Models["completeSimple"] = async (model, context, options) => {
+    const started = Date.now();
     const identity = { ...requestUsageIdentity(model, provider.id), costStatus: nativeCostStatus(provider.modelConfig?.nativeCost) };
     const requestOptions = compactionRequestOptions({ provider, sessionId, model, context, options });
     const previousOnPayload = requestOptions.onPayload;
@@ -164,6 +199,7 @@ export function withCompactionRequestHeaders(
       };
     }
     const result = await completeCompactionStream(models, model, context, requestOptions, onStage);
+    onAttempt?.(measureCompactionAttempt(result, Date.now() - started));
     return onUsage ? accountModelResult(result, identity, onUsage) : result;
   };
   return new Proxy(models, {

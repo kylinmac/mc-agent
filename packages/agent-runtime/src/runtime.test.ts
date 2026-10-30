@@ -13053,3 +13053,91 @@ describe("ContextHistory (R21.1)", () => {
     expect(resolveSubagentToolNames({ tools: ["inherit"], inheritTools: true }, ["Read", "ContextHistory"])).toEqual(["Read"]);
   });
 });
+
+describe("compaction file restore (R21.2)", () => {
+  const history: UiMessage[] = [
+    { id: "old-user", role: "user", content: "older task context", createdAt: "2026-07-28T00:00:00Z", status: "complete" },
+    { id: "recent-user", role: "user", content: "recent context", createdAt: "2026-07-28T00:00:01Z", status: "complete" },
+  ];
+  const checkpoint = (details?: unknown): ContextCompactionRecord => ({
+    id: "compact-1",
+    summary: "The previous task summary.",
+    throughMessageId: "recent-user",
+    tokensBefore: 200_000,
+    retainedTail: [{ role: "user", content: "recent context", timestamp: 2 }],
+    createdAt: "2026-07-28T00:00:02Z",
+    ...(details ? { details } : {}),
+  });
+  const read = (id: string, path: string) => [
+    { role: "assistant", content: [{ type: "toolCall", id, name: "Read", arguments: { path } }], timestamp: 1 },
+    { role: "toolResult", toolCallId: id, toolName: "Read", content: [{ type: "text", text: "old" }], isError: false, timestamp: 1 },
+  ];
+  const build = () => ({
+    ok: true,
+    checkpoint: checkpoint(),
+    entries: [],
+    budget: { tokens: 200_000, hardLimit: 224_000, requestHeadroom: 32_000, keepRecentTokens: 44_800 },
+    preparation: {
+      messagesToSummarize: [...read("r1", "/w/a.ts"), ...read("r2", "/w/outside.ts")],
+      turnPrefixMessages: [],
+      retainedTail: [],
+      isSplitTurn: false,
+      tokensBefore: 200_000,
+      fileOps: { read: new Set<string>(), edited: new Set<string>(), written: new Set<string>() },
+      settings: { enabled: true, reserveTokens: 16_384, keepRecentTokens: 20_000 },
+    },
+  });
+  const host = () => {
+    const call = vi.fn(async (method: string, params: any) => {
+      if (method !== "tools.execute") return {};
+      return params.args.path === "/w/a.ts"
+        ? { ok: true, content: { content: "export const a = 1;", truncated: false } }
+        : { ok: false, errorCode: "APPROVAL_REQUIRED" };
+    });
+    return { call, onNotification: vi.fn(() => () => {}) };
+  };
+  const modelText = (runtime: DesktopAgentRuntime, record?: ContextCompactionRecord) =>
+    convertToLlm((runtime as any).liveSessionContext(record).messages);
+
+  it("re-reads without prompting and sends the snapshot inside the summary message", async () => {
+    const link = host();
+    const runtime = createRuntime({ history, host: link });
+    const restored: ContextCompactionRecord = await (runtime as any).withRestoredFiles(build());
+    const executes = link.call.mock.calls.filter(([method]) => method === "tools.execute");
+    expect(executes).toHaveLength(2);
+    expect(executes.every(([, params]: any) => params.nonInteractive === true && params.toolName === "Read")).toBe(true);
+    expect((restored.details as any).restoredFiles.map((entry: any) => entry.path)).toEqual(["/w/a.ts"]);
+    const summary = modelText(runtime, restored).find((message: any) =>
+      JSON.stringify(message).includes("The previous task summary.")) as any;
+    expect(summary.role).toBe("user");
+    expect(summary.content).toHaveLength(2);
+    expect(summary.content[1].text).toContain('<restored-file path="/w/a.ts"');
+    expect(summary.content[1].text).toContain("export const a = 1;");
+    expect(JSON.stringify(modelText(runtime, restored))).not.toContain("/w/outside.ts");
+    await runtime.dispose();
+  });
+
+  it("restores nothing when the compacted context has no room left", async () => {
+    const link = host();
+    const runtime = createRuntime({ history, host: link });
+    vi.spyOn(runtime as any, "contextBudget").mockReturnValue({
+      tokens: 199_000, hardLimit: 224_000, requestHeadroom: 32_000, keepRecentTokens: 44_800,
+    });
+    const original = build();
+    expect(await (runtime as any).withRestoredFiles(original)).toBe(original.checkpoint);
+    expect(link.call.mock.calls.some(([method]) => method === "tools.execute")).toBe(false);
+    await runtime.dispose();
+  });
+
+  it("rebuilds from the saved snapshot without reading the file again", async () => {
+    const link = host();
+    const runtime = createRuntime({
+      history,
+      host: link,
+      compaction: checkpoint({ restoredFiles: [{ path: "/w/a.ts", readAt: "2026-07-28T00:00:02Z", text: "saved snapshot", truncated: false }] }),
+    });
+    expect(JSON.stringify(modelText(runtime))).toContain("saved snapshot");
+    expect(link.call).not.toHaveBeenCalled();
+    await runtime.dispose();
+  });
+});

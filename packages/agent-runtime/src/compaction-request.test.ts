@@ -8,6 +8,7 @@ import {
 } from "./opencode-session-headers.js";
 import {
   compactionRequestOptions,
+  measureCompactionAttempt,
   withCompactionRequestHeaders,
 } from "./compaction-request.js";
 import type { RuntimeProviderConfig } from "./provider-binding.js";
@@ -379,4 +380,26 @@ describe("compaction summary conversation key", () => {
   expect(reports[0]).toMatchObject({ providerId: provider.id, modelId: model.id, totalTokens: 15, costStatus: "unknown" });
   expect((failed.usage as unknown as { desktopUsage?: { operationId?: string } }).desktopUsage?.operationId).toBe(reports[0]?.operationId);
   expect(completeSimple.mock.calls[0]?.[2]).toMatchObject({ sessionId: "summary-session", headers: { [OPENCODE_SESSION_HEADER]: "summary-session" } });
+});
+
+describe("compaction attempt measurement (R21.3)", () => {
+  it("reports cache usage per attempt and marks missing usage as unknown", async () => {
+    const completeSimple = vi.fn(async () => ({
+      ...summaryResponse(),
+      usage: { input: 900, output: 120, cacheRead: 600, cacheWrite: 0, totalTokens: 1_020,
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+    }));
+    const onAttempt = vi.fn();
+    const wrapped = withCompactionRequestHeaders(
+      streamingCollection({ completeSimple } as unknown as Models), provider, "session-1",
+      undefined, undefined, undefined, onAttempt,
+    );
+    await wrapped.completeSimple(model, context as never, { maxTokens: 4_096 });
+    expect(onAttempt).toHaveBeenCalledOnce();
+    expect(onAttempt.mock.calls[0]?.[0]).toMatchObject({
+      stopReason: "stop", usageReported: true, input: 900, output: 120, cacheRead: 600, cacheWrite: 0,
+    });
+    expect(onAttempt.mock.calls[0]?.[0].durationMs).toBeGreaterThanOrEqual(0);
+    expect(measureCompactionAttempt(summaryResponse(), 5)).toMatchObject({ usageReported: false, input: 0 });
+  });
 });

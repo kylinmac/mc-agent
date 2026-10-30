@@ -42,6 +42,16 @@ import { currentSystemProxyRelayUrl } from "../network-proxy";
 import { createRememberTool } from "../mc-agent-memory";
 import { createCreateProjectTool, createProjectTemplatesTool, loadProjectLocations } from "../mc-project-create";
 
+
+/** Runtime compaction diagnostics this host logs; anything else is ignored. */
+const COMPACTION_DIAGNOSTICS: Record<string, { level: "info" | "warn"; message: string; event: string }> = {
+  compaction_failure: { level: "warn", message: "context compaction failed", event: "session.compaction.failed" },
+  compaction_shape: { level: "info", message: "context compaction request shape", event: "session.compaction.request_shape" },
+  // mc-agent (R21.2 / R21.3): counts and reasons only, no paths or text.
+  compaction_restore: { level: "info", message: "context compaction file restore", event: "session.compaction.restore" },
+  compaction_summary: { level: "info", message: "context compaction summary attempt", event: "session.compaction.summary" },
+};
+
 export type SidecarRuntimeDependencies = {
   runtimeState: RuntimeState;
   steeringReplies: Set<string>;
@@ -275,22 +285,24 @@ export function createSidecarRuntime({
         requestId?: unknown;
         data?: unknown;
       };
+      const entry = typeof diagnostic.kind === "string" && Object.hasOwn(COMPACTION_DIAGNOSTICS, diagnostic.kind)
+        ? COMPACTION_DIAGNOSTICS[diagnostic.kind]
+        : undefined;
       if (
-        (diagnostic.kind === "compaction_failure" || diagnostic.kind === "compaction_shape") &&
+        entry &&
         typeof diagnostic.sessionId === "string" &&
         typeof diagnostic.requestId === "string" &&
         diagnostic.data && typeof diagnostic.data === "object"
       ) {
-        const isFailure = diagnostic.kind === "compaction_failure";
         logger.app(
           "session",
-          isFailure ? "warn" : "info",
-          isFailure ? "context compaction failed" : "context compaction request shape",
+          entry.level,
+          entry.message,
           {
             sessionId: diagnostic.sessionId,
             ...(typeof diagnostic.turnId === "string" ? { turnId: diagnostic.turnId } : {}),
             requestId: diagnostic.requestId,
-            event: isFailure ? "session.compaction.failed" : "session.compaction.request_shape",
+            event: entry.event,
             data: diagnostic.data,
           },
         );

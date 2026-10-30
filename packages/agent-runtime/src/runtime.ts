@@ -31,6 +31,12 @@ import {
   formatHistoryResponse,
   type HistoryReadResponse,
 } from "./mc-context-history-tool.js";
+import {
+  fitRestoreBudget,
+  readRestoreFiles,
+  restoreCandidates,
+  type RestoreRead,
+} from "./mc-compaction-file-restore.js";
 import { CANVAS_TOOL_NAMES, canvasToolDescriptions, canvasToolParameters } from "./mc-canvas-tools.js";
 import {
   CREATE_PROJECT_TOOL_NAME,
@@ -944,6 +950,8 @@ function turnAbortedError(message: string): Error {
 }
 
 const CONTEXT_COMPACTION_TOOL_NAME = "new_context";
+/** mc-agent (R21.2): minimum headroom left after restored files. */
+const RESTORE_GROWTH_MARGIN_TOKENS = 4_096;
 const CONTEXT_COMPACTION_TOOL_DESCRIPTION =
   "Start a new context window. Does not clear, reset, or otherwise affect environment state.";
 /** Codex's `NEW_CONTEXT_WINDOW_MESSAGE`, one per family. */
@@ -1132,7 +1140,7 @@ export type AgentRuntimeOptions = {
 };
 
 export type AgentRuntimeDiagnostic = {
-  kind: "compaction_failure" | "compaction_shape";
+  kind: "compaction_failure" | "compaction_shape" | "compaction_restore" | "compaction_summary";
   sessionId: string;
   turnId?: string;
   requestId: string;
@@ -8007,6 +8015,14 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         }
         progress(stage, attempt);
       },
+      // mc-agent (R21.3): baseline for the cache-sharing decision.
+      (measure) => {
+        this.emitCompactionDiagnostic("compaction_summary", requestId, {
+          attempt,
+          api: this.model.api,
+          ...measure,
+        });
+      },
     );
     try {
       const result = await compact(
@@ -8298,6 +8314,95 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
   }
 
   /**
+   * mc-agent (R21.2): attach a few re-read file snapshots to a summary
+   * checkpoint when they fit. Any shortfall (no room, approval needed, a read
+   * failed or ran out of time) leaves fewer files or none; it never fails the
+   * compaction and never displaces the summary or the retained tail.
+   */
+  private async withRestoredFiles(build: CheckpointBuildSuccess): Promise<ContextCompactionRecord> {
+    const { checkpoint, preparation } = build;
+    const requestId = randomUUID();
+    const candidates = restoreCandidates(
+      [...preparation.messagesToSummarize, ...preparation.turnPrefixMessages],
+      preparation.retainedTail,
+    );
+    if (candidates.length === 0) return checkpoint;
+    const base = this.contextBudget(this.liveSessionContext(checkpoint).messages);
+    // Stay clear of the next automatic compaction and keep a real net gain.
+    const ceiling = automaticCompactionThresholdFor(base)
+      - Math.max(RESTORE_GROWTH_MARGIN_TOKENS, Math.floor(base.hardLimit * 0.1));
+    const room = Math.min(ceiling - base.tokens, preparation.tokensBefore - base.tokens - 1);
+    if (room <= 0) {
+      this.emitCompactionDiagnostic("compaction_restore", requestId, {
+        candidates: candidates.length, restored: 0, skipped: [{ reason: "no_room" }],
+      });
+      return checkpoint;
+    }
+    const read: RestoreRead = async (candidate, signal) => {
+      const toolCallId = `compaction-restore-${randomUUID()}`;
+      const call = this.host.call<{ ok: boolean; content?: unknown; errorCode?: string }>("tools.execute", {
+        sessionId: this.sessionId,
+        turnId: this.turnId,
+        toolCallId,
+        toolName: "Read",
+        args: {
+          path: candidate.path,
+          ...(candidate.offset ? { offset: candidate.offset } : {}),
+          ...(candidate.limit ? { limit: candidate.limit } : {}),
+        },
+        mode: this.mode,
+        nonInteractive: true,
+      });
+      let onAbort: (() => void) | undefined;
+      const aborted = new Promise<never>((_, reject) => {
+        onAbort = () => {
+          void this.host.call("tools.abort", { sessionId: this.sessionId, toolCallId, toolName: "Read" }).catch(() => undefined);
+          reject(new Error("restore read cancelled"));
+        };
+        if (signal.aborted) onAbort();
+        else signal.addEventListener("abort", onAbort, { once: true });
+      });
+      try {
+        const result = await Promise.race([call, aborted]);
+        if (!result.ok) return { ok: false, reason: result.errorCode ?? "read_failed" };
+        const content = isRecord(result.content) ? result.content.content : result.content;
+        if (typeof content !== "string") return { ok: false, reason: "unsupported" };
+        return { ok: true, text: content, truncated: isRecord(result.content) && result.content.truncated === true };
+      } finally {
+        if (onAbort) signal.removeEventListener("abort", onAbort);
+        call.catch(() => undefined);
+      }
+    };
+    // Stop during the reads cancels them; the summary is still installed.
+    this.compactionAbort = new AbortController();
+    let outcome: Awaited<ReturnType<typeof readRestoreFiles>>;
+    try {
+      outcome = await readRestoreFiles(candidates, read, { signal: this.compactionAbort.signal });
+    } finally {
+      this.compactionAbort = undefined;
+    }
+    const kept = fitRestoreBudget(outcome.files, room);
+    const restored: ContextCompactionRecord = kept.length === 0 ? checkpoint : {
+      ...checkpoint,
+      details: { ...(isRecord(checkpoint.details) ? checkpoint.details : {}), restoredFiles: kept },
+    };
+    const after = this.contextBudget(this.liveSessionContext(restored).messages);
+    const accepted = kept.length > 0 && after.tokens < ceiling && after.tokens < preparation.tokensBefore;
+    this.emitCompactionDiagnostic("compaction_restore", requestId, {
+      candidates: candidates.length,
+      restored: accepted ? kept.length : 0,
+      restoredTokens: accepted ? after.tokens - base.tokens : 0,
+      // Reasons only; paths and contents stay out of the log.
+      skipped: [
+        ...outcome.skipped.map((skip) => ({ reason: skip.reason })),
+        ...(outcome.files.length > kept.length ? [{ reason: "budget", count: outcome.files.length - kept.length }] : []),
+        ...(kept.length > 0 && !accepted ? [{ reason: "no_net_gain" }] : []),
+      ],
+    });
+    return accepted ? restored : checkpoint;
+  }
+
+  /**
    * Install an already-generated checkpoint on the blocking path. The budget
    * recheck inside `persistCheckpoint` runs against the current transcript, so
    * a checkpoint built earlier is still validated against what it would
@@ -8312,7 +8417,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     const mustFitSafeBudget =
       reason === "overflow" || build.budget.tokens >= build.budget.hardLimit;
     const persisted = await this.persistCheckpoint(
-      build.checkpoint,
+      await this.withRestoredFiles(build),
       reason,
       willRetry,
       mustFitSafeBudget,

@@ -16,8 +16,10 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import {
   createBranchSummaryMessage,
   createCompactionSummaryMessage,
+  type CompactionSummaryMessage,
 } from "./pi-runtime-messages.js";
 import type { Entry } from "./pi-runtime-types.js";
+import { restoredFilesFromDetails } from "./mc-compaction-file-restore.js";
 import {
   retainedReasoningFromDetails,
   retainedReasoningToMessages,
@@ -38,6 +40,12 @@ function isContextMessage(message: AgentMessage): boolean {
       message.stopReason !== "deferred" &&
       message.content.length > 0)
   );
+}
+
+/** mc-agent (R21.2): attach the checkpoint's file snapshots, never re-read. */
+function withRestoredFiles(message: CompactionSummaryMessage, details: unknown): AgentMessage {
+  const restoredFiles = restoredFilesFromDetails(details);
+  return (restoredFiles.length > 0 ? { ...message, restoredFiles } : message) as AgentMessage;
 }
 
 export function buildContextEntries(pathEntries: readonly Entry[]): Entry[] {
@@ -61,10 +69,13 @@ export function sessionEntryToContextMessages(
       return [
         ...(entry.details && typeof entry.details === "object" && "systemMessageJson" in entry.details
           ? [readSystemMessage(entry.details.systemMessageJson)] : []),
-        createCompactionSummaryMessage(
-          entry.summary,
-          entry.tokensBefore,
-          entry.timestamp,
+        withRestoredFiles(
+          createCompactionSummaryMessage(
+            entry.summary,
+            entry.tokensBefore,
+            entry.timestamp,
+          ),
+          entry.details,
         ),
         ...(identity?.requiresCompletionsReasoningReplay === false
           ? []
