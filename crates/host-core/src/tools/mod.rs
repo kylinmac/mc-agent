@@ -650,6 +650,11 @@ pub struct ToolsExecuteParams {
     /// execute time.
     #[serde(default)]
     pub plan_safe_actions: Option<Vec<String>>,
+    /// mc-agent (R21.2): a runtime-internal read that must never prompt. When
+    /// the call would need approval it returns `APPROVAL_REQUIRED` instead of
+    /// creating a request; explicit allow and deny decisions are unchanged.
+    #[serde(default)]
+    pub non_interactive: bool,
 }
 
 #[derive(Debug, Serialize)]

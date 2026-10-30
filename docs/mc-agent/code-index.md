@@ -43,6 +43,7 @@ mc-agent 新增功能（R1–R10）的代码见文末“mc-agent 项目管理”
 | 运行时包装 | `packages/agent-runtime/src/runtime.ts` |
 | 压缩 | `packages/agent-runtime/src/compaction-*.ts`、`packages/agent-runtime/src/pi-runtime-compaction-*.ts`、`packages/agent-runtime/src/context-budget.ts` |
 | 压缩后回查原文（R21.1） | 工具 `packages/agent-runtime/src/mc-context-history-tool.ts`，接线在 `runtime.ts`（`buildContextHistoryTool`、摘要提示）；宿主读取 `crates/host-core/src/transcripts/history.rs`，RPC `rpc/mc_session_history_rpc.rs`（`session.historyRead`）；会话归属 `packages/host-runtime/src/agent-sidecar.ts`（`launchedSessions`） |
+| 压缩后附回文件（R21.2）与压缩测量（R21.3） | 候选、读取与预算 `packages/agent-runtime/src/mc-compaction-file-restore.ts`，接线 `runtime.ts`（`withRestoredFiles`）；不弹审批的读取 `crates/host-core/src/tools/mod.rs`（`non_interactive`）与 `rpc/mod.rs`；重建 `session-context.ts`，发送 `pi-runtime-messages.ts`；测量 `compaction-request.ts`（`measureCompactionAttempt`）；日志 `apps/desktop/electron/main/runtime/sidecar.ts`（`COMPACTION_DIAGNOSTICS`） |
 | 系统提示词与项目说明 | `packages/agent-runtime/src/custom-system-prompt.ts`、`packages/agent-runtime/src/project-instructions.ts`、`packages/agent-runtime/src/mode-prompts.ts` |
 | 子代理 | `packages/agent-runtime/src/subagent.ts`、`packages/agent-runtime/src/subagent-definitions.ts`、`packages/agent-runtime/src/delegation-*.ts` |
 | 思考级别 | `packages/agent-runtime/src/thinking-level.ts` |
