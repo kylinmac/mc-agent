@@ -9,6 +9,15 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.36",
+    date: "2026-10-30",
+    fixes: [
+      "With some Responses or Codex gateways, a nearly full context no longer skips compaction because cached input was left out of usage, so the next request no longer overflows.",
+      "When a very long conversation is compacted in chunks, the first chunk no longer exceeds the model's context window.",
+      "The read and modified file lists in a compaction summary no longer miss files used in the most recent stretch of work.",
+    ],
+  },
+  {
     version: "1.0.35",
     date: "2026-10-30",
     improvements: [
