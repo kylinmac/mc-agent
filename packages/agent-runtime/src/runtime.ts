@@ -175,7 +175,10 @@ import {
 } from "./agent-messages.js";
 import { withExplicitRequired } from "./tool-schema.js";
 import { buildSessionContext } from "./session-context.js";
-import { prepareCompaction } from "./pi-runtime-compaction-plan.js";
+import {
+  collectMessageFileOperations,
+  prepareCompaction,
+} from "./pi-runtime-compaction-plan.js";
 import { compact } from "./pi-runtime-compaction-summary.js";
 import {
   ESTIMATED_TEXT_CHARS_PER_TOKEN,
@@ -7166,8 +7169,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
    *
    * pi's cut point is still what marks the boundary, but the split it produces
    * is folded back together (see `codexShapedPreparation`), so
-   * `budget.keepRecentTokens` no longer decides what survives — it only decides
-   * which messages pi attributes file operations to.
+   * `budget.keepRecentTokens` no longer decides what survives. File operations
+   * are collected from that whole folded range, including the retained tail.
    */
   private prepareCompactionInput(
     entries: Entry[],
@@ -7238,6 +7241,18 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       ...preparation.turnPrefixMessages,
       ...preparation.retainedTail,
     ];
+    // pi records file operations for `messagesToSummarize` and, on a split
+    // turn, `turnPrefixMessages`. The tail is summarized too — including the
+    // suffix a split left uncollected — so copy the sets and record it there.
+    // The sets pi returned stay unchanged.
+    const fileOps: CompactionPreparation["fileOps"] = {
+      read: new Set(preparation.fileOps.read),
+      written: new Set(preparation.fileOps.written),
+      edited: new Set(preparation.fileOps.edited),
+    };
+    for (const message of preparation.retainedTail) {
+      collectMessageFileOperations(message, fileOps);
+    }
     const latestUser = messagesToSummarize
       .filter((message): message is UserMessage => message.role === "user")
       .at(-1);
@@ -7250,6 +7265,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       turnPrefixMessages: [],
       isSplitTurn: false,
       retainedTail: selectRetainedUserMessages(candidates, retainedUserTokens),
+      fileOps,
     };
   }
 
