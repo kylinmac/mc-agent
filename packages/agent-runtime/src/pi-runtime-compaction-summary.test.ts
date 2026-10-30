@@ -119,8 +119,72 @@ describe("compaction summary handoff", () => {
   });
 
   it("rejects a partially generated summary instead of treating the missing ending as complete", async () => {
-    const { models } = fixture("length", "Partial summary without the final authorization constraints");
+    const { models, completeSimple } = fixture("length", "Partial summary without the final authorization constraints");
     const result = await compact(preparation, models, model, undefined, "medium", undefined, undefined, undefined);
+    expect(completeSimple).toHaveBeenCalledTimes(2);
     expect(result).toMatchObject({ ok: false, error: { code: "summarization_failed" } });
+  });
+
+  it("retries a truncated summary once with a shorter target and the lowest reasoning", async () => {
+    const { models, completeSimple, response } = fixture();
+    completeSimple.mockResolvedValueOnce({ ...response, stopReason: "length", content: [{ type: "text", text: "Partial" }] });
+    const onRetryScheduled = vi.fn();
+    const result = await compact(preparation, models, model, undefined, "medium", undefined, { onRetryScheduled }, undefined);
+    expect(completeSimple).toHaveBeenCalledTimes(2);
+    expect(completeSimple.mock.calls[0]?.[2]?.reasoning).toBe("medium");
+    expect(completeSimple.mock.calls[1]?.[2]?.reasoning).toBeUndefined();
+    expect(completeSimple.mock.calls[0]?.[1]?.systemPrompt).not.toContain("previous attempt exceeded");
+    expect(completeSimple.mock.calls[1]?.[1]?.systemPrompt).toContain("previous attempt exceeded the generation budget");
+    expect(completeSimple.mock.calls[1]?.[1]?.systemPrompt).toContain("2,000–4,000 tokens");
+    expect(onRetryScheduled).toHaveBeenCalledOnce();
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.summary).toContain("TASK-42");
+      expect(result.value.usage?.output).toBe(60);
+    }
+  });
+
+  it("does not retry a truncated summary after the user stopped", async () => {
+    const { models, completeSimple } = fixture("length", "Partial");
+    const controller = new AbortController();
+    completeSimple.mockImplementationOnce(async () => {
+      controller.abort();
+      return { ...fixture("length", "Partial").response };
+    });
+    const result = await compact(preparation, models, model, undefined, "medium", undefined, undefined, controller.signal);
+    expect(completeSimple).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({ ok: false, error: { code: "aborted" } });
+  });
+
+  it("scales the length target to an 8K output limit so reasoning still fits", async () => {
+    const { models, completeSimple } = fixture();
+    await compact(preparation, models, { ...model, maxTokens: 8_192 }, undefined, "medium", undefined, undefined, undefined);
+    const systemPrompt = completeSimple.mock.calls[0]?.[1]?.systemPrompt;
+    expect(completeSimple.mock.calls[0]?.[2]?.maxTokens).toBe(8_192);
+    expect(systemPrompt).toContain("1,638–3,276 tokens");
+    expect(systemPrompt).not.toContain("4,000–8,000");
+  });
+
+  it("gives a split turn's prefix its own short target", async () => {
+    const { models, completeSimple } = fixture();
+    await compact({
+      ...preparation,
+      isSplitTurn: true,
+      turnPrefixMessages: [{ role: "user", content: "Refactor the store module.", timestamp: 3 }],
+    }, models, model, undefined, "medium", undefined, undefined, undefined);
+    expect(completeSimple).toHaveBeenCalledTimes(2);
+    expect(completeSimple.mock.calls[0]?.[1]?.systemPrompt).toContain("4,000–8,000 tokens");
+    const prefixPrompt = completeSimple.mock.calls[1]?.[1]?.systemPrompt;
+    expect(prefixPrompt).toContain("prefix summary under about 2,000 tokens");
+    expect(prefixPrompt).not.toContain("Aim for roughly");
+  });
+
+  it("asks for verbatim user boundaries without copying pasted material", async () => {
+    const { models, completeSimple } = fixture();
+    await compact(preparation, models, model, undefined, "medium", undefined, undefined, undefined);
+    const prompt = JSON.stringify(completeSimple.mock.calls[0]?.[1]);
+    expect(prompt).toContain("quote the operative sentence verbatim");
+    expect(prompt).toContain("Never copy pasted logs, code, or long documents");
+    expect(prompt).toContain("keep earlier verbatim user quotes unless the user revoked them");
   });
 });

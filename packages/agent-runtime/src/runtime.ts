@@ -7984,6 +7984,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         ...(retryDelayMs !== undefined ? { retryDelayMs } : {}) });
     };
     let attempt = 0;
+    let retryScheduled = false;
     const models = withCompactionRequestHeaders(
       this.models,
       this.provider,
@@ -7998,7 +7999,12 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         });
       },
       (stage) => {
-        if (stage === "waiting") attempt++;
+        // A split turn sends a second summary request; only a scheduled retry
+        // continues the previous request's attempt count.
+        if (stage === "waiting") {
+          attempt = retryScheduled ? attempt + 1 : 1;
+          retryScheduled = false;
+        }
         progress(stage, attempt);
       },
     );
@@ -8016,7 +8022,10 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         // made a single dropped stream or 503 discard the whole summary (#543).
         // pi's classifier decides what is transient; the waits honour `signal`.
         COMPACTION_SUMMARY_RETRY_POLICY,
-        { onRetryScheduled: (_retry, _max, delayMs) => progress("retrying", attempt + 1, delayMs) },
+        { onRetryScheduled: (_retry, _max, delayMs) => {
+          retryScheduled = true;
+          progress("retrying", attempt + 1, delayMs);
+        } },
         signal,
       );
       if (!result.ok) {
