@@ -10724,6 +10724,43 @@ describe("DesktopAgentRuntime compaction summary retry and sizing (#543, ADR 028
     }
   });
 
+  it("starts a split turn's prefix request at attempt 1", async () => {
+    vi.useFakeTimers();
+    const runtime = createRuntime();
+    const streams: ReturnType<typeof createAssistantMessageEventStream>[] = [];
+    const internal = runtime as unknown as {
+      agentActivity: { phase: "compacting"; since: number; reason: "manual" };
+      models: { streamSimple: () => ReturnType<typeof createAssistantMessageEventStream> };
+      generateCompaction: (input: ReturnType<typeof preparation>, signal: AbortSignal) => Promise<{ ok: boolean }>;
+    };
+    internal.agentActivity = { phase: "compacting", since: 7, reason: "manual" };
+    internal.models = { streamSimple: () => {
+      const stream = createAssistantMessageEventStream();
+      streams.push(stream);
+      return stream;
+    } };
+    try {
+      const pending = internal.generateCompaction({
+        ...preparation(),
+        isSplitTurn: true,
+        turnPrefixMessages: [{ role: "user", content: [{ type: "text", text: "large turn" }], timestamp: 2 }],
+      } as ReturnType<typeof preparation>, new AbortController().signal);
+      streams[0]!.end(assistantMessage({ content: [{ type: "text", text: "History" }] }) as AssistantMessage);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(streams).toHaveLength(2);
+      expect(runtime.getStatus().activity).toMatchObject({ stage: "waiting", attempt: 1 });
+      streams[1]!.end(providerError("503 Service Unavailable") as AssistantMessage);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(runtime.getStatus().activity).toMatchObject({ stage: "retrying", attempt: 2 });
+      await vi.advanceTimersByTimeAsync(2_000);
+      streams[2]!.end(assistantMessage({ content: [{ type: "text", text: "Prefix" }] }) as AssistantMessage);
+      expect((await pending).ok).toBe(true);
+    } finally {
+      await runtime.dispose();
+      vi.useRealTimers();
+    }
+  });
+
   it("does not retry a deterministic provider rejection", async () => {
     const runtime = createRuntime();
     const calls = scriptSummaryRequests(runtime, [
