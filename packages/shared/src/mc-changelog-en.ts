@@ -9,6 +9,14 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.38",
+    date: "2026-10-31",
+    improvements: [
+      "The tab context menu lets you rename or pin conversations, move tabs, and close other tabs, tabs to the right, or all tabs.",
+      "Images in the composer now show thumbnails without hovering. Click to enlarge, remove individual images, or retry failed previews.",
+    ],
+  },
+  {
     version: "1.0.37",
     date: "2026-10-31",
     fixes: [

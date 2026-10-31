@@ -13,6 +13,14 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.38",
+    date: "2026-10-31",
+    improvements: [
+      "顶部标签右键菜单支持重命名、置顶、左右移动，以及关闭其他、右侧或全部标签。",
+      "输入框里的图片直接显示缩略图，无需悬停；可点击放大、单独移除，加载失败时可重试。",
+    ],
+  },
+  {
     version: "1.0.37",
     date: "2026-10-31",
     fixes: [
