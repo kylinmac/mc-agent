@@ -3,13 +3,13 @@ import test from "node:test";
 import { MAX_TABS, closeTab, closeTabGroup, moveTab, openTab, pruneTabs, tabDropTarget } from "../src/features/session-tabs/tab-list.ts";
 
 test("batch close follows the clicked tab and keeps a surviving focus", () => {
-  const tabs = ["a", "page:settings", "b", "c"];
+  const tabs = ["a", "page:creative", "b", "c"];
   assert.deepEqual(closeTabGroup(tabs, "b", "a", "others"), { tabs: ["b"], next: "b", closedActive: true });
-  assert.deepEqual(closeTabGroup(tabs, "page:settings", "c", "right"), { tabs: ["a", "page:settings"], next: "page:settings", closedActive: true });
-  assert.deepEqual(closeTabGroup(tabs, "b", "a", "right"), { tabs: ["a", "page:settings", "b"], next: null, closedActive: false });
+  assert.deepEqual(closeTabGroup(tabs, "page:creative", "c", "right"), { tabs: ["a", "page:creative"], next: "page:creative", closedActive: true });
+  assert.deepEqual(closeTabGroup(tabs, "b", "a", "right"), { tabs: ["a", "page:creative", "b"], next: null, closedActive: false });
   assert.deepEqual(closeTabGroup(tabs, "b", "b", "all"), { tabs: [], next: null, closedActive: true });
   assert.deepEqual(closeTabGroup(tabs, "gone", "a", "all"), { tabs, next: null, closedActive: false });
-  assert.deepEqual(tabs, ["a", "page:settings", "b", "c"]);
+  assert.deepEqual(tabs, ["a", "page:creative", "b", "c"]);
 });
 
 test("tabs keep their opening order and never duplicate", () => {
@@ -40,14 +40,32 @@ test("tabs of deleted sessions are pruned", () => {
 
 test("app pages are tabs too and survive pruning", async () => {
   const { activeTabKey, pageTabKey, tabPage } = await import("../src/features/session-tabs/tab-list.ts");
-  assert.equal(activeTabKey("settings", "s1"), "page:settings");
+  assert.equal(activeTabKey("creative", "s1"), "page:creative");
   assert.equal(activeTabKey("chat", "s1"), "s1");
   assert.equal(activeTabKey("chat", null), null);
   assert.equal(activeTabKey("projects", "s1"), null);
-  assert.equal(tabPage(pageTabKey("plugins")), "plugins");
+  assert.equal(tabPage(pageTabKey("creative")), "creative");
   assert.equal(tabPage("page:unknown"), null);
   assert.equal(tabPage("s1"), null);
-  assert.deepEqual(pruneTabs(["page:settings", "gone", "s1"], new Set(["s1"])), ["page:settings", "s1"]);
+  assert.deepEqual(pruneTabs(["page:creative", "gone", "s1"], new Set(["s1"])), ["page:creative", "s1"]);
+});
+
+test("rail-only pages never open tabs and old cached entries are migrated", async () => {
+  const { activeTabKey, loadTabs } = await import("../src/features/session-tabs/tab-list.ts");
+  for (const page of ["settings", "scheduled", "plugins"]) {
+    assert.equal(activeTabKey(page, "s1"), null);
+    assert.deepEqual(openTab(["s1"], `page:${page}`), ["s1"]);
+  }
+  let saved = JSON.stringify(["page:settings", "s1", "page:scheduled", "page:plugins", "page:creative"]);
+  const previous = globalThis.window;
+  globalThis.window = { localStorage: { getItem: () => saved, setItem: (_key, value) => { saved = value; } } };
+  try {
+    assert.deepEqual(loadTabs(), ["s1", "page:creative"]);
+    assert.deepEqual(JSON.parse(saved), ["s1", "page:creative"]);
+  } finally {
+    if (previous === undefined) delete globalThis.window;
+    else globalThis.window = previous;
+  }
 });
 
 test("tabs reorder by drag position or a neighbour move", () => {

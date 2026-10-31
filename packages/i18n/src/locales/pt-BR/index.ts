@@ -288,6 +288,10 @@ export const ptBR = {
     viewOptions: "Visualização",
   },
   sessionCollaboration: {
+    backgroundNotice: "Background commands",
+    commandCount: "{{count}} command(s) ended",
+    rawNotice: "Original message",
+
     statusIdle: "Ocioso",
     statusQueued: "Na fila",
     statusRunning: "Trabalhando",

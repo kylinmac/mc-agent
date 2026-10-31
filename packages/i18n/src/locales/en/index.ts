@@ -319,6 +319,10 @@ export const en = {
     viewOptions: "View",
   },
   sessionCollaboration: {
+    backgroundNotice: "Background commands",
+    commandCount: "{{count}} command(s) ended",
+    rawNotice: "Original message",
+
     statusIdle: "Idle",
     statusQueued: "Queued",
     statusRunning: "Working",

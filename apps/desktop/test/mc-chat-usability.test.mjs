@@ -29,6 +29,7 @@ test("tab menu and visible image previews work through the real components", {
         i18next: join(root, "apps/desktop/node_modules/i18next"),
         "react-i18next": join(root, "apps/desktop/node_modules/react-i18next"),
       },
+      loader: { ".woff": "file", ".woff2": "file", ".ttf": "file" },
       nodePaths: [join(root, "apps/desktop/node_modules")],
     });
     // The isolated esbuild fixture has no Tailwind pass; expose its theme tokens.

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEven
 import { useTranslation } from "react-i18next";
 import { create } from "zustand";
 import { useAppStore } from "../../stores/app-store";
-import { IconClock, IconClose, IconPalette, IconPlug, IconPlus, IconSettings } from "../../components/icons";
+import { IconClose, IconPalette, IconPlus } from "../../components/icons";
 import { NotificationCenter } from "../../components/NotificationCenter";
 import type { SessionSummary } from "@pi-desktop/shared";
 import { SessionRenameDialog } from "../../components/SessionRenameDialog";
@@ -44,16 +44,13 @@ function isDefaultTitle(title?: string | null) {
 }
 
 const PAGE_ICONS: Record<PageTab, ReactNode> = {
-  plugins: <IconPlug size={12} aria-hidden />,
-  scheduled: <IconClock size={12} aria-hidden />,
   creative: <IconPalette size={12} aria-hidden />,
-  settings: <IconSettings size={12} aria-hidden />,
 };
 
 /*
   mc-agent: the fixed tab bar across the title bar, after an IDE's editor
-  tabs. Conversations and the app pages opened from the rail (plugins,
-  scheduled tasks, settings) each get a tab. Clicking a tab switches to it,
+  tabs. Conversations and the creative workspace get tabs; settings, plugins
+  and scheduled tasks stay accessible through the rail. Clicking a tab switches to it,
   closing one shows its neighbour (or a new task when it was the last), "+"
   starts a new task, and the notification bell sits at the bar's right end.
   Tabs reorder by dragging (past a few pixels, so a click still switches) or
@@ -178,10 +175,7 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
   }, [sessions, activeSessionId, setTabs]);
 
   const pageTitle: Record<PageTab, string> = {
-    plugins: t("nav.plugins"),
-    scheduled: t("scheduled.title"),
     creative: t("mcProject.creativeTitle"),
-    settings: t("nav.settings"),
   };
   const titleOf = (key: string) => {
     const tabPageName = tabPage(key);

@@ -313,6 +313,10 @@ export const zhCN = {
     viewOptions: "显示",
   },
   sessionCollaboration: {
+    backgroundNotice: "后台命令通知",
+    commandCount: "{{count}} 个命令已结束",
+    rawNotice: "原始消息",
+
     statusIdle: "空闲",
     statusQueued: "排队中",
     statusRunning: "进行中",

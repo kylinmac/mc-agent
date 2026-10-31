@@ -289,6 +289,9 @@ export const es = {
     "viewOptions": "Vista",
   },
   "sessionCollaboration": {
+    backgroundNotice: "Background commands",
+    commandCount: "{{count}} command(s) ended",
+    rawNotice: "Original message",
     "statusIdle": "Inactivo",
     "statusQueued": "En cola",
     "statusRunning": "En curso",

@@ -24,7 +24,7 @@ test("the session info panel lives in the conversation and gathers existing data
   assert.match(shell, /page === "chat" && !split \? <SessionInfo \/> : null/);
   assert.match(card, /contextUsageFromBreakdown\(breakdown\)/);
   assert.match(card, /summarizeReviewChanges\(reviewChangesFromMessages\(messages\)\)/);
-  assert.match(card, /api\s*\.sessionContextBreakdown\(contextRequest.sessionId\)/);
+  assert.match(card, /useSessionContextBreakdown\(sessionId\)/);
   assert.match(card, /api\s*\.getSessionCollaboration\(sessionId\)/);
   assert.match(card, /api\s*\.listMcpServers\(\)/);
   assert.match(ipc, /sidecar\.call\("agent\.contextBreakdown", \{ sessionId \}\)/);

@@ -298,6 +298,10 @@ export const tr = {
     viewOptions: "Görünüm",
   },
   sessionCollaboration: {
+    backgroundNotice: "Background commands",
+    commandCount: "{{count}} command(s) ended",
+    rawNotice: "Original message",
+
     statusIdle: "Boşta",
     statusQueued: "Sırada",
     statusRunning: "Çalışıyor",

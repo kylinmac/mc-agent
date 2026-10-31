@@ -1,3 +1,4 @@
+import { noticeCardData } from "../src/features/chat/transcript/notice-card-model.ts";
 /**
  * Session references in the transcript (issue #1324): the chip a user message
  * shows for `pi-desktop://session/<id>`, and the two prompt paths that must not
@@ -142,6 +143,8 @@ const { MessageRow } = load(new URL("../src/features/chat/transcript/MessageRow.
   "../../../plugins/renderer-slots/slot-message": { slotMessage: () => undefined },
   "./menu-items": { userMessageMenuItems: () => [] },
   "./ActionBarSlots": { ActionSlotSide: () => null },
+  "./NoticeCard": { NoticeCard: () => null },
+  "./notice-card-model": { noticeCardData },
   "./SessionMessageOrigin": { SessionMessageOrigin: () => null },
   "./extra-attachments": { getExtraMessageAttachments },
   "./TranscriptMenu": {

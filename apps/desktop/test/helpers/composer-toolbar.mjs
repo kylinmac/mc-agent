@@ -51,7 +51,7 @@ export const TOOLBAR_PROPS = {
   },
   modelLabel: "Model",
   thinkingLabel: "Off",
-  contextUsage: { usage: USAGE, turnUsage: USAGE, contextWindow: 200_000, tools: [] },
+  contextUsage: { contextSnapshot: { usedTokens: USAGE.inputTokens + USAGE.outputTokens, contextWindow: 200_000 }, usage: USAGE, turnUsage: USAGE, contextWindow: 200_000, tools: [] },
   value: "",
   modelReady: true,
   sendBlocked: false,
