@@ -469,8 +469,9 @@ fn visualization_paths_do_not_require_external_path_permission() {
 }
 
 #[test]
-fn visualization_writes_are_not_review_snapshotted() {
+fn visualization_writes_are_reviewed_without_granting_rollback_access() {
     let f = fixture();
+    visualizations::ensure_session_root(&f.visualization).unwrap();
     let roots = local_contained_roots(&f.data_dir, "s1", false);
     let pending = review::prepare_change(
         &f.data_dir,
@@ -480,9 +481,13 @@ fn visualization_writes_are_not_review_snapshotted() {
         &roots,
         "Write",
         &json!({ "path": f.visualization.join("a.html").to_string_lossy() }),
+        false,
     )
     .unwrap();
-    assert!(pending.is_none());
+    let pending = pending.expect("visualization Write is captured");
+    let change = review::finalize_change(&pending).unwrap();
+    assert!(Path::new(&change.path).is_absolute());
+    assert!(!change.reversible);
 }
 
 #[test]

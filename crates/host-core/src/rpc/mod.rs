@@ -10,6 +10,7 @@ mod project_tasks_rpc;
 mod remote_tools;
 mod resource_catalog_rpc;
 mod resource_dirs_rpc;
+mod review_actions_rpc;
 mod scheduled_rpc;
 mod scheduled_tools;
 mod todos;
@@ -22,6 +23,8 @@ mod mc_auto_guard_tests;
 mod mc_non_interactive_tests;
 #[cfg(test)]
 mod plugin_reviews_rpc_tests;
+#[cfg(test)]
+mod review_rpc_tests;
 #[cfg(test)]
 mod visualization_tests;
 
@@ -2437,6 +2440,24 @@ async fn handle_request(
                 .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
             Ok(json!({ "ok": true }))
         }
+        "review.turns" | "review.changes" | "review.context" => {
+            let request = review::query::Request::parse(method, params)
+                .map_err(|error| rpc_err(1002, error.to_string(), "INVALID_PARAMS"))?;
+            let st = state.lock().await;
+            if remote_tools::session_remote_workspace(&st, &request.session_id)?.is_some() {
+                return Err(rpc_err(
+                    1002,
+                    "remote workspace review is unavailable",
+                    "CAPABILITY_UNAVAILABLE",
+                ));
+            }
+            let root = resolve_tool_workspace(&st, &request.session_id)?;
+            review::query::execute(&st.db, method, request, root.as_deref().map(Path::new))
+                .map_err(|error| rpc_err(1000, error.to_string(), "INTERNAL"))
+        }
+        "review.fileTarget" | "review.rollbackFile" => {
+            review_actions_rpc::handle(&state, method, params).await
+        }
         "review.rollback" => {
             let session_id = params
                 .get("sessionId")
@@ -2446,6 +2467,7 @@ async fn handle_request(
                 .get("snapshotId")
                 .and_then(|value| value.as_str())
                 .ok_or_else(|| rpc_err(1002, "snapshotId required", "INVALID_PARAMS"))?;
+            let _rollback_lease = review_actions_rpc::rollback_permit(&state, session_id).await?;
             let st = state.lock().await;
             if remote_tools::session_remote_workspace(&st, session_id)?.is_some() {
                 return Err(rpc_err(
@@ -2455,11 +2477,11 @@ async fn handle_request(
                 ));
             }
             let workspace_root = resolve_tool_workspace(&st, session_id)?;
-            let outcome = review::rollback_change(
-                &st.data_dir,
+            let outcome = review::query::rollback(
+                &st.db,
                 session_id,
                 snapshot_id,
-                workspace_root.as_deref().map(std::path::Path::new),
+                workspace_root.as_deref().map(Path::new),
             )
             .map_err(|error| rpc_err(1000, error.to_string(), "INTERNAL"))?;
             if matches!(outcome.status, "rolledBack" | "alreadyRolledBack") {
@@ -4696,6 +4718,7 @@ async fn handle_request(
                         &local_contained_roots(&data_dir, &p.session_id, false),
                         &p.tool_name,
                         &p.args,
+                        external_path_permission,
                     )
                     .unwrap_or_else(|error| {
                         tracing::warn!(

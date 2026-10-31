@@ -29,7 +29,7 @@ import {
   type ReactNode,
 } from "react";
 import { portalToBody } from "../lib/portal-visibility";
-import { IconChevronRight } from "./icons";
+import { IconCheck, IconChevronRight } from "./icons";
 import {
   placeContextMenu,
   type ContextMenuPlacement,
@@ -42,6 +42,8 @@ type ContextMenuAction = {
   id: string;
   label: string;
   icon?: ReactNode;
+  /** Opt-in toggle state, rendered as a trailing check. */
+  checked?: boolean;
   disabled?: boolean;
   /** Destructive item: error ink, and never adjacent to what it undoes. */
   danger?: boolean;
@@ -64,6 +66,7 @@ export type ContextMenuRequest = {
    * correctly unnamed; an unnamed *and* ambiguous menu is the caller's bug.
    */
   label?: string;
+  density?: "compact";
   items: ContextMenuItem[];
 };
 
@@ -325,7 +328,7 @@ export function ContextMenu({
     const frame = requestAnimationFrame(() => {
       menuRef.current
         ?.querySelector<HTMLButtonElement>(
-          '[role="menuitem"]:not(:disabled)',
+          '[data-context-menu-root-item]:not(:disabled)',
         )
         ?.focus();
     });
@@ -362,7 +365,7 @@ export function ContextMenu({
   return portalToBody(
     <div
       ref={menuRef}
-      className={`context-menu${placement ? " is-open" : ""}`}
+      className={`context-menu${state.density === "compact" ? " is-compact" : ""}${placement ? " is-open" : ""}`}
       role="menu"
       aria-label={state.label}
       onKeyDown={onMenuKeyDown}
@@ -387,7 +390,8 @@ export function ContextMenu({
             <button
               ref={submenuOpen ? submenuTriggerRef : undefined}
               type="button"
-              role="menuitem"
+              role={item.checked === undefined ? "menuitem" : "menuitemcheckbox"}
+              aria-checked={item.checked}
               aria-haspopup={hasSubmenu ? "menu" : undefined}
               aria-expanded={hasSubmenu ? submenuOpen : undefined}
               className={`context-menu-item${item.danger ? " danger" : ""}${hasSubmenu ? " has-submenu" : ""}`}
@@ -425,6 +429,7 @@ export function ContextMenu({
                 </span>
               ) : null}
               <span className="context-menu-label">{item.label}</span>
+              {item.checked !== undefined && <span className="context-menu-check" aria-hidden>{item.checked && <IconCheck size={14} />}</span>}
               {hasSubmenu ? (
                 <span className="context-menu-submenu-chevron" aria-hidden>
                   <IconChevronRight size={14} />
@@ -433,6 +438,7 @@ export function ContextMenu({
             </button>
             {submenuOpen && item.submenu ? (
               <ContextMenuSubmenu
+                compact={state.density === "compact"}
                 anchorRef={submenuTriggerRef}
                 menuRef={submenuRef}
                 label={item.label}
@@ -457,6 +463,7 @@ function ContextMenuSubmenu({
   selection,
   onClose,
   onCloseSubmenu,
+  compact,
 }: {
   anchorRef: RefObject<HTMLButtonElement | null>;
   menuRef: RefObject<HTMLDivElement | null>;
@@ -465,9 +472,9 @@ function ContextMenuSubmenu({
   selection: string;
   onClose: () => void;
   onCloseSubmenu: () => void;
+  compact: boolean;
 }) {
   const [placement, setPlacement] = useState<ContextMenuPlacement | null>(null);
-
   const measure = useCallback(() => {
     const anchor = anchorRef.current?.getBoundingClientRect();
     const menu = menuRef.current;
@@ -532,7 +539,7 @@ function ContextMenuSubmenu({
   return portalToBody(
     <div
       ref={menuRef}
-      className={`context-menu context-menu-submenu${placement ? " is-open" : ""}`}
+      className={`context-menu context-menu-submenu${compact ? " is-compact" : ""}${placement ? " is-open" : ""}`}
       role="menu"
       aria-label={label}
       onKeyDown={onMenuKeyDown}
@@ -551,7 +558,8 @@ function ContextMenuSubmenu({
           ) : null}
           <button
             type="button"
-            role="menuitem"
+            role={item.checked === undefined ? "menuitem" : "menuitemcheckbox"}
+            aria-checked={item.checked}
             className={`context-menu-item${item.danger ? " danger" : ""}`}
             data-context-menu-item={item.id}
             data-context-menu-submenu-item
@@ -567,6 +575,7 @@ function ContextMenuSubmenu({
               </span>
             ) : null}
             <span className="context-menu-label">{item.label}</span>
+            {item.checked !== undefined && <span className="context-menu-check" aria-hidden>{item.checked && <IconCheck size={14} />}</span>}
           </button>
         </Fragment>
       ))}
