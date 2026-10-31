@@ -16,6 +16,7 @@ test("settings read-modify-write preserves disabled retry and unrelated preferen
       { infiniteProviderRetry: false },
       { infiniteProviderRetry: true },
       { keepCommandsExpanded: false },
+      { fastModeBindings: { '["provider","gpt-6.1-sol"]': true } },
     ]) {
       const original = { defaultMode: "agent", theme: "light", ...stored };
       const received = structuredClone(main.normalizeSettings(original));
@@ -30,6 +31,7 @@ test("settings read-modify-write preserves disabled retry and unrelated preferen
         stored.keepCommandsExpanded !== false,
       );
       assert.equal(persisted.theme, "light");
+      assert.deepEqual(persisted.fastModeBindings, stored.fastModeBindings);
       assert.deepEqual(persisted.imageGeneration, edited.imageGeneration);
     }
   } finally {

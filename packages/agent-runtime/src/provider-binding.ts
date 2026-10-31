@@ -1,3 +1,4 @@
+import { withFastMode } from "./fast-mode.js";
 import { transcriptCompat } from "./transcript-compat.js";
 /**
  * Provider/model wiring shared by the session runtime and its subagents.
@@ -46,6 +47,7 @@ import { sessionAffinityCompat } from "./session-affinity.js";
 import type { ModelConfig } from "./thinking-level.js";
 
 export type RuntimeProviderConfig = {
+  fastMode?: boolean;
   id: string;
   name: string;
   vendorKey?: string;
@@ -508,7 +510,7 @@ export function createProviderModels(
   }, {
     ...operations,
     models: [model, ...(operations?.models ?? [])],
-    api: apiBindingForProviderModel(provider).adapter(),
+    api: withFastMode(apiBindingForProviderModel(provider).adapter(), { ...provider, apiStyle: model.api }),
   });
 }
 /** Build a pi-ai model collection for a trusted extension-owned agent. */

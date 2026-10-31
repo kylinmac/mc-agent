@@ -322,6 +322,11 @@ export const fr = {
     sessionMissing: "Cette session n'existe plus",
   },
   "chat": {
+    fastModeOn: "Fast on",
+    fastModeOff: "Fast off",
+    fastModeHelp: "Higher usage/cost. Saved per provider and model; applies to the next request. Actual acceleration depends on provider support.",
+    fastModeUnavailable: "Fast requests are unavailable for this model or API",
+
     "tableActions": "Actions du tableau",
     "markdownPlainTextFallback": "La réponse volumineuse est affichée en texte brut pour préserver la réactivité.",
     "largeTextPageControls": "Pages de la sortie volumineuse",

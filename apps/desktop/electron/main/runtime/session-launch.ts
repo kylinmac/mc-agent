@@ -1,3 +1,4 @@
+import { fastModeEnabled } from "@pi-desktop/shared";
 import { join } from "node:path";
 import { loadUserHooks } from "../mc-user-hooks-store";
 import {
@@ -742,6 +743,10 @@ export function createSessionLaunchRuntime({
       }
     }
 
+    // Include definition-pinned models as well as the selectable model catalog.
+    for (const binding of Object.values(subagentBindings.providers)) {
+      binding.fastMode = fastModeEnabled(settings.fastModeBindings, binding);
+    }
     const subagentDiagnostics = [
       ...subagentCatalog.diagnostics,
       ...subagentBindings.diagnostics,
@@ -826,6 +831,7 @@ export function createSessionLaunchRuntime({
           vendorKey: provider.vendorKey,
           baseUrl,
           modelId,
+          fastMode: fastModeEnabled(settings.fastModeBindings, { ...provider, modelId, apiStyle }),
           apiKey: secret.value || "",
           authKind: provider.authKind,
           extensionAgentKey: provider.extensionAgentKey,

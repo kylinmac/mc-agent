@@ -30,6 +30,10 @@ test("tab menu and visible image previews work through the real components", {
         "react-i18next": join(root, "apps/desktop/node_modules/react-i18next"),
       },
       loader: { ".woff": "file", ".woff2": "file", ".ttf": "file" },
+      plugins: [{ name: "fixture-url-assets", setup(builder) {
+        builder.onResolve({ filter: /\?url$/ }, (args) => ({ path: resolve(args.resolveDir, args.path.slice(0, -4)), namespace: "fixture-url" }));
+        builder.onLoad({ filter: /.*/, namespace: "fixture-url" }, async (args) => ({ contents: await readFile(args.path), loader: "file" }));
+      } }],
       nodePaths: [join(root, "apps/desktop/node_modules")],
     });
     // The isolated esbuild fixture has no Tailwind pass; expose its theme tokens.

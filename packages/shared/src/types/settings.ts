@@ -40,6 +40,8 @@ export type CloseBehavior = "ask" | "tray" | "quit";
 export type TranscriptDisplayMode = "flat" | "command-first" | "fully-folded";
 
 export type AppSettings = {
+  /** Fast preference by JSON [provider id, exact model id], absent is off. */
+  fastModeBindings?: Record<string, boolean>;
   imageGeneration?: import("../image-generation.js").ImageGenerationBinding | null;
   /** All models marked for image generation; absent falls back to imageGeneration. */
   imageGenerationModels?: import("../image-generation.js").ImageGenerationBinding[] | null;

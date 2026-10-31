@@ -86,3 +86,5 @@ export * from "./mc-agent-memory.js";
 export * from "./mc-canvas.js";
 export * from "./mc-project-proposal.js";
 export * from "./subscription-quota.js";
+
+export * from "./fast-mode.js";

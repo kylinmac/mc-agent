@@ -347,6 +347,11 @@ export const zhCN = {
     sessionMissing: "该会话已不存在",
   },
   chat: {
+    fastModeOn: "Fast 已开启",
+    fastModeOff: "Fast 已关闭",
+    fastModeHelp: "用量／费用更高；按供应商和模型保存，下次请求生效。实际加速取决于供应商支持。",
+    fastModeUnavailable: "当前模型或接口不支持 Fast 请求",
+
     tableActions: "表格操作",
     markdownPlainTextFallback: "内容较长，为保持界面响应速度，现以纯文本显示。",
     largeTextPageControls: "大段输出分页",
