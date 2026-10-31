@@ -1,3 +1,4 @@
+import { useSessionContextBreakdown } from "../features/chat/context-usage/useSessionContextBreakdown";
 import { isRemoteSession, sessionAllows } from "../lib/remote-session-safety";
 import { inheritedSessionModelBinding } from "../lib/session-model";
 import {
@@ -128,7 +129,8 @@ export function Composer({
   const sessionCompactions = useAppStore((s) =>
     s.activeSessionId ? s.sessionCompactions[s.activeSessionId] : undefined,
   );
-  // One inspector in the composer toolbar, always the newest turn with usage.
+  const contextSnapshot = useSessionContextBreakdown(activeSessionId);
+  // Provider metrics remain tied to the latest valid request.
   const composerContextUsage = useMemo(
     () =>
       latestTurnContextInspector(
@@ -724,7 +726,7 @@ export function Composer({
             modelMenu={modelMenu}
             modelLabel={modelLabel}
             thinkingLabel={thinkingLabel}
-            contextUsage={composerContextUsage ?? null}
+            contextUsage={contextSnapshot ? { ...composerContextUsage, contextSnapshot, contextWindow: contextSnapshot.contextWindow } : null}
             value={value}
             modelReady={modelReady}
             sendBlocked={sendBlocked}

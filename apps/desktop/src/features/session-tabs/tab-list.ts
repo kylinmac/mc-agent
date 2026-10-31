@@ -1,12 +1,12 @@
 /*
   mc-agent: open tabs in the title bar. A tab is a conversation (its session
-  id) or an app page ("page:plugins", "page:scheduled", "page:settings"). The
+  id) or the creative workspace ("page:creative"). The
   list keeps the order tabs were opened in (unlike the most-recently-used
   order of retained panes) and lives only in this browser profile.
 */
 
 export const MAX_TABS = 20;
-export const PAGE_TABS = ["plugins", "scheduled", "settings", "creative"] as const;
+export const PAGE_TABS = ["creative"] as const;
 export type PageTab = (typeof PAGE_TABS)[number];
 const PAGE_PREFIX = "page:";
 
@@ -29,9 +29,13 @@ export function activeTabKey(page: string, activeSessionId: string | null | unde
 
 const STORAGE_KEY = "mc.sessionTabs";
 
+function supportedTab(key: string): boolean {
+  return Boolean(key) && (!key.startsWith(PAGE_PREFIX) || tabPage(key) !== null);
+}
+
 /** Add `id` after the existing tabs; the oldest tab drops past MAX_TABS. */
 export function openTab(tabs: readonly string[], id: string, keep?: string): string[] {
-  if (!id || tabs.includes(id)) return [...tabs];
+  if (!supportedTab(id) || tabs.includes(id)) return [...tabs];
   const next = [...tabs, id];
   while (next.length > MAX_TABS) {
     const drop = next.findIndex((tab) => tab !== keep && tab !== id);
@@ -105,9 +109,12 @@ export function loadTabs(): string[] {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     const parsed: unknown = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed)
-      ? parsed.filter((id): id is string => typeof id === "string").slice(0, MAX_TABS)
+    const tabs = Array.isArray(parsed)
+      ? parsed.filter((id): id is string => typeof id === "string" && supportedTab(id)).slice(0, MAX_TABS)
       : [];
+    // Migrate old page tabs before rendering, even before sessions are loaded.
+    if (Array.isArray(parsed) && tabs.length !== parsed.length) saveTabs(tabs);
+    return tabs;
   } catch {
     return [];
   }

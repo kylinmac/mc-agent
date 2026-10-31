@@ -1,3 +1,4 @@
+import { noticeCardData, noticePreview } from "../src/features/chat/transcript/notice-card-model.ts";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -71,8 +72,17 @@ function loadComponent(name, extras = {}) {
 }
 
 const origin = loadComponent("SessionMessageOrigin");
+const card = loadComponent("NoticeCard", {
+  "./SessionMessageOrigin": origin,
+  "./notice-card-model": { noticePreview },
+  "../../../styles/mc-notice-card.css": {},
+  "../../../components/ui": { Button: ({ children, variant, ...props }) => React.createElement("button", props, children) },
+  "./disclosure": { disclosureKey: () => "notice", useAutomaticDisclosure: () => ({ open: false, toggle: () => {} }) },
+});
 const { MessageRow } = loadComponent("MessageRow", {
   "./SessionMessageOrigin": origin,
+  "./NoticeCard": card,
+  "./notice-card-model": { noticeCardData },
   "./extra-attachments": { getExtraMessageAttachments },
 });
 const userMessage = {

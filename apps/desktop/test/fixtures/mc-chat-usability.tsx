@@ -1,3 +1,5 @@
+import { checkNoticeCards } from "./mc-notice-cards";
+import { checkCurrentContext } from "./mc-context-usage";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import i18n from "i18next";
@@ -107,8 +109,13 @@ window.usabilityProbe = async () => {
   await select("a"); await settle(); await select("c"); await settle();
   await menu("a"); await action("关闭右侧标签");
   check(tabs().join() === "b,a" && useAppStore.getState().activeSessionId === "a", "close right");
-  useAppStore.setState({ page: "settings" }); await settle();
-  await menu("page:settings");
+  for (const page of ["settings", "scheduled", "plugins"]) {
+    useAppStore.setState({ page }); await settle();
+    check(tabs().join() === "b,a", "rail page added a tab: " + page);
+    check(!document.querySelector('[role="tab"][aria-selected="true"]'), "rail page highlights a conversation tab");
+  }
+  useAppStore.setState({ page: "creative" }); await settle();
+  await menu("page:creative");
   check(!document.querySelector('[role="menu"]').textContent.includes("重命名任务"), "page menu must omit session actions");
   await action("关闭全部标签"); check(tabs().length === 0, "close all");
   await select("a"); await settle();
@@ -145,5 +152,7 @@ window.usabilityProbe = async () => {
   flushSync(() => draft.applyEditorDraft("对照这两张图片" + images.map((r) => r.token).join(""), images));
   await until(() => document.querySelectorAll(".composer-image-thumbnail img").length === 2, "final screenshot");
   await menu("a");
+  await checkNoticeCards();
+  await checkCurrentContext();
   return { passed: true, thumbnails: 2, tabs: tabs() };
 };

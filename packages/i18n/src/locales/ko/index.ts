@@ -298,6 +298,10 @@ export const ko = {
     viewOptions: "보기",
   },
   sessionCollaboration: {
+    backgroundNotice: "Background commands",
+    commandCount: "{{count}} command(s) ended",
+    rawNotice: "Original message",
+
     statusIdle: "대기",
     statusQueued: "대기열에 있음",
     statusRunning: "진행 중",

@@ -289,6 +289,9 @@ export const fr = {
     "viewOptions": "Affichage",
   },
   "sessionCollaboration": {
+    backgroundNotice: "Background commands",
+    commandCount: "{{count}} command(s) ended",
+    rawNotice: "Original message",
     "statusIdle": "Inactif",
     "statusQueued": "En attente",
     "statusRunning": "En cours",

@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import {
   formatCompactTokenCount,
   type MessageUsage,
+  type SessionContextBreakdown,
   type UiMessage,
 } from "@pi-desktop/shared";
 import { useAppStore } from "../stores/app-store";
@@ -19,7 +20,7 @@ import { TooltipButton } from "./ui";
 import {
   aggregateToolTokenUsage,
   calculateCacheRate,
-  calculateContextUsage,
+  contextUsageFromBreakdown,
   calculateTokenRate,
   contextOccupancyTokens,
   contextUsageView,
@@ -38,15 +39,17 @@ export function ContextUsageInspector({
   usage,
   turnUsage,
   contextWindow,
-  tools,
+  contextSnapshot,
+  tools = [],
   responseDurationMs,
   responseOutputTokens,
   responseOutputEstimated = false,
 }: {
-  usage: MessageUsage;
-  turnUsage: MessageUsage;
+  usage?: MessageUsage;
+  turnUsage?: MessageUsage;
+  contextSnapshot: SessionContextBreakdown;
   contextWindow: number;
-  tools: UiMessage[];
+  tools?: UiMessage[];
   responseDurationMs?: number;
   responseOutputTokens?: number;
   responseOutputEstimated?: boolean;
@@ -94,24 +97,24 @@ export function ContextUsageInspector({
     isRunning: isSessionRunning,
     modelRequestActivity,
   });
-  const context = calculateContextUsage(usage, contextWindow);
+  const context = contextUsageFromBreakdown(contextSnapshot);
   // The display preference flips the leading figure only; capacity colors
   // still follow remaining space so the warning state keeps one meaning.
   const usageDisplay = useAppStore((state) =>
     resolveContextUsageDisplay(state.settings?.contextUsageDisplay),
   );
   const display = contextUsageView(context, usageDisplay);
-  // Occupancy, turn total, and provider cache/input/output are the last
+  // Turn total and provider cache/input/output are the last
   // model request. Summing every tool-loop call inflates cache read past
   // the window (OpenCode last-message accounting).
-  const turnTotal = contextOccupancyTokens(usage);
+  const turnTotal = usage ? contextOccupancyTokens(usage) : 0;
   const throughput = calculateTokenRate(
-    responseOutputTokens ?? turnUsage.outputTokens,
+    responseOutputTokens ?? turnUsage?.outputTokens ?? 0,
     responseDurationMs,
   );
   const cacheRate = calculateCacheRate(
-    usage.inputTokens,
-    usage.cacheReadTokens,
+    usage?.inputTokens ?? 0,
+    usage?.cacheReadTokens,
   );
   const formatTimingValue = (durationMs?: number, percent?: number) => {
     if (sessionTiming.historyStatus === "loading") return "…";
@@ -336,7 +339,7 @@ export function ContextUsageInspector({
           {context.usedPercent}%
         </span>
       </div>
-      <div className="context-inspector-kpis">
+      {usage ? <div className="context-inspector-kpis">
         <div>
           <span>{t("chat.usageTurnTotal")}</span>
           <strong>{formatCompactTokenCount(turnTotal)}</strong>
@@ -356,7 +359,7 @@ export function ContextUsageInspector({
                 )}
           </strong>
         </div>
-      </div>
+      </div> : null}
       {sessionTiming.timing ? (
         <div className="context-inspector-kpis">
           <div>
@@ -399,7 +402,7 @@ export function ContextUsageInspector({
         </div>
       ) : null}
       <div className="context-inspector-summary">
-        <div className="context-inspector-summary-row">
+        {usage ? <div className="context-inspector-summary-row">
           <strong>{t("chat.usageProviderUsage")}</strong>
           <span className="context-inspector-summary-values">
             <span>
@@ -429,7 +432,7 @@ export function ContextUsageInspector({
               </span>
             ) : null}
           </span>
-        </div>
+        </div> : null}
         <div className="context-inspector-summary-row">
           <strong>{t("chat.usageTools")}</strong>
           <span className="context-inspector-summary-values">

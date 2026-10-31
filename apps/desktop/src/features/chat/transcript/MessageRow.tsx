@@ -1,3 +1,5 @@
+import { NoticeCard } from "./NoticeCard";
+import { noticeCardData } from "./notice-card-model";
 import {
   memo,
   useMemo,
@@ -247,6 +249,8 @@ export const MessageRow = memo(function MessageRow({
       }),
     });
   };
+  const notice = noticeCardData(message);
+  if (notice) return <NoticeCard message={message} data={notice} />;
   return (
     <div
       className={`message-row ${isSessionMessage ? "session-message" : isUser ? "user" : message.role}`}

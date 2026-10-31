@@ -17,6 +17,7 @@ export function SessionMessageOrigin({ origin }: { origin: SessionMessageOriginD
       <button
         type="button"
         className="session-message-source"
+        title={origin.sourceSessionId}
         aria-label={t("sessionCollaboration.openSource", { name })}
         onClick={() => {
           void selectSession(origin.sourceSessionId).catch((error: unknown) => {
@@ -26,7 +27,6 @@ export function SessionMessageOrigin({ origin }: { origin: SessionMessageOriginD
       >
         {t("sessionCollaboration.receivedFrom", { name })}
       </button>
-      <code className="session-message-session-id">{origin.sourceSessionId}</code>
     </div>
   );
 }

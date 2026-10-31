@@ -291,6 +291,10 @@ export const zhTW = {
     viewOptions: "顯示",
   },
   sessionCollaboration: {
+    backgroundNotice: "背景命令通知",
+    commandCount: "{{count}} 個命令已結束",
+    rawNotice: "原始訊息",
+
     statusIdle: "閒置",
     statusQueued: "排隊中",
     statusRunning: "進行中",

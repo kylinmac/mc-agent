@@ -1,3 +1,4 @@
+import { useSessionContextBreakdown } from "../chat/context-usage/useSessionContextBreakdown";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { SessionCollaborationSummary, SessionContextBreakdown } from "@pi-desktop/shared";
@@ -143,8 +144,6 @@ export function SessionInfo({
   const isRunning = useAppStore((s) =>
     s.activeSessionId === sessionId ? s.isRunning : Boolean(sessionId && s.runningSessions[sessionId]),
   );
-  const providers = useAppStore((s) => s.providers);
-  const providerModels = useAppStore((s) => s.providerModels);
   const compactions = useAppStore((s) => (sessionId ? s.sessionCompactions[sessionId] : undefined));
   const openWorkPanelTab = useAppStore((s) => s.openWorkPanelTab);
   const selectSession = useAppStore((s) => s.selectSession);
@@ -292,30 +291,8 @@ export function SessionInfo({
     return () => window.clearInterval(timer);
   }, [open, anyRunning]);
 
-  // Configuration and checkpoints can change without adding a transcript row.
-  // Key the reply too, so neither a previous session nor an old request flashes.
-  const contextRequest = useMemo(() => ({ sessionId }), [
-    sessionId, open, messages.length, isRunning, compactions, providers, providerModels,
-    session?.providerId, session?.modelId,
-  ]);
-  const [contextReply, setContextReply] = useState<{
-    request: typeof contextRequest;
-    breakdown: SessionContextBreakdown;
-  } | null>(null);
-  const breakdown = contextReply?.request === contextRequest ? contextReply.breakdown : null;
+  const breakdown = useSessionContextBreakdown(sessionId);
   const context = breakdown ? contextUsageFromBreakdown(breakdown) : null;
-  useEffect(() => {
-    if (!contextRequest.sessionId) return;
-    let canceled = false;
-    void api.sessionContextBreakdown(contextRequest.sessionId)
-      .then(({ breakdown: loaded }) => {
-        if (!canceled) setContextReply(loaded ? { request: contextRequest, breakdown: loaded } : null);
-      })
-      .catch(() => {
-        if (!canceled) setContextReply(null);
-      });
-    return () => { canceled = true; };
-  }, [contextRequest]);
   const [collaboration, setCollaboration] = useState<SessionCollaborationSummary | null>(null);
   const [connectors, setConnectors] = useState<{ ready: number; total: number } | null>(null);
   // Refresh when the panel opens, the session changes, a message lands, or a
