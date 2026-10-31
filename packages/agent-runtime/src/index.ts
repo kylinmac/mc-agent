@@ -30,3 +30,5 @@ export type { AuthenticatedProxyRelay } from "./authenticated-proxy-relay.js";
 
 export * from "./speech/index.js";
 export * from "./image-generation/index.js";
+
+export { builtinSystemPrompt } from "./builtin-system-prompt.js";

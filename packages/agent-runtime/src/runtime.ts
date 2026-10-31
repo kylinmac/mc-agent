@@ -1,3 +1,4 @@
+import { RUNTIME_CORE_RULES, RUNTIME_DELEGATION_RULES, RUNTIME_EDITING_RULES } from "./builtin-system-prompt.js";
 import {
   MAX_MUTATION_RECOVERY_FAILURES, BASH_PATCH_FAILURE_KEY,
   RECOVERABLE_MUTATION_ERROR_CODES, mutationFailureKey, isPatchCommand,
@@ -2227,27 +2228,18 @@ export class DesktopAgentRuntime {
     // SYSTEM.md must not remove (tool guidance, delegation, scratch, skills).
     const defaultSystemPromptParts = [
       DEFAULT_RUNTIME_SYSTEM_PROMPT,
-      // Workflow rules.
-      "Complete the requested work and relevant checks without expanding scope. Preserve unrelated user changes. Resolve recoverable blockers yourself.",
-      // Visibility rules.
-      "Before each tool batch, briefly state its purpose. Keep the user informed during long work. The final response must state the outcome, verification, and remaining blockers. Never claim actions or checks you did not perform.",
-      // File-reference formatting.
-      "File references: when citing a real local file, use a Markdown link with a short label and the exact absolute path as its target, e.g. [file.ts](/workspace/src/file.ts:42). Add only a starting line (:line or :line:column) when useful; do not use ranges or GitHub #L anchors. Wrap destinations containing spaces in angle brackets. Do not wrap links in backticks or use file://, vscode://, or https:// for local files. Link only to existing files in the accessible workspace; mention unavailable or other-repository files as code text.",
+      ...RUNTIME_CORE_RULES,
       // Delegation steering (ADR 0089).
       ...(this.subagents.length
         ? [
-            `## Delegation
-Do the work yourself by default. Delegate only bounded, independent tasks with a clear benefit over direct execution.
-No recursive delegation, duplicate work, or agent debates.
-Allow at most one optional review pass unless the user requests more. Fix and retest concrete, in-scope defects without restarting broad reviews.
-Do not invent objections or turn speculative risks into blockers. Stop when the requested work is complete and relevant checks pass, or report a genuine blocker.`,
+            RUNTIME_DELEGATION_RULES,
             ...(this.subagentModelSummary()
               ? [this.subagentModelSummary()!]
               : []),
           ]
         : []),
       // Editing workflow.
-      `Editing workflow: inside the advertised workspace, use Edit for small, uniquely anchored changes and Write for new files or intentional whole-file rewrites. Never modify the same path concurrently. Do not use shell apply_patch, git apply, patch, or hand-edited unified-diff files. On failure, diagnose the cause, refresh content or anchors with Read or a complete tool-provided reveal when needed, and correct the payload before retrying. After three failed edit attempts on the same path in one user turn, stop editing that path, report the exact error, and continue unblocked work. For an authorized worktree outside the advertised workspace, use a guarded, deterministic Bash edit that aborts on unexpected content, then verify the diff.`,
+      RUNTIME_EDITING_RULES,
       // Shell dialect and scratch variable are selected by host-core.
       commandShellGuidance(this.commandShell, this.scratchDir),
       // Session scratch directory (D114).

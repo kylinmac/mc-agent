@@ -305,3 +305,8 @@ export type SessionContextBreakdown = {
   mcpToolNames: string[];
   skillNames: string[];
 };
+
+/** Read-only, static built-ins; never stored as a user template. */
+export type BuiltinSystemPrompt = {
+  sections: Array<{ key: "persona" | "runtime" | "delegation" | "agent" | "plan" | "goal"; text: string }>;
+};

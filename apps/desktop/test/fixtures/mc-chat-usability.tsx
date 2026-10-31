@@ -1,4 +1,5 @@
 import { checkFastMode } from "./mc-fast-mode";
+import { checkBuiltinPrompt } from "./mc-builtin-prompt";
 import { checkNoticeCards } from "./mc-notice-cards";
 import { checkCurrentContext } from "./mc-context-usage";
 import { createRoot } from "react-dom/client";
@@ -156,5 +157,6 @@ window.usabilityProbe = async () => {
   await checkNoticeCards();
   await checkCurrentContext();
   await checkFastMode();
+  await checkBuiltinPrompt();
   return { passed: true, thumbnails: 2, tabs: tabs() };
 };

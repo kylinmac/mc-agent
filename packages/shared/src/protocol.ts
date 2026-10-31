@@ -215,6 +215,7 @@ export const IPC = {
     sessionSystemPrompt: "pi-desktop/session-info/system-prompt",
     // mc-agent: the user's likely next message after a finished reply.
     sessionSuggestPrompt: "pi-desktop/session-info/suggest-prompt",
+    mcPromptsBuiltin: "pi-desktop/mc-prompts/builtin",
     mcPromptsGet: "pi-desktop/mc-prompts/get",
     mcPromptsSet: "pi-desktop/mc-prompts/set",
     // mc-agent: the template chosen for one conversation when it was started.
