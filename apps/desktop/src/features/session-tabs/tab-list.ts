@@ -56,6 +56,17 @@ export function closeTab(
   return { tabs: rest, next: rest[index] ?? rest[index - 1] ?? null, closedActive: true };
 }
 
+export type TabCloseScope = "others" | "right" | "all";
+
+/** Batch close is one state transition; it never deletes or stops sessions. */
+export function closeTabGroup(tabs: readonly string[], id: string, activeId: string | null, scope: TabCloseScope) {
+  const index = tabs.indexOf(id);
+  if (index < 0) return { tabs: [...tabs], next: null, closedActive: false };
+  const rest = scope === "all" ? [] : scope === "others" ? [id] : tabs.slice(0, index + 1);
+  const closedActive = activeId !== null && tabs.includes(activeId) && !rest.includes(activeId);
+  return { tabs: rest, next: closedActive ? (rest.includes(id) ? id : rest.at(-1) ?? null) : null, closedActive };
+}
+
 /** Move `source` before or after `target`; anything else returns a copy. */
 export function moveTab(tabs: readonly string[], source: string, target: string, after: boolean): string[] {
   if (source === target || !tabs.includes(source) || !tabs.includes(target)) return [...tabs];

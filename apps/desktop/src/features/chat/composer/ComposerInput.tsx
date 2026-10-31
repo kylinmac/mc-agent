@@ -10,6 +10,7 @@ import type {
 } from "react";
 import { editorSelectionRange, readEditorValue } from "./editor";
 import { ComposerImagePreview } from "./ComposerImagePreview";
+import { ComposerImageThumbnails } from "./ComposerImageThumbnails";
 import { ComposerImageHover } from "./ComposerImageHoverPreview";
 import { composerSuggestionKeyAction } from "./plugins/suggestion-keys";
 import type { ComposerSuggestionView } from "./hooks/useComposerSuggestion";
@@ -17,6 +18,7 @@ import type { CompletionController } from "./hooks/useComposerCompletions";
 import type { ComposerImagePreviewController } from "./hooks/useComposerImagePreview";
 
 export type ComposerInputProps = {
+  onRemoveImage?: (id: string) => void;
   imagePreview?: ComposerImagePreviewController;
   inputRef: RefObject<HTMLDivElement | null>;
   value: string;
@@ -56,6 +58,7 @@ export type ComposerInputProps = {
 
 /** Rich contenteditable input; draft state and async operations stay outside. */
 export function ComposerInput({
+  onRemoveImage,
   imagePreview,
   inputRef,
   value,
@@ -85,6 +88,7 @@ export function ComposerInput({
   }, [inputRef]);
   return (
     <div className="composer-input-wrap">
+      {imagePreview ? <ComposerImageThumbnails controller={imagePreview} onRemove={onRemoveImage} disabled={inputBlocked || pasting} /> : null}
       {imagePreview ? <ComposerImagePreview controller={imagePreview} /> : null}
       {imagePreview ? <ComposerImageHover controller={imagePreview} editorRef={inputRef} /> : null}
       <div className="composer-input-stage">
