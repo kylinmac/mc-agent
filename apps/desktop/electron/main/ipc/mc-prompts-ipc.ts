@@ -1,3 +1,4 @@
+import { builtinSystemPrompt } from "@pi-desktop/agent-runtime";
 import { ErrorCodes, IPC } from "@pi-desktop/shared";
 import type { HostProcess } from "../host-process";
 import type { IpcRegistrar } from "./types";
@@ -14,6 +15,8 @@ export function registerMcPromptsIpc({
   registrar: IpcRegistrar;
   getHost: () => HostProcess | null;
 }): void {
+  // Static read-only view; does not create a runtime or touch user configuration.
+  registrar.handle(IPC.invoke.mcPromptsBuiltin, async () => ({ prompt: builtinSystemPrompt() }));
   // mc-agent (MC-ADR-0010): system prompt templates, stored by host-core.
   registrar.handle(IPC.invoke.mcPromptsGet, async () => {
     const host = getHost();

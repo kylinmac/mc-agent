@@ -1,3 +1,4 @@
+import { BuiltinSystemPromptCard } from "./BuiltinSystemPromptCard";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectGroupRecord, SystemPromptAppend, SystemPromptConfig, SystemPromptTemplate } from "@pi-desktop/shared";
@@ -183,6 +184,7 @@ export function SystemPromptsPage() {
           </Button>
         }
       >
+        <BuiltinSystemPromptCard />
         {draft.templates.length === 0 ? (
           <div className="settings-row">
             <div className="settings-row-copy mc-prompts-muted">{t("mcProject.promptNoTemplates")}</div>

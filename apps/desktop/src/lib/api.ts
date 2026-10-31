@@ -95,6 +95,7 @@ import type {
   ResourceTemplateDraft,
   SessionContextBreakdown,
   SessionSystemPrompt,
+  BuiltinSystemPrompt,
   SystemPromptConfig,
   UsageSummary,
   SubscriptionQuota,
@@ -1058,6 +1059,7 @@ export const api = {
     openSettings: (item: MacPermissionItem) =>
       invoke<{ ok: true }>(IPC.invoke.macPermissionsOpenSettings, { item }),
   },
+  builtinSystemPrompt: () => invoke<{ prompt: BuiltinSystemPrompt }>(IPC.invoke.mcPromptsBuiltin),
   getSystemPromptConfig: () => invoke<{ config: SystemPromptConfig }>(IPC.invoke.mcPromptsGet),
   setSystemPromptConfig: (config: SystemPromptConfig) =>
     invoke<{ config: SystemPromptConfig }>(IPC.invoke.mcPromptsSet, { config }),

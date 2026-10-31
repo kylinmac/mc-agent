@@ -1,3 +1,4 @@
+import { builtinSystemPrompt } from "./builtin-system-prompt.js";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -283,6 +284,20 @@ function runtimeMatches(
 }
 
 describe("system transcript reconstruction", () => {
+  it.each(["agent", "plan", "goal"] as const)("shows the same built-in rules used by %s mode", (mode) => {
+    const view = builtinSystemPrompt();
+    const runtime = createRuntime({ mode });
+    const full = runtime.systemPromptView().sections.map((section) => section.text).join("\n\n");
+    for (const section of view.sections.filter((section) => ["persona", "runtime", mode].includes(section.key))) {
+      expect(full).toContain(section.text);
+    }
+    const custom = createRuntime({ mode, customSystemPrompt: { replace: "Custom identity" } });
+    const customFull = custom.systemPromptView().sections.map((section) => section.text).join("\n\n");
+    expect(customFull).toContain("Custom identity");
+    expect(customFull).toContain(view.sections.find((section) => section.key === "runtime")!.text);
+    expect(builtinSystemPrompt()).toEqual(view);
+  });
+
   it("refreshes the runtime when Fast mode changes", () => {
     const runtime = createRuntime();
     expect(runtimeMatches(runtime, { provider: { ...provider, fastMode: false } })).toBe(true);

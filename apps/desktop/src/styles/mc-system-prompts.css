@@ -2,6 +2,26 @@
    Split out of app-rail.css; imported right after it in globals.css,
    in the original order. */
 
+.mc-builtin-prompt-sections {
+  max-height: 440px;
+  overflow: auto;
+}
+
+.mc-builtin-prompt-sections h3 {
+  margin: 12px 0 6px;
+  font-size: var(--text-sm);
+}
+
+.mc-builtin-prompt-sections pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-body);
+}
+
 /* System prompt templates (MC-ADR-0010): settings tiles like the other pages. */
 .mc-prompts-intro {
   margin: 0;
