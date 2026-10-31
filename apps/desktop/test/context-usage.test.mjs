@@ -5,6 +5,7 @@ import {
   calculateCacheRate,
   calculateTokenRate,
   calculateContextUsage,
+  contextUsageFromBreakdown,
   contextOccupancyTokens,
   contextUsageView,
   estimateResponseOutputTokens,
@@ -16,6 +17,15 @@ import {
   usageTokenTotal,
   settleStoppedAssistantMetrics,
 } from "../src/lib/context-usage.ts";
+
+test("post-compaction panel total follows the runtime categories and current window", () => {
+  const snapshot = { usedTokens: 14_100, contextWindow: 256_000 };
+  const context = contextUsageFromBreakdown(snapshot);
+  assert.equal(context.usedTokens, 14_100);
+  assert.equal(context.remainingPercent, 94);
+  assert.equal(context.window, 256_000);
+  assert.equal(contextUsageFromBreakdown({ ...snapshot, contextWindow: 128_000 }).remainingPercent, 89);
+});
 
 test("context usage exposes the remaining ring percentage", () => {
   const context = calculateContextUsage(

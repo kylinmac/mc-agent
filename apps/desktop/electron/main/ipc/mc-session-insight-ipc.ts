@@ -34,15 +34,12 @@ export function registerSessionInsightIpc({
     if (!sessionId || sessionId.length > MAX_SESSION_ID_LENGTH) throw invalid("session id required");
     const sidecar = getSidecar();
     if (!sidecar) return { breakdown: null };
-    const loaded = (await sidecar.call("agent.contextBreakdown", { sessionId })) as { breakdown: unknown };
-    if (loaded?.breakdown || !prepareRuntime) return loaded;
-    // No runtime yet (nothing sent since the app started): load it, so the
-    // breakdown does not wait for the next message.
-    try {
-      return (await prepareRuntime(sessionId)) ?? loaded;
-    } catch {
-      return loaded;
-    }
+    // An idle runtime may still have the previous model/window. Preparation
+    // reconciles its launch configuration; running/external sessions skip it.
+    // Failure must reach the caller rather than masquerade as a fresh snapshot.
+    const prepared = await prepareRuntime?.(sessionId);
+    if (prepared) return prepared;
+    return sidecar.call("agent.contextBreakdown", { sessionId });
   });
 
 

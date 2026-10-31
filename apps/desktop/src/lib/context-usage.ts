@@ -7,6 +7,7 @@ import {
   type ModelBinding,
   type ModelInfo,
   type ProviderPublic,
+  type SessionContextBreakdown,
   type ToolTokenUsage,
   type UiMessage,
 } from "@pi-desktop/shared";
@@ -160,6 +161,14 @@ export function calculateContextUsage(
     remainingRatio,
     usedPercent,
     remainingPercent: 100 - usedPercent,
+  };
+}
+
+/** The information panel's total and categories describe the same runtime snapshot. */
+export function contextUsageFromBreakdown(breakdown: SessionContextBreakdown) {
+  return {
+    ...calculateContextUsage({ inputTokens: breakdown.usedTokens, outputTokens: 0, totalTokens: breakdown.usedTokens }, breakdown.contextWindow),
+    window: breakdown.contextWindow,
   };
 }
 

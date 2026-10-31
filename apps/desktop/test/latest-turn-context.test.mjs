@@ -24,6 +24,39 @@ const providerModels = {
 };
 const providers = [{ id: "provider", contextWindow: 64_000, models: [] }];
 
+test("compaction invalidates old request occupancy until a new request reports usage", () => {
+  const messages = [message("a1", "assistant", "done", {
+    providerId: "provider", modelId: "catalog-model",
+    usage: { inputTokens: 272_000, outputTokens: 900, totalTokens: 272_900 },
+  })];
+  const marks = [{ id: "compact", throughMessageId: "a1", generation: 1, summaryTokens: 2900, summarized: true }];
+  assert.equal(latestTurnContextInspector(messages, providerModels, providers, marks), undefined);
+  messages.push(message("a2", "assistant", "next", {
+    providerId: "provider", modelId: "catalog-model",
+    usage: { inputTokens: 14_000, outputTokens: 100, totalTokens: 14_100 },
+  }));
+  assert.equal(latestTurnContextInspector(messages, providerModels, providers, marks)?.usage.totalTokens, 14_100);
+});
+
+test("switching models invalidates the previous model's request statistics", () => {
+  const messages = [message("a1", "assistant", "done", {
+    providerId: "provider", modelId: "old-model",
+    usage: { inputTokens: 272_000, outputTokens: 900, totalTokens: 272_900 },
+  })];
+  assert.equal(latestTurnContextInspector(messages, providerModels, providers, [], {
+    providerId: "provider", modelId: "catalog-model",
+  }), undefined);
+});
+
+test("editing a model window uses the new user limit", () => {
+  const messages = [message("a1", "assistant", "done", {
+    providerId: "provider", modelId: "catalog-model",
+    usage: { inputTokens: 20_000, outputTokens: 100, totalTokens: 20_100 },
+  })];
+  const configured = [{ ...providers[0], models: [{ id: "catalog-model", contextWindow: 128_000, contextWindowSource: "user" }] }];
+  assert.equal(latestTurnContextInspector(messages, providerModels, configured)?.contextWindow, 128_000);
+});
+
 function message(id, role, content, extra = {}) {
   return {
     id,
