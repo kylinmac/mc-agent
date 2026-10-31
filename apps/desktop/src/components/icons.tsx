@@ -1,5 +1,6 @@
 import type { CSSProperties, SVGProps } from "react";
 import {
+  Zap,
   Activity,
   AppWindow,
   Archive,
@@ -317,3 +318,5 @@ export function IconVSCode(props: SVGProps<SVGSVGElement> & { size?: number }) {
     </svg>
   );
 }
+
+export const IconLightning = icon(Zap);

@@ -22,7 +22,7 @@ const HOST_LEFT = [
   "settings.mode: settings.modeAgent",
   "chat.permissionMode",
 ];
-const HOST_RIGHT = ["context", "chat.model: Model. chat.reasoningLevel: Off", "chat.send"];
+const HOST_RIGHT = ["context", "fast", "chat.model: Model. chat.reasoningLevel: Off", "chat.send"];
 
 async function composer(t, toolbarProps = {}) {
   const ssr = await slotSsr(t);
@@ -43,6 +43,8 @@ function sidesOf(html) {
       if (probe) shown.push(`${probe}:${parseProbe(props).position}`);
       // The context meter is labeled with its live numbers.
       else if (button.includes("context-inspector-trigger")) shown.push("context");
+      // Fast uses the app translation hook; this test checks placement across locales.
+      else if (button.includes("mc-fast-mode")) shown.push("fast");
       else shown.push(button.match(/aria-label="([^"]*)"/)[1]);
     }
     return shown;

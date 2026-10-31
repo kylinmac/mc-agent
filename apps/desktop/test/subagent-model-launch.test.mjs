@@ -50,9 +50,9 @@ test("launch resolves definition-only pins without granting Task.model selection
     },
     normalizeThinkingLevel: () => "off",
   });
-  const launch = () => runtime.resolveAgentRuntimeLaunch("session", {
-    providerId: provider.id, modelId: "parent", projectPath: root,
-  }, {});
+  const launch = (settings = {}, modelId = "parent") => runtime.resolveAgentRuntimeLaunch("session", {
+    providerId: provider.id, modelId, projectPath: root,
+  }, settings);
   const initial = (await launch()).sidecarParams;
   assert.ok(initial.subagentProviders["fixture/private"]);
   assert.ok(initial.subagentProviders["fixture/backup"]);
@@ -79,4 +79,15 @@ test("launch resolves definition-only pins without granting Task.model selection
   assert.equal(collision.subagentProviders["fixture/private"].id, provider.id);
   assert.equal(collision.subagentProviders["other-account/private"].id, "other-account");
   assert.deepEqual(collision.subagentModelKeys, ["other-account/private"]);
+  provider.apiStyle = "responses";
+  provider.models.push({ id: "gpt-6.1-sol", availableForSubagents: true, thinkingLevels: ["off"] });
+  const settings = { fastModeBindings: { [JSON.stringify([provider.id, "gpt-6.1-sol"])]: true } };
+  const fast = (await launch(settings, "gpt-6.1-sol")).sidecarParams;
+  assert.equal(fast.provider.fastMode, true, "parent receives its saved Fast binding");
+  assert.equal(fast.subagentProviders["fixture/gpt-6.1-sol"].fastMode, true);
+  assert.equal(fast.subagentProviders["fixture/private"].fastMode, false, "other models stay standard");
+  const standard = (await launch({}, "gpt-6.1-sol")).sidecarParams;
+  assert.equal(standard.provider.fastMode, false);
+  assert.equal(standard.subagentProviders["fixture/gpt-6.1-sol"].fastMode, false);
+
 });

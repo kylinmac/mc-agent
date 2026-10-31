@@ -353,6 +353,11 @@ export const en = {
     sessionMissing: "That session no longer exists",
   },
   chat: {
+    fastModeOn: "Fast on",
+    fastModeOff: "Fast off",
+    fastModeHelp: "Higher usage/cost. Saved per provider and model; applies to the next request. Actual acceleration depends on provider support.",
+    fastModeUnavailable: "Fast requests are unavailable for this model or API",
+
     tableActions: "Table actions",
     markdownPlainTextFallback: "Large response shown as plain text to keep the conversation responsive.",
     largeTextPageControls: "Large output pages",

@@ -1,3 +1,4 @@
+import { checkFastMode } from "./mc-fast-mode";
 import { checkNoticeCards } from "./mc-notice-cards";
 import { checkCurrentContext } from "./mc-context-usage";
 import { createRoot } from "react-dom/client";
@@ -154,5 +155,6 @@ window.usabilityProbe = async () => {
   await menu("a");
   await checkNoticeCards();
   await checkCurrentContext();
+  await checkFastMode();
   return { passed: true, thumbnails: 2, tabs: tabs() };
 };

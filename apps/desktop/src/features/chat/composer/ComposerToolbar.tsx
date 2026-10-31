@@ -1,3 +1,4 @@
+import { ComposerFastMode } from "./ComposerFastMode";
 import type { Dispatch, SetStateAction, ReactNode } from "react";
 import type { TFunction } from "i18next";
 import {
@@ -206,6 +207,7 @@ export function ComposerToolbar({
         {/* mc-agent: remaining subscription quota, when the account reports one. */}
         {localToolsAllowed ? <SubscriptionQuotaChip t={t} providerId={providerId} runActive={runActive} /> : null}
         {contextUsage ? <ContextUsageInspector {...contextUsage} /> : null}
+        {localToolsAllowed ? <ComposerFastMode providerId={providerId} modelId={modelId} disabled={controlsBlocked || runActive} /> : null}
         <ComposerModelPicker
           t={t}
           controller={modelMenu}

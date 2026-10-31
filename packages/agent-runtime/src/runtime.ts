@@ -2933,6 +2933,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       this.provider.apiKey === config.provider.apiKey &&
       this.provider.authKind === config.provider.authKind &&
       (this.provider.apiStyle ?? "") === (config.provider.apiStyle ?? "") &&
+      (this.provider.fastMode === true) === (config.provider.fastMode === true) &&
       providerHeadersEqual(this.provider.headers, config.provider.headers) &&
       this.provider.supportsReasoning === config.provider.supportsReasoning &&
       currentThinkingLevels === nextThinkingLevels &&

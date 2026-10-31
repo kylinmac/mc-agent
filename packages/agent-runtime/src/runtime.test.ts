@@ -283,6 +283,14 @@ function runtimeMatches(
 }
 
 describe("system transcript reconstruction", () => {
+  it("refreshes the runtime when Fast mode changes", () => {
+    const runtime = createRuntime();
+    expect(runtimeMatches(runtime, { provider: { ...provider, fastMode: false } })).toBe(true);
+    expect(runtimeMatches(runtime, { provider: { ...provider, fastMode: true } })).toBe(false);
+    const fast = createRuntime({ provider: { ...provider, fastMode: true } });
+    expect(runtimeMatches(fast, { provider: { ...provider, fastMode: true } })).toBe(true);
+    expect(runtimeMatches(fast, { provider })).toBe(false);
+  });
   it("keeps provider usage valid when rebuilding an unchanged prefix", async () => {
     const runtime = createRuntime();
     const internals = runtime as any;

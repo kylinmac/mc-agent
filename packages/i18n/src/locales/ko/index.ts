@@ -332,6 +332,11 @@ export const ko = {
     sessionMissing: "해당 세션이 더 이상 존재하지 않습니다",
   },
   chat: {
+    fastModeOn: "Fast on",
+    fastModeOff: "Fast off",
+    fastModeHelp: "Higher usage/cost. Saved per provider and model; applies to the next request. Actual acceleration depends on provider support.",
+    fastModeUnavailable: "Fast requests are unavailable for this model or API",
+
     tableActions: "표 작업",
     markdownPlainTextFallback: "긴 응답은 화면의 반응성을 유지하기 위해 일반 텍스트로 표시됩니다.",
     largeTextPageControls: "대용량 출력 페이지",

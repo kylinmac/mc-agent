@@ -1,0 +1,3 @@
+.mc-fast-mode { color: var(--ds-text-secondary); flex-shrink: 0; }
+.mc-fast-mode.is-active { color: var(--ds-text-primary); background: var(--ds-bg-hover); }
+.mc-fast-mode.is-active svg { fill: currentColor; }

@@ -1,3 +1,4 @@
+import { fastModeEnabled, type AppSettings } from "@pi-desktop/shared";
 import {
   IPC,
   projectFolderGuide,
@@ -572,6 +573,7 @@ export function createSidecarRuntime({
       apiKey,
       ...(provider.authKind ? { authKind: provider.authKind } : {}),
       ...(provider.apiStyle ? { apiStyle: provider.apiStyle } : {}),
+      fastMode: fastModeEnabled((await runtimeState.host!.call<AppSettings>("settings.get")).fastModeBindings, { ...provider, modelId }),
       supportsReasoning: capabilities.supportsReasoning,
       supportedThinkingLevels: [...capabilities.supportedThinkingLevels],
       ...(modelConfig ? { modelConfig } : {}),

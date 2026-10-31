@@ -322,6 +322,11 @@ export const ptBR = {
     sessionMissing: "Essa sessão não existe mais"
   },
   chat: {
+    fastModeOn: "Fast on",
+    fastModeOff: "Fast off",
+    fastModeHelp: "Higher usage/cost. Saved per provider and model; applies to the next request. Actual acceleration depends on provider support.",
+    fastModeUnavailable: "Fast requests are unavailable for this model or API",
+
     tableActions: "Ações da tabela",
     markdownPlainTextFallback: "Respostas extensas são exibidas como texto simples para manter a interface responsiva.",
     largeTextPageControls: "Páginas da saída extensa",

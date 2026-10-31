@@ -325,6 +325,11 @@ export const zhTW = {
     sessionMissing: "該對話已不存在",
   },
   chat: {
+    fastModeOn: "Fast 已開啟",
+    fastModeOff: "Fast 已關閉",
+    fastModeHelp: "用量／費用更高；按供應商與模型儲存，下次請求生效。實際加速取決於供應商支援。",
+    fastModeUnavailable: "目前模型或介面不支援 Fast 請求",
+
     tableActions: "表格操作",
     markdownPlainTextFallback: "內容較長，為維持介面回應速度，現以純文字顯示。",
     largeTextPageControls: "大型輸出分頁",
