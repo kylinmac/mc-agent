@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.41",
+    date: "2026-10-31",
+    features: [
+      "系统提示词模板列表新增「内置默认」只读入口，可展开查看原始身份、通用运行规则和各模式规则，不能编辑或删除。",
+    ],
+  },
+  {
     version: "1.0.40",
     date: "2026-10-31",
     features: [

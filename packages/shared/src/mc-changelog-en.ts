@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.41",
+    date: "2026-10-31",
+    features: [
+      "Open the read-only Built-in default entry in system prompt templates to view the original identity, general runtime rules, and mode rules. Its content cannot be edited or deleted.",
+    ],
+  },
+  {
     version: "1.0.40",
     date: "2026-10-31",
     features: [
