@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.37",
+    date: "2026-10-31",
+    fixes: [
+      "After switching models, changing the context limit, or compacting a conversation, context statistics no longer show stale usage or conflicting totals and category breakdowns.",
+    ],
+  },
+  {
     version: "1.0.36",
     date: "2026-10-30",
     fixes: [

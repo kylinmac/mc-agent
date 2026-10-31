@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.37",
+    date: "2026-10-31",
+    fixes: [
+      "切换模型、调整上下文上限或压缩会话后，上下文统计不再沿用旧用量，也不再出现总量与分类明细矛盾。",
+    ],
+  },
+  {
     version: "1.0.36",
     date: "2026-10-30",
     fixes: [
