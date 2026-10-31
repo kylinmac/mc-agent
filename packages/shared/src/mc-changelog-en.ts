@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.40",
+    date: "2026-10-31",
+    features: [
+      "Use the lightning button next to the model name to request Fast mode on supported models. Your choice is saved for each provider and model; enabling it may increase cost or quota usage.",
+    ],
+  },
+  {
     version: "1.0.39",
     date: "2026-10-31",
     improvements: [

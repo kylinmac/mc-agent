@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.40",
+    date: "2026-10-31",
+    features: [
+      "模型名称左侧新增 Fast 闪电开关，可为支持的模型请求更快响应，并记住各供应商和模型的选择。开启后可能增加费用或额度消耗。",
+    ],
+  },
+  {
     version: "1.0.39",
     date: "2026-10-31",
     improvements: [
