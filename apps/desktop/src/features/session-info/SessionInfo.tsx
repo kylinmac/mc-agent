@@ -4,8 +4,7 @@ import type { SessionCollaborationSummary, SessionContextBreakdown } from "@pi-d
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { transcriptViewMessages } from "../../lib/transcript-reading";
-import { latestTurnContextInspector } from "../../lib/latest-turn-context";
-import { calculateContextUsage, resolveContextUsageDisplay } from "../../lib/context-usage";
+import { contextUsageFromBreakdown, resolveContextUsageDisplay } from "../../lib/context-usage";
 import { reviewChangesFromMessages, summarizeReviewChanges } from "../../lib/workspace-review";
 import { toolWorkPanelTab } from "../../lib/work-panel-tabs";
 import { normalizeProjectPath } from "../../lib/sidebar-session-groups";
@@ -273,10 +272,6 @@ export function SessionInfo({
     };
   }, [gutter, container, scope, toggleWidth, docked, prefs.width]);
 
-  const context = useMemo(() => {
-    const inspector = latestTurnContextInspector(messages, providerModels, providers, compactions);
-    return inspector ? { ...calculateContextUsage(inspector.usage, inspector.contextWindow), window: inspector.contextWindow } : null;
-  }, [messages, providerModels, providers, compactions]);
   const changes = useMemo(() => summarizeReviewChanges(reviewChangesFromMessages(messages)), [messages]);
   // Subtasks: this conversation's `Task` subagents, then the sessions it
   // dispatched (MC-ADR-0005 follow-up).
@@ -297,7 +292,30 @@ export function SessionInfo({
     return () => window.clearInterval(timer);
   }, [open, anyRunning]);
 
-  const [breakdown, setBreakdown] = useState<SessionContextBreakdown | null>(null);
+  // Configuration and checkpoints can change without adding a transcript row.
+  // Key the reply too, so neither a previous session nor an old request flashes.
+  const contextRequest = useMemo(() => ({ sessionId }), [
+    sessionId, open, messages.length, isRunning, compactions, providers, providerModels,
+    session?.providerId, session?.modelId,
+  ]);
+  const [contextReply, setContextReply] = useState<{
+    request: typeof contextRequest;
+    breakdown: SessionContextBreakdown;
+  } | null>(null);
+  const breakdown = contextReply?.request === contextRequest ? contextReply.breakdown : null;
+  const context = breakdown ? contextUsageFromBreakdown(breakdown) : null;
+  useEffect(() => {
+    if (!contextRequest.sessionId) return;
+    let canceled = false;
+    void api.sessionContextBreakdown(contextRequest.sessionId)
+      .then(({ breakdown: loaded }) => {
+        if (!canceled) setContextReply(loaded ? { request: contextRequest, breakdown: loaded } : null);
+      })
+      .catch(() => {
+        if (!canceled) setContextReply(null);
+      });
+    return () => { canceled = true; };
+  }, [contextRequest]);
   const [collaboration, setCollaboration] = useState<SessionCollaborationSummary | null>(null);
   const [connectors, setConnectors] = useState<{ ready: number; total: number } | null>(null);
   // Refresh when the panel opens, the session changes, a message lands, or a
@@ -307,14 +325,6 @@ export function SessionInfo({
   useEffect(() => {
     if (!open || !sessionId) return;
     let canceled = false;
-    void api
-      .sessionContextBreakdown(sessionId)
-      .then(({ breakdown: loaded }) => {
-        if (!canceled) setBreakdown(loaded);
-      })
-      .catch(() => {
-        if (!canceled) setBreakdown(null);
-      });
     void api
       .getSessionCollaboration(sessionId)
       .then((summary) => {

@@ -5,6 +5,7 @@ import type {
   ProviderPublic,
   UiMessage,
 } from "@pi-desktop/shared";
+import { modelWireIdsEqual } from "@pi-desktop/shared";
 import { resolveContextWindow } from "./context-usage";
 import { getSessionMessageSnapshot } from "./session-transcript-updates";
 import { getTranscriptProjection } from "./transcript-projection";
@@ -38,9 +39,16 @@ export function latestTurnContextInspector(
   providerModels: Record<string, ModelInfo[]>,
   providers: ProviderPublic[],
   compactions?: readonly ContextCompactionMark[],
+  currentModel?: { providerId?: string; modelId?: string },
 ): LatestTurnContextInspector | undefined {
+  const checkpoint = compactions?.at(-1);
+  const boundary = checkpoint
+    ? messages.findIndex((message) => message.id === checkpoint.throughMessageId)
+    : -1;
+  // A partial transcript cannot establish which usage is after this checkpoint.
+  if (checkpoint && boundary < 0) return undefined;
   let latestUsageMessage: UiMessage | undefined;
-  for (let index = messages.length - 1; index >= 0; index--) {
+  for (let index = messages.length - 1; index > boundary; index--) {
     const message = messages[index];
     if (!message.parentToolCallId && message.usage) {
       latestUsageMessage = message;
@@ -49,6 +57,10 @@ export function latestTurnContextInspector(
   }
   const latestUsage = latestUsageMessage?.usage;
   if (!latestUsage) return undefined;
+  if (currentModel && (
+    (currentModel.providerId && currentModel.providerId !== latestUsageMessage?.providerId) ||
+    (currentModel.modelId && !modelWireIdsEqual(currentModel.modelId, latestUsageMessage?.modelId ?? ""))
+  )) return undefined;
 
   const { entries } = getTranscriptProjection(messages, compactions);
   let latestTurn: ReturnType<typeof getAssistantTurnSummary> | undefined;

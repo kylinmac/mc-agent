@@ -22,9 +22,9 @@ const [card, shell, ipc] = await Promise.all([
 
 test("the session info panel lives in the conversation and gathers existing data", () => {
   assert.match(shell, /page === "chat" && !split \? <SessionInfo \/> : null/);
-  assert.match(card, /latestTurnContextInspector\(messages, providerModels, providers, compactions\)/);
+  assert.match(card, /contextUsageFromBreakdown\(breakdown\)/);
   assert.match(card, /summarizeReviewChanges\(reviewChangesFromMessages\(messages\)\)/);
-  assert.match(card, /api\s*\.sessionContextBreakdown\(sessionId\)/);
+  assert.match(card, /api\s*\.sessionContextBreakdown\(contextRequest.sessionId\)/);
   assert.match(card, /api\s*\.getSessionCollaboration\(sessionId\)/);
   assert.match(card, /api\s*\.listMcpServers\(\)/);
   assert.match(ipc, /sidecar\.call\("agent\.contextBreakdown", \{ sessionId \}\)/);
