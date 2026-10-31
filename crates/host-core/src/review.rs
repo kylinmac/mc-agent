@@ -249,6 +249,14 @@ pub fn prepare_change(
     let Some(input) = args.get("path").and_then(Value::as_str) else {
         return Ok(None);
     };
+    // Execution lazily creates a safe visualization root before resolving its
+    // target. Do the same after authorization so the first mutation is captured,
+    // not only later edits after that root already exists.
+    if let Some(claimed) = roots.lexical_root(input) {
+        if claimed.kind == ToolRoot::Visualization && claimed.allows_implicit_access() {
+            crate::visualizations::ensure_session_root(&claimed.path)?;
+        }
+    }
     let Ok((resolved, root_kind)) =
         workspace::resolve_tool_path_with_external(root, roots, input, allow_external_paths)
     else {
