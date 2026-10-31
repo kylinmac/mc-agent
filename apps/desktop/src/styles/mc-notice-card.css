@@ -11,4 +11,4 @@
 .mc-notice-error { border-left: 2px solid var(--ds-text-secondary); padding-left: 12px; }
 .mc-notice-raw { margin-top: 12px; color: var(--ds-text-secondary); }
 .mc-notice-raw summary { cursor: pointer; }
-.mc-notice-footer { display: flex; justify-content: flex-end; align-items: center; gap: 8px; color: var(--ds-text-secondary); font-size: var(--text-xs); }
+.mc-notice-card .message-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; color: var(--ds-text-secondary); font-size: var(--text-xs); }

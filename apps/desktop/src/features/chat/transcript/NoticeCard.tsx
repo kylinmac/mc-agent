@@ -1,3 +1,5 @@
+import { ActionSlotSide } from "./ActionBarSlots";
+import { slotMessage } from "../../../plugins/renderer-slots/slot-message";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import type { UiMessage } from "@pi-desktop/shared";
@@ -13,6 +15,7 @@ import "../../../styles/mc-notice-card.css";
 export function NoticeCard({ message, data }: { message: UiMessage; data: NoticeCardData }) {
   const { t } = useTranslation();
   const id = useId();
+  const slotUser = message.role === "user" ? slotMessage("user", message) : undefined;
   const disclosure = useAutomaticDisclosure(false, undefined, disclosureKey("notice", message.id));
   const title = t(data.kind === "background" ? "sessionCollaboration.backgroundNotice"
     : data.kind === "completion" ? "sessionCollaboration.completionMessage"
@@ -38,7 +41,7 @@ export function NoticeCard({ message, data }: { message: UiMessage; data: Notice
         {message.attachments?.map((attachment, index) => <div key={index}><LinkifiedText text={attachment.ref} attachments={[attachment]} /></div>)}
         <details className="mc-notice-raw"><summary>{t("sessionCollaboration.rawNotice")}</summary><pre>{message.content}</pre></details>
       </div> : null}
-      <div className="mc-notice-footer"><MessageTimestamp createdAt={message.createdAt} /><CopyButton text={message.content} label={t("chat.copy")} /></div>
+      <div className="message-actions"><MessageTimestamp createdAt={message.createdAt} /><ActionSlotSide slot="userAction" side="left" message={slotUser} /><CopyButton text={message.content} label={t("chat.copy")} /><ActionSlotSide slot="userAction" side="right" message={slotUser} /></div>
     </div>
   </article>;
 }
