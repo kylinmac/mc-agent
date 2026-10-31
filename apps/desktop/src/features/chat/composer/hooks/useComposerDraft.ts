@@ -706,6 +706,13 @@ export function useComposerDraft({
     imagePreview,
     removeImage: (id) => {
       if (inputBlocked) return;
+      const reference = fileReferencesRef.current.find((item) => item.id === id && item.sessionId === referenceSessionId);
+      if (!reference) return;
+      if (reference.token) {
+        removeChipByTokenRef.current(reference.token);
+        ref.current?.focus();
+        return;
+      }
       invalidateComposerTransforms();
       setDraftFileReferences((current) => current.filter((reference) => reference.id !== id));
       ref.current?.focus();

@@ -4,12 +4,17 @@ import { create } from "zustand";
 import { useAppStore } from "../../stores/app-store";
 import { IconClock, IconClose, IconPalette, IconPlug, IconPlus, IconSettings } from "../../components/icons";
 import { NotificationCenter } from "../../components/NotificationCenter";
+import type { SessionSummary } from "@pi-desktop/shared";
+import { SessionRenameDialog } from "../../components/SessionRenameDialog";
+import { sessionPinned } from "../../lib/sidebar-session-groups";
 import { ContextMenu, useContextMenu } from "../../components/ContextMenu";
-import { setSplitDropHint, useSplitView } from "../../lib/mc-split-view";
+import { setSplitColumns, setSplitDropHint, useSplitView } from "../../lib/mc-split-view";
 import { closeSplitColumn, openSessionRight } from "../split-view/split-actions";
 import {
   activeTabKey,
   closeTab,
+  closeTabGroup,
+  type TabCloseScope,
   loadTabs,
   moveTab,
   openTab,
@@ -74,6 +79,11 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
   const page = useAppStore((s) => s.page);
   const setPage = useAppStore((s) => s.setPage);
   const selectSession = useAppStore((s) => s.selectSession);
+  const renameSession = useAppStore((s) => s.renameSession);
+  const toggleSessionPinned = useAppStore((s) => s.toggleSessionPinned);
+  const sessionMeta = useAppStore((s) => s.sessionMeta);
+  const showToast = useAppStore((s) => s.showToast);
+  const [renameFor, setRenameFor] = useState<SessionSummary | null>(null);
   const tabs = useTabStore((s) => s.tabs);
   const setTabs = useTabStore((s) => s.setTabs);
   const activeKey = activeTabKey(page, activeSessionId);
@@ -200,6 +210,25 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
     else onNewTask();
   };
 
+  const closeGroup = (key: string, scope: TabCloseScope) => {
+    const store = useAppStore.getState();
+    const current = useTabStore.getState().tabs;
+    const result = closeTabGroup(current, key, activeTabKey(store.page, store.activeSessionId), scope);
+    const removed = new Set(current.filter((tab) => !result.tabs.includes(tab)));
+    const columns = useSplitView.getState().columns.filter((id) => !removed.has(id));
+    setSplitColumns(columns.length < 2 ? [] : columns);
+    setTabs(() => result.tabs);
+    if (!result.closedActive) return;
+    const next = columns.length ? columns[0] : result.next;
+    if (next) show(next);
+    else onNewTask();
+  };
+
+  const move = (key: string, direction: number) => setTabs((current) => {
+    const neighbour = current[current.indexOf(key) + direction];
+    return neighbour ? moveTab(current, key, neighbour, direction > 0) : current;
+  });
+
   return (
     <div className="mc-titlebar-tabs">
       <div ref={stripRef} className="mc-session-tabs" role="tablist" aria-label={t("mcProject.sessionTabsLabel")}>
@@ -240,25 +269,40 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
                 if (event.button === 1) close(key, event);
               }}
               onContextMenu={(event) => {
-                if (target) return;
+                const session = byId.get(key);
+                const index = tabs.indexOf(key);
                 openContextMenu(event, {
                   label: title,
                   items: [
-                    {
+                    ...(session && session.source !== "pi-native" ? [{
+                      id: "rename-session", label: t("nav.renameTask"), onSelect: () => setRenameFor(session),
+                    }] : []),
+                    ...(session ? [{
+                      id: "toggle-session-pin",
+                      label: t(sessionPinned(session, sessionMeta[key] ?? {}) ? "nav.unpinTask" : "nav.pinTask"),
+                      onSelect: () => toggleSessionPinned(key),
+                    }] : []),
+                    ...(!target ? [{
                       id: "open-right",
                       label: t("mcProject.splitOpenRight"),
+                      separatorBefore: Boolean(session),
                       disabled: !canOpenRight(key),
                       onSelect: () => openRight(key),
-                    },
+                    }] : []),
                     ...(splitColumns.includes(key)
                       ? [{ id: "close-column", label: t("mcProject.splitCloseColumn"), onSelect: () => closeSplitColumn(key) }]
                       : []),
+                    { id: "move-left", label: t("mcProject.sessionTabMoveLeft"), disabled: index === 0, onSelect: () => move(key, -1) },
+                    { id: "move-right", label: t("mcProject.sessionTabMoveRight"), disabled: index === tabs.length - 1, onSelect: () => move(key, 1) },
                     {
                       id: "close-tab",
-                      label: t("mcProject.sessionTabClose", { title }),
+                      label: t("mcProject.sessionTabCloseCurrent"),
                       separatorBefore: true,
                       onSelect: () => close(key),
                     },
+                    { id: "close-others", label: t("mcProject.sessionTabCloseOthers"), disabled: tabs.length < 2, onSelect: () => closeGroup(key, "others") },
+                    { id: "close-right", label: t("mcProject.sessionTabCloseRight"), disabled: index === tabs.length - 1, onSelect: () => closeGroup(key, "right") },
+                    { id: "close-all", label: t("mcProject.sessionTabCloseAll"), onSelect: () => closeGroup(key, "all") },
                   ],
                 });
               }}
@@ -307,6 +351,12 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
         {(typeof window === "undefined" || window.piDesktop?.platform !== "win32") && <NotificationCenter />}
       </div>
       <ContextMenu state={contextMenu} onClose={closeContextMenu} />
+      {renameFor ? <SessionRenameDialog
+        session={renameFor}
+        onClose={() => setRenameFor(null)}
+        onSave={(title) => renameSession(renameFor.id, title)}
+        onError={(error) => showToast(error instanceof Error ? error.message : String(error), { variant: "error" })}
+      /> : null}
     </div>
   );
 }

@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { MAX_TABS, closeTab, moveTab, openTab, pruneTabs, tabDropTarget } from "../src/features/session-tabs/tab-list.ts";
+import { MAX_TABS, closeTab, closeTabGroup, moveTab, openTab, pruneTabs, tabDropTarget } from "../src/features/session-tabs/tab-list.ts";
+
+test("batch close follows the clicked tab and keeps a surviving focus", () => {
+  const tabs = ["a", "page:settings", "b", "c"];
+  assert.deepEqual(closeTabGroup(tabs, "b", "a", "others"), { tabs: ["b"], next: "b", closedActive: true });
+  assert.deepEqual(closeTabGroup(tabs, "page:settings", "c", "right"), { tabs: ["a", "page:settings"], next: "page:settings", closedActive: true });
+  assert.deepEqual(closeTabGroup(tabs, "b", "a", "right"), { tabs: ["a", "page:settings", "b"], next: null, closedActive: false });
+  assert.deepEqual(closeTabGroup(tabs, "b", "b", "all"), { tabs: [], next: null, closedActive: true });
+  assert.deepEqual(closeTabGroup(tabs, "gone", "a", "all"), { tabs, next: null, closedActive: false });
+  assert.deepEqual(tabs, ["a", "page:settings", "b", "c"]);
+});
 
 test("tabs keep their opening order and never duplicate", () => {
   let tabs = openTab([], "a");

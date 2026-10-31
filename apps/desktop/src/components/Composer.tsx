@@ -660,6 +660,7 @@ export function Composer({
             />
           ) : null}
           <ComposerInput
+            onRemoveImage={draft.removeImage}
             imagePreview={draft.imagePreview}
             inputRef={ref}
             value={value}
