@@ -13,6 +13,17 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.39",
+    date: "2026-10-31",
+    improvements: [
+      "设置、定时任务和插件只保留左侧入口，不再占用顶部标签。",
+      "任务委派、Agent 消息、完成报告和后台命令通知以可折叠卡片展示，支持格式化正文、来源跳转和查看原文。",
+    ],
+    fixes: [
+      "压缩会话、切换模型或修改上下文上限后，输入框的上下文余量与左侧统计保持一致。",
+    ],
+  },
+  {
     version: "1.0.38",
     date: "2026-10-31",
     improvements: [

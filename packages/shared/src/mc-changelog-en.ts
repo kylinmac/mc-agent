@@ -9,6 +9,17 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.39",
+    date: "2026-10-31",
+    improvements: [
+      "Settings, scheduled tasks, and plugins remain accessible from the left rail without taking up top tabs.",
+      "Delegated tasks, agent messages, completion reports, and background command notices appear as collapsible cards with formatted content, source links, and original messages.",
+    ],
+    fixes: [
+      "After compacting a conversation, switching models, or changing the context limit, the composer context indicator matches the statistics in the side panel.",
+    ],
+  },
+  {
     version: "1.0.38",
     date: "2026-10-31",
     improvements: [
