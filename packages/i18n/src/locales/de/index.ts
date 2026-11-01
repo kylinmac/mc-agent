@@ -2178,6 +2178,8 @@ sklm: {
       "rollingBack": "Rollback…",
       "rolledBack": "Rollback",
       historyTitle: "Conversation round",
+      unknownTotals: "Zeilenzahlen unbekannt",
+      recordedTotals: "Erfasste hinzugefügte/gelöschte Zeilen dieser Runde, keine Nettodifferenz",
       loadingHistory: "Loading review history…",
       historyError: "Could not load review history. Retry.",
       retryHistory: "Retry",

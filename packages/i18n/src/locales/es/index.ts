@@ -2178,6 +2178,8 @@ sklm: {
       "rollingBack": "Revertir…",
       "rolledBack": "Revertir",
       historyTitle: "Conversation round",
+      unknownTotals: "Recuento desconocido",
+      recordedTotals: "Líneas añadidas/eliminadas registradas en esta ronda, no diferencia neta",
       loadingHistory: "Loading review history…",
       historyError: "Could not load review history. Retry.",
       retryHistory: "Retry",
