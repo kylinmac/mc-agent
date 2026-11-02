@@ -13,6 +13,17 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.45",
+    date: "2026-11-02",
+    improvements: [
+      "恢复上下文发现消息遗漏或顺序异常时，会尝试完整恢复；无法恢复则明确报错，并留下不含正文的排查记录。",
+    ],
+    fixes: [
+      "重新打开会话时，边界消息已失效的压缩检查点不再被误当成可用检查点。",
+      "读取会话历史失败时，不再静默按空会话继续回答。",
+    ],
+  },
+  {
     version: "1.0.44",
     date: "2026-11-02",
     fixes: [
