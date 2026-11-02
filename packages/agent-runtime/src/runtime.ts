@@ -1,3 +1,4 @@
+import { compactionBoundaryId, restorableCompaction } from "./mc-compaction-boundary.js";
 import { RUNTIME_CORE_RULES, RUNTIME_DELEGATION_RULES, RUNTIME_EDITING_RULES } from "./builtin-system-prompt.js";
 import {
   MAX_MUTATION_RECOVERY_FAILURES, BASH_PATCH_FAILURE_KEY,
@@ -1100,6 +1101,7 @@ export type AgentRuntimeOptions = {
   history?: UiMessage[];
   /** Latest host-owned checkpoint used only to rebuild model context. */
   compaction?: ContextCompactionRecord;
+  compactions?: ContextCompactionRecord[];
   compactionSettings?: ContextCompactionSettings;
   askToolAutoContinue?: boolean;
   askToolTimeoutSeconds?: number;
@@ -2220,7 +2222,8 @@ export class DesktopAgentRuntime {
     this.transcriptHistory = [...(opts.history ?? [])];
     this.fullEntries = this.historyToEntries(this.transcriptHistory);
     this.uniqueToolCalls = createToolCallIdentity(this.fullEntries.map((entry) => entry.message));
-    this.activeCompaction = opts.compaction;
+    this.activeCompaction = restorableCompaction(this.transcriptHistory,
+      opts.compactions ?? (opts.compaction ? [opts.compaction] : []));
     this.delegationChains.hydrate(
       rebuildChainsFromTranscript(this.transcriptHistory),
     );
@@ -7254,7 +7257,7 @@ export class DesktopAgentRuntime {
       retentionMode === "active_turn" && latestUser ? [latestUser] : [];
     return {
       ...preparation,
-      firstKeptEntryId: this.fullEntries.at(-1)?.id,
+      firstKeptEntryId: compactionBoundaryId(this.fullEntries),
       messagesToSummarize,
       turnPrefixMessages: [],
       isSplitTurn: false,
@@ -7941,7 +7944,7 @@ export class DesktopAgentRuntime {
       this.emitCompactionFailure(reason, undefined, failureMessage);
       return false;
     }
-    const throughMessageId = this.fullEntries.at(-1)?.id;
+    const throughMessageId = compactionBoundaryId(this.fullEntries);
     if (!throughMessageId) {
       this.emitCompactionFailure(
         reason,
@@ -8245,7 +8248,7 @@ export class DesktopAgentRuntime {
       };
     }
 
-    const throughMessageId = this.fullEntries.at(-1)?.id;
+    const throughMessageId = compactionBoundaryId(this.fullEntries);
     if (!throughMessageId) {
       return {
         ok: false,
@@ -8289,7 +8292,7 @@ export class DesktopAgentRuntime {
     budget: ContextBudget,
     preparation: ShapedPreparation,
   ): CheckpointBuild {
-    const throughMessageId = this.fullEntries.at(-1)?.id;
+    const throughMessageId = compactionBoundaryId(this.fullEntries);
     if (!throughMessageId) {
       return {
         ok: false,
