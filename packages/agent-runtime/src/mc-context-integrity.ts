@@ -56,7 +56,8 @@ export function inspectContextRestore(input: {
   const actualIds = new Set(actual);
   const missing = expected.filter((id) => !actualIds.has(id));
   const reordered = missing.length === 0 && (actual.length !== expected.length || expected.some((id, index) => actual[index] !== id));
-  const boundaryMissing = input.checkpoint !== undefined && boundary < 0;
+  const boundaryMissing = input.checkpoint !== undefined && (boundary < 0 ||
+    !input.entries.some((entry) => entry.id === input.checkpoint?.throughMessageId));
   return {
     ok: !boundaryMissing && missing.length === 0 && !reordered,
     historyCount: input.history.length,

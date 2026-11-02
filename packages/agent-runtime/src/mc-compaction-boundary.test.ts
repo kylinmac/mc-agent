@@ -41,13 +41,33 @@ describe("compaction replay boundaries", () => {
   });
   it("selects the last safe checkpoint without guessing timestamps", () => {
     const history = [old, system, result];
-    expect(restorableCompaction(history, [valid, broken])).toBe(valid);
-    expect(restorableCompaction(history, [broken])).toBeUndefined();
+    const entries: MessageEntry[] = [old, result].map((message, seq) => ({
+      type: "message", id: message.id, seq, parentId: null, timestamp: 1,
+      message: { role: "user", content: message.content, timestamp: 1 },
+    }));
+    expect(restorableCompaction(history, [valid, broken], entries)).toBe(valid);
+    expect(restorableCompaction(history, [broken], entries)).toBeUndefined();
     const newer = checkpoint("new", "result");
-    expect(restorableCompaction(history, [valid, broken, newer])).toBe(newer);
-    expect(restorableCompaction(history, [checkpoint("missing", "absent")])).toBeUndefined();
-    expect(restorableCompaction([{ ...result, parentToolCallId: "delegate" }], [newer])).toBeUndefined();
+    expect(restorableCompaction(history, [valid, broken, newer], entries)).toBe(newer);
+    expect(restorableCompaction(history, [checkpoint("missing", "absent")], entries)).toBeUndefined();
+    expect(restorableCompaction([{ ...result, parentToolCallId: "delegate" }], [newer], entries)).toBeUndefined();
   });
+  for (const boundary of [row("filtered", "user", ""), row("filtered", "assistant", ""), row("filtered", "tool", "")]) {
+    it(`skips a checkpoint whose ${boundary.role} boundary disappears during conversion`, async () => {
+      const diagnostics: AgentRuntimeDiagnostic[] = [];
+      const runtime = new DesktopAgentRuntime({
+        sessionId: "offline", mode: "agent", thinkingLevel: "off", history: [old, boundary, result],
+        compactions: [valid, checkpoint("filtered-checkpoint", boundary.id)],
+        provider: { id: "offline", name: "Offline", modelId: "offline", apiKey: "", supportsReasoning: false, supportedThinkingLevels: ["off"], authKind: "none", baseUrl: "https://fixture.invalid/v1" },
+        commandShell: { id: "bash", label: "Bash", dialect: "posix", available: true, isDefault: true },
+        host: { call: async <T>() => undefined as T }, onEvent: () => {}, onDiagnostic: (event) => diagnostics.push(event),
+      });
+      try {
+        expect((runtime as unknown as { activeCompaction?: ContextCompactionRecord }).activeCompaction?.id).toBe("valid");
+        expect(diagnostics.find((event) => event.kind === "context_restore")?.data).toMatchObject({ ok: true });
+      } finally { await runtime.dispose(); }
+    });
+  }
   for (const checkpoints of [[valid, broken], [broken], [valid]]) {
     it(`keeps evidence in the next model request (${checkpoints.map((c) => c.id).join(", ")})`, async () => {
       const requests: Message[][] = [];

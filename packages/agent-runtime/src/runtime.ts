@@ -2222,7 +2222,7 @@ export class DesktopAgentRuntime {
     this.fullEntries = this.historyToEntries(this.transcriptHistory);
     this.uniqueToolCalls = createToolCallIdentity(this.fullEntries.map((entry) => entry.message));
     this.activeCompaction = restorableCompaction(this.transcriptHistory,
-      opts.compactions ?? (opts.compaction ? [opts.compaction] : []));
+      opts.compactions ?? (opts.compaction ? [opts.compaction] : []), this.fullEntries);
     const selectedCheckpointKey = contextIdKey(this.activeCompaction?.id);
     const restored = verifiedContextRestore(this.transcriptHistory, this.fullEntries, this.activeCompaction,
       (checkpoint) => {

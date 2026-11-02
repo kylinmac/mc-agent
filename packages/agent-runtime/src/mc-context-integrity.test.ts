@@ -12,6 +12,18 @@ const checkpoint: ContextCompactionRecord = { id: "private-checkpoint", throughM
 const messages = entries.map((e) => e.message);
 
 describe("restore integrity", () => {
+  it("rejects a boundary present in raw history but filtered from the restored entries", () => {
+    const filtered = entries.slice(1);
+    const raw = [{ ...history[0], content: "" }, ...history.slice(1)];
+    const reports: unknown[] = [];
+    const recovered = verifiedContextRestore(raw, filtered, checkpoint,
+      () => filtered.map((entry) => entry.message), (report) => reports.push(report));
+    expect(recovered.checkpoint).toBeUndefined();
+    expect(reports).toMatchObject([
+      { ok: false, boundaryMissing: true, missingCount: 0 },
+      { ok: true, fallback: true, expectedCount: 2 },
+    ]);
+  });
   it("checks original post-boundary IDs and order, not just message count", () => {
     const input = { history, entries, checkpoint };
     expect(inspectContextRestore({ ...input, messages: messages.slice(1) })).toMatchObject({ ok: true, expectedCount: 2 });
