@@ -1,3 +1,4 @@
+import { contextDiagnosticData } from "./mc-context-diagnostics";
 import { fastModeEnabled, type AppSettings } from "@pi-desktop/shared";
 import {
   IPC,
@@ -50,6 +51,8 @@ const COMPACTION_DIAGNOSTICS: Record<string, { level: "info" | "warn"; message: 
   compaction_shape: { level: "info", message: "context compaction request shape", event: "session.compaction.request_shape" },
   // mc-agent (R21.2 / R21.3): counts and reasons only, no paths or text.
   compaction_restore: { level: "info", message: "context compaction file restore", event: "session.compaction.restore" },
+  context_restore: { level: "info", message: "context restore integrity", event: "session.context.restore" },
+  context_request: { level: "info", message: "model request context shape", event: "session.context.request" },
   compaction_summary: { level: "info", message: "context compaction summary attempt", event: "session.compaction.summary" },
 };
 
@@ -297,14 +300,15 @@ export function createSidecarRuntime({
       ) {
         logger.app(
           "session",
-          entry.level,
+          diagnostic.kind === "context_restore" && Reflect.get(diagnostic.data, "ok") === false ? "warn" : entry.level,
           entry.message,
           {
             sessionId: diagnostic.sessionId,
             ...(typeof diagnostic.turnId === "string" ? { turnId: diagnostic.turnId } : {}),
             requestId: diagnostic.requestId,
             event: entry.event,
-            data: diagnostic.data,
+            data: diagnostic.kind === "context_restore" || diagnostic.kind === "context_request"
+              ? contextDiagnosticData(diagnostic.data) : diagnostic.data,
           },
         );
       }

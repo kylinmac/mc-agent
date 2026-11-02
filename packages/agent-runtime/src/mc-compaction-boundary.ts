@@ -14,11 +14,14 @@ export function compactionBoundaryId(entries: readonly MessageEntry[]): string |
 export function restorableCompaction(
   history: readonly UiMessage[],
   checkpoints: readonly ContextCompactionRecord[],
+  entries: readonly MessageEntry[],
 ): ContextCompactionRecord | undefined {
+  const restoredIds = new Set(entries.map((entry) => entry.id));
   const durableIds = new Set(history.filter((message) =>
     !message.parentToolCallId && isDurableMessage(message.id, message.role) &&
     (message.role !== "assistant" || (message.status !== "error" && message.status !== "aborted" &&
       !message.isError && !message.error)),
   ).map((message) => message.id));
-  return [...checkpoints].reverse().find((checkpoint) => durableIds.has(checkpoint.throughMessageId));
+  return [...checkpoints].reverse().find((checkpoint) =>
+    durableIds.has(checkpoint.throughMessageId) && restoredIds.has(checkpoint.throughMessageId));
 }

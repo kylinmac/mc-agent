@@ -5,7 +5,7 @@ import { parseMcpServerIds, parseMcpToolNames } from "./mcp-tool-selection.js";
  * Host access is proxied through main (single host-core process).
  */
 import { randomUUID } from "node:crypto";
-import type { ModelAuth } from "@earendil-works/pi-ai";
+import { LocalRequestError, type ModelAuth } from "@earendil-works/pi-ai";
 import { ParentHostProxy } from "./parent-host-proxy.js";
 import { visionFromModelConfig } from "./model-capabilities.js";
 import { hydrateAttachmentHistory } from "./attachment-history.js";
@@ -282,7 +282,10 @@ async function runtimeFor(
         compactions?: ContextCompactionRecord[];
       } | null;
     }>("session.get", { id: sessionId });
-    let restoredMessages = detail?.session?.messages ?? [];
+    if (!detail.session || !Array.isArray(detail.session.messages)) {
+      throw new LocalRequestError("context-validation");
+    }
+    let restoredMessages = detail.session.messages;
     // The current prompt is sent separately below. Exclude its persisted row
     // before attachment hydration so it cannot consume the history byte budget.
     if (currentPrompt !== undefined && params.userMessageId) {
@@ -300,7 +303,8 @@ async function runtimeFor(
     compaction = detail?.session?.compaction;
     compactions = detail?.session?.compactions;
   } catch {
-    // History restore is best-effort; a prompt can still start cleanly.
+    // A failed read is not an empty conversation. Never send a blind continuation.
+    throw new LocalRequestError("context-validation");
   }
   // Older callers without a stable message id retain the previous content match.
   if (currentPrompt !== undefined && !params.userMessageId) {
