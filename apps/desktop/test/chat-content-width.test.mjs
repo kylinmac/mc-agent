@@ -7,43 +7,43 @@ const surfaceSource = await readFile(
   new URL("../src/components/ChatSurface.tsx", import.meta.url),
   "utf8",
 );
+const composerSource = await readFile(
+  new URL("../src/components/Composer.tsx", import.meta.url),
+  "utf8",
+);
 const handleSource = await readFile(
   new URL("../src/components/ConversationWidthHandles.tsx", import.meta.url),
   "utf8",
 );
 const styles = await loadStyles();
 
-test("chat surface mounts dual width handles", () => {
-  assert.match(surfaceSource, /<ConversationWidthHandles \/>/);
-  assert.match(handleSource, /data-testid=\{`chat-width-handle-\$\{side\}`\}/);
+test("the width grip lives in the composer and the surface keeps the saved width", () => {
+  assert.match(surfaceSource, /<ConversationWidthSync \/>/);
+  assert.match(composerSource, /splitColumns \? null : <ChatWidthGrip \/>/);
+  assert.match(handleSource, /data-testid="chat-width-grip"/);
   assert.match(handleSource, /chatContentWidthFromDrag/);
   assert.match(handleSource, /DEFAULT_CHAT_CONTENT_MAX_WIDTH/);
   assert.match(handleSource, /onDoubleClick=\{onDoubleClick\}/);
   assert.match(handleSource, /nav\.resizeChatWidth/);
 });
 
-test("chat width handles stay on the outer panel edges and highlight the boundary", () => {
-  const left = styles.match(/\.chat-width-handle-left\s*\{[\s\S]*?\}/)?.[0] ?? "";
-  const right = styles.match(/\.chat-width-handle-right\s*\{[\s\S]*?\}/)?.[0] ?? "";
-  assert.match(left, /left:\s*0/);
-  assert.match(right, /right:\s*0/);
-  assert.doesNotMatch(left + right, /chat-content-max-width/);
-  const handle = styles.match(/\.chat-width-handle::before\s*\{[\s\S]*?\}/)?.[0] ?? "";
-  assert.match(handle, /opacity:\s*0/);
-  assert.match(handle, /top:\s*0/);
-  assert.match(handle, /bottom:\s*0/);
-  assert.doesNotMatch(handle, /height:\s*40px|top:\s*50%/);
-  assert.match(handle, /var\(--ds-text-primary\) 18%/);
-  assert.doesNotMatch(handle, /box-shadow:\s*0 0 12px/);
-  assert.match(styles, /\.chat-width-handle:hover::before/);
+test("the grip sits in the pane gutter beside the composer, not on the panel edge", () => {
+  const grip = styles.match(/\.chat-width-grip\s*\{[\s\S]*?\}/)?.[0] ?? "";
+  assert.match(grip, /position:\s*absolute/);
+  // CHAT_CONTENT_WIDTH_GUTTER is 24px; the grip must stay inside it.
+  const right = Number(grip.match(/right:\s*-(\d+)px/)?.[1]);
+  assert.ok(right > 0 && right < 24, `grip offset ${right}px must fit the 24px gutter`);
+  const mark = styles.match(/\.chat-width-grip::before\s*\{[\s\S]*?\}/)?.[0] ?? "";
+  assert.match(mark, /opacity:\s*0/);
+  assert.match(mark, /var\(--ds-text-primary\) 18%/);
+  assert.match(styles, /\.composer-dock:hover \.chat-width-grip::before/);
+  assert.match(styles, /\.chat-width-grip:hover::before/);
+  assert.match(styles, /:root\[data-theme="light"\] \.chat-width-grip::before/);
   assert.match(
     styles,
-    /:root\[data-theme="light"\] \.chat-width-handle::before/,
+    /\.chat-surface\[data-chat-resizing="true"\] \.chat-width-grip::before/,
   );
-  assert.match(
-    styles,
-    /\.chat-surface\[data-chat-resizing="true"\] \.chat-width-handle::before/,
-  );
+  assert.doesNotMatch(styles, /\.chat-width-handle/);
 });
 
 

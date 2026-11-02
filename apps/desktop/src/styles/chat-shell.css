@@ -420,21 +420,16 @@
 }
 
 
-/* R11.13: resize from the panel boundary, never an invisible strip through
- * the prose. Keep the titlebar clear and highlight the edge on interaction. */
-.chat-width-handles {
+/* R11.13: the width grip rides the composer's right edge. The composer shares
+ * the band width, so the grip follows the text column; it sits in the 24px
+ * pane gutter the clamp always leaves, clear of the work panel's resize edge. */
+.chat-width-grip {
   position: absolute;
-  inset: var(--ds-toolbar-height) 0 0;
-  z-index: 7;
-  pointer-events: none;
-}
-
-.chat-width-handle {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 6px;
-  pointer-events: auto;
+  top: 50%;
+  right: -18px;
+  width: 14px;
+  height: 44px;
+  transform: translateY(-50%);
   cursor: col-resize;
   touch-action: none;
   user-select: none;
@@ -442,61 +437,51 @@
   app-region: no-drag;
 }
 
-.chat-width-handle-left {
-  left: 0;
-}
-
-.chat-width-handle-right {
-  right: 0;
-}
-
-.chat-width-handle::before {
+.chat-width-grip::before {
   content: "";
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 28px;
+  border-radius: var(--radius-full);
   background: color-mix(in oklab, var(--ds-text-primary) 18%, transparent);
-  box-shadow: none;
   opacity: 0;
+  transform: translate(-50%, -50%);
   transition:
     opacity var(--motion-duration-fast) var(--motion-ease-out),
     background var(--motion-duration-fast) var(--motion-ease-out);
 }
 
-.chat-width-handle-left::before {
-  left: 0;
-}
-
-.chat-width-handle-right::before {
-  right: 0;
-}
-
-:root[data-theme="light"] .chat-width-handle::before {
+:root[data-theme="light"] .chat-width-grip::before {
   background: color-mix(in oklab, var(--ds-text-primary) 12%, transparent);
 }
 
-.chat-width-handle:hover::before,
-.chat-width-handle:focus-visible::before {
+.composer-dock:hover .chat-width-grip::before {
+  opacity: 0.6;
+}
+
+.chat-width-grip:hover::before,
+.chat-width-grip:focus-visible::before {
   opacity: 1;
 }
 
-.chat-width-handle:focus-visible {
+.chat-width-grip:focus-visible {
   outline: none;
 }
 
-.chat-width-handle:focus-visible::before {
+.chat-width-grip:focus-visible::before {
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--ds-accent) 22%, transparent);
 }
 
-.chat-width-handle.is-resizing::before,
-.chat-surface[data-chat-resizing="true"] .chat-width-handle::before {
+.chat-width-grip.is-resizing::before,
+.chat-surface[data-chat-resizing="true"] .chat-width-grip::before {
   opacity: 1;
   background: color-mix(in oklab, var(--ds-text-primary) 32%, transparent);
 }
 
-:root[data-theme="light"] .chat-width-handle.is-resizing::before,
-:root[data-theme="light"] .chat-surface[data-chat-resizing="true"] .chat-width-handle::before {
+:root[data-theme="light"] .chat-width-grip.is-resizing::before,
+:root[data-theme="light"] .chat-surface[data-chat-resizing="true"] .chat-width-grip::before {
   background: color-mix(in oklab, var(--ds-text-primary) 20%, transparent);
 }
 
@@ -513,7 +498,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chat-width-handle::before {
+  .chat-width-grip::before {
     transition: none;
   }
 }

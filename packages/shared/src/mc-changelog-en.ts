@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.43",
+    date: "2026-11-01",
+    fixes: [
+      "The conversation width grip now sits beside the right edge of the input box, so it no longer overlaps the work panel's resize edge and still works with the panel open. Double-click it to restore the default width.",
+    ],
+  },
+  {
     version: "1.0.42",
     date: "2026-11-01",
     fixes: [
