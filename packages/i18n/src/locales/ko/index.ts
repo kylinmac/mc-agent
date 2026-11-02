@@ -2975,6 +2975,7 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
     newSessionIn: "New session",
     templateLabel: "Template",
     templateHint: "Copied once into the project's resource folder.",
+    templatePickerFolders: "이 템플릿이 만드는 폴더",
     resourcesRenameError: "The project was renamed, but its resource folder stayed in place: {{message}}",
     overviewTitle: "Overview",
     goalLabel: "Project goal",

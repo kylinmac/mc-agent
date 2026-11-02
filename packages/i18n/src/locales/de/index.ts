@@ -2934,6 +2934,7 @@ sklm: {
     newSessionIn: "New session",
     templateLabel: "Template",
     templateHint: "Copied once into the project's resource folder.",
+    templatePickerFolders: "Ordner, die diese Vorlage anlegt",
     resourcesRenameError: "The project was renamed, but its resource folder stayed in place: {{message}}",
     overviewTitle: "Overview",
     goalLabel: "Project goal",
