@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.44",
+    date: "2026-11-02",
+    fixes: [
+      "重新打开已压缩会话后，Agent 不再因异常旧检查点漏掉后续对话和测试结果；已有受影响会话会从保存的历史恢复。",
+    ],
+  },
+  {
     version: "1.0.43",
     date: "2026-11-01",
     fixes: [
