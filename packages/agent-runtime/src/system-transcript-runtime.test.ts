@@ -63,9 +63,9 @@ function fixture(history: UiMessage[] = [], skills = [skill]) {
     runtime, agent, rows, requests, errors,
     failPersistence: () => { persistenceFailure = new Error("disk full"); },
     respond: (next: () => AssistantMessage) => { respond = next; },
-    prompt: async (id: string) => {
-      rows.push({ id, role: "user", content: "Continue", createdAt: new Date().toISOString() });
-      await runtime.prompt("Continue", id, `turn-${id}`);
+    prompt: async (id: string, text = "Continue") => {
+      rows.push({ id, role: "user", content: text, createdAt: new Date().toISOString() });
+      await runtime.prompt(text, id, `turn-${id}`);
     },
   };
 }
@@ -188,4 +188,26 @@ describe("system state through the Desktop user path", () => {
       expect(getCurrentTools(f.requests[2]).some((tool) => tool.name === "Skill")).toBe(false);
     } finally { await f.runtime.dispose(); }
   });
+});
+
+
+it("preserves facts, corrections, prohibitions and pending work across restart", async () => {
+  const sentinels = [
+    "100 tables: 8 GiB 122.09s; 6 GiB 112.11s; 4 GiB 115.86s",
+    "Correction: compare 100 tables, not the 10-table report.",
+    "Do not modify the installed instance or release a version.",
+    "Pending: verify the session copy, then open a PR.",
+  ];
+  const live = fixture();
+  try {
+    for (const [index, text] of sentinels.entries()) await live.prompt(`sentinel-${index}`, text);
+    const restarted = fixture(structuredClone(live.rows));
+    try {
+      await live.prompt("next");
+      await restarted.prompt("next");
+      const extract = (messages: Message[]) => messages.filter((message) => message.role === "user").map((message) => typeof message.content === "string" ? message.content : message.content.filter((part) => part.type === "text").map((part) => part.text).join(""));
+      expect(extract(restarted.requests[0])).toEqual(extract(live.requests.at(-1)!));
+      for (const text of sentinels) expect(JSON.stringify(restarted.requests[0])).toContain(text);
+    } finally { await restarted.runtime.dispose(); }
+  } finally { await live.runtime.dispose(); }
 });

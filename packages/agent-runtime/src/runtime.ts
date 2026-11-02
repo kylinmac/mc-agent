@@ -1,3 +1,4 @@
+import { contextIdKey, contextRequestShape, verifiedContextRestore } from "./mc-context-integrity.js";
 import { compactionBoundaryId, restorableCompaction } from "./mc-compaction-boundary.js";
 import { RUNTIME_CORE_RULES, RUNTIME_DELEGATION_RULES, RUNTIME_EDITING_RULES } from "./builtin-system-prompt.js";
 import {
@@ -1147,7 +1148,7 @@ export type AgentRuntimeOptions = {
 };
 
 export type AgentRuntimeDiagnostic = {
-  kind: "compaction_failure" | "compaction_shape" | "compaction_restore" | "compaction_summary";
+  kind: "compaction_failure" | "compaction_shape" | "compaction_restore" | "compaction_summary" | "context_restore" | "context_request";
   sessionId: string;
   turnId?: string;
   requestId: string;
@@ -1916,6 +1917,7 @@ export class DesktopAgentRuntime {
   private thinkingLevel: SessionThinkingLevel;
   private host: RuntimeHost;
   private onEvent: (envelope: AgentEventEnvelope) => void;
+  private readonly contextRestoreId = randomUUID();
   private onDiagnostic: (diagnostic: AgentRuntimeDiagnostic) => void;
   private streamSink: StreamCoalescer;
   private baseSystemPrompt: string;
@@ -2179,9 +2181,6 @@ export class DesktopAgentRuntime {
     this.jevApiKey = opts.jevApiKey;
     this.host = opts.host;
     this.onDiagnostic = opts.onDiagnostic ?? (() => undefined);
-    this.hostCloseUnsubscribe = this.host.onClose?.(() => {
-      this.cleanupActiveToolProgress();
-    });
     this.streamSink = createStreamCoalescer(opts.onEvent);
     this.onEvent = (envelope) => this.streamSink.push(envelope);
     this.pluginTools = opts.pluginTools ?? [];
@@ -2224,6 +2223,21 @@ export class DesktopAgentRuntime {
     this.uniqueToolCalls = createToolCallIdentity(this.fullEntries.map((entry) => entry.message));
     this.activeCompaction = restorableCompaction(this.transcriptHistory,
       opts.compactions ?? (opts.compaction ? [opts.compaction] : []));
+    const selectedCheckpointKey = contextIdKey(this.activeCompaction?.id);
+    const restored = verifiedContextRestore(this.transcriptHistory, this.fullEntries, this.activeCompaction,
+      (checkpoint) => {
+        this.activeCompaction = checkpoint;
+        return this.liveSessionContext().messages;
+      },
+      (data) => this.emitCompactionDiagnostic("context_restore", this.contextRestoreId, {
+        ...data,
+        selectedCheckpointKey,
+        latestCheckpointKey: contextIdKey(opts.compactions?.at(-1)?.id ?? opts.compaction?.id),
+      }));
+    this.activeCompaction = restored.checkpoint;
+    this.hostCloseUnsubscribe = this.host.onClose?.(() => {
+      this.cleanupActiveToolProgress();
+    });
     this.delegationChains.hydrate(
       rebuildChainsFromTranscript(this.transcriptHistory),
     );
@@ -2361,6 +2375,12 @@ export class DesktopAgentRuntime {
         // Both output clamps, ours and pi-ai's inside `streamSimple`, must see
         // the instructions the adapter sends, not every superseded snapshot.
         const requestContext = requestTranscript(m, context);
+        this.emitCompactionDiagnostic("context_request", randomUUID(), {
+          restoreId: this.contextRestoreId,
+          checkpointKey: contextIdKey(this.activeCompaction?.id),
+          boundaryKey: contextIdKey(this.activeCompaction?.throughMessageId),
+          ...contextRequestShape(requestContext.messages, estimateContextTokens(requestContext.messages, m).tokens),
+        });
         const attemptOptions: SimpleStreamOptions = {
           ...hookedOptions,
           // Cap the output budget at the pi-desktop layer so the estimate
@@ -2440,7 +2460,7 @@ export class DesktopAgentRuntime {
         model,
         tools: [],
         thinkingLevel: agentThinkingLevel(this.thinkingLevel),
-        messages: initialSystemTranscript(this.composeSystemPrompt(), tools, this.liveSessionContext().messages, this.composedSections),
+        messages: initialSystemTranscript(this.composeSystemPrompt(), tools, restored.messages, this.composedSections),
       },
       // Plan transitions must be the only tool call in an assistant batch.
       // Sequential execution also makes the host-confirmed mode change visible
