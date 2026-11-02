@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.44",
+    date: "2026-11-02",
+    fixes: [
+      "Reopening a compacted conversation no longer drops later messages and test results because of an invalid old checkpoint. Affected conversations recover from their saved history.",
+    ],
+  },
+  {
     version: "1.0.43",
     date: "2026-11-01",
     fixes: [
