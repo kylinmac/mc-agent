@@ -9,6 +9,17 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.45",
+    date: "2026-11-02",
+    improvements: [
+      "When restored context has missing or out-of-order messages, the app tries full-history recovery, reports unrecoverable errors, and records diagnostics without message content.",
+    ],
+    fixes: [
+      "Reopening a conversation no longer accepts a compaction checkpoint whose boundary message cannot be restored.",
+      "Failed conversation-history reads no longer silently start an empty conversation.",
+    ],
+  },
+  {
     version: "1.0.44",
     date: "2026-11-02",
     fixes: [
