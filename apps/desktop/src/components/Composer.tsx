@@ -65,6 +65,8 @@ import { useVoiceInput } from "../features/voice/useVoiceInput";
 import { ComposerToolbar } from "../features/chat/composer/ComposerToolbar";
 import { DictationButton } from "../features/voice/dictation/DictationButton";
 import { ComposerStatus } from "../features/chat/composer/ComposerStatus";
+import { ChatWidthGrip } from "./ConversationWidthHandles";
+import { useSplitView } from "../lib/mc-split-view";
 
 const EMPTY_QUEUED_PROMPTS: QueuedPrompt[] = [];
 
@@ -274,6 +276,7 @@ export function Composer({
     }
     editQueuedPrompt(id);
   };
+  const splitColumns = useSplitView((state) => state.columns.length > 1);
   const placeholderKeys = PLACEHOLDER_KEYS[variant];
   const placeholderKey =
     placeholderKeys[placeholderIndex % placeholderKeys.length] ?? placeholderKeys[0];
@@ -742,6 +745,7 @@ export function Composer({
             workSessionId={activeSessionId ?? undefined}
             workSessionLabel={activeSessionSummary?.title}
           />
+          {splitColumns ? null : <ChatWidthGrip />}
         </div>
       </div>
     </div>

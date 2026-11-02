@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.43",
+    date: "2026-11-01",
+    fixes: [
+      "调整对话宽度的拖动把手移到输入框右侧，不再和工作面板的拖动边重叠，打开工作面板时也能拖。双击把手恢复默认宽度。",
+    ],
+  },
+  {
     version: "1.0.42",
     date: "2026-11-01",
     fixes: [

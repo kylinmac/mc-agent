@@ -14,7 +14,6 @@ import {
   chatContentWidthFromDrag,
   clampChatContentMaxWidth,
   resolveChatContentMaxWidth,
-  type ChatContentResizeSide,
 } from "@pi-desktop/shared";
 import { api } from "../lib/api";
 import { useAppStore } from "../stores/app-store";
@@ -22,7 +21,6 @@ import { cx } from "./ui";
 
 type DragState = {
   pointerId: number;
-  side: ChatContentResizeSide;
   startClientX: number;
   startWidth: number;
   paneWidth: number;
@@ -30,8 +28,8 @@ type DragState = {
   frame: number;
 };
 
-function surfaceOf(host: HTMLDivElement | null): HTMLElement | null {
-  return host?.parentElement ?? null;
+function surfaceOf(node: HTMLElement | null): HTMLElement | null {
+  return node?.closest<HTMLElement>(".chat-surface") ?? null;
 }
 
 function applyPreferredWidth(surface: HTMLElement | null, width: number) {
@@ -57,17 +55,35 @@ function setResizing(surface: HTMLElement | null, on: boolean) {
   }
 }
 
+function usePersistedChatWidth() {
+  return useAppStore((state) =>
+    resolveChatContentMaxWidth(state.settings?.chatContentMaxWidth),
+  );
+}
+
 /**
- * Dual panel-edge handles for the centered conversation band (R11.13). Both sides
- * change one preferred max-width; the live band is `min(100%, preferred)`.
+ * Applies the saved band width to the chat surface even while no composer (and
+ * so no grip) is mounted.
  */
-export function ConversationWidthHandles() {
+export function ConversationWidthSync() {
+  const hostRef = useRef<HTMLSpanElement>(null);
+  const persisted = usePersistedChatWidth();
+  useLayoutEffect(() => {
+    applyPreferredWidth(surfaceOf(hostRef.current), persisted);
+  }, [persisted]);
+  return <span ref={hostRef} hidden />;
+}
+
+/**
+ * Width grip beside the composer's right edge (R11.13). The composer shares
+ * the band width, so the grip follows the text column and stays clear of the
+ * work panel's resize edge. The band is centered: 1px of drag → 2px of width.
+ */
+export function ChatWidthGrip() {
   const { t } = useTranslation();
   const hostRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
-  const persisted = useAppStore((state) =>
-    resolveChatContentMaxWidth(state.settings?.chatContentMaxWidth),
-  );
+  const persisted = usePersistedChatWidth();
   const [dragWidth, setDragWidth] = useState<number | null>(null);
   const [paneWidth, setPaneWidth] = useState(0);
   const width = dragWidth ?? persisted;
@@ -128,28 +144,26 @@ export function ConversationWidthHandles() {
   );
 
   const onPointerDown = useCallback(
-    (side: ChatContentResizeSide) =>
-      (event: ReactPointerEvent<HTMLDivElement>) => {
-        if (event.button !== 0) return;
-        event.preventDefault();
-        event.stopPropagation();
-        event.currentTarget.focus({ preventScroll: true });
-        const surface = surfaceOf(hostRef.current);
-        const livePane = surface?.clientWidth ?? paneWidth;
-        const startWidth = clampChatContentMaxWidth(width, livePane);
-        dragRef.current = {
-          pointerId: event.pointerId,
-          side,
-          startClientX: event.clientX,
-          startWidth,
-          paneWidth: livePane,
-          currentWidth: startWidth,
-          frame: 0,
-        };
-        setDragWidth(startWidth);
-        setResizing(surface, true);
-        event.currentTarget.setPointerCapture(event.pointerId);
-      },
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.currentTarget.focus({ preventScroll: true });
+      const surface = surfaceOf(hostRef.current);
+      const livePane = surface?.clientWidth ?? paneWidth;
+      const startWidth = clampChatContentMaxWidth(width, livePane);
+      dragRef.current = {
+        pointerId: event.pointerId,
+        startClientX: event.clientX,
+        startWidth,
+        paneWidth: livePane,
+        currentWidth: startWidth,
+        frame: 0,
+      };
+      setDragWidth(startWidth);
+      setResizing(surface, true);
+      event.currentTarget.setPointerCapture(event.pointerId);
+    },
     [paneWidth, width],
   );
 
@@ -158,7 +172,7 @@ export function ConversationWidthHandles() {
       const drag = dragRef.current;
       if (drag?.pointerId !== event.pointerId) return;
       drag.currentWidth = chatContentWidthFromDrag({
-        side: drag.side,
+        side: "right",
         startWidth: drag.startWidth,
         startClientX: drag.startClientX,
         clientX: event.clientX,
@@ -205,11 +219,10 @@ export function ConversationWidthHandles() {
       const livePane = surfaceOf(hostRef.current)?.clientWidth ?? paneWidth;
       const step = event.shiftKey ? 32 : 16;
       let next: number | null = null;
-      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-        const towardWider =
-          (event.currentTarget.dataset.side === "left" && event.key === "ArrowLeft") ||
-          (event.currentTarget.dataset.side === "right" && event.key === "ArrowRight");
-        next = width + (towardWider ? step : -step);
+      if (event.key === "ArrowRight") {
+        next = width + step;
+      } else if (event.key === "ArrowLeft") {
+        next = width - step;
       } else if (event.key === "Home") {
         next = DEFAULT_CHAT_CONTENT_MAX_WIDTH;
       } else if (event.key === "End") {
@@ -225,39 +238,27 @@ export function ConversationWidthHandles() {
   );
 
   const max = clampChatContentMaxWidth(Number.POSITIVE_INFINITY, paneWidth || 10_000);
-  const label = t("nav.resizeChatWidth");
-  const valueText = t("nav.chatWidth", { width });
   const resizing = dragWidth !== null;
 
   return (
-    <div ref={hostRef} className="chat-width-handles">
-      {(["left", "right"] as const).map((side) => (
-        <div
-          key={side}
-          role="separator"
-          aria-orientation="vertical"
-          aria-label={label}
-          aria-valuemin={MIN_CHAT_CONTENT_MAX_WIDTH}
-          aria-valuemax={max}
-          aria-valuenow={width}
-          aria-valuetext={valueText}
-          data-side={side}
-          data-testid={`chat-width-handle-${side}`}
-          tabIndex={0}
-          className={cx(
-            "chat-width-handle",
-            `chat-width-handle-${side}`,
-            "no-drag",
-            resizing && "is-resizing",
-          )}
-          onPointerDown={onPointerDown(side)}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerCancel}
-          onDoubleClick={onDoubleClick}
-          onKeyDown={onKeyDown}
-        />
-      ))}
-    </div>
+    <div
+      ref={hostRef}
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={t("nav.resizeChatWidth")}
+      aria-valuemin={MIN_CHAT_CONTENT_MAX_WIDTH}
+      aria-valuemax={max}
+      aria-valuenow={width}
+      aria-valuetext={t("nav.chatWidth", { width })}
+      data-testid="chat-width-grip"
+      tabIndex={0}
+      className={cx("chat-width-grip", "no-drag", resizing && "is-resizing")}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
+      onDoubleClick={onDoubleClick}
+      onKeyDown={onKeyDown}
+    />
   );
 }
