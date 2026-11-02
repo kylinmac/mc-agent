@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ResourceTemplateSummary } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
-import { Button } from "../../components/ui";
+import { SettingsMenuSelect } from "../../components/settings/SettingsMenuSelect";
 import { openTemplateSettings } from "./TemplateEditor";
 
 /*
@@ -42,31 +42,39 @@ export function TemplatePicker({
     ? templates
     : [{ name: value, path: "", builtin: true, categories: [] }, ...templates];
 
+  const selected = options.find((template) => template.name === value);
+
+  // Same shape as the system prompt section below it: a link-style manage
+  // action, a full-width menu of names, then what the choice creates. The
+  // folders are listed as chips so a long template no longer overflows the
+  // control.
   return (
     <section className="project-create-dialog-section mc-template-picker" aria-labelledby="mc-template-heading">
       <div className="project-create-dialog-section-head">
-        <label id="mc-template-heading" className="project-create-dialog-section-title" htmlFor="mc-template-select">
+        <h3 id="mc-template-heading" className="project-create-dialog-section-title">
           {t("mcProject.templateLabel")}
-        </label>
-        <Button size="sm" variant="ghost" onClick={openTemplateSettings}>
+        </h3>
+        <button type="button" className="mc-project-prompt-manage" disabled={disabled} onClick={openTemplateSettings}>
           {t("mcProject.templateEditorOpen")}
-        </Button>
+        </button>
       </div>
-      <select
-        id="mc-template-select"
-        className="mc-workbench-select"
+      <SettingsMenuSelect
+        fullWidth
+        label={t("mcProject.templateLabel")}
         value={value}
+        options={options.map((template) => ({ id: template.name, label: template.name }))}
         disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        {options.map((template) => (
-          <option key={template.name} value={template.name}>
-            {template.categories.length > 0
-              ? `${template.name} · ${template.categories.join(" / ")}`
-              : template.name}
-          </option>
-        ))}
-      </select>
+        onChange={onChange}
+      />
+      {selected && selected.categories.length > 0 ? (
+        <ul className="mc-template-folders" aria-label={t("mcProject.templatePickerFolders")}>
+          {selected.categories.map((category) => (
+            <li key={category} className="mc-template-folder">
+              {category}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <p className="mc-workbench-muted">{t("mcProject.templateHint")}</p>
     </section>
   );

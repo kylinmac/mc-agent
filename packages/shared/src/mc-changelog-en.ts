@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.42",
+    date: "2026-11-01",
+    fixes: [
+      "When creating a template project, the template name and folders no longer crowd onto one cut-off line, the menu arrow no longer covers the text, and the hint below is no longer hidden; the folders the template creates are listed below instead.",
+    ],
+  },
+  {
     version: "1.0.41",
     date: "2026-10-31",
     features: [

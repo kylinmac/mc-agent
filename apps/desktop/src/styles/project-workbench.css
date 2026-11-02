@@ -289,6 +289,34 @@
   margin-top: 10px;
 }
 
+.mc-kind-picker > .mc-workbench-muted,
+.mc-template-picker .mc-workbench-muted {
+  margin: 6px 0 0;
+}
+
+/* The folders the chosen template creates, wrapped instead of truncated. */
+.mc-template-folders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mc-template-folder {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 1px 7px;
+  border-radius: var(--radius-2xs);
+  background: var(--ds-bg-hover);
+  color: var(--ds-text-secondary);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-compact-plus);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* mc-agent: the project's system prompt template in the create/edit dialogs. */
 .mc-project-prompt .mc-workbench-muted {
   margin: 6px 0 0;

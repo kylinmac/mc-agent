@@ -3100,6 +3100,7 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     newSessionIn: "New session",
     templateLabel: "Template",
     templateHint: "Copied once into the project's resource folder.",
+    templatePickerFolders: "Folders this template creates",
     resourcesRenameError: "The project was renamed, but its resource folder stayed in place: {{message}}",
     overviewTitle: "Overview",
     goalLabel: "Project goal",

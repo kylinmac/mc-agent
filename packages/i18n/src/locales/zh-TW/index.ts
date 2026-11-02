@@ -2959,6 +2959,7 @@ sklm: {
     newSessionIn: "新增工作階段",
     templateLabel: "範本",
     templateHint: "建立時複製一次到專案的資料目錄。",
+    templatePickerFolders: "範本會建立的資料分類",
     resourcesRenameError: "專案已改名，但資料目錄沒有跟著改名：{{message}}",
     overviewTitle: "概覽",
     goalLabel: "專案目標",

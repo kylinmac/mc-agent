@@ -3031,6 +3031,7 @@ sklm: {
     newSessionIn: "新建会话",
     templateLabel: "模板",
     templateHint: "创建时复制一次到项目的资料目录。",
+    templatePickerFolders: "模板会建立的资料分类",
     resourcesRenameError: "项目已改名，但资料目录没有跟着改名：{{message}}",
     overviewTitle: "概览",
     goalLabel: "项目目标",

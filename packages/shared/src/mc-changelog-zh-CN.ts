@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.42",
+    date: "2026-11-01",
+    fixes: [
+      "新建模板项目时，模板名和分类不再挤在一行被截断，下拉箭头不再压住文字，下方说明也不再被遮挡；模板会建立的分类改为在下方逐个列出。",
+    ],
+  },
+  {
     version: "1.0.41",
     date: "2026-10-31",
     features: [
