@@ -273,11 +273,13 @@ async function runtimeFor(
 
   let history: UiMessage[] = [];
   let compaction: ContextCompactionRecord | undefined;
+  let compactions: ContextCompactionRecord[] | undefined;
   try {
     const detail = await hostProxy.call<{
       session?: {
         messages?: UiMessage[];
         compaction?: ContextCompactionRecord;
+        compactions?: ContextCompactionRecord[];
       } | null;
     }>("session.get", { id: sessionId });
     let restoredMessages = detail?.session?.messages ?? [];
@@ -296,6 +298,7 @@ async function runtimeFor(
       supportsVision,
     });
     compaction = detail?.session?.compaction;
+    compactions = detail?.session?.compactions;
   } catch {
     // History restore is best-effort; a prompt can still start cleanly.
   }
@@ -318,6 +321,7 @@ async function runtimeFor(
     jevApiKey: params.jevApiKey,
     history,
     compaction,
+    compactions,
     compactionSettings: params.compactionSettings,
     askToolAutoContinue: params.askToolAutoContinue,
     askToolTimeoutSeconds: params.askToolTimeoutSeconds,

@@ -41,7 +41,7 @@ function serializedSystemMessage(message: SystemMessage): string {
 export function orderSystemRows(history: readonly UiMessage[]): UiMessage[] {
   const rows = history.filter((row) => !row.modelSystem);
   const seen = new Set<string>();
-  for (const row of history) {
+  for (const [position, row] of history.entries()) {
     if (!row.modelSystem) continue;
     if (row.role !== "system" || row.modelSystem.version !== 1) {
       throw new Error("Invalid model system record");
@@ -57,6 +57,11 @@ export function orderSystemRows(history: readonly UiMessage[]): UiMessage[] {
         index = previous + 1;
         while (rows[index]?.modelSystem) index++;
       }
+    }
+    // Missing anchors must not move an old system row past later conversation.
+    if (index < 0) {
+      const following = history.slice(position + 1).find((candidate) => !candidate.modelSystem);
+      index = following ? rows.findIndex((candidate) => candidate.id === following.id) : rows.length;
     }
     rows.splice(index < 0 ? rows.length : index, 0, row);
   }
