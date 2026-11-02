@@ -33,6 +33,24 @@ async function until(predicate: () => boolean, label: string, diagnostic?: () =>
     await frame();
   }
 }
+// `frame()` may resolve on its 50ms timer without a painted frame, so on a slow
+// runner two of them can end while a smooth scroll or follow frame is still
+// moving the scroller. Wait for real animation frames that leave it still.
+const paintedFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+async function scrollAtRest(scroller: HTMLElement, label: string) {
+  const deadline = performance.now() + 10_000;
+  let last = "";
+  let still = 0;
+  while (still < 6) {
+    if (performance.now() >= deadline) {
+      throw new Error(`Long history did not settle: ${label} scroll ${last}`);
+    }
+    await paintedFrame();
+    const now = `${scroller.scrollTop}/${scroller.scrollHeight}/${scroller.clientHeight}`;
+    still = now === last ? still + 1 : 0;
+    last = now;
+  }
+}
 
 type FixtureSession = { summary: SessionSummary; messages: UiMessage[]; reads: { count: number }; tail: string };
 const row = (id: string, role: UiMessage["role"], content: string, extra: Partial<UiMessage> = {}): UiMessage => ({
@@ -264,20 +282,30 @@ export async function transcriptLongHistoryProbe() {
       }
     }
     assert(freshPreview, `minimap kept a stale older-row preview: ${JSON.stringify({ older: older.id, previews })}`);
+    const scroller = element(".thread-scroll");
+    // The marker jump is a smooth scroll; let it finish before the reader acts.
+    await scrollAtRest(scroller, "minimap jump");
     // Actual disclosure toggling hands scroll ownership to the reader.
     const disclosure = element<HTMLButtonElement>(".tool-activity-header");
     flushSync(() => disclosure.click());
     const expanded = disclosure.getAttribute("aria-expanded");
     await stream(largest, " while-reading");
     assert(disclosure.getAttribute("aria-expanded") === expanded, "stream reset explicit disclosure state");
-    const scroller = element(".thread-scroll");
+    await scrollAtRest(scroller, "disclosure stream");
     scroller.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: -200 }));
     scroller.scrollTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight - 240);
     scroller.dispatchEvent(new Event("scroll", { bubbles: true }));
     await settled();
+    await scrollAtRest(scroller, "reader position");
     const readingTop = scroller.scrollTop;
+    const readingGap = scroller.scrollHeight - scroller.clientHeight - readingTop;
+    assert(readingGap > 120, `reader position was not held before streaming: gap ${readingGap}px`);
     await stream(largest, " reader-stays");
-    assert(Math.abs(scroller.scrollTop - readingTop) < 2, "stream stole the reader's scroll position");
+    // A late follow frame would land after the text appears; wait it out too.
+    await scrollAtRest(scroller, "reader stream");
+    assert(Math.abs(scroller.scrollTop - readingTop) < 2,
+      `stream stole the reader's scroll position: ${JSON.stringify({ readingTop, scrollTop: scroller.scrollTop,
+        scrollHeight: scroller.scrollHeight, clientHeight: scroller.clientHeight })}`);
 
     // Terminal re-key must replace exactly the provisional row, survive cache
     // reselection and expose fresh copy text through the real turn toolbar.
