@@ -647,3 +647,8 @@ describe("definition fallback models", () => {
     expect(result.ok).toBe(false);
   });
 });
+
+
+it("project history is not inherited by delegates", () => {
+  expect(resolveSubagentToolNames({ tools: [], inheritTools: true }, ["Read", "ProjectHistory"])).toEqual(["Read"]);
+});

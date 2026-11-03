@@ -394,9 +394,17 @@ export function createEventsSlice({
         void flushPendingSessionConfiguration(envelope.sessionId);
         if (event.type === "agent_end") {
           void get().refreshQueuedPrompts(envelope.sessionId);
+          const mode = get().sessions.find(session => session.id === envelope.sessionId)?.mode;
+          if (mode === "plan" || mode === "goal") void get().restorePendingPlan(envelope.sessionId);
         }
       }
       if (event.type === "planning_state") {
+        // Runtime reuse emits a provisional state; only the host can settle approval.
+        if (event.state !== "awaiting_approval" && !event.proposal &&
+          isPendingPlan(get().planCheckpoints[envelope.sessionId])) {
+          void get().restorePendingPlan(envelope.sessionId);
+          return;
+        }
         runtime.nextPlanSyncGeneration(envelope.sessionId);
         set((state) => {
           const checkpoint = mergePlanCheckpoint(

@@ -9,6 +9,17 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.49",
+    date: "2026-11-03",
+    features: [
+      "AI can find and read other conversations in the same project when organizing requirements, designs and validation records.",
+    ],
+    fixes: [
+      "Temporary runtime updates no longer dismiss pending plans. Approving a plan switches to Agent and continues execution automatically.",
+      "When plan approval blocks a mode change, the actual mode and approval controls are restored instead of showing a successful switch.",
+    ],
+  },
+  {
     version: "1.0.48",
     date: "2026-11-03",
     improvements: [

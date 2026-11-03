@@ -119,6 +119,7 @@ export const SUBAGENT_INHERIT_DENY_TOOLS: readonly string[] = [
   "ToolSearch",
   // mc-agent (R21.1): reads the parent session's checkpoint history.
   "ContextHistory",
+  "ProjectHistory",
 ];
 
 /**

@@ -1,3 +1,4 @@
+import { buildProjectHistoryTool, PROJECT_HISTORY_TOOL_NAME } from "./mc-project-history-tool.js";
 import { contextIdKey, contextRequestShape, verifiedContextRestore } from "./mc-context-integrity.js";
 import { compactionBoundaryId, restorableCompaction } from "./mc-compaction-boundary.js";
 import { RUNTIME_CORE_RULES, RUNTIME_DELEGATION_RULES, RUNTIME_EDITING_RULES } from "./builtin-system-prompt.js";
@@ -4290,6 +4291,7 @@ export class DesktopAgentRuntime {
       ...modeTools,
       ...subagentTools,
       ...contextTools,
+      buildProjectHistoryTool(this.host, this.sessionId),
       ...extensionTools,
     ];
   }
@@ -4387,6 +4389,7 @@ export class DesktopAgentRuntime {
       ASK_TOOL_NAME,
       CONTEXT_COMPACTION_TOOL_NAME,
       CONTEXT_HISTORY_TOOL_NAME,
+      PROJECT_HISTORY_TOOL_NAME,
       SUBMIT_TOOL_NAMES[kind],
     ]).has(name);
   }
