@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.46",
+    date: "2026-11-03",
+    features: [
+      "窗口竖放或太窄时，工作面板自动移到对话下方，可拖动分隔线调整高度；窗口变宽后回到右侧。",
+    ],
+  },
+  {
     version: "1.0.45",
     date: "2026-11-02",
     improvements: [

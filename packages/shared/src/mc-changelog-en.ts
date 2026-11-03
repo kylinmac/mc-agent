@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.46",
+    date: "2026-11-03",
+    features: [
+      "In a portrait or narrow window, the work panel moves under the conversation with a draggable divider, and returns to the right side when the window widens.",
+    ],
+  },
+  {
     version: "1.0.45",
     date: "2026-11-02",
     improvements: [
