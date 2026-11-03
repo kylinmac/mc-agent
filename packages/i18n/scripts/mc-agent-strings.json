@@ -115,9 +115,9 @@
     "zh-TW": "確認後有修改 {{count}}"
   },
   "summaryDraft": {
-    "en": "{{count}} drafts",
-    "zh-CN": "草稿 {{count}}",
-    "zh-TW": "草稿 {{count}}"
+    "en": "Unconfirmed {{count}}",
+    "zh-CN": "待确认 {{count}}",
+    "zh-TW": "待確認 {{count}}"
   },
   "summaryMissing": {
     "en": "{{count}} missing",
@@ -160,9 +160,9 @@
     "zh-TW": "連結"
   },
   "statusDraft": {
-    "en": "Draft",
-    "zh-CN": "草稿",
-    "zh-TW": "草稿"
+    "en": "Unconfirmed",
+    "zh-CN": "待确认",
+    "zh-TW": "待確認"
   },
   "statusConfirmed": {
     "en": "Confirmed",
@@ -195,9 +195,9 @@
     "zh-TW": "確認目前版本"
   },
   "actionDraft": {
-    "en": "Back to draft",
-    "zh-CN": "设为草稿",
-    "zh-TW": "設為草稿"
+    "en": "Mark unconfirmed",
+    "zh-CN": "设为待确认",
+    "zh-TW": "設為待確認"
   },
   "actionDeprecate": {
     "en": "Deprecate",
@@ -265,14 +265,14 @@
     "zh-TW": "目前結構"
   },
   "migrationStart": {
-    "en": "Organize with AI",
-    "zh-CN": "AI 整理",
-    "zh-TW": "AI 整理"
+    "en": "Plan with AI",
+    "zh-CN": "讨论整理方案",
+    "zh-TW": "討論整理方案"
   },
   "migrationHint": {
-    "en": "Runs directly in a new conversation, where you can follow or stop it. Workspace documents are listed in each category's INDEX.md, not copied.",
-    "zh-CN": "在新对话中直接执行，可随时查看或停止；工作区文档只登记到分类的 INDEX.md，不复制。",
-    "zh-TW": "在新對話中直接執行，可隨時查看或停止；工作區文件只登記到分類的 INDEX.md，不複製。"
+    "en": "Inspect and discuss scope in a new conversation, then approve the file list before organizing. Workspace documents are indexed, not copied. Empty categories stay empty unless you request a draft.",
+    "zh-CN": "先在新对话中查看资料、讨论范围，确认文件清单后再整理。工作区文档只登记不复制；空分类不自动起草。",
+    "zh-TW": "先在新對話中查看資料、討論範圍，確認檔案清單後再整理。工作區文件只登記不複製；空分類不自動起草。"
   },
   "tasksTitle": {
     "en": "Tasks",
