@@ -17,6 +17,11 @@ import { IconClose } from "../../components/icons";
 import { useAppStore } from "../../stores/app-store";
 import { isKnownWorkPanelTab } from "../../lib/work-panel-tabs";
 import { resizeColumns, setSplitWeights, useSplitView } from "../../lib/mc-split-view";
+import {
+  clampWorkPanelDockShare,
+  readWorkPanelDockShare,
+  writeWorkPanelDockShare,
+} from "../../lib/work-panel-resize";
 import { groupPanes } from "../work-tools/work-panes-model";
 import { usePanePrefs } from "../work-tools/pane-layout";
 import { PANE_ICONS } from "../work-tools/WorkPanes";
@@ -36,20 +41,6 @@ const WorkPanelBottomDock = lazy(() =>
     default: module.WorkPanelBottomDock,
   })),
 );
-
-const DOCK_KEY = "mc.splitDock";
-const DOCK_DEFAULT = 0.45;
-const DOCK_MIN = 0.2;
-const DOCK_MAX = 0.8;
-
-function readDockShare(): number {
-  try {
-    const value = Number(localStorage.getItem(DOCK_KEY));
-    return value >= DOCK_MIN && value <= DOCK_MAX ? value : DOCK_DEFAULT;
-  } catch {
-    return DOCK_DEFAULT;
-  }
-}
 
 function isDefaultTitle(title?: string | null) {
   const trimmed = (title || "").trim().toLowerCase();
@@ -233,7 +224,7 @@ export function SplitColumns({ visible, renderComposer }: { visible: boolean; re
   const dropHint = useSplitView((state) => state.dropHint);
   const active = useAppStore((state) => state.activeSessionId) ?? "";
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const [dockShare, setDockShare] = useState(readDockShare);
+  const [dockShare, setDockShare] = useState(readWorkPanelDockShare);
   const [resizing, setResizing] = useState(false);
 
   const startColumnResize = useCallback(
@@ -263,19 +254,15 @@ export function SplitColumns({ visible, renderComposer }: { visible: boolean; re
     if (!body) return;
     const rect = body.getBoundingClientRect();
     setResizing(true);
-    let share = readDockShare();
+    let share = readWorkPanelDockShare();
     trackDrag(
       (moveEvent) => {
-        share = Math.min(DOCK_MAX, Math.max(DOCK_MIN, (rect.bottom - moveEvent.clientY) / rect.height));
+        share = clampWorkPanelDockShare((rect.bottom - moveEvent.clientY) / rect.height);
         setDockShare(share);
       },
       () => {
         setResizing(false);
-        try {
-          localStorage.setItem(DOCK_KEY, String(share));
-        } catch {
-          // best-effort persistence
-        }
+        writeWorkPanelDockShare(share);
       },
     );
   }, []);

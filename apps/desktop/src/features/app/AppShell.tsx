@@ -4,6 +4,7 @@ import {
   type ReactNode,
   Suspense,
   useEffect,
+  useLayoutEffect,
   useState,
 } from "react";
 import { ConversationTopbar } from "../../components/ConversationTopbar";
@@ -33,9 +34,12 @@ import { WindowControls } from "../../components/WindowControls";
 import { useCopyTex } from "../../hooks/use-copy-tex";
 import { api } from "../../lib/api";
 import { PortalVisibilityProvider } from "../../lib/portal-visibility";
-import { workPanelLayout } from "../../lib/work-panel-resize";
+import { isRemoteSession } from "../../lib/remote-session-safety";
+import { shouldStackWorkPanel, workPanelLayout } from "../../lib/work-panel-resize";
+import { useAppStore } from "../../stores/app-store";
 import { LiveVoiceStatusHost } from "../voice/live/LiveVoiceStatusHost";
 import { CollapsedTitlebarActions, RoutePending } from "./chrome";
+import { StackedWorkPanelDock, useWindowHeight } from "./StackedWorkPanelDock";
 import { useAppShellRuntime } from "./useAppShellRuntime";
 
 const SettingsPage = lazy(() =>
@@ -120,7 +124,28 @@ export function AppShell() {
   // focused column, so the right-hand panel is not shown.
   useSplitSync();
   const split = useSplitView((state) => state.columns.length > 1);
-  const sideWorkPanelOpen = presentedWorkPanelOpen && !split;
+  // mc-agent: a narrow or portrait window docks the work panel under the
+  // conversation. Remote sessions have no bottom form and a maximized panel
+  // already owns the window, so both keep the side layout.
+  const windowHeight = useWindowHeight();
+  const [narrowWindow, setNarrowWindow] = useState(false);
+  useLayoutEffect(() => {
+    setNarrowWindow((stacked) =>
+      shouldStackWorkPanel({
+        containerWidth: shellWidth,
+        containerHeight: windowHeight,
+        sidebarWidth,
+        sidebarCollapsed,
+        stacked,
+      }),
+    );
+  }, [shellWidth, windowHeight, sidebarWidth, sidebarCollapsed]);
+  const remoteActive = useAppStore((state) => {
+    const session = state.sessions.find((item) => item.id === state.activeSessionId);
+    return (session ? isRemoteSession(session) : false) || state.activeSessionId?.startsWith("remote:") === true;
+  });
+  const stackedWorkPanel = narrowWindow && !split && !remoteActive && !workPanelMaximized;
+  const sideWorkPanelOpen = presentedWorkPanelOpen && !split && !stackedWorkPanel;
 
   useEffect(() => {
     void loadChatSurface().catch((error: unknown) => {
@@ -325,10 +350,11 @@ export function AppShell() {
                     <ChatSurface visible={page === "chat"} />
                   )}
                 </Suspense>
+                {stackedWorkPanel && workPanelOpen && activeSessionId ? <StackedWorkPanelDock /> : null}
               </section>
             )}
 
-            {!split && (presentedWorkPanelOpen || workPanelExiting) && (
+            {!split && !stackedWorkPanel && (presentedWorkPanelOpen || workPanelExiting) && (
               <Suspense
                 fallback={
                   <aside

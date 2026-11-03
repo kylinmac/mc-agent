@@ -253,3 +253,65 @@ export function committedWorkPanelChatWidth(
   if (!commit || previewWidth === gesture.startWidth) return null;
   return previewWidth;
 }
+
+/**
+ * mc-agent: re-entering the side layout needs this much room beyond the
+ * threshold, so a window resized right at it does not flip back and forth.
+ */
+export const WORK_PANEL_STACK_HYSTERESIS = 40;
+
+/**
+ * mc-agent: a portrait window, or one that cannot fit MainChat's floor plus
+ * the panel's regular minimum beside the sidebar, docks the work panel under
+ * the conversation instead of at the right edge.
+ */
+export function shouldStackWorkPanel({
+  containerWidth,
+  containerHeight,
+  sidebarWidth,
+  sidebarCollapsed,
+  stacked,
+}: {
+  containerWidth: number;
+  containerHeight: number;
+  sidebarWidth: number;
+  sidebarCollapsed: boolean;
+  stacked: boolean;
+}): boolean {
+  const width = Math.round(containerWidth);
+  // Not measured yet: keep whatever is showing.
+  if (width <= 0) return stacked;
+  if (containerHeight > width) return true;
+  const leftWidth = sidebarCollapsed ? 0 : Math.max(0, Math.round(sidebarWidth));
+  const room = width - leftWidth - MAIN_PANE_MIN_WIDTH;
+  return room < WORK_PANEL_MIN_WIDTH + (stacked ? WORK_PANEL_STACK_HYSTERESIS : 0);
+}
+
+/** Share of the column height the bottom-docked work panel takes. */
+export const WORK_PANEL_DOCK_SHARE_KEY = "mc.splitDock";
+export const WORK_PANEL_DOCK_SHARE_DEFAULT = 0.45;
+export const WORK_PANEL_DOCK_SHARE_MIN = 0.2;
+export const WORK_PANEL_DOCK_SHARE_MAX = 0.8;
+
+export function clampWorkPanelDockShare(share: number): number {
+  return Math.min(WORK_PANEL_DOCK_SHARE_MAX, Math.max(WORK_PANEL_DOCK_SHARE_MIN, share));
+}
+
+export function readWorkPanelDockShare(): number {
+  try {
+    const value = Number(localStorage.getItem(WORK_PANEL_DOCK_SHARE_KEY));
+    return value >= WORK_PANEL_DOCK_SHARE_MIN && value <= WORK_PANEL_DOCK_SHARE_MAX
+      ? value
+      : WORK_PANEL_DOCK_SHARE_DEFAULT;
+  } catch {
+    return WORK_PANEL_DOCK_SHARE_DEFAULT;
+  }
+}
+
+export function writeWorkPanelDockShare(share: number): void {
+  try {
+    localStorage.setItem(WORK_PANEL_DOCK_SHARE_KEY, String(share));
+  } catch {
+    // best-effort persistence
+  }
+}
