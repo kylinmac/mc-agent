@@ -146,8 +146,12 @@ export function createSessionCoordination({
               sessionConfigurationStatus: withoutRecordKey(state.sessionConfigurationStatus ?? {}, sessionId),
             }));
             failure = new Error(i18n.t("errors.planConfigurationBlocked"));
-            await get().refreshSessions();
-            await get().restorePendingPlan(sessionId);
+            try {
+              await get().refreshSessions();
+              await get().restorePendingPlan(sessionId);
+            } catch (restoreError) {
+              failure = restoreError instanceof Error ? restoreError : new Error(String(restoreError));
+            }
             if (!throwOnFailure) get().showToast(failure.message, { variant: "error" });
             break;
           }
