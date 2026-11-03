@@ -2951,6 +2951,7 @@ importConfirm: "İçe aktarılan uzantılar ajan sürecinde, ajanın kendi araç
     noActiveSession: "Etkin oturum yok",
     sessionTitleEmpty: "Oturum başlığı boş olamaz",
     projectNameLength: "Proje adı 1 ile 80 karakter arasında olmalıdır",
+    planConfigurationBlocked: en.errors.planConfigurationBlocked,
     planApprovalUnavailable: "Plan onayı artık kullanılamıyor",
     action: {
       openSettings: "Ayarları aç",

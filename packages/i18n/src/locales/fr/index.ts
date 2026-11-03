@@ -2915,6 +2915,7 @@ sklm: {
     "noActiveSession": "Aucune session active",
     "sessionTitleEmpty": "Le titre de la session ne peut pas être vide",
     "projectNameLength": "Le nom du projet doit contenir entre 1 et 80 caractères",
+    planConfigurationBlocked: en.errors.planConfigurationBlocked,
     "planApprovalUnavailable": "L'approbation du plan n'est plus disponible",
     "action": {
       "openSettings": "Ouvrir les paramètres",

@@ -2958,6 +2958,7 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
     noActiveSession: "활성 세션이 없습니다",
     sessionTitleEmpty: "세션 제목은 비워 둘 수 없습니다",
     projectNameLength: "프로젝트 이름은 1~80자여야 합니다",
+    planConfigurationBlocked: en.errors.planConfigurationBlocked,
     planApprovalUnavailable: "계획 승인을 더 이상 사용할 수 없습니다",
     action: {
       openSettings: "설정 열기",

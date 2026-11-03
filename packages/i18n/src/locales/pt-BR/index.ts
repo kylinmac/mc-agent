@@ -2886,6 +2886,7 @@ export const ptBR = {
     noActiveSession: "Nenhuma sessão ativa",
     sessionTitleEmpty: "O título da sessão não pode estar vazio",
     projectNameLength: "O nome do projeto deve ter entre 1 e 80 caracteres",
+    planConfigurationBlocked: en.errors.planConfigurationBlocked,
     planApprovalUnavailable: "A aprovação do plano não está mais disponível",
     action: {
       openSettings: "Abrir configurações",

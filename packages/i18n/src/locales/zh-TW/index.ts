@@ -2942,6 +2942,7 @@ sklm: {
     noActiveSession: "沒有使用中的工作階段",
     sessionTitleEmpty: "工作階段標題不能為空",
     projectNameLength: "專案名稱長度須為 1 到 80 個字元",
+    planConfigurationBlocked: "目前有計畫待審批或工作正在執行，暫時無法切換設定。請在計畫審批欄批准；批准後會自動切到智慧體並執行。",
     planApprovalUnavailable: "該計畫核准已失效",
     action: {
       openSettings: "開啟設定",
