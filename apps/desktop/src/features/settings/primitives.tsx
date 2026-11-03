@@ -7,8 +7,12 @@ import type {
 } from "@pi-desktop/shared";
 import {
   MAX_LARGE_PASTE_THRESHOLD,
+  MAX_WORK_PANEL_STACK_CHAT_WIDTH,
   MIN_LARGE_PASTE_THRESHOLD,
+  MIN_WORK_PANEL_STACK_CHAT_WIDTH,
   normalizeLargePasteThreshold,
+  resolveWorkPanelPlacement,
+  resolveWorkPanelStackChatWidth,
 } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { resolveContextUsageDisplay } from "../../lib/context-usage";
@@ -342,5 +346,78 @@ export function LargePasteThresholdRow({
         />
       </div>
     </SettingsRow>
+  );
+}
+
+/**
+ * mc-agent (R11.14): where the work panel sits in a single-column window,
+ * and with `auto` the conversation width below which it moves under it.
+ */
+export function WorkPanelPlacementRows({
+  settings,
+  saveSettings,
+}: {
+  settings: AppSettings;
+  saveSettings: (patch: Partial<AppSettings>) => Promise<void>;
+}) {
+  const { t } = useTranslation();
+  const placement = resolveWorkPanelPlacement(settings.workPanelPlacement);
+  const currentWidth = resolveWorkPanelStackChatWidth(settings.workPanelStackChatWidth);
+  const [draft, setDraft] = useState(String(currentWidth));
+
+  useEffect(() => {
+    setDraft(String(currentWidth));
+  }, [currentWidth]);
+
+  const commit = () => {
+    const parsed = Number(draft.trim());
+    const next = Number.isFinite(parsed) && draft.trim() ? resolveWorkPanelStackChatWidth(parsed) : currentWidth;
+    setDraft(String(next));
+    if (next !== currentWidth) void saveSettings({ workPanelStackChatWidth: next });
+  };
+
+  return (
+    <>
+      <SettingsRow
+        title={t("settings.workPanelPlacement")}
+        description={t("settings.workPanelPlacementDesc")}
+      >
+        <SegmentedControl
+          value={placement}
+          onChange={(value) => void saveSettings({ workPanelPlacement: value })}
+          options={[
+            { value: "auto", label: t("settings.workPanelPlacementAuto") },
+            { value: "side", label: t("settings.workPanelPlacementSide") },
+            { value: "bottom", label: t("settings.workPanelPlacementBottom") },
+          ]}
+          label={t("settings.workPanelPlacement")}
+        />
+      </SettingsRow>
+      <SettingsRow
+        title={t("settings.workPanelStackChatWidth")}
+        description={t("settings.workPanelStackChatWidthDesc")}
+      >
+        <div className="settings-number-control">
+          <Input
+            type="number"
+            min={MIN_WORK_PANEL_STACK_CHAT_WIDTH}
+            max={MAX_WORK_PANEL_STACK_CHAT_WIDTH}
+            step={10}
+            inputMode="numeric"
+            value={draft}
+            disabled={placement !== "auto"}
+            aria-label={t("settings.workPanelStackChatWidth")}
+            onChange={(event) => setDraft(event.target.value)}
+            onBlur={commit}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                event.currentTarget.blur();
+              }
+            }}
+          />
+        </div>
+      </SettingsRow>
+    </>
   );
 }

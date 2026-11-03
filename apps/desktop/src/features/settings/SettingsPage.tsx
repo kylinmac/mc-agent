@@ -63,6 +63,7 @@ import {
   LinkOpenTargetRow,
   SettingsCard,
   SettingsRow,
+  WorkPanelPlacementRows,
 } from "./primitives";
 import { AgentInstructionsSection, UpdatesRow } from "./agent-sections";
 import { CloseBehaviorSection, DeveloperSection } from "./developer-sections";
@@ -495,6 +496,10 @@ export function SettingsPage() {
                     })}
                   />
                 </SettingsRow>
+              </SettingsCard>
+
+              <SettingsCard title={t("settings.workPanel")}>
+                <WorkPanelPlacementRows settings={settings} saveSettings={saveSettings} />
               </SettingsCard>
 
               <NetworkProxySection settings={settings} saveSettings={saveSettings} />

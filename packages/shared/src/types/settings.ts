@@ -223,6 +223,13 @@ export type AppSettings = {
    */
   promptSuggestions?: boolean;
   /**
+   * mc-agent (R11.14): work-panel placement in a single-column window. Absent
+   * means `auto`. `workPanelStackChatWidth` is the conversation width (px)
+   * below which `auto` docks the panel under it; absent means 450.
+   */
+  workPanelPlacement?: "auto" | "side" | "bottom";
+  workPanelStackChatWidth?: number;
+  /**
    * Sidebar project "running" affordances. The master switch gates both
    * sub-switches; absent means enabled — the renderer normalizes
    * `!== false` to on, so a fresh install shows the running badge and rail

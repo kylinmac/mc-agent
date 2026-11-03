@@ -46,6 +46,19 @@ test("an unmeasured shell keeps the current layout", () => {
   assert.equal(shouldStackWorkPanel({ ...base, containerWidth: 0 }), false);
 });
 
+test("side and bottom placements pin the panel regardless of the window", () => {
+  assert.equal(shouldStackWorkPanel({ ...base, containerWidth: 500, containerHeight: 1600, placement: "side" }), false);
+  assert.equal(shouldStackWorkPanel({ ...base, containerWidth: 2400, placement: "bottom" }), true);
+});
+
+test("a wider conversation threshold moves the panel down sooner", () => {
+  const collapsed = { ...base, sidebarCollapsed: true };
+  assert.equal(shouldStackWorkPanel({ ...collapsed, containerWidth: 843, chatMinWidth: 600 }), true);
+  assert.equal(shouldStackWorkPanel({ ...collapsed, containerWidth: 844, chatMinWidth: 600 }), false);
+  // A threshold below MainChat's own floor cannot make room the panel does not have.
+  assert.equal(shouldStackWorkPanel({ ...collapsed, containerWidth: 693, chatMinWidth: 300 }), true);
+});
+
 test("the dock share stays within its bounds", () => {
   assert.equal(clampWorkPanelDockShare(0.05), 0.2);
   assert.equal(clampWorkPanelDockShare(0.95), 0.8);
@@ -57,6 +70,25 @@ test("the shell docks the panel under the conversation instead of at the right e
   assert.match(shell, /stackedWorkPanel && workPanelOpen && activeSessionId \? <StackedWorkPanelDock \/>/);
   assert.match(shell, /!split && !stackedWorkPanel && \(presentedWorkPanelOpen \|\| workPanelExiting\)/);
   assert.match(shell, /!remoteActive && !workPanelMaximized/);
+  assert.match(shell, /placement,\s*chatMinWidth: stackChatWidth/);
   const split = readFileSync(new URL("../src/features/split-view/SplitColumns.tsx", import.meta.url), "utf8");
   assert.match(split, /readWorkPanelDockShare/, "split and stacked layouts share one saved height");
+});
+
+test("the settings normalize unknown placements and out-of-range widths", async () => {
+  const shared = await import("../../../packages/shared/src/work-panel-placement.ts");
+  assert.equal(shared.resolveWorkPanelPlacement(undefined), "auto");
+  assert.equal(shared.resolveWorkPanelPlacement("top"), "auto");
+  assert.equal(shared.resolveWorkPanelPlacement("bottom"), "bottom");
+  assert.equal(shared.resolveWorkPanelStackChatWidth(undefined), 450);
+  assert.equal(shared.resolveWorkPanelStackChatWidth(100), 450);
+  assert.equal(shared.resolveWorkPanelStackChatWidth(5000), 1200);
+  assert.equal(shared.resolveWorkPanelStackChatWidth(612.4), 612);
+});
+
+test("the general settings page exposes the placement and threshold", () => {
+  const page = readFileSync(new URL("../src/features/settings/SettingsPage.tsx", import.meta.url), "utf8");
+  assert.match(page, /<WorkPanelPlacementRows settings=\{settings\} saveSettings=\{saveSettings\} \/>/);
+  const rows = readFileSync(new URL("../src/features/settings/primitives.tsx", import.meta.url), "utf8");
+  assert.match(rows, /disabled=\{placement !== "auto"\}/);
 });

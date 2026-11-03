@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.47",
+    date: "2026-11-03",
+    features: [
+      "Settings → General → Work panel chooses whether the work panel is always on the right, always at the bottom, or automatic, and how narrow the conversation gets before Auto moves it down.",
+    ],
+  },
+  {
     version: "1.0.46",
     date: "2026-11-03",
     features: [
