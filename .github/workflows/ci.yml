@@ -98,9 +98,13 @@ jobs:
         run: node --test --test-shard=${{ matrix.shard }}/3 test/*.test.mjs
 
   rust:
-    name: Rust host-core format / lint / test
+    name: Rust host-core (${{ matrix.suite }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [core, config-sync, rpc]
     steps:
       - uses: actions/checkout@v7
 
@@ -109,13 +113,24 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Check formatting
+        if: matrix.suite == 'core'
         run: cargo fmt --all -- --check
 
       - name: Clippy
+        if: matrix.suite == 'core'
         run: cargo clippy --workspace --all-targets --all-features
 
+      # The three filters partition every test; no slow suite is omitted.
       - name: Test
-        run: cargo test -p host-core --locked
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: |
+          case "$SUITE" in
+            core) cargo test -p host-core --locked -- --skip config_sync:: --skip rpc:: ;;
+            config-sync) cargo test -p host-core --locked config_sync:: ;;
+            rpc) cargo test -p host-core --locked rpc:: -- --skip config_sync:: ;;
+            *) exit 1 ;;
+          esac
 
   rust-windows:
     name: Rust host-core Windows / transcript cache E2E

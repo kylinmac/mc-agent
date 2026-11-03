@@ -9,6 +9,17 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.48",
+    date: "2026-11-03",
+    improvements: [
+      "AI resource organization discusses goals, scope and categories in the interface language, then waits for approval of the file list before making changes.",
+      "Organization excludes bulk upstream manuals by default and leaves empty categories empty. Existing documents awaiting confirmation are labeled Unconfirmed.",
+    ],
+    fixes: [
+      "A file found both in the resource folder and an index appears once, preserving its existing confirmation state.",
+    ],
+  },
+  {
     version: "1.0.47",
     date: "2026-11-03",
     features: [
