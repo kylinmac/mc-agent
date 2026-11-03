@@ -189,6 +189,26 @@ pub fn list(db: &Database, group: &ProjectGroupRecord) -> Result<ResourceListing
             items.push(item);
         }
     }
+    let mut paths: BTreeMap<PathBuf, usize> = BTreeMap::new();
+    let mut unique: Vec<ResourceItem> = Vec::new();
+    for item in items {
+        // Keep explicit confirmation/deprecation state without rewriting old keys.
+        if let Some(path) = item
+            .path
+            .as_deref()
+            .and_then(|path| fs::canonicalize(path).ok())
+        {
+            if let Some(&index) = paths.get(&path) {
+                if states.contains_key(&item.key) && !states.contains_key(&unique[index].key) {
+                    unique[index] = item;
+                }
+                continue;
+            }
+            paths.insert(path, unique.len());
+        }
+        unique.push(item);
+    }
+    let items = unique;
     let mut summary = ResourceSummary {
         total: items.len(),
         ..ResourceSummary::default()
@@ -586,6 +606,79 @@ mod tests {
             .find(|item| item.key == key)
             .unwrap()
             .status
+    }
+
+    #[test]
+    fn indexed_local_file_is_listed_once_and_keeps_explicit_state() {
+        let f = fixture();
+        let key = resource_index::add(
+            &f.resources,
+            "reference",
+            "API title",
+            &IndexTarget::Path(f.resources.join("reference/api.md")),
+        )
+        .unwrap();
+        set_status(&f.db, &f.group, &key, ResourceStatus::Confirmed).unwrap();
+        let listing = list(&f.db, &f.group).unwrap();
+        let rows: Vec<_> = listing
+            .items
+            .iter()
+            .filter(|item| {
+                item.path.as_deref() == Some(f.resources.join("reference/api.md").to_str().unwrap())
+            })
+            .collect();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].key, key);
+        assert_eq!(rows[0].status, ResourceStatus::Confirmed);
+        assert_eq!(listing.summary.total, 3);
+        fs::write(f.resources.join("reference/api.md"), "changed").unwrap();
+        assert_eq!(
+            status_of(&list(&f.db, &f.group).unwrap(), &key),
+            ResourceStatus::Changed
+        );
+        unregister(&f.db, &f.group, &key).unwrap();
+        let listing = list(&f.db, &f.group).unwrap();
+        assert_eq!(listing.summary.total, 3);
+        assert!(listing
+            .items
+            .iter()
+            .any(|item| item.key == "folder:reference/api.md"));
+    }
+
+    #[test]
+    fn local_state_wins_a_tie_and_workspace_links_are_deduplicated() {
+        let f = fixture();
+        let local = "folder:reference/api.md";
+        let index = resource_index::add(
+            &f.resources,
+            "reference",
+            "API",
+            &IndexTarget::Path(f.resources.join("reference/api.md")),
+        )
+        .unwrap();
+        set_status(&f.db, &f.group, local, ResourceStatus::Confirmed).unwrap();
+        set_status(&f.db, &f.group, &index, ResourceStatus::Deprecated).unwrap();
+        for category in ["reference", "requirements"] {
+            resource_index::add(
+                &f.resources,
+                category,
+                "README",
+                &IndexTarget::Path(f.web.join("README.md")),
+            )
+            .unwrap();
+        }
+        let listing = list(&f.db, &f.group).unwrap();
+        assert_eq!(listing.summary.total, 4);
+        assert_eq!(status_of(&listing, local), ResourceStatus::Confirmed);
+        assert!(!listing.items.iter().any(|item| item.key == index));
+        assert_eq!(
+            listing
+                .items
+                .iter()
+                .filter(|item| item.title == "README")
+                .count(),
+            1
+        );
     }
 
     #[test]

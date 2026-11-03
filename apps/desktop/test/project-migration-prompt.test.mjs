@@ -1,40 +1,36 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { migrationPrompt } from "../src/features/project-workbench/migration-prompt.ts";
 
-test("the instruction names the folders, categories and the copy-only rule for workspaces", () => {
-  const prompt = migrationPrompt({
-    resourceFolder: "/docs/mc-agent/projects/App",
-    categories: ["requirements", "reference"],
-    templateName: "software",
-    workspaces: [
-      { path: "/code/web", description: "前端" },
-      { path: "/code/server" },
-      { path: "/materials/brand", description: "品牌素材", kind: "reference" },
-    ],
-  });
-  assert.match(prompt, /Resource folder: \/docs\/mc-agent\/projects\/App/);
-  assert.match(prompt, /- requirements\/\n- reference\//);
-  assert.match(prompt, /Development workspaces[^\n]*\n- \/code\/web — 前端\n- \/code\/server\n/);
-  assert.match(prompt, /Reference folders[^\n]*\n- \/materials\/brand — 品牌素材\n/);
-  assert.match(prompt, /DRAFT one: write a new Markdown file into that category folder/);
-  assert.match(prompt, /index the documents of a reference folder; do not organize it as code/);
-  assert.match(prompt, /Never modify, move or delete anything inside a workspace/);
-  assert.match(prompt, /Do not copy documents out of a workspace\. INDEX a workspace document/);
-  assert.match(prompt, /INDEX, MOVE or DRAFT/);
-  assert.match(prompt, /Work directly; do not wait for a plan approval/);
-  assert.doesNotMatch(prompt, /before the plan is approved/);
-  assert.match(prompt, /This list is complete; do not look for the template elsewhere/);
-  assert.match(prompt, /do not browse their parent folders or any other path/);
+const input = {
+  resourceFolder: "/resources/App",
+  categories: ["requirements", "reference"],
+  templateName: "software",
+  workspaces: [
+    { path: "/code/web", description: "前端" },
+    { path: "/materials/brand", kind: "reference", description: "品牌素材" },
+  ],
+};
+
+test("English planning prompt scopes inspection and requires explicit approval", () => {
+  const prompt = migrationPrompt({ ...input, language: "en-US" });
+  for (const text of ["/resources/App", "- requirements/", "- reference/", "/code/web — 前端", "/materials/brand — 品牌素材", "SubmitPlan", "explicit approval", "upstream manuals", "Leave empty categories empty", "Never modify, move or delete", "Do not browse parent", "INDEX.md", "Do not register files already inside"]) assert.ok(prompt.includes(text), text);
+  assert.doesNotMatch(prompt, /Work directly|DRAFT one/);
 });
 
-test("a template without categories keeps files at the root", () => {
-  const prompt = migrationPrompt({
-    resourceFolder: "/r",
-    categories: [],
-    templateName: "blank",
-    workspaces: [],
-  });
-  assert.match(prompt, /no categories; keep files at the folder root/);
-  assert.match(prompt, /Development workspaces[^\n]*\n- \(none\)/);
+test("Chinese UI language produces Chinese guidance and an empty-category fallback", () => {
+  for (const language of ["zh-CN", "zh-TW"]) {
+    const prompt = migrationPrompt({ ...input, language, categories: [], workspaces: [] });
+    for (const text of ["请用中文", "只读", "明确批准", "项目目标", "预计数量", "上游", "留空", "SubmitPlan", "（无）", "根目录"]) assert.ok(prompt.includes(text), text);
+    assert.doesNotMatch(prompt, /Organize this project/);
+  }
+  assert.match(migrationPrompt({ ...input, language: "fr" }), /English/);
+});
+
+test("organizing starts in Plan mode using the UI language", () => {
+  const source = readFileSync(new URL("../src/features/project-workbench/TemplateMigration.tsx", import.meta.url), "utf8");
+  assert.match(source, /language: i18n.resolvedLanguage/);
+  assert.match(source, /mode: "plan"/);
+  assert.ok(source.indexOf("configureActiveSession") < source.indexOf("sendPrompt(prompt)"));
 });

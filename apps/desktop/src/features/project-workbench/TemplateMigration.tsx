@@ -6,12 +6,7 @@ import { useAppStore } from "../../stores/app-store";
 import { Button } from "../../components/ui";
 import { migrationPrompt } from "./migration-prompt";
 
-/*
-  R5 template migration: start an Agent-mode session in the resource folder
-  with the chosen template's categories and the chosen model. It organizes
-  directly in the conversation, where the user follows or stops it; tool
-  approvals follow the user's permission mode. No separate executor exists.
-*/
+/* R5: discuss in Plan mode, then reuse plan approval and Agent execution. */
 export function TemplateMigration({
   groupId,
   resourceFolder,
@@ -25,7 +20,7 @@ export function TemplateMigration({
   workspaces: ReadonlyArray<{ path: string; description?: string; kind?: "workspace" | "reference" }>;
   onError: (message: string) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const providers = useAppStore((state) => state.providers);
   const [templates, setTemplates] = useState<ResourceTemplateSummary[]>([]);
   const [template, setTemplate] = useState("");
@@ -102,6 +97,7 @@ export function TemplateMigration({
     if (!model || busy) return;
     const chosen = templates.find((candidate) => candidate.name === template);
     const prompt = migrationPrompt({
+      language: i18n.resolvedLanguage ?? i18n.language,
       resourceFolder,
       categories: chosen ? chosen.categories : currentCategories,
       templateName: chosen ? chosen.name : t("mcProject.migrationCurrentStructure"),
@@ -112,7 +108,7 @@ export function TemplateMigration({
       const store = useAppStore.getState();
       await store.newSession({ projectPath: resourceFolder });
       await store.configureActiveSession({
-        mode: "agent",
+        mode: "plan",
         providerId: model.providerId,
         modelId: model.modelId,
         thinkingLevel: "medium",
