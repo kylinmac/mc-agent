@@ -496,3 +496,16 @@ test("CI shards the desktop unit tests and keeps slow setup off the critical pat
   assert.doesNotMatch(ciWorkflowSource, /^\s+sudo apt-get update\n\s+sudo apt-get install/m);
   assert.match(ciWorkflowSource, /name: Wait for virtual display install/);
 });
+
+
+test("Rust CI partitions the full suite without dropping configuration or RPC tests", () => {
+  const rust = ciWorkflowSource.match(/^  rust:\n[\s\S]*?(?=^  rust-windows:)/m)?.[0];
+  assert.ok(rust);
+  assert.match(rust, /suite: \[core, config-sync, rpc\]/);
+  assert.match(rust, /fail-fast: false/);
+  assert.match(rust, /core\) cargo test -p host-core --locked -- --skip config_sync:: --skip rpc:: ;;/);
+  assert.match(rust, /config-sync\) cargo test -p host-core --locked config_sync:: ;;/);
+  assert.match(rust, /rpc\) cargo test -p host-core --locked rpc:: -- --skip config_sync:: ;;/);
+  assert.match(rust, /\*\) exit 1 ;;/);
+  assert.equal((rust.match(/if: matrix.suite == 'core'/g) ?? []).length, 2);
+});

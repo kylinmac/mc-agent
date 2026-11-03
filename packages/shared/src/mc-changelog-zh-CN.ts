@@ -13,6 +13,17 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.48",
+    date: "2026-11-03",
+    improvements: [
+      "AI 整理资料会先按界面语言讨论项目目标、资料范围和分类，确认文件清单后再执行。",
+      "整理时默认不批量收录上游手册，空分类不再自动补写文档；已有资料的未确认状态显示为“待确认”。",
+    ],
+    fixes: [
+      "同一文件同时位于资料目录和索引中时，不再重复展示，并保留已有确认状态。",
+    ],
+  },
+  {
     version: "1.0.47",
     date: "2026-11-03",
     features: [
