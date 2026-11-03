@@ -1,3 +1,4 @@
+import { taskThinkingOverride } from "./mc-task-thinking.js";
 /**
  * Subagents: bounded delegate agent loops spawned by the `Task` tool (ADR 0062).
  *
@@ -151,6 +152,8 @@ export type SubagentRunOptions = {
   /** Inherited session policy for retrying transient provider failures. */
   infiniteProviderRetry?: boolean;
   thinkingLevel: SubagentThinkingLevel;
+  /** Explicit Task selection; fallback must preserve it exactly. */
+  requestedThinkingLevel?: SubagentThinkingLevel;
   /** User-owned definition pins only, in configured order. Missing bindings fail visibly. */
   fallbackModels?: Array<{ key: string; provider?: RuntimeProviderConfig }>;
   /** Original parent thinking selection, before primary-model clamping. */
@@ -553,7 +556,14 @@ export class SubagentRun {
       if (this.attemptedModels.has(identity)) continue;
       this.attemptedModels.add(identity);
       const requested = this.opts.definition.thinkingLevel ?? this.opts.inheritedThinkingLevel ?? this.opts.thinkingLevel;
-      const thinking = requested === "omit" ? "omit" : clampThinkingLevel(next.provider, requested);
+      let explicit: SubagentThinkingLevel | undefined;
+      try {
+        explicit = taskThinkingOverride(this.opts.requestedThinkingLevel, next.provider);
+      } catch (error) {
+        this.recordModelFailure(identity, { code: "SUBAGENT_THINKING_UNSUPPORTED", message: error instanceof Error ? error.message : String(error) });
+        continue;
+      }
+      const thinking = explicit ?? (requested === "omit" ? "omit" : clampThinkingLevel(next.provider, requested));
       const binding = this.bindingFor(next.provider, thinking);
       // An alternative whose window cannot hold the carried context would fail
       // identically to the model it replaces; skip it with the reason recorded

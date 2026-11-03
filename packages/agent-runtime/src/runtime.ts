@@ -1,3 +1,4 @@
+import { taskThinkingParameter, taskThinkingOverride } from "./mc-task-thinking.js";
 import { buildProjectHistoryTool, PROJECT_HISTORY_TOOL_NAME } from "./mc-project-history-tool.js";
 import { contextIdKey, contextRequestShape, verifiedContextRestore } from "./mc-context-integrity.js";
 import { compactionBoundaryId, restorableCompaction } from "./mc-compaction-boundary.js";
@@ -4995,6 +4996,7 @@ export class DesktopAgentRuntime {
               "Override the delegate's model for this run, e.g. 'anthropic/claude-sonnet-4-20250514'. Omit to use the subagent's default. Repeating the definition's own Default model key is the same as omitting this parameter. Only choose a different override from the available delegation model catalog. Forbidden when `resume` is set.",
           }),
         ),
+        thinkingLevel: taskThinkingParameter,
         resume: Type.Optional(
           Type.String({
             description:
@@ -5149,6 +5151,12 @@ export class DesktopAgentRuntime {
           );
         }
         if (resumedProvider) provider = resumedProvider;
+        let requestedThinkingLevel: SubagentThinkingLevel | undefined;
+        try {
+          requestedThinkingLevel = taskThinkingOverride(isRecord(params) ? params.thinkingLevel : undefined, provider);
+        } catch (error) {
+          return this.subagentToolError(toolCallId, error instanceof Error ? error.message : String(error));
+        }
         const modelChangedFrom =
           resumedChain?.latestModelId && !resumedProvider
             ? resumedChain.latestModelId
@@ -5197,13 +5205,13 @@ export class DesktopAgentRuntime {
           }
         }
         const controller = new AbortController();
-        const thinkingLevel: SubagentThinkingLevel =
+        const thinkingLevel: SubagentThinkingLevel = requestedThinkingLevel ?? (
           definition.thinkingLevel === "omit"
             ? "omit"
             : clampThinkingLevel(
                 provider,
                 definition.thinkingLevel ?? this.thinkingLevel,
-              );
+              ));
         // Only TaskStop, user Stop, dispose, and a parent fatal error abort a
         // delegate (D328 / D352). The Task tool call returns immediately; tying
         // the background run to that call's signal would kill it when the parent
@@ -5271,6 +5279,7 @@ export class DesktopAgentRuntime {
               key: subagentModelKey(pin),
               provider: this.subagentProviders[subagentModelKey(pin)],
             })),
+            requestedThinkingLevel,
             inheritedThinkingLevel: this.thinkingLevel,
             onModelChange: (next, level) => {
               record.modelId = next.modelId;

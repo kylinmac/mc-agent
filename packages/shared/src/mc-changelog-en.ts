@@ -9,6 +9,16 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.51",
+    date: "2026-11-03",
+    features: [
+      "Task accepts a thinkingLevel for each subagent run, including fork and resume. Unsupported levels are reported instead of silently raised.",
+    ],
+    fixes: [
+      "Find and replace fields and buttons in the file panel use black text on white backgrounds, including newer installed plugin versions.",
+    ],
+  },
+  {
     version: "1.0.50",
     date: "2026-11-03",
     features: [

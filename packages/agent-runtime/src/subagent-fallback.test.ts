@@ -228,6 +228,21 @@ describe("subagent model fallback over real transport", () => {
     expect(f.requests.map((request) => request.model)).toEqual(["primary"]);
   });
 
+  it("keeps an explicit low request across fallback and skips high-only models", async () => {
+    const f = await fixture();
+    const model = (id: string, levels: ["low"] | ["high"]): RuntimeProviderConfig => ({
+      ...f.provider(id), supportsReasoning: true, supportedThinkingLevels: levels,
+      modelConfig: { ...genericModelConfig(id, f.provider(id).baseUrl!), reasoning: true, supportedThinkingLevels: levels },
+    });
+    const result = await f.run({ provider: model("primary", ["low"]), thinkingLevel: "low", requestedThinkingLevel: "low",
+      definition: { name: "worker", description: "Fixture", tools: [], prompt: "Finish.", source: "user", thinkingLevel: "high" },
+      fallbackModels: [{ key: "high/high", provider: model("high", ["high"]) }, { key: "low/secondary", provider: model("secondary", ["low"]) }],
+    });
+    expect(f.requests.map(request => [request.model, request.reasoning_effort])).toEqual([["primary", "low"], ["secondary", "low"]]);
+    expect(result.thinkingLevel).toBe("low");
+    expect(result.modelFailures).toEqual(expect.arrayContaining([expect.objectContaining({ code: "SUBAGENT_THINKING_UNSUPPORTED" })]));
+  });
+
   it("re-clamps inherited thinking from the original selection for each model", async () => {
     const f = await fixture();
     const next: RuntimeProviderConfig = { ...f.provider("secondary"), supportsReasoning: true, supportedThinkingLevels: ["off", "high"],
