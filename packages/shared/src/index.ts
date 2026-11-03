@@ -61,6 +61,7 @@ export * from "./gen-ui.js";
 export * from "./image-generation.js";
 export * from "./font-size.js";
 export * from "./chat-content-width.js";
+export * from "./work-panel-placement.js";
 export * from "./project-folder-guide.js";
 export * from "./racp.js";
 export * from "./trusted-extensions.js";

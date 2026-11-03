@@ -261,9 +261,10 @@ export function committedWorkPanelChatWidth(
 export const WORK_PANEL_STACK_HYSTERESIS = 40;
 
 /**
- * mc-agent: a portrait window, or one that cannot fit MainChat's floor plus
- * the panel's regular minimum beside the sidebar, docks the work panel under
- * the conversation instead of at the right edge.
+ * mc-agent (R11.14): with `auto` placement, a portrait window, or one whose
+ * conversation would be narrower than `chatMinWidth` with the panel at its
+ * regular minimum beside the sidebar, docks the work panel under the
+ * conversation instead of at the right edge. `side` and `bottom` pin it.
  */
 export function shouldStackWorkPanel({
   containerWidth,
@@ -271,19 +272,25 @@ export function shouldStackWorkPanel({
   sidebarWidth,
   sidebarCollapsed,
   stacked,
+  placement = "auto",
+  chatMinWidth = MAIN_PANE_MIN_WIDTH,
 }: {
   containerWidth: number;
   containerHeight: number;
   sidebarWidth: number;
   sidebarCollapsed: boolean;
   stacked: boolean;
+  placement?: "auto" | "side" | "bottom";
+  chatMinWidth?: number;
 }): boolean {
+  if (placement === "side") return false;
+  if (placement === "bottom") return true;
   const width = Math.round(containerWidth);
   // Not measured yet: keep whatever is showing.
   if (width <= 0) return stacked;
   if (containerHeight > width) return true;
   const leftWidth = sidebarCollapsed ? 0 : Math.max(0, Math.round(sidebarWidth));
-  const room = width - leftWidth - MAIN_PANE_MIN_WIDTH;
+  const room = width - leftWidth - Math.max(MAIN_PANE_MIN_WIDTH, chatMinWidth);
   return room < WORK_PANEL_MIN_WIDTH + (stacked ? WORK_PANEL_STACK_HYSTERESIS : 0);
 }
 

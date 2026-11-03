@@ -34,6 +34,7 @@ import { WindowControls } from "../../components/WindowControls";
 import { useCopyTex } from "../../hooks/use-copy-tex";
 import { api } from "../../lib/api";
 import { PortalVisibilityProvider } from "../../lib/portal-visibility";
+import { resolveWorkPanelPlacement, resolveWorkPanelStackChatWidth } from "@pi-desktop/shared";
 import { isRemoteSession } from "../../lib/remote-session-safety";
 import { shouldStackWorkPanel, workPanelLayout } from "../../lib/work-panel-resize";
 import { useAppStore } from "../../stores/app-store";
@@ -124,10 +125,13 @@ export function AppShell() {
   // focused column, so the right-hand panel is not shown.
   useSplitSync();
   const split = useSplitView((state) => state.columns.length > 1);
-  // mc-agent: a narrow or portrait window docks the work panel under the
+  // mc-agent (R11.14): the placement setting, or with `auto` a narrow or
+  // portrait window, docks the work panel under the
   // conversation. Remote sessions have no bottom form and a maximized panel
   // already owns the window, so both keep the side layout.
   const windowHeight = useWindowHeight();
+  const placement = useAppStore((state) => resolveWorkPanelPlacement(state.settings?.workPanelPlacement));
+  const stackChatWidth = useAppStore((state) => resolveWorkPanelStackChatWidth(state.settings?.workPanelStackChatWidth));
   const [narrowWindow, setNarrowWindow] = useState(false);
   useLayoutEffect(() => {
     setNarrowWindow((stacked) =>
@@ -137,9 +141,11 @@ export function AppShell() {
         sidebarWidth,
         sidebarCollapsed,
         stacked,
+        placement,
+        chatMinWidth: stackChatWidth,
       }),
     );
-  }, [shellWidth, windowHeight, sidebarWidth, sidebarCollapsed]);
+  }, [shellWidth, windowHeight, sidebarWidth, sidebarCollapsed, placement, stackChatWidth]);
   const remoteActive = useAppStore((state) => {
     const session = state.sessions.find((item) => item.id === state.activeSessionId);
     return (session ? isRemoteSession(session) : false) || state.activeSessionId?.startsWith("remote:") === true;

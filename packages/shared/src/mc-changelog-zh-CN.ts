@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.47",
+    date: "2026-11-03",
+    features: [
+      "设置“通用 → 工作面板”可选工作面板始终在右侧、始终在下方或自动；自动时可调对话区小于多宽就移到下方。",
+    ],
+  },
+  {
     version: "1.0.46",
     date: "2026-11-03",
     features: [
