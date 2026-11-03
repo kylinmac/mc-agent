@@ -157,6 +157,11 @@ export class AppUpdaterController {
    * is about to see is the update restart.
    */
   private installRequested = false;
+  /**
+   * mc-agent: the restart was asked for while a newer release than the
+   * staged one was still downloading; install as soon as it is ready.
+   */
+  private installWhenDownloaded = false;
   private readonly autoUpdater: AppUpdater;
   private readonly cacheMaintenance: UpdateCacheMaintenance;
   /** mc-agent: downloads and swaps the bundle where Squirrel.Mac cannot. */
@@ -317,7 +322,9 @@ export class AppUpdaterController {
         if (this.state.status === "downloading") this.setState({ progressPercent: percent });
       });
       this.setState({ status: "downloaded", progressPercent: 100 });
+      this.installIfRequested();
     } catch (error) {
+      this.installWhenDownloaded = false;
       this.logger.app("updater", "warn", "self update download failed", { data: String(error) });
       this.setState({
         status: "error",
@@ -624,6 +631,7 @@ export class AppUpdaterController {
           ? false
           : this.manualReminderFor(info.version),
       });
+      if (automatic) this.installIfRequested();
     });
     this.autoUpdater.on("update-cancelled", (info: UpdateInfo) => {
       if (this.activeDownloadCancellation?.version === info.version) {
@@ -638,6 +646,8 @@ export class AppUpdaterController {
     });
     this.autoUpdater.on("error", (error: Error) => {
       const installing = this.installRequested;
+      // The newer download failed: nothing installs behind the user's back.
+      if (this.state.status === "downloading") this.installWhenDownloaded = false;
       if (this.installRequested) {
         this.installRequested = false;
         this.autoUpdater.autoInstallOnAppQuit = false;
@@ -745,6 +755,37 @@ export class AppUpdaterController {
    */
   isInstallingUpdate(): boolean {
     return this.installRequested;
+  }
+
+  /**
+   * mc-agent: the restart button. A release published after the staged one
+   * was downloaded is only found by the next hourly check, so the restart
+   * would install that older one. Re-read the feed first; when a newer
+   * release turns up, download it and install that instead. A failed or
+   * timed-out check installs what is staged.
+   */
+  async installLatest(): Promise<void> {
+    if (this.state.status === "downloaded" && !this.installWhenDownloaded) {
+      const staged = this.state.availableVersion;
+      await this.check().catch(() => undefined);
+      const state = this.getState();
+      if (state.status === "downloading" && state.availableVersion !== staged) {
+        this.installWhenDownloaded = true;
+        return;
+      }
+    }
+    if (this.installWhenDownloaded && this.state.status === "downloading") return;
+    this.install();
+  }
+
+  private installIfRequested(): void {
+    if (!this.installWhenDownloaded) return;
+    this.installWhenDownloaded = false;
+    try {
+      this.install();
+    } catch {
+      // install() already recorded the error state.
+    }
   }
 
   /** Quit and install a downloaded update (in-app mode). */
