@@ -131,7 +131,19 @@ pub fn read_history(
         return Ok(HistoryResponse::status(HistoryStatus::NoCompaction, None));
     }
     with_layout_recovery(data_dir, session_id, |layout| {
-        read_with_layout(&path, layout, request)
+        read_with_layout(&path, layout, request, true)
+    })
+}
+
+/// Same bounded reader, restricted to visible conversation text across all history.
+pub fn read_conversation(
+    data_dir: &Path,
+    session_id: &str,
+    request: &HistoryRequest,
+) -> Result<HistoryResponse> {
+    let path = transcript_path(data_dir, session_id)?;
+    with_layout_recovery(data_dir, session_id, |layout| {
+        read_with_layout(&path, layout, request, false)
     })
 }
 
@@ -139,30 +151,37 @@ fn read_with_layout(
     path: &Path,
     layout: &TranscriptLayout,
     request: &HistoryRequest,
+    compacted_only: bool,
 ) -> Result<HistoryResponse> {
     let file = match File::open(path) {
         Ok(file) => file,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+        Err(error) if compacted_only && error.kind() == std::io::ErrorKind::NotFound => {
             return Ok(HistoryResponse::status(HistoryStatus::NoCompaction, None));
         }
         Err(error) => return Err(error).with_context(|| format!("read {}", path.display())),
     };
     let mut reader = LineReader::new(BufReader::new(file));
-    let Some(checkpoint) = find_checkpoint(&mut reader, layout, request.checkpoint_id.as_deref())?
-    else {
-        return Ok(HistoryResponse::status(
-            HistoryStatus::NoCompaction,
-            request.checkpoint_id.clone(),
-        ));
+    let (checkpoint_id, bound) = if compacted_only {
+        let Some(checkpoint) =
+            find_checkpoint(&mut reader, layout, request.checkpoint_id.as_deref())?
+        else {
+            return Ok(HistoryResponse::status(
+                HistoryStatus::NoCompaction,
+                request.checkpoint_id.clone(),
+            ));
+        };
+        let checkpoint_id = Some(checkpoint.id.clone());
+        let Some(through) = reader.position_of(layout, &checkpoint.through_message_id, None)?
+        else {
+            return Ok(HistoryResponse::status(
+                HistoryStatus::CursorInvalid,
+                checkpoint_id,
+            ));
+        };
+        (checkpoint_id, through + 1)
+    } else {
+        (None, layout.message_count())
     };
-    let checkpoint_id = Some(checkpoint.id.clone());
-    let Some(through) = reader.position_of(layout, &checkpoint.through_message_id, None)? else {
-        return Ok(HistoryResponse::status(
-            HistoryStatus::CursorInvalid,
-            checkpoint_id,
-        ));
-    };
-    let bound = through + 1;
     let limit = request.limit.clamp(1, MAX_LIMIT);
     let message_chars = request.message_chars.clamp(200, MAX_MESSAGE_CHARS);
 
@@ -227,6 +246,9 @@ fn read_with_layout(
                 newest_scanned = Some(record.id.clone());
             }
             oldest_scanned = Some(record.id.clone());
+            if !compacted_only && !matches!(record.role.as_str(), "user" | "assistant") {
+                continue;
+            }
             let Some(message) = project(record, message_chars) else {
                 continue;
             };
@@ -492,6 +514,51 @@ mod tests {
             .iter()
             .map(|message| message.id.as_str())
             .collect()
+    }
+
+    #[test]
+    fn conversation_reads_without_compaction_and_excludes_tool_and_thinking_content() {
+        let dir = tempfile::tempdir().unwrap();
+        for (id, role, text) in [
+            ("m0", "user", "confirmed"),
+            ("m1", "assistant", "suggestion"),
+            ("m2", "tool", "private tool result"),
+        ] {
+            append_message(dir.path(), "s", CREATED, &message(id, role, text)).unwrap();
+        }
+
+        let mut internal = message("internal", "assistant", "delegate private");
+        internal.meta = Some(json!({"parentToolCallId":"task"}));
+        append_message(dir.path(), "s", CREATED, &internal).unwrap();
+        let response = read_conversation(dir.path(), "s", &request()).unwrap();
+        assert_eq!(ids(&response), ["m0", "m1"]);
+        assert!(response.reached_start);
+        assert!(!serde_json::to_string(&response)
+            .unwrap()
+            .contains("secret reasoning"));
+        seed(dir.path(), 20, 11);
+        let latest = read_conversation(dir.path(), "s", &request()).unwrap();
+        assert_eq!(ids(&latest), ["m15", "m16", "m17", "m18", "m19"]);
+        let previous = read_conversation(
+            dir.path(),
+            "s",
+            &HistoryRequest {
+                before: latest.next_before,
+                ..request()
+            },
+        )
+        .unwrap();
+        assert_eq!(ids(&previous), ["m10", "m11", "m12", "m13", "m14"]);
+        let search = read_conversation(
+            dir.path(),
+            "s",
+            &HistoryRequest {
+                query: Some("text 19".into()),
+                ..request()
+            },
+        )
+        .unwrap();
+        assert_eq!(ids(&search), ["m19"]);
     }
 
     #[test]

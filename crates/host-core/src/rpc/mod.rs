@@ -3,6 +3,7 @@ mod gen_ui;
 mod mc_canvas_rpc;
 mod mc_creative_rpc;
 mod mc_memory_rpc;
+mod mc_project_history_rpc;
 mod mc_session_history_rpc;
 mod plugin_reviews_rpc;
 mod project_tasks_rpc;
@@ -2891,6 +2892,7 @@ async fn handle_request(
             )?;
             Ok(json!({ "session": session }))
         }
+        "session.projectHistory" => mc_project_history_rpc::handle(&state, &params).await,
         "session.historyRead" => mc_session_history_rpc::handle(&state, &params).await,
         "session.get" => {
             let id = params

@@ -65,6 +65,7 @@ const HOST_PROXY_ALLOWED = new Set([
   // mc-agent (R21.1): bounded model-facing history behind a checkpoint;
   // admitted only for a session launched into this sidecar (see below).
   "session.historyRead",
+  "session.projectHistory",
   "session.appendMessage",
   "session.appendCompaction",
   "session.replaceMessages",
@@ -504,7 +505,7 @@ export class AgentSidecar {
           );
         }
         if (
-          method === "session.historyRead" &&
+          (method === "session.historyRead" || method === "session.projectHistory") &&
           !this.launchedSessions.has(String(params.sessionId ?? "").trim())
         ) {
           throw Object.assign(

@@ -139,6 +139,22 @@ export function createSessionCoordination({
         } catch (error) {
           failure = discardIfRemoved();
           if (failure) break;
+          if ((error as { code?: unknown })?.code === "PLAN_CONFIGURATION_BLOCKED") {
+            // A rejected mode must not keep masking the durable mode on refresh.
+            runtime.pendingSessionConfigurations.delete(sessionId);
+            set((state) => ({
+              sessionConfigurationStatus: withoutRecordKey(state.sessionConfigurationStatus ?? {}, sessionId),
+            }));
+            failure = new Error(i18n.t("errors.planConfigurationBlocked"));
+            try {
+              await get().refreshSessions();
+              await get().restorePendingPlan(sessionId);
+            } catch (restoreError) {
+              failure = restoreError instanceof Error ? restoreError : new Error(String(restoreError));
+            }
+            if (!throwOnFailure) get().showToast(failure.message, { variant: "error" });
+            break;
+          }
           if (!throwOnFailure) get().showToast(
             error instanceof Error ? error.message : String(error),
             { variant: "error" },

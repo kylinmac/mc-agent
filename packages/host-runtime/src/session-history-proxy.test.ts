@@ -28,9 +28,9 @@ function harness() {
     onExit: () => () => {},
   };
   sidecar.setHost(host);
-  const read = (sessionId: string) =>
+  const read = (sessionId: string, method = "session.historyRead") =>
     sidecar.call<{ status?: string; code?: number }>("probe", {
-      method: "session.historyRead",
+      method,
       params: { sessionId, limit: 5 },
     });
   return { sidecar, forwarded, read };
@@ -55,4 +55,16 @@ it("leaves other session reads unchanged", async () => {
   const { sidecar, forwarded } = harness();
   await sidecar.call("probe", { method: "session.get", params: { id: "any" } });
   expect(forwarded.map((call) => call.method)).toEqual(["session.get"]);
+});
+
+
+it("binds ProjectHistory to the caller before forwarding target ids", async () => {
+  const { sidecar, forwarded, read } = harness();
+  await expect(read("s1", "session.projectHistory")).rejects.toMatchObject({ data: { errorCode: "SESSION_NOT_BOUND" } });
+  await sidecar.call("agent.prompt", { sessionId: "s1", text: "hi" });
+  await expect(read("s1", "session.projectHistory")).resolves.toMatchObject({ status: "ok" });
+  await expect(read("s2", "session.projectHistory")).rejects.toMatchObject({ data: { errorCode: "SESSION_NOT_BOUND" } });
+  expect(forwarded.map(call => call.method)).toEqual(["session.projectHistory"]);
+  await sidecar.call("agent.disposeSession", { sessionId: "s1" });
+  await expect(read("s1", "session.projectHistory")).rejects.toMatchObject({ data: { errorCode: "SESSION_NOT_BOUND" } });
 });

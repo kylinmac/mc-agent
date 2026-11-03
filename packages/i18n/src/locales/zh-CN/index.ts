@@ -3014,6 +3014,7 @@ sklm: {
     noActiveSession: "没有活动会话",
     sessionTitleEmpty: "会话标题不能为空",
     projectNameLength: "项目名称长度须为 1 到 80 个字符",
+    planConfigurationBlocked: "当前有计划待审批或任务正在执行，暂时无法切换设置。请在计划审批栏批准；批准后会自动切到智能体并执行。",
     planApprovalUnavailable: "该计划审批已失效",
     action: {
       openSettings: "打开设置",

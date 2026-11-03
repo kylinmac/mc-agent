@@ -13,6 +13,17 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.50",
+    date: "2026-11-03",
+    features: [
+      "整理项目资料时，AI 可查找并读取同项目其他对话，结合已讨论的需求、设计和验证记录整理资料。",
+    ],
+    fixes: [
+      "待审批计划不再被临时运行状态清除；批准后自动切到智能体并继续执行，无需手动切模式。",
+      "模式切换被计划审批阻止时，恢复实际模式和审批入口，不再显示切换成功的假象。",
+    ],
+  },
+  {
     version: "1.0.49",
     date: "2026-11-03",
     fixes: [

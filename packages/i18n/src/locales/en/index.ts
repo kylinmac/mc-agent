@@ -3083,6 +3083,7 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     noActiveSession: "No active session",
     sessionTitleEmpty: "Session title must not be empty",
     projectNameLength: "Project name must be between 1 and 80 characters",
+    planConfigurationBlocked: "Settings cannot change while approval or execution is pending. Approve the plan in the approval bar to switch to Agent and start execution automatically.",
     planApprovalUnavailable: "Plan approval is no longer available",
     action: {
       openSettings: "Open settings",

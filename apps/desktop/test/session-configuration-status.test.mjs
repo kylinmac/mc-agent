@@ -126,3 +126,31 @@ test("a failed apply keeps the chosen value and an honest failed notice for a la
   await retry;
   assert.equal(f.get().sessionConfigurationStatus.one, undefined);
 });
+
+
+test("approval-blocked configuration restores the durable mode and approval card", async (t) => {
+  const f = fixture(t);
+  f.set({ runningSessions: {}, sessions: [{ ...f.get().sessions[0], mode: "plan" }] });
+  t.mock.method(api, "listSessions", async () => ({ sessions: [{ id: "one", mode: "plan" }] }));
+  let restored = 0;
+  f.set({ restorePendingPlan: async () => { restored++; return "pending"; } });
+  const apply = f.slice.configureActiveSession(config("medium"));
+  f.calls[0].reject(Object.assign(new Error("PLAN_CONFIGURATION_BLOCKED"), { code: "PLAN_CONFIGURATION_BLOCKED" }));
+  await assert.rejects(apply);
+  await f.slice.refreshSessions();
+  assert.equal(restored, 1);
+  assert.equal(f.runtime.pendingSessionConfigurations.has("one"), false);
+  assert.equal(f.get().sessionConfigurationStatus.one, undefined);
+  assert.equal(f.get().sessions[0].mode, "plan");
+});
+
+
+test("failed approval recovery reports the read error without keeping a rejected choice", async (t) => {
+  const f = fixture(t);
+  f.set({ runningSessions: {} });
+  t.mock.method(api, "listSessions", async () => { throw new Error("host disconnected during recovery"); });
+  const apply = f.slice.configureActiveSession(config("medium"));
+  f.calls[0].reject(Object.assign(new Error("PLAN_CONFIGURATION_BLOCKED"), { code: "PLAN_CONFIGURATION_BLOCKED" }));
+  await assert.rejects(apply, /host disconnected during recovery/);
+  assert.equal(f.runtime.pendingSessionConfigurations.has("one"), false);
+});
