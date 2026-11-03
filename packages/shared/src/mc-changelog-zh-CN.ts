@@ -13,6 +13,16 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.51",
+    date: "2026-11-03",
+    features: [
+      "主代理调用子代理时可通过 thinkingLevel 指定本次思考等级，包括继承上下文和继续子任务；不支持的档位会明确报错，不再悄悄升档。",
+    ],
+    fixes: [
+      "右侧文件管理器的查找、替换输入框和按钮改为白底黑字，已安装的新版插件也会生效。",
+    ],
+  },
+  {
     version: "1.0.50",
     date: "2026-11-03",
     features: [

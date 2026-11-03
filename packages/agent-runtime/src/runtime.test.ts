@@ -8708,6 +8708,30 @@ describe("DesktopAgentRuntime subagents", () => {
     await runtime.dispose();
   });
 
+  it.each([false, true])("Task exposes and honors a thinking override (fork=%s)", async (fork) => {
+    const runtime = createRuntime({ thinkingLevel: "high", subagents: [{ ...explorer, thinkingLevel: "high" }] });
+    subagentRuns.calls.length = 0;
+    subagentRuns.deferred = false;
+    subagentRuns.result = undefined;
+    const tool = taskTool(runtime);
+    expect(tool.parameters.properties.thinkingLevel).toBeDefined();
+    const result = await tool.execute("task-low", { agent: "explorer", task: "Read the files.", thinkingLevel: "low", fork });
+    expect(subagentRuns.calls[0].thinkingLevel).toBe("low");
+    expect(subagentRuns.calls[0].requestedThinkingLevel).toBe("low");
+    expect(result.details.thinkingLevel).toBe("low");
+    expect((runtime as unknown as { thinkingLevel: string }).thinkingLevel).toBe("high");
+    await runtime.dispose();
+  });
+
+  it.each(["invalid", "low"])("rejects invalid or unsupported Task thinking %s before starting", async (thinkingLevel) => {
+    const runtime = createRuntime({ provider: { ...provider, supportedThinkingLevels: ["high"] }, subagents: [explorer] });
+    subagentRuns.calls.length = 0;
+    const result = await taskTool(runtime).execute("task-invalid", { agent: "explorer", task: "Read.", thinkingLevel });
+    expect(result.content[0].text).toContain("thinkingLevel");
+    expect(subagentRuns.calls).toHaveLength(0);
+    await runtime.dispose();
+  });
+
   it("preserves a definition's no-pass thinking selection", async () => {
     const remote: RuntimeProviderConfig = {
       ...provider,
@@ -9754,12 +9778,15 @@ describe("DesktopAgentRuntime subagents", () => {
         agent: "explorer",
         task: "Now cover the lexer.",
         resume: "del-1",
+        thinkingLevel: "low",
       });
       subagentRuns.deferred = false;
 
       expect((started.details as any).resumedFrom).toBe("del-1");
       expect(subagentRuns.calls).toHaveLength(1);
       const options = subagentRuns.calls[0];
+      expect(options.thinkingLevel).toBe("low");
+      expect(options.requestedThinkingLevel).toBe("low");
       // The resumed delegate replays the original brief plus its own rows; the
       // new brief is the user turn `prompt()` adds, not part of the seed.
       expect(options.task).toBe("Now cover the lexer.");

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { FILE_SEARCH_CONTRAST_CSS } from "../electron/main/mc-file-search-contrast.ts";
 import { spawn } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -136,6 +137,9 @@ async function probe(theme) {
     },
   });
   windows.push(window);
+  window.webContents.on("dom-ready", () => {
+    void window.webContents.insertCSS(process.env.MC_FILE_SEARCH_CSS, { cssOrigin: "user" });
+  });
 
   const viewUrl = pathToFileURL(viewEntry);
   viewUrl.searchParams.set("piViewOpen", "test.ts");
@@ -194,8 +198,8 @@ function assertTheme(report, theme) {
   assert.equal(report.fields.length, 2, "find and replace fields must both be themed");
   assert.ok(report.buttons.length >= 5, "search actions must be themed");
 
-  const foreground = theme === "dark" ? "rgb(255, 255, 255)" : "rgb(26, 28, 31)";
-  const fieldBackground = theme === "dark" ? "rgb(24, 24, 24)" : "rgb(255, 255, 255)";
+  const foreground = "rgb(0, 0, 0)";
+  const fieldBackground = "rgb(255, 255, 255)";
   for (const field of report.fields) {
     assert.equal(field.color, foreground);
     assert.equal(field.backgroundColor, fieldBackground);
@@ -209,7 +213,7 @@ function assertTheme(report, theme) {
 }
 
 test(
-  "File Manager find and replace controls follow light and dark appearance",
+  "File Manager find and replace controls are black on white in both themes",
   {
     skip:
       process.platform === "linux" && !process.env.DISPLAY
@@ -222,7 +226,7 @@ test(
       await writeFile(join(temp, "preload.cjs"), preloadFixture);
       await writeFile(join(temp, "main.cjs"), mainFixture);
 
-      const env = { ...process.env, PI_FILE_MANAGER_VIEW: viewEntry };
+      const env = { ...process.env, PI_FILE_MANAGER_VIEW: viewEntry, MC_FILE_SEARCH_CSS: FILE_SEARCH_CONTRAST_CSS };
       delete env.ELECTRON_RUN_AS_NODE;
       const child = spawn(
         electronBinary,
