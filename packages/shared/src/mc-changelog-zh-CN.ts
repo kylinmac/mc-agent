@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.49",
+    date: "2026-11-03",
+    fixes: [
+      "点击“重启并更新”时会先检查一次，若已有更新的版本，就直接装最新版，不再先装中间版本。",
+    ],
+  },
+  {
     version: "1.0.48",
     date: "2026-11-03",
     improvements: [

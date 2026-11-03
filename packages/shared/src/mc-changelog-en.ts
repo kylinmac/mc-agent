@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.49",
+    date: "2026-11-03",
+    fixes: [
+      "“Restart to update” checks again first and installs the newest release, instead of an older one downloaded earlier.",
+    ],
+  },
+  {
     version: "1.0.48",
     date: "2026-11-03",
     improvements: [
