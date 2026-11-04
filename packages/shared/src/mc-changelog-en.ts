@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.53",
+    date: "2026-11-04",
+    improvements: [
+      "Background command notices now take one line, with the status at the far right.",
+    ],
+  },
+  {
     version: "1.0.52",
     date: "2026-11-04",
     fixes: [

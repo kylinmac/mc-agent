@@ -23,7 +23,7 @@ export function NoticeCard({ message, data }: { message: UiMessage; data: Notice
   const preview = data.commands ? t("sessionCollaboration.commandCount", { count: data.commands.length }) : noticePreview(data);
   const statusKey = data.status ? ({ queued: "statusQueued", running: "statusRunning", completed: "statusCompleted", failed: "statusFailed", cancelled: "statusCancelled", interrupted: "statusInterrupted" } as Record<string, string>)[data.status] : undefined;
   return <article className="message-row session-message" data-message-id={message.id} data-minimap-id={message.id} aria-label={title}>
-    <div className="message-col mc-notice-card" data-notice-kind={data.kind}>
+    <div className="message-col mc-notice-card" data-notice-kind={data.kind} data-open={disclosure.open ? "true" : undefined}>
       {message.sessionMessage ? <SessionMessageOrigin origin={message.sessionMessage} /> : null}
       <Button variant="ghost" className="mc-notice-toggle" ref={disclosure.titleRef} aria-expanded={disclosure.open} aria-controls={id} onClick={disclosure.toggle}>
         {disclosure.open ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}
