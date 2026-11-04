@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.53",
+    date: "2026-11-04",
+    improvements: [
+      "后台命令通知卡片缩成一行，命令状态显示在最右边。",
+    ],
+  },
+  {
     version: "1.0.52",
     date: "2026-11-04",
     fixes: [

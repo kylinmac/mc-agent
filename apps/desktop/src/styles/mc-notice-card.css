@@ -12,3 +12,18 @@
 .mc-notice-raw { margin-top: 12px; color: var(--ds-text-secondary); }
 .mc-notice-raw summary { cursor: pointer; }
 .mc-notice-card .message-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; color: var(--ds-text-secondary); font-size: var(--text-xs); }
+
+/* A background-command notice is one line: title on the left, status on the
+   right. Copy and time appear on hover in the same row; opening it puts them
+   back under the output. */
+.mc-notice-card[data-notice-kind="background"] { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 8px; padding: 6px 8px 6px 12px; }
+.mc-notice-card[data-notice-kind="background"] .mc-notice-toggle { flex: 1 1 0; width: auto; min-width: 0; align-items: center; white-space: nowrap; }
+.mc-notice-card[data-notice-kind="background"] .mc-notice-toggle > span { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mc-notice-card[data-notice-kind="background"] .mc-notice-toggle strong { flex: none; }
+.mc-notice-card[data-notice-kind="background"] .mc-notice-preview { display: block; min-width: 0; margin-top: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); }
+.mc-notice-card[data-notice-kind="background"] .mc-notice-body,
+.mc-notice-card[data-notice-kind="background"][data-open="true"] .mc-notice-toggle,
+.mc-notice-card[data-notice-kind="background"][data-open="true"] .message-actions { flex: 0 0 100%; }
+.mc-notice-card[data-notice-kind="background"]:not([data-open="true"]) .message-actions { display: none; flex: none; min-height: 0; padding-top: 0; }
+.message-row:hover .mc-notice-card[data-notice-kind="background"]:not([data-open="true"]) .message-actions,
+.message-row:focus-within .mc-notice-card[data-notice-kind="background"]:not([data-open="true"]) .message-actions { display: flex; }

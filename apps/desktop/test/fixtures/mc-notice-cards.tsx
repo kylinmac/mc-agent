@@ -30,8 +30,17 @@ export async function checkNoticeCards() {
     }
     const background = { ...message, id: "background", sessionMessage: undefined, content: "original notice" };
     flushSync(() => root.render(<NoticeCard key="background" message={background} data={{ kind: "background", body: "", commands: [{ id: "cmd", command: "echo test", outcome: "exited with code 1", failed: true, output: "<script>literal</script>" }] }} />));
+    const card = node.querySelector(".mc-notice-card").getBoundingClientRect();
+    const titleBox = node.querySelector(".mc-notice-toggle strong").getBoundingClientRect();
+    const statusBox = node.querySelector(".mc-notice-preview").getBoundingClientRect();
+    check(card.height <= 48, `background notice is one line, got ${card.height}px`);
+    check(Math.abs((titleBox.top + titleBox.bottom) - (statusBox.top + statusBox.bottom)) <= 4, "title and status share a line");
+    check(card.right - statusBox.right <= 24 && statusBox.left > titleBox.right, "status sits at the right edge");
+    check(getComputedStyle(node.querySelector(".mc-notice-card")).flexDirection === "row", "title row and actions lay out in a row");
     node.querySelector(".mc-notice-toggle").click(); await settle();
     check(node.querySelector(".mc-notice-command").textContent.includes("失败"), "failed command status");
+    const openToggle = node.querySelector(".mc-notice-toggle").getBoundingClientRect();
+    check(node.querySelector(".mc-notice-body").getBoundingClientRect().top >= openToggle.bottom - 1, "output opens under the title row");
     check(!node.querySelector("script"), "command output stays plain text");
   } finally { root.unmount(); node.remove(); }
 }
