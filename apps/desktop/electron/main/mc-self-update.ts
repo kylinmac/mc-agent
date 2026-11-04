@@ -12,7 +12,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { constants, createWriteStream } from "node:fs";
-import { access, mkdir, readdir, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, open, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 export const MC_RELEASE_DOWNLOAD_BASE = "https://github.com/kylinmac/mc-agent/releases/download";
@@ -65,25 +65,46 @@ export function plistValue(app: string, key: string): string | null {
 /** The shell script that swaps the bundle after the app has quit, then reopens it. */
 export function installScript(): string {
   return [
-    "#!/bin/sh",
-    '# mc-agent update: wait for the app to exit, swap the bundle, reopen.',
-    'PID="$1"; TARGET="$2"; STAGED="$3"',
-    "i=0",
-    'while kill -0 "$PID" 2>/dev/null; do',
-    "  sleep 0.2; i=$((i+1))",
-    '  [ "$i" -gt 600 ] && exit 1',
-    "done",
+    '#!/bin/sh',
+    '# Serialize installers before touching either the staged or installed bundle.',
+    'PID="$1"; TARGET="$2"; STAGED="$3"; EXPECTED_ID="$4"; EXPECTED_VERSION="$5"',
+    'LOCK="$TARGET.mc-update-lock"',
+    'mkdir "$LOCK" 2>/dev/null || { echo "Another installer owns $LOCK" >&2; exit 1; }',
+    'CANDIDATE="$LOCK/candidate.app"',
     'BACKUP="$TARGET.mc-update-backup"',
-    'rm -rf "$BACKUP"',
+    'SWAPPED=0',
+    'cleanup() {',
+    '  [ "$?" = 0 ] || echo "Update installation failed; preserving or restoring the previous app." >&2',
+    '  if [ "$SWAPPED" = 1 ] && [ -d "$BACKUP" ]; then',
+    '    rm -rf "$TARGET"',
+    '    mv "$BACKUP" "$TARGET" || return 1',
+    '  fi',
+    '  rm -rf "$LOCK"',
+    '}',
+    'trap cleanup EXIT',
+    "trap 'exit 1' HUP INT TERM",
+    '[ ! -e "$BACKUP" ] || { echo "Preserving existing backup: $BACKUP" >&2; exit 1; }',
+    'i=0',
+    'while kill -0 "$PID" 2>/dev/null; do',
+    '  sleep 0.2; i=$((i+1))',
+    '  [ "$i" -gt 600 ] && exit 1',
+    'done',
+    '/usr/bin/ditto "$STAGED" "$CANDIDATE" || exit 1',
+    '/usr/bin/codesign --verify --deep --strict "$CANDIDATE" || exit 1',
+    'PLIST="$CANDIDATE/Contents/Info.plist"',
+    '[ "$(/usr/bin/plutil -extract CFBundleIdentifier raw -o - "$PLIST")" = "$EXPECTED_ID" ] || exit 1',
+    '[ "$(/usr/bin/plutil -extract CFBundleShortVersionString raw -o - "$PLIST")" = "$EXPECTED_VERSION" ] || exit 1',
+    'EXECUTABLE=$(/usr/bin/plutil -extract CFBundleExecutable raw -o - "$PLIST") || exit 1',
+    'case "$EXECUTABLE" in \'\'|*/*|.|..) exit 1 ;; esac',
+    '[ -x "$CANDIDATE/Contents/MacOS/$EXECUTABLE" ] || exit 1',
+    'SWAPPED=1',
     'mv "$TARGET" "$BACKUP" || exit 1',
-    'if /usr/bin/ditto "$STAGED" "$TARGET"; then',
-    '  rm -rf "$BACKUP"',
-    "else",
-    '  rm -rf "$TARGET"; mv "$BACKUP" "$TARGET"',
-    "fi",
+    'mv "$CANDIDATE" "$TARGET" || exit 1',
+    '/usr/bin/open "$TARGET" || exit 1',
+    'SWAPPED=0',
+    'rm -rf "$BACKUP"',
     'rm -rf "$(dirname "$STAGED")"',
-    '/usr/bin/open "$TARGET"',
-    "",
+    '',
   ].join("\n");
 }
 
@@ -100,6 +121,7 @@ export type SelfUpdaterOptions = {
 export class McSelfUpdater {
   private staged: { version: string; app: string } | null = null;
   private readonly options: SelfUpdaterOptions;
+  private installing = false;
 
   constructor(options: SelfUpdaterOptions) {
     this.options = options;
@@ -186,13 +208,29 @@ export class McSelfUpdater {
   async install(): Promise<void> {
     const staged = this.staged;
     if (!staged) throw new Error("no downloaded update to install");
-    const script = join(dirname(dirname(staged.app)), "install.sh");
-    await writeFile(script, installScript(), { mode: 0o755 });
-    const child = spawn("/bin/sh", [script, String(process.pid), resolve(this.options.bundle), staged.app], {
-      detached: true,
-      stdio: "ignore",
-    });
-    child.unref();
-    this.options.quit();
+    if (this.installing) return;
+    this.installing = true;
+    try {
+      const id = plistValue(this.options.bundle, "CFBundleIdentifier");
+      if (!id) throw new Error("the installed app has no bundle identifier");
+      const script = join(dirname(dirname(staged.app)), "install.sh");
+      await writeFile(script, installScript(), { mode: 0o755 });
+      // Keep installer failures after the main process exits available for diagnosis.
+      const log = await open(join(dirname(script), "install.log"), "a", 0o600);
+      try {
+        const child = spawn("/bin/sh", [script, String(process.pid), resolve(this.options.bundle), staged.app, id, staged.version], {
+          detached: true,
+          stdio: ["ignore", log.fd, log.fd],
+        });
+        await new Promise<void>((ok, fail) => { child.once("spawn", ok); child.once("error", fail); });
+        child.unref();
+      } finally {
+        await log.close();
+      }
+      this.options.quit();
+    } catch (error) {
+      this.installing = false;
+      throw error;
+    }
   }
 }

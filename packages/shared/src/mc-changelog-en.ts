@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.52",
+    date: "2026-11-04",
+    fixes: [
+      "Prevent repeated update restarts from damaging the macOS app. Installation is serialized, verifies the complete replacement, and preserves or restores the old app on failure.",
+    ],
+  },
+  {
     version: "1.0.51",
     date: "2026-11-03",
     features: [

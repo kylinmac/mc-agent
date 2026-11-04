@@ -306,3 +306,21 @@ test("a newer release replaces an update that is waiting for a restart", async (
     controller.dispose();
   }
 });
+
+for (const selfInstall of [false, true]) {
+  test(`repeated restart requests launch one installer (selfInstall=${selfInstall})`, async () => {
+    const updater = new FakeUpdater();
+    const { controller } = createController({ updater, platform: "win32", distribution: "installed" });
+    let installs = 0;
+    try {
+      await controller.check();
+      updater.emit("update-downloaded", { version: "0.16.1" });
+      if (selfInstall) controller.selfUpdate = { install: async () => { installs++; } };
+      await Promise.all([controller.installLatest(), controller.installLatest()]);
+      controller.install();
+      assert.equal(selfInstall ? installs : updater.installs.length, 1);
+    } finally {
+      controller.dispose();
+    }
+  });
+}

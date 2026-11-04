@@ -765,6 +765,7 @@ export class AppUpdaterController {
    * timed-out check installs what is staged.
    */
   async installLatest(): Promise<void> {
+    if (this.installRequested) return;
     if (this.state.status === "downloaded" && !this.installWhenDownloaded) {
       const staged = this.state.availableVersion;
       await this.check().catch(() => undefined);
@@ -790,6 +791,7 @@ export class AppUpdaterController {
 
   /** Quit and install a downloaded update (in-app mode). */
   install(): void {
+    if (this.installRequested) return;
     if (this.selfUpdate && this.state.status === "downloaded") {
       this.installRequested = true;
       void this.selfUpdate.install().catch((error: unknown) => {

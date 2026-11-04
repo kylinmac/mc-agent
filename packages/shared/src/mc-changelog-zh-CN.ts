@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.52",
+    date: "2026-11-04",
+    fixes: [
+      "修复重复重启安装可能破坏 macOS 应用包的问题；安装过程互斥，完整校验后替换，失败保留或恢复旧包。",
+    ],
+  },
+  {
     version: "1.0.51",
     date: "2026-11-03",
     features: [
