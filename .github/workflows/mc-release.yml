@@ -91,6 +91,10 @@ jobs:
           set -euo pipefail
           test "$(uname -m)" = arm64
           node scripts/mc-release.mjs "$VERSION" --dry-run --arch arm64
+      - name: Verify macOS update installation and rollback
+        env:
+          MC_UPDATE_ZIP: apps/desktop/release/mc-agent-${{ inputs.version }}-arm64-mac.zip
+        run: node --test apps/desktop/test/mc-self-update.test.mjs
       - uses: actions/upload-artifact@v7
         with:
           name: mc-agent-macos-arm64-${{ inputs.version }}
