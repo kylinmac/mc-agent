@@ -13,7 +13,7 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
-    version: "1.0.54",
+    version: "1.0.55",
     date: "2026-11-05",
     fixes: [
       "macOS 的文件夹、麦克风等系统授权不再每次更新后失效。这一版需要再授权一次，之后的更新会保留。",

@@ -9,7 +9,7 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
-    version: "1.0.54",
+    version: "1.0.55",
     date: "2026-11-05",
     fixes: [
       "macOS folder, microphone and other system permissions no longer reset with each update. Allow them once more in this version; later updates keep them.",
