@@ -3236,6 +3236,7 @@ sklm: {
     quickToolTerminalUnavailable: "打开一个本地会话后，可在其目录中打开终端",
     quickToolBrowser: "新建浏览器标签",
     quickToolFiles: "文件",
+    terminalApprovalReason: "即使在自动模式下，操作交互终端也需要确认：终端当前的命令或程序可能已经改变。",
     terminalShortcuts: "复制选区：Ctrl+Shift+C 或 Ctrl+C（Mac：Cmd+C）。粘贴：Ctrl+Shift+V（Mac：Cmd+V）。全选：Ctrl+Shift+A。清除滚动历史：Ctrl+Shift+K（Mac：Cmd+K）。滚动：Shift+PageUp/PageDown、Shift+Home/End。没有选区时 Ctrl+C 中断运行中的命令。",
     terminalExited: "Shell 已退出",
     terminalRestart: "重新启动",

@@ -34,6 +34,8 @@ WorkPanelList、WorkPanelRead、WorkPanelAction 作为本机会话常驻工具�
 
 终端创建绑定本机会话和目录；读取、输入复核所有权。终端动作带 termId，防止审批期间重启后误输入。浏览器固定 sessionId＋tabId。插件动作每一步复核可见归属和实例代次，只有固定 UI 操作，没有模型任意 JavaScript 执行入口。
 
+自动模式下，带 termId 的终端动作（聚焦除外）仍需逐次审批。交互 shell 可能已有输入或处于其他程序中，不能把本次文本当成完整命令来判断安全性；普通命令继续走 Bash 的现有规则。
+
 所有日志、网页、编辑器和工具返回均为不可信数据，不视为指令或授权。不改数据库结构，不改变 SQLite 所有权。
 
 ## 终端快捷键
@@ -63,4 +65,4 @@ WorkPanelList、WorkPanelRead、WorkPanelAction 作为本机会话常驻工具�
 - V79：隔离 Electron 窗口通过插件读取／点击／输入／保存、快照失效及换会话拒绝；真实内置文件管理器 CodeMirror 完成“读未保存内容→编辑→保存”路径。浏览器指定标签路由有测试，复用已有浏览器／面板回归。后台、画布、委派仍沿用已有工具契约。
 - V80：真实 xterm 验证复制选区、无选区中断、paste 仅一次；单测验证复制失败、全选、清屏和滚动。剪贴板写入使用测试替身，未覆盖系统剪贴板／macOS 实机。
 - 桌面相关回归 83 项通过、1 项 Unix shell 在 Windows 跳过；运行时 383 项通过；host bridge 10 项通过。Desktop／agent-runtime／host-runtime 类型检查、规范、架构、Rust fmt／Clippy 已跑，结果在 PR 更新。
-- Windows host-core 全量结果：1129 通过、30 失败、1 忽略。其中复查的资源索引失败是 Windows 扩展路径无法相对化；不能把全量说成通过。云端 Linux 全量结果以 PR CI 为准。不使用付费模型或用户正在运行的安装版测试。
+- Windows host-core 首轮全量结果：1129 通过、30 失败、1 忽略；改动前 eb03d587f 的独立 worktree 为 1128 通过、相同 30 项失败、1 忽略。新增权限测试通过；后续自动模式保护有单独回归。不能把本机全量说成通过，云端 Linux 全量结果以 PR CI 为准。不使用付费模型或用户正在运行的安装版测试。

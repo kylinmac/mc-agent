@@ -3164,6 +3164,7 @@ sklm: {
     quickToolTerminalUnavailable: "開啟一個本機會話後，可在其目錄中開啟終端",
     quickToolBrowser: "新增瀏覽器分頁",
     quickToolFiles: "檔案",
+    terminalApprovalReason: "即使在自動模式下，操作互動終端也需要確認：終端目前的命令或程式可能已經改變。",
     terminalShortcuts: "複製選取內容：Ctrl+Shift+C 或 Ctrl+C（Mac：Cmd+C）。貼上：Ctrl+Shift+V（Mac：Cmd+V）。全選：Ctrl+Shift+A。清除捲動歷史：Ctrl+Shift+K（Mac：Cmd+K）。捲動：Shift+PageUp/PageDown、Shift+Home/End。沒有選取內容時 Ctrl+C 中斷命令。",
     terminalExited: "Shell 已結束",
     terminalRestart: "重新啟動",
