@@ -13,6 +13,19 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.56",
+    date: "2026-11-05",
+    features: [
+      "Agent 可以读取右侧终端报错、浏览器控制台和文件编辑内容，并操作对应面板。",
+    ],
+    improvements: [
+      "终端支持全选、清屏和快捷滚动，工具栏可查看快捷键说明。",
+    ],
+    fixes: [
+      "终端选中文字后，Ctrl+Shift+C 和 Ctrl+C 可以复制；没有选区时 Ctrl+C 仍中断命令。",
+    ],
+  },
+  {
     version: "1.0.55",
     date: "2026-11-05",
     fixes: [

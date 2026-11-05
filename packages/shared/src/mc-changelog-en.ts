@@ -9,6 +9,19 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.56",
+    date: "2026-11-05",
+    features: [
+      "The agent can read terminal errors, browser console messages and editor content in the side panel, and operate the corresponding panels.",
+    ],
+    improvements: [
+      "The terminal supports select all, clear scrollback and scroll shortcuts, with a shortcut guide in the toolbar.",
+    ],
+    fixes: [
+      "Ctrl+Shift+C and Ctrl+C now copy selected terminal text. Without a selection, Ctrl+C still interrupts the command.",
+    ],
+  },
+  {
     version: "1.0.55",
     date: "2026-11-05",
     fixes: [
