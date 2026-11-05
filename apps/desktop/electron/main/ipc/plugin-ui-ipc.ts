@@ -355,7 +355,7 @@ export function registerPluginUiIpc({
       ) {
         browserHost.setChromeSession(sessionId);
       }
-      pluginViews.setVisible(pluginId, viewId, payload?.visible === true);
+      pluginViews.setVisible(pluginId, viewId, payload?.visible === true, sessionId);
       return { ok: true };
     },
   );

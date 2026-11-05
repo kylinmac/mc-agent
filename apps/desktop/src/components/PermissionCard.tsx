@@ -89,7 +89,11 @@ export function PermissionCard({
         />
       </div>
       {permission.reason ? (
-        <div className="permission-card-reason">{permission.reason}</div>
+        <div className="permission-card-reason">
+          {permission.toolName === "WorkPanelAction" && permission.reason === "Interactive terminal actions require approval because the pending command and program state are unknown."
+            ? t("mcProject.terminalApprovalReason")
+            : permission.reason}
+        </div>
       ) : null}
       {argBlocks.length > 0 ? (
         <div className="permission-card-args">

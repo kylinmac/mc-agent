@@ -58,11 +58,12 @@ export function registerMcTerminalIpc({
 
   registrar.handle(
     IPC.invoke.terminalCreate,
-    async (input: { tabId?: unknown; cwd?: unknown; cols?: unknown; rows?: unknown } = {}) => {
+    async (input: { tabId?: unknown; sessionId?: unknown; cwd?: unknown; cols?: unknown; rows?: unknown } = {}) => {
       const tabId = text(input?.tabId, "tab id", MAX_ID_LENGTH);
       const cwd = resolve(text(input?.cwd, "folder", MAX_PATH_LENGTH));
       return manager.create({
         tabId,
+        sessionId: typeof input.sessionId === "string" ? input.sessionId : undefined,
         cwd,
         cols: typeof input?.cols === "number" ? input.cols : undefined,
         rows: typeof input?.rows === "number" ? input.rows : undefined,
@@ -71,6 +72,10 @@ export function registerMcTerminalIpc({
         check: async () => {
           const host = getHost();
           if (!host) throw new Error("host unavailable");
+          if (input.sessionId) {
+            const { session } = await host.call("session.get", { id: input.sessionId }) as { session?: { projectPath?: string; source?: string } };
+            if (!session || session.source === "remote" || !session.projectPath || resolve(session.projectPath) !== cwd) throw invalid("terminal session does not own folder");
+          }
           if (!(await knownProjectFolders(host)).has(cwd)) {
             throw Object.assign(new Error("terminal folder is not a project folder"), {
               errorCode: ErrorCodes.NOT_FOUND,

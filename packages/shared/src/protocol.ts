@@ -242,6 +242,7 @@ export const IPC = {
     creativeCopyImage: "pi-desktop/mc-creative/copyImage",
     creativeImage: "pi-desktop/mc-creative/image",
     // mc-agent work-panel terminal (MC-ADR-0005).
+    workPanelAgentReply: "pi-desktop/work-panel-agent/reply",
     terminalCreate: "pi-desktop/mc-terminal/create",
     terminalWrite: "pi-desktop/mc-terminal/write",
     terminalResize: "pi-desktop/mc-terminal/resize",
@@ -525,6 +526,7 @@ export const IPC = {
   event: {
     pluginChanged: "pi-desktop/event/pluginChanged",
     // mc-agent work-panel terminal output and exit (MC-ADR-0005).
+    workPanelAgentRequest: "pi-desktop/work-panel-agent/request",
     terminalData: "pi-desktop/mc-terminal/event/data",
     terminalExit: "pi-desktop/mc-terminal/event/exit",
     // mc-agent creative studio: a generation job changed.

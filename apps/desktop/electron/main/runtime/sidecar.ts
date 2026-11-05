@@ -1,3 +1,4 @@
+import { createPanelTools } from "../work-panel-agent/tools";
 import { contextDiagnosticData } from "./mc-context-diagnostics";
 import { fastModeEnabled, type AppSettings } from "@pi-desktop/shared";
 import {
@@ -620,6 +621,7 @@ export function createSidecarRuntime({
   }));
   s.setLocalTool("SaveCreativeAsset", creative.saveAssetTool);
   // mc-agent: the prototype canvas (docs/mc-agent/prototype-canvas.md).
+  for (const [name, handler] of Object.entries(createPanelTools(() => runtimeState.host, browserHost))) s.setLocalTool(name, handler);
   const canvasTools = createCanvasTools(() => runtimeState.host);
   s.setLocalTool("CanvasRead", canvasTools.read);
   s.setLocalTool("CanvasWrite", canvasTools.write);

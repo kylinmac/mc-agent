@@ -293,8 +293,8 @@ export class AgentSidecar {
     try {
       return await Promise.race([
         (async () => {
-          if (imageGeneration) {
-            imageGenerationPrompts(input.args);
+          if (imageGeneration || ["WorkPanelList", "WorkPanelRead", "WorkPanelAction"].includes(String(params.toolName))) {
+            if (imageGeneration) imageGenerationPrompts(input.args);
             if (!this.host) throw new Error("host unavailable");
             const gate = await this.host.call<LocalToolResult>("tools.execute", params);
             if (!gate.ok) return gate;
@@ -569,11 +569,11 @@ export class AgentSidecar {
         if (localTool) {
           const toolName = requestedToolName;
           // Local tools can bypass host-core's permission boundary. Plan mode
-          // therefore permits only the read-only BrowserPreview bridge; every
+          // therefore permits only BrowserPreview and work-panel inspection; every
           // other host-local tool fails closed even if a stale runtime asks for
           // it directly.
           const result =
-            params.mode === "plan" && toolName !== "BrowserPreview"
+            params.mode === "plan" && !["BrowserPreview", "WorkPanelList", "WorkPanelRead"].includes(toolName)
               ? {
                   ok: false,
                   isError: true,

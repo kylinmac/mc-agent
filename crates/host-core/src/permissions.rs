@@ -119,6 +119,8 @@ pub struct PermissionManager {
 impl PermissionManager {
     pub fn tool_risk_with_declared(tool_name: &str, declared: Option<&str>) -> Risk {
         match tool_name {
+            "WorkPanelList" | "WorkPanelRead" => Risk::Low,
+            "WorkPanelAction" => Risk::High,
             "Read" | "Glob" | "Grep" | "ScheduledTaskList" | "TodoWrite" => Risk::Low,
             // mc-agent: copies an image the session made into the project's
             // creative library (docs/mc-agent/creative-studio.md).
@@ -156,7 +158,14 @@ impl PermissionManager {
     pub fn plan_mode_allows(tool_name: &str) -> bool {
         matches!(
             tool_name,
-            "Read" | "Glob" | "Grep" | "Bash" | "BrowserPreview" | "new_context"
+            "Read"
+                | "Glob"
+                | "Grep"
+                | "Bash"
+                | "BrowserPreview"
+                | "new_context"
+                | "WorkPanelList"
+                | "WorkPanelRead"
         )
     }
 
@@ -902,5 +911,38 @@ mod image_generation_tests {
             ),
             Some(PermissionDecision::Deny)
         );
+    }
+}
+
+#[cfg(test)]
+mod work_panel_tests {
+    use super::*;
+    #[test]
+    fn desktop_actions_require_approval_and_inspection_is_plan_safe() {
+        assert!(matches!(
+            PermissionManager::tool_risk_with_declared("WorkPanelAction", Some("low")),
+            Risk::High
+        ));
+        let manager = PermissionManager::default();
+        let grants = HashMap::new();
+        for mode in ["ask", "accept-edits"] {
+            assert!(manager
+                .evaluate_auto_with_permission_mode("s", "WorkPanelAction", "agent", mode, &grants)
+                .is_none());
+        }
+        for mode in ["plan", "goal"] {
+            assert_eq!(
+                manager.evaluate_auto_with_permission_mode(
+                    "s",
+                    "WorkPanelAction",
+                    mode,
+                    "auto",
+                    &grants
+                ),
+                Some(PermissionDecision::Deny)
+            );
+        }
+        assert!(PermissionManager::plan_mode_allows("WorkPanelList"));
+        assert!(PermissionManager::plan_mode_allows("WorkPanelRead"));
     }
 }

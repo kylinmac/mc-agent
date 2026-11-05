@@ -210,6 +210,15 @@ fn needs_conservative_scan(command: &str) -> bool {
 
 /// Why this call needs a card even in Auto mode, or `None` when Auto may run it.
 pub fn auto_mode_reason(tool_name: &str, args: &Value) -> Option<&'static str> {
+    // Main requires termId for every terminal mutation. An interactive shell may
+    // contain partial input or be running another program, so inspecting only
+    // this input cannot enforce the Bash rules below (even for an Enter key).
+    if tool_name == "WorkPanelAction"
+        && args.get("termId").and_then(Value::as_str).is_some()
+        && args.get("action").and_then(Value::as_str) != Some("focus")
+    {
+        return Some("Interactive terminal actions require approval because the pending command and program state are unknown.");
+    }
     if tool_name != "Bash" {
         return None;
     }
@@ -359,7 +368,34 @@ mod tests {
     }
 
     #[test]
-    fn only_bash_is_inspected() {
+    fn interactive_terminal_actions_need_approval() {
+        for action in ["input", "key", "interrupt", "restart", "close"] {
+            assert!(
+                auto_mode_reason(
+                    "WorkPanelAction",
+                    &json!({ "action": action, "termId": "terminal-instance", "text": "echo ok" })
+                )
+                .is_some(),
+                "interactive {action} must not bypass Bash guards"
+            );
+        }
+        assert!(
+            auto_mode_reason("WorkPanelRead", &json!({ "termId": "terminal-instance" })).is_none()
+        );
+        assert!(auto_mode_reason(
+            "WorkPanelAction",
+            &json!({ "action": "focus", "termId": "terminal-instance" })
+        )
+        .is_none());
+        assert!(auto_mode_reason(
+            "WorkPanelAction",
+            &json!({ "action": "key", "key": "Save", "snapshot": "plugin-snapshot" })
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn other_tools_are_not_inspected_as_shell_commands() {
         assert!(auto_mode_reason("Write", &json!({ "command": "git push -f" })).is_none());
         assert!(auto_mode_reason("Bash", &json!({})).is_none());
     }
