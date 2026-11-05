@@ -1058,6 +1058,7 @@ export const api = {
     request: (item: MacPermissionItem) => invoke<MacPermissionReport>(IPC.invoke.macPermissionsRequest, { item }),
     openSettings: (item: MacPermissionItem) =>
       invoke<{ ok: true }>(IPC.invoke.macPermissionsOpenSettings, { item }),
+    openFolderSettings: () => invoke<{ ok: true }>(IPC.invoke.macPermissionsOpenFolderSettings),
   },
   builtinSystemPrompt: () => invoke<{ prompt: BuiltinSystemPrompt }>(IPC.invoke.mcPromptsBuiltin),
   getSystemPromptConfig: () => invoke<{ config: SystemPromptConfig }>(IPC.invoke.mcPromptsGet),

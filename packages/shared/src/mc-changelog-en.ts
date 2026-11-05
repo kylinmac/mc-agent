@@ -9,6 +9,14 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.54",
+    date: "2026-11-05",
+    fixes: [
+      "macOS folder, microphone and other system permissions no longer reset with each update. Allow them once more in this version; later updates keep them.",
+      "The creative studio now tells \"the system denies access\" apart from \"the folder is gone\". When access is denied you can open System Settings directly, and the app recovers when you come back.",
+    ],
+  },
+  {
     version: "1.0.53",
     date: "2026-11-04",
     improvements: [

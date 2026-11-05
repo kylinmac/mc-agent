@@ -82,7 +82,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: pnpm install --frozen-lockfile
-      - name: Build and verify macOS arm64 with ad-hoc signing
+      - name: Load the fixed signing certificate
+        env:
+          MC_MAC_CERT_P12_BASE64: ${{ secrets.MC_MAC_CERT_P12_BASE64 }}
+          MC_MAC_CERT_PASSWORD: ${{ secrets.MC_MAC_CERT_PASSWORD }}
+        run: bash scripts/mc-import-mac-signing-cert.sh >> "$GITHUB_ENV"
+      - name: Build and verify macOS arm64 with the fixed certificate
         env:
           VERSION: ${{ inputs.version }}
           GH_TOKEN: ${{ github.token }}

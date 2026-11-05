@@ -42,8 +42,8 @@ export type MacAppIdentity = {
   /** The .app bundle the user should look for in System Settings. */
   bundlePath: string | null;
   bundleId: string | null;
-  /** "adhoc" builds lose permissions on every update; "developer" keep them. */
-  signature: "adhoc" | "developer" | "unsigned" | "unknown";
+  /** "adhoc" builds lose permissions on every update; "selfSigned" and "developer" keep them. */
+  signature: "adhoc" | "selfSigned" | "developer" | "unsigned" | "unknown";
   helperPid: number | null;
   helperPath: string | null;
 };

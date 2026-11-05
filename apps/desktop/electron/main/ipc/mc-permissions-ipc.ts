@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { app, shell, systemPreferences } from "electron";
 import { IPC } from "@pi-desktop/shared";
 import type { IpcRegistrar } from "./types";
-import { MacPermissions, macPermissionItemOf } from "../mc-macos-permissions";
+import { FOLDER_SETTINGS_URL, MacPermissions, macPermissionItemOf } from "../mc-macos-permissions";
 import { bundleOf, plistValue } from "../mc-self-update";
 
 /** The Computer Use plugin's `permissions` tool, as plugin-runtime registers it. */
@@ -14,19 +14,21 @@ type PluginTools = {
 };
 
 /** The running app's signature kind, read once: it does not change while running. */
-let signature: "adhoc" | "developer" | "unsigned" | "unknown" | undefined;
-function signatureOf(bundle: string | null): "adhoc" | "developer" | "unsigned" | "unknown" {
+let signature: "adhoc" | "selfSigned" | "developer" | "unsigned" | "unknown" | undefined;
+function signatureOf(bundle: string | null): "adhoc" | "selfSigned" | "developer" | "unsigned" | "unknown" {
   if (signature) return signature;
   if (!bundle || process.platform !== "darwin") return (signature = "unknown");
-  const result = spawnSync("/usr/bin/codesign", ["-dv", bundle], { encoding: "utf8" });
+  const result = spawnSync("/usr/bin/codesign", ["-dvv", bundle], { encoding: "utf8" });
   const text = `${result.stdout ?? ""}${result.stderr ?? ""}`;
   signature = /Signature=adhoc/.test(text)
     ? "adhoc"
     : /Authority=Developer ID Application/.test(text)
       ? "developer"
-      : /not signed/.test(text)
-        ? "unsigned"
-        : "unknown";
+      : /Authority=mc-agent Code Signing/.test(text)
+        ? "selfSigned"
+        : /not signed/.test(text)
+          ? "unsigned"
+          : "unknown";
   return signature;
 }
 
@@ -70,6 +72,10 @@ export function registerMcPermissionsIpc({
   );
   registrar.handle(IPC.invoke.macPermissionsOpenSettings, async (input: { item?: unknown } = {}) => {
     await permissions.openSettings(macPermissionItemOf(input?.item));
+    return { ok: true };
+  });
+  registrar.handle(IPC.invoke.macPermissionsOpenFolderSettings, async () => {
+    if (process.platform === "darwin") await shell.openExternal(FOLDER_SETTINGS_URL);
     return { ok: true };
   });
 }

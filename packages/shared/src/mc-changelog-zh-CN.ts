@@ -13,6 +13,14 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.54",
+    date: "2026-11-05",
+    fixes: [
+      "macOS 的文件夹、麦克风等系统授权不再每次更新后失效。这一版需要再授权一次，之后的更新会保留。",
+      "创作工作台把“系统没有授权”和“文件夹不存在”分开提示；没有授权时可以直接打开系统设置，授权后回到应用自动恢复。",
+    ],
+  },
+  {
     version: "1.0.53",
     date: "2026-11-04",
     improvements: [
