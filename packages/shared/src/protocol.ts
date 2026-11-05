@@ -228,6 +228,7 @@ export const IPC = {
     macPermissionsCheck: "pi-desktop/mac-permissions/check",
     macPermissionsRequest: "pi-desktop/mac-permissions/request",
     macPermissionsOpenSettings: "pi-desktop/mac-permissions/open-settings",
+    macPermissionsOpenFolderSettings: "pi-desktop/mac-permissions/open-folder-settings",
     // mc-agent prototype canvas (docs/mc-agent/prototype-canvas.md).
     canvasCall: "pi-desktop/mc-canvas/call",
     canvasExport: "pi-desktop/mc-canvas/export",

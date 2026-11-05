@@ -509,20 +509,33 @@ pub fn storage(db: &Database, group: &ProjectGroupRecord) -> Result<Storage> {
             .or_else(|| group.roots.first())
             .ok_or_else(|| anyhow!("PRECONDITION: the project has no folder"))?,
     };
-    // Offline or unreadable: say so rather than write somewhere else.
-    if !Path::new(&root.path).is_dir() {
-        return Err(anyhow!(
-            "PRECONDITION: {STORAGE_UNAVAILABLE}: the creative storage folder {} is not available (disconnected, moved or not readable); reconnect it or choose another location",
-            root.path
-        ));
-    }
+    // Unusable: say why rather than write somewhere else.
+    check_storage_folder(Path::new(&root.path))?;
     let resources = root.kind == crate::db::ProjectGroupRootKind::Resources;
     Ok(storage_for(Path::new(&root.path), resources))
+}
+
+/// Opening the folder rather than just checking it exists: a folder macOS
+/// protects can look absent to a metadata call, and only opening it lets the
+/// system ask the user. A denied folder needs a grant, a missing one a reconnect.
+fn check_storage_folder(path: &Path) -> Result<()> {
+    match fs::read_dir(path) {
+        Ok(_) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied => Err(anyhow!(
+            "PRECONDITION: {STORAGE_DENIED}: the system denies access to the creative storage folder {}; allow it in the system settings or choose another location",
+            path.display()
+        )),
+        Err(_) => Err(anyhow!(
+            "PRECONDITION: {STORAGE_UNAVAILABLE}: the creative storage folder {} is not available (disconnected or moved); reconnect it or choose another location",
+            path.display()
+        )),
+    }
 }
 
 /// Error markers the studio recognises to offer choosing a new location.
 pub const STORAGE_UNLINKED: &str = "STORAGE_UNLINKED";
 pub const STORAGE_UNAVAILABLE: &str = "STORAGE_UNAVAILABLE";
+pub const STORAGE_DENIED: &str = "STORAGE_DENIED";
 
 /// The folder inside the project's resource folder that the studio manages:
 /// `creative`, when the project is creative and stores its files there. The
@@ -760,6 +773,27 @@ mod tests {
             Path::new(&resources).join("creative/未分类")
         );
         assert!(set_storage(&f.db, &f.group, "/not/a/folder/of/it").is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_denied_storage_folder_is_told_apart_from_a_missing_one() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let locked = dir.path().join("locked");
+        fs::create_dir(&locked).unwrap();
+        fs::set_permissions(&locked, fs::Permissions::from_mode(0o000)).unwrap();
+        // Root reads anything, so the denial only exists for other users.
+        let denied = fs::read_dir(&locked).is_err();
+        let result = check_storage_folder(&locked);
+        fs::set_permissions(&locked, fs::Permissions::from_mode(0o755)).unwrap();
+        if denied {
+            assert!(result.unwrap_err().to_string().contains(STORAGE_DENIED));
+        }
+        assert!(check_storage_folder(&locked).is_ok());
+
+        let error = check_storage_folder(&dir.path().join("gone")).unwrap_err();
+        assert!(error.to_string().contains(STORAGE_UNAVAILABLE), "{error}");
     }
 
     #[test]

@@ -121,10 +121,11 @@ function JobStatusLabel({ job }: { job: CreativeJob }) {
 }
 
 /** The storage errors host-core marks (mc_creative::STORAGE_*), else null. */
-function storageProblemOf(failure: unknown): "unlinked" | "unavailable" | null {
+function storageProblemOf(failure: unknown): "unlinked" | "unavailable" | "denied" | null {
   const message = failure instanceof Error ? failure.message : String(failure);
   if (message.includes("STORAGE_UNLINKED")) return "unlinked";
   if (message.includes("STORAGE_UNAVAILABLE")) return "unavailable";
+  if (message.includes("STORAGE_DENIED")) return "denied";
   return null;
 }
 
@@ -190,8 +191,9 @@ export function CreativePage() {
 
   // Where the project keeps its files: one of its folders' creative/.
   const [storage, setStorage] = useState<CreativeStorage | null>(null);
-  // Why there is no location: a chosen folder left the project or is offline.
-  const [storageProblem, setStorageProblem] = useState<"unlinked" | "unavailable" | null>(null);
+  // Why there is no location: a chosen folder left the project, is offline, or
+  // the system denies access to it.
+  const [storageProblem, setStorageProblem] = useState<"unlinked" | "unavailable" | "denied" | null>(null);
   useEffect(() => {
     setStorage(null);
     setStorageProblem(null);
@@ -201,6 +203,27 @@ export function CreativePage() {
       (failure: unknown) => setStorageProblem(storageProblemOf(failure)),
     );
   }, [studioGroupId]);
+
+  // Coming back from System Settings with the folder allowed clears the warning.
+  useEffect(() => {
+    if (storageProblem !== "denied" || !studioGroupId) return;
+    let stale = false;
+    const recheck = () => {
+      void api.creative.call("creative.storage", { groupId: studioGroupId }).then(
+        (answer) => {
+          if (stale) return;
+          setStorage(answer.storage);
+          setStorageProblem(null);
+        },
+        () => undefined,
+      );
+    };
+    window.addEventListener("focus", recheck);
+    return () => {
+      stale = true;
+      window.removeEventListener("focus", recheck);
+    };
+  }, [storageProblem, studioGroupId]);
 
   const { assets, jobs, comparisons, categories, error, reload } = useStudioData(studioGroupId);
   const tree = useMemo(() => categoryTree(categories), [categories]);
@@ -675,8 +698,23 @@ export function CreativePage() {
                   <div className="settings-nav-item mc-creative-storage mc-creative-storage-problem" role="alert">
                     <span className="settings-nav-label">
                       <span className="mc-creative-muted">{t("mcProject.creativeStorage")}</span>
-                      {t(storageProblem === "unlinked" ? "mcProject.creativeStorageUnlinked" : "mcProject.creativeStorageUnavailable")}
+                      {t(
+                        storageProblem === "unlinked"
+                          ? "mcProject.creativeStorageUnlinked"
+                          : storageProblem === "denied"
+                            ? "mcProject.creativeStorageDenied"
+                            : "mcProject.creativeStorageUnavailable",
+                      )}
                     </span>
+                    {storageProblem === "denied" && document.documentElement.dataset.platform === "darwin" ? (
+                      <button
+                        type="button"
+                        className="mc-creative-storage-change"
+                        onClick={() => void api.macPermissions.openFolderSettings()}
+                      >
+                        {t("mcProject.creativeStorageOpenSettings")}
+                      </button>
+                    ) : null}
                     <button type="button" className="mc-creative-storage-change" onClick={storageMenu}>
                       {t("mcProject.creativeStorageChoose")}
                     </button>

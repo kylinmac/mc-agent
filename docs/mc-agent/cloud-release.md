@@ -1,6 +1,6 @@
 # 云端发布（R16；P12；V52）
 
-已确定（2026-10-23）：macOS arm64 与 Windows x64 都由 GitHub Actions 从同一个版本标签构建。macOS 沿用 ad-hoc 签名和应用内自更新；Windows 沿用 Setup 与 NSIS 静默更新。不得把旧版本包复制进新版本。
+已确定（2026-10-23）：macOS arm64 与 Windows x64 都由 GitHub Actions 从同一个版本标签构建。macOS 用固定自签名证书签名（2026-11-05 起，见下节）并沿用应用内自更新；Windows 沿用 Setup 与 NSIS 静默更新。不得把旧版本包复制进新版本。
 
 P12：Actions 中运行 `mc-agent Release`，填写版本号（不含 v）。标签须已存在且属于 main 历史。流程准备草稿、并行构建两端、验证产物与更新源，最后一次性公开；任何构建失败都不发布。已公开的版本不可覆盖。工作区版本号不随 fork 发版修改。
 
@@ -8,7 +8,25 @@ V52：验证非法版本、缺失文件、版本错配与 SHA-512 错配会失�
 
 发布操作：先让代码通过 PR 检查并合入 main，把该版本的更新说明写进 `mc-changelog-zh-CN.ts` 并合入（见[更新说明流程](release-notes.md)；prepare 会检查标签里有没有这一条，从 1.0.20 起），创建并推送 `v<版本>`，再运行 `gh workflow run mc-release.yml -f version=<版本>`。如已有草稿，可重跑；仅草稿允许替换同名产物。旧 `mc-windows.yml` 保留独立调试入口，统一发布流程复用其构建任务但关闭直接上传。
 
-当前支持与既有正式包一致：macOS Apple Silicon、Windows x64。Intel Mac、Linux 不属于本次扩展。macOS 没有 Developer ID 公证，首次安装的系统提示和更新后权限行为保持现状。
+当前支持与既有正式包一致：macOS Apple Silicon、Windows x64。Intel Mac、Linux 不属于本次扩展。macOS 没有 Developer ID 公证，首次安装的系统提示保持现状；更新后权限行为见下节。
+
+## macOS 固定证书签名（V77）
+
+已确定（2026-11-05）：ad-hoc 签名的 designated requirement 是代码哈希，每个版本都变，macOS 因此把每次更新当成新应用，文件夹和系统授权全部失效。改为打包后用固定自签名证书重签（`scripts/mc-sign-mac-bundle.cjs`），requirement 变为 `identifier "com.kylinmac.mc-agent" and certificate leaf = H"16f4a4b0…"`，跨版本不变。
+
+| 项目 | 内容 |
+| --- | --- |
+| 仓库 secret | `MC_MAC_CERT_P12_BASE64`、`MC_MAC_CERT_PASSWORD`；缺失时发布失败 |
+| 证书指纹 | 写死在 `scripts/mc-release.mjs` 的 `SIGNING_CERT_SHA1`，不一致时发布失败 |
+| 有效期 | 到 2046-10-31；未加时间戳，过期前要换证书 |
+| 本机备份 | `~/.config/mc-agent-signing/`，仓库外，不提交 |
+| 本地试打包 | `node scripts/mc-release.mjs <版本> --dry-run --ad-hoc`，不能发布 |
+
+**换证书或丢失私钥：** 所有用户要重新授权一次，同时改 secret 和 `SIGNING_CERT_SHA1`。
+
+**不解决：** 没有公证，首次安装仍要右键打开。切换后的第一个版本（1.0.54）仍要授权一次。
+
+V77：同一证书重签两份内容不同的包，CDHash 不同、requirement 相同；重签后 `codesign --verify --deep --strict` 通过，应用和 host-core 能启动。真实升级后授权保留，要从 1.0.54 升到下一版才能验证，未验证前不算通过。
 
 ## 自动检测（R16.1；P12；V53）
 

@@ -33,6 +33,9 @@ export const SETTINGS_URLS: Record<MacPermissionItem, string> = {
   microphone: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone",
 };
 
+/** Files and Folders: where a denied project folder (Documents, Desktop…) is allowed. */
+export const FOLDER_SETTINGS_URL = "x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders";
+
 export const SETTINGS_PATHS: Record<MacPermissionItem, string> = {
   accessibility: "System Settings → Privacy & Security → Accessibility",
   screenRecording: "System Settings → Privacy & Security → Screen & System Audio Recording",
