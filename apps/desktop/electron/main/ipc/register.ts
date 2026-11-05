@@ -33,6 +33,9 @@ import { registerMcCanvasIpc } from "./mc-canvas-ipc";
 import { registerMcCreativeIpc } from "./mc-creative-ipc";
 import { registerMcProjectCreateIpc } from "./mc-project-create-ipc";
 import { imageDataUrl, measureImage } from "../creative/measure-image";
+import { setPluginPanelResolver } from "../work-panel-agent/plugin-surface";
+import { panelBridge } from "../work-panel-agent/bridge";
+import { setPanelTerminalManager } from "../work-panel-agent/terminals";
 import { TerminalManager } from "../mc-terminal";
 import { registerProviderIpc } from "./provider-ipc";
 import { registerScheduledIpc } from "./scheduled-ipc";
@@ -395,7 +398,14 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
       return result.canceled ? null : (result.filePaths[0] ?? null);
     },
   });
-  registerMcTerminalIpc({
+  panelBridge.connect(sendToRenderer);
+  setPluginPanelResolver((resource, sessionId) => pluginViews.agentSurface(resource, sessionId));
+  registrar.handleWithEvent(IPC.invoke.workPanelAgentReply, async (event, input: { requestId: string; result?: unknown; error?: string }) => {
+    registrar.assertMainWindowSender(event);
+    panelBridge.reply(input.requestId, input);
+    return { ok: true };
+  });
+  setPanelTerminalManager(registerMcTerminalIpc({
     registrar,
     getHost,
     onQuit: (dispose) => app.on("will-quit", dispose),
@@ -403,7 +413,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
       onData: (termId, data) => sendToRenderer(IPC.event.terminalData, { termId, data }),
       onExit: (termId, exitCode) => sendToRenderer(IPC.event.terminalExit, { termId, exitCode }),
     }),
-  });
+  }));
   registerMcBackgroundIpc({ registrar, getHost });
   registerMcReleaseNotesIpc({ registrar, dataDir });
   // mc-agent project creation from the conversation (MC-ADR-0023).

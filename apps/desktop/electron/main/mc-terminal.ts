@@ -44,8 +44,12 @@ type PtySession = {
   termId: string;
   tabId: string;
   cwd: string;
+  sessionId?: string;
+  shell: string;
+  exitCode?: number;
   pty: IPty;
   replay: string;
+  outputEnd: number;
 };
 
 export type TerminalEvents = {
@@ -64,10 +68,12 @@ type SpawnPty = (shell: string, args: string[], options: {
 type PendingCreate = {
   promise: Promise<{ termId: string; replay: string }>;
   cancelled: boolean;
+  sessionId?: string;
 };
 
 export class TerminalManager {
   private readonly sessions = new Map<string, PtySession>();
+  private readonly exited = new Map<string, PtySession>();
   private readonly byTab = new Map<string, string>();
   /** Tabs whose shell is still starting: one start per tab, cancellable. */
   private readonly pending = new Map<string, PendingCreate>();
@@ -91,6 +97,7 @@ export class TerminalManager {
    */
   async create(input: {
     tabId: string;
+    sessionId?: string;
     cwd: string;
     cols?: number;
     rows?: number;
@@ -101,14 +108,20 @@ export class TerminalManager {
   }> {
     const existingId = this.byTab.get(input.tabId);
     const existing = existingId ? this.sessions.get(existingId) : undefined;
-    if (existing) return { termId: existing.termId, replay: existing.replay };
+    if (existing) {
+      if (existing.sessionId !== input.sessionId) throw new Error("Terminal belongs to another session");
+      return { termId: existing.termId, replay: existing.replay };
+    }
     // A second request while the first is still loading shares its shell
     // instead of starting another one the tab would lose track of.
     const inFlight = this.pending.get(input.tabId);
-    if (inFlight) return inFlight.promise;
+    if (inFlight) {
+      if (inFlight.sessionId !== input.sessionId) throw new Error("Terminal belongs to another session");
+      return inFlight.promise;
+    }
     if (this.sessions.size + this.pending.size >= MAX_TERMINALS) throw new Error("too many open terminals");
 
-    const pending: PendingCreate = { promise: Promise.resolve({ termId: "", replay: "" }), cancelled: false };
+    const pending: PendingCreate = { promise: Promise.resolve({ termId: "", replay: "" }), cancelled: false, sessionId: input.sessionId };
     pending.promise = this.spawnFor(input, pending).finally(() => {
       if (this.pending.get(input.tabId) === pending) this.pending.delete(input.tabId);
     });
@@ -117,7 +130,7 @@ export class TerminalManager {
   }
 
   private async spawnFor(
-    input: { tabId: string; cwd: string; cols?: number; rows?: number; check?: () => Promise<void> },
+    input: { tabId: string; sessionId?: string; cwd: string; cols?: number; rows?: number; check?: () => Promise<void> },
     pending: PendingCreate,
   ): Promise<{ termId: string; replay: string }> {
     await input.check?.();
@@ -135,15 +148,23 @@ export class TerminalManager {
       rows: clamp(input.rows ?? DEFAULT_ROWS, 2, 300),
       env: { ...process.env, TERM: "xterm-256color", COLORTERM: "truecolor" } as Record<string, string>,
     });
-    const session: PtySession = { termId, tabId: input.tabId, cwd: input.cwd, pty, replay: "" };
+    const session: PtySession = { termId, tabId: input.tabId, cwd: input.cwd, sessionId: input.sessionId, shell, pty, replay: "", outputEnd: 0 };
     this.sessions.set(termId, session);
     this.byTab.set(input.tabId, termId);
 
     pty.onData((data) => {
+      session.outputEnd += data.length;
       session.replay = (session.replay + data).slice(-REPLAY_LIMIT_CHARS);
       this.events.onData(termId, data);
     });
     pty.onExit(({ exitCode }) => {
+      if (this.sessions.get(termId) !== session) return;
+      session.exitCode = exitCode;
+      this.exited.set(session.tabId, session);
+      if (this.exited.size > MAX_TERMINALS) {
+        const oldest = this.exited.keys().next().value;
+        if (oldest) this.exited.delete(oldest);
+      }
       this.forget(session);
       this.events.onExit(termId, exitCode ?? null);
     });
@@ -165,6 +186,7 @@ export class TerminalManager {
 
   /** Kill the shell of a closed tab, or stop the one still starting. */
   disposeTab(tabId: string): void {
+    this.exited.delete(tabId);
     const pending = this.pending.get(tabId);
     if (pending) {
       pending.cancelled = true;
@@ -177,9 +199,17 @@ export class TerminalManager {
 
   /** Kill every shell by its own process, not through the tab index. */
   disposeAll(): void {
+    this.exited.clear();
     for (const pending of this.pending.values()) pending.cancelled = true;
     this.pending.clear();
     for (const session of [...this.sessions.values()]) this.kill(session);
+  }
+
+  agentSession(sessionId: string, tabId: string) {
+    const termId = this.byTab.get(tabId);
+    const entry = (termId ? this.sessions.get(termId) : undefined) ?? this.exited.get(tabId);
+    if (!entry || entry.sessionId !== sessionId) throw new Error("Terminal is not owned by this session or has closed");
+    return { termId: entry.termId, tabId, cwd: entry.cwd, shell: entry.shell, output: entry.replay, cursor: entry.outputEnd, start: entry.outputEnd - entry.replay.length, running: entry.exitCode === undefined, exitCode: entry.exitCode };
   }
 
   get size(): number {

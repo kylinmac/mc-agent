@@ -1,3 +1,4 @@
+export * from "./work-panel-agent.js";
 export * from "./activation.js";
 export * from "./protocol.js";
 export * from "./errors.js";

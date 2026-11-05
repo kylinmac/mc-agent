@@ -1019,6 +1019,11 @@
     "zh-CN": "文件",
     "zh-TW": "檔案"
   },
+  "terminalShortcuts": {
+    "en": "Copy selection: Ctrl+Shift+C or Ctrl+C (Mac: Cmd+C). Paste: Ctrl+Shift+V (Mac: Cmd+V). Select all: Ctrl+Shift+A. Clear scrollback: Ctrl+Shift+K (Mac: Cmd+K). Scroll: Shift+PageUp/PageDown, Shift+Home/End. Without a selection, Ctrl+C interrupts the running command.",
+    "zh-CN": "复制选区：Ctrl+Shift+C 或 Ctrl+C（Mac：Cmd+C）。粘贴：Ctrl+Shift+V（Mac：Cmd+V）。全选：Ctrl+Shift+A。清除滚动历史：Ctrl+Shift+K（Mac：Cmd+K）。滚动：Shift+PageUp/PageDown、Shift+Home/End。没有选区时 Ctrl+C 中断运行中的命令。",
+    "zh-TW": "複製選取內容：Ctrl+Shift+C 或 Ctrl+C（Mac：Cmd+C）。貼上：Ctrl+Shift+V（Mac：Cmd+V）。全選：Ctrl+Shift+A。清除捲動歷史：Ctrl+Shift+K（Mac：Cmd+K）。捲動：Shift+PageUp/PageDown、Shift+Home/End。沒有選取內容時 Ctrl+C 中斷命令。"
+  },
   "terminalExited": {
     "en": "Shell exited",
     "zh-CN": "Shell 已退出",

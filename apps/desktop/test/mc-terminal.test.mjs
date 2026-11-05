@@ -27,6 +27,34 @@ function fakePty() {
   return { spawned, load: async () => spawn };
 }
 
+test("agent reads only its terminal, retains bounded exit output and rejects reassignment", async () => {
+  const { spawned, load } = fakePty();
+  const manager = new TerminalManager({ onData() {}, onExit() {} }, load);
+  const first = await manager.create({ tabId: "owned", sessionId: "s1", cwd: "/w" });
+  spawned[0].emit("x".repeat(140000) + "\nERROR fixture");
+  const reading = manager.agentSession("s1", "owned");
+  assert.equal(reading.termId, first.termId);
+  assert.ok(reading.output.endsWith("ERROR fixture"));
+  assert.ok(reading.output.length <= 128 * 1024);
+  assert.ok(reading.start > 0);
+  assert.throws(() => manager.agentSession("s2", "owned"), /not owned/);
+  await assert.rejects(manager.create({ tabId: "owned", sessionId: "s2", cwd: "/w" }), /another session/);
+  spawned[0].exit(17);
+  assert.equal(manager.agentSession("s1", "owned").exitCode, 17);
+  assert.equal(manager.agentSession("s1", "owned").running, false);
+  manager.disposeTab("owned");
+  assert.throws(() => manager.agentSession("s1", "owned"), /closed/);
+});
+
+test("late exit after tab disposal cannot resurrect output", async () => {
+  const { spawned, load } = fakePty();
+  const manager = new TerminalManager({ onData() {}, onExit() {} }, load);
+  await manager.create({ tabId: "closed", sessionId: "s1", cwd: "/w" });
+  manager.disposeTab("closed");
+  spawned[0].exit(0);
+  assert.throws(() => manager.agentSession("s1", "closed"), /closed/);
+});
+
 test("each tab owns one shell, reattaches with its replay, and is killed on close", async () => {
   const { spawned, load } = fakePty();
   const events = [];

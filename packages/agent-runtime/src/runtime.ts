@@ -42,6 +42,7 @@ import {
   restoreCandidates,
   type RestoreRead,
 } from "./mc-compaction-file-restore.js";
+import { PANEL_TOOL_NAMES, panelToolDescriptions, panelToolParameters } from "./mc-work-panel-tools.js";
 import { CANVAS_TOOL_NAMES, canvasToolDescriptions, canvasToolParameters } from "./mc-canvas-tools.js";
 import {
   CREATE_PROJECT_TOOL_NAME,
@@ -3493,6 +3494,7 @@ export class DesktopAgentRuntime {
       // mc-agent project memory notes (MC-ADR-0019).
       if (toolName === REMEMBER_TOOL_NAME) return rememberDescription;
       // mc-agent prototype canvas (docs/mc-agent/prototype-canvas.md).
+      if (toolName in panelToolDescriptions) return panelToolDescriptions[toolName];
       if (toolName in canvasToolDescriptions) return canvasToolDescriptions[toolName as keyof typeof canvasToolDescriptions];
       // mc-agent project creation from the conversation (MC-ADR-0023).
       if (toolName === PROJECT_TEMPLATES_TOOL_NAME) return projectTemplatesDescription;
@@ -3559,6 +3561,7 @@ export class DesktopAgentRuntime {
       SaveCreativeAsset: saveCreativeAssetParameters,
       [REMEMBER_TOOL_NAME]: rememberParameters,
       ...canvasToolParameters,
+      ...panelToolParameters,
       [PROJECT_TEMPLATES_TOOL_NAME]: projectTemplatesParameters,
       [CREATE_PROJECT_TOOL_NAME]: createProjectParameters,
       TodoWrite: todoWriteParameters,
@@ -4204,6 +4207,7 @@ export class DesktopAgentRuntime {
       // mc-agent: projects are created on this machine (MC-ADR-0023).
       if (!this.remoteWorkspace) tools.push(PROJECT_TEMPLATES_TOOL_NAME, CREATE_PROJECT_TOOL_NAME);
     }
+    if (!this.remoteWorkspace) tools.push(...PANEL_TOOL_NAMES.filter(name => this.mode === "agent" || name !== "WorkPanelAction"));
     const builtins = tools.map(exec);
     const jevTools: AgentTool[] =
       this.mode === "agent" && this.jevApiKey
@@ -4386,6 +4390,8 @@ export class DesktopAgentRuntime {
       "Glob",
       "Grep",
       "BrowserPreview",
+      "WorkPanelList",
+      "WorkPanelRead",
       "Bash",
       ASK_TOOL_NAME,
       CONTEXT_COMPACTION_TOOL_NAME,
@@ -4397,6 +4403,7 @@ export class DesktopAgentRuntime {
 
   private isCoreTool(name: string): boolean {
     return (
+      PANEL_TOOL_NAMES.some(tool => tool === name) ||
       name === CONTEXT_COMPACTION_TOOL_NAME ||
       retainModeToolDeclaration(name) ||
       MODE_TRANSITION_TOOL_NAMES.has(name) ||

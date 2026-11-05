@@ -98,6 +98,8 @@ type LiveView = {
   location: string | null;
   /** False until the first document finished loading. */
   loaded: boolean;
+  agentSessionId?: string;
+  agentEpoch?: number;
 };
 
 export function pluginViewKey(pluginId: string, viewId: string): string {
@@ -246,6 +248,7 @@ export class PluginViewHost {
     const senderId = view.webContents.id;
     this.senders.register(senderId, request.pluginId);
     view.webContents.once("destroyed", () => this.senders.release(senderId));
+    view.webContents.on("did-start-navigation", () => { entry.agentEpoch = (entry.agentEpoch ?? 0) + 1; });
     view.webContents.once("did-finish-load", () => {
       entry.loaded = true;
     });
@@ -324,8 +327,20 @@ export class PluginViewHost {
    * panel panes are on screen together, so showing one no longer detaches the
    * others; the renderer hides a view when its tab leaves the screen.
    */
-  setVisible(pluginId: string, viewId: string, visible: boolean): void {
+  agentSurface(resource: string, sessionId: string) {
+    const entry = this.views.get(resource);
+    if (!entry || !entry.loaded || entry.agentSessionId !== sessionId || !this.visibleKeys.has(resource)) throw new Error("Plugin panel is not visible in this session");
+    const epoch = entry.agentEpoch;
+    return { wc: entry.view.webContents, current: () => this.views.get(resource) === entry && entry.agentEpoch === epoch && entry.agentSessionId === sessionId && this.visibleKeys.has(resource) };
+  }
+
+  setVisible(pluginId: string, viewId: string, visible: boolean, sessionId?: string): void {
     const key = pluginViewKey(pluginId, viewId);
+    const owned = this.views.get(key);
+    if (owned && (owned.agentSessionId !== sessionId || !visible)) {
+      owned.agentSessionId = visible ? sessionId : undefined;
+      owned.agentEpoch = (owned.agentEpoch ?? 0) + 1;
+    }
     if (!visible) {
       if (this.visibleKeys.has(key)) this.detach(key);
       return;

@@ -72,6 +72,7 @@
     "test:e2e:browser-local-files": "node scripts/e2e-browser-local-file-access.mjs",
     "test:e2e:browser-background": "node scripts/e2e-browser-background.mjs",
     "test:e2e:work-panel-drag": "node scripts/e2e-work-panel-drag.mjs",
+    "test:e2e:work-panel-agent": "node scripts/e2e-work-panel-agent.mjs",
     "test:e2e:work-panel-tab-close": "node scripts/e2e-work-panel-tab-close.mjs",
     "test:e2e:supervision": "node scripts/e2e-supervision.mjs",
     "test:e2e:subagents": "node scripts/e2e-subagents.mjs",

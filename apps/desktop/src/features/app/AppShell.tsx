@@ -1,3 +1,4 @@
+import { useWorkPanelAgent } from "../work-tools/use-work-panel-agent";
 import {
   type CSSProperties,
   lazy,
@@ -76,6 +77,7 @@ const WorkPanel = lazy(() =>
 );
 
 export function AppShell() {
+  useWorkPanelAgent();
   const {
     t,
     ready,

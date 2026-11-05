@@ -2250,7 +2250,7 @@ export const api = {
     },
   },
   // mc-agent work-panel terminal (MC-ADR-0005).
-  terminalCreate: (input: { tabId: string; cwd: string; cols?: number; rows?: number }) =>
+  terminalCreate: (input: { tabId: string; sessionId?: string; cwd: string; cols?: number; rows?: number }) =>
     invoke<{ termId: string; replay: string }>(IPC.invoke.terminalCreate, input),
   terminalWrite: (termId: string, data: string) => invoke<{ ok: true }>(IPC.invoke.terminalWrite, { termId, data }),
   terminalResize: (termId: string, cols: number, rows: number) =>

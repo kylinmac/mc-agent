@@ -3139,6 +3139,7 @@ sklm: {
     quickToolTerminalUnavailable: "Open a local conversation to start a terminal in its folder",
     quickToolBrowser: "New browser tab",
     quickToolFiles: "Files",
+    terminalShortcuts: "Copy selection: Ctrl+Shift+C or Ctrl+C (Mac: Cmd+C). Paste: Ctrl+Shift+V (Mac: Cmd+V). Select all: Ctrl+Shift+A. Clear scrollback: Ctrl+Shift+K (Mac: Cmd+K). Scroll: Shift+PageUp/PageDown, Shift+Home/End. Without a selection, Ctrl+C interrupts the running command.",
     terminalExited: "Shell exited",
     terminalRestart: "Restart",
     terminalStartFailed: "Could not start the terminal",
