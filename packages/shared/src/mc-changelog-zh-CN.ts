@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.59",
+    date: "2026-11-06",
+    features: [
+      "Markdown 预览支持 Ctrl+F / ⌘F 查找正文，查看匹配数量并跳转前后结果。",
+    ],
+  },
+  {
     version: "1.0.58",
     date: "2026-11-06",
     features: [
