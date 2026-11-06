@@ -13,6 +13,8 @@ Source changes are retained in `patches/file-manager-split.patch`: a Markdown-on
 
 Rebuild: clone the pinned tag, apply the patch with `git apply`, install `views-src/pnpm-lock.yaml` dependencies, then run the view's typecheck and build. Copy `views/`, unchanged main/README, and update the manifest version/license/changelog and hashes below. Keep the added CommonJS `package.json` marker: the host loads main.js with require.
 
+Preview text search is provided by `electron/main/mc-file-preview-search.ts` (Ctrl/Cmd+F, rendered-text highlights and navigation); it also applies to marketplace copies and leaves the CodeMirror search intact.
+
 Host overrides remain in `electron/main/mc-file-search-contrast.ts` and `electron/main/mc-file-preview-links.ts`; verify both against rebuilt views.
 
 ## Shipped SHA-256
