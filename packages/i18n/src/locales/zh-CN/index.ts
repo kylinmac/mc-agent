@@ -1,7 +1,7 @@
 import { en, type EnglishCatalog } from "../en/index.js";
 
 export const zhCN = {
-  fileManager: { splitMode: "分栏" },
+  fileManager: { splitMode: "分栏", findPreview: "在预览中查找", previousMatch: "上一处", nextMatch: "下一处", closeSearch: "关闭查找" },
   dictation: {
     requestRejected: "转写服务拒绝了请求参数（HTTP 400／422），请检查转写模型或更新应用后重试。",
     authFailed: "语音服务凭据不可用或已失效，请重新登录所选账号，或检查 API Key。",

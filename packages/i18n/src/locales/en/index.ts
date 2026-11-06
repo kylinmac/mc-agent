@@ -1,5 +1,5 @@
 export const en = {
-  fileManager: { splitMode: "Split" },
+  fileManager: { splitMode: "Split", findPreview: "Find in preview", previousMatch: "Previous match", nextMatch: "Next match", closeSearch: "Close search" },
   dictation: {
     requestRejected: "The transcription service rejected the request parameters (HTTP 400/422). Check the model or update the app and retry.",
     authFailed: "Voice credentials are unavailable or expired. Sign in to the selected account again or check the API key.",
