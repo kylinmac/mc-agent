@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.59",
+    date: "2026-11-06",
+    features: [
+      "Use Ctrl+F / ⌘F in Markdown previews to search text, see match counts, and jump between results.",
+    ],
+  },
+  {
     version: "1.0.58",
     date: "2026-11-06",
     features: [
