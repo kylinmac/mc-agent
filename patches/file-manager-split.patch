@@ -1,0 +1,180 @@
+diff --git a/views-src/src/App.tsx b/views-src/src/App.tsx
+index 8f4a530..9118796 100644
+--- a/views-src/src/App.tsx
++++ b/views-src/src/App.tsx
+@@ -1088,7 +1088,8 @@ export default function App() {
+ 
+   // 结构化视图（Markdown 预览 / 表格 / 树）只对文本文件成立；具体有哪几种、
+   // 默认落在哪一侧，全部由 lib/viewers.ts 一处判定，偏好决定默认值。
+-  const viewer = openFile && openFile.kind === "text" ? resolveViewer(openFile.path, prefs) : null;
++  const [mdSplit, setMdSplit] = useState(false);
++  const viewer = openFile && openFile.kind === "text" ? resolveViewer(openFile.path, { ...prefs, mdSplit }) : null;
+   /**
+    * 当前打开文件的 git 状态。fm.read 打开那一刻就带回来了（左侧列表收起时也只有
+    * 这一条路）；打开之后才发生的改动——用户自己刚存过一次——由树里的徽标补上，
+@@ -1098,6 +1099,8 @@ export default function App() {
+ 
+   const changeViewerMode = (mode: ViewerMode) => {
+     if (!viewer) return;
++    setMdSplit(mode === "split");
++    if (mode === "split") return;
+     if (viewer.modes.includes("markdown")) persistPrefs({ mdPreview: mode === "markdown" });
+     else if (viewer.modes.includes("table")) persistPrefs({ csvTable: mode === "table" });
+     else if (viewer.modes.includes("tree")) persistPrefs({ jsonTree: mode === "tree" });
+diff --git a/views-src/src/components/EditorPane.tsx b/views-src/src/components/EditorPane.tsx
+index 90d6de5..40c57b5 100644
+--- a/views-src/src/components/EditorPane.tsx
++++ b/views-src/src/components/EditorPane.tsx
+@@ -1,4 +1,4 @@
+- import { useCallback, useEffect, useRef, useState } from "react";
++ import { useCallback, useDeferredValue, useEffect, useRef, useState } from "react";
+ import { createEditor, type EditorHandle } from "../lib/editor";
+ import type { Base } from "../lib/appearance";
+ import type { CopyKey, T } from "../i18n";
+@@ -90,6 +90,7 @@ export function EditorPane({
+   onCloseDiff,
+   onRefreshDiff,
+ }: Props) {
++  const [, setRevision] = useState(0);
+   const hostRef = useRef<HTMLDivElement | null>(null);
+   // 编辑器里装的是哪一次「从磁盘读进来」的内容；null = 还没装。
+   const [loadedToken, setLoadedToken] = useState<number | null>(null);
+@@ -132,7 +133,10 @@ export function EditorPane({
+     if (!host) return;
+     const handle = createEditor(host, {
+       base,
+-      onDocChanged: () => handlersRef.current.onDirty(),
++      onDocChanged: () => {
++        handlersRef.current.onDirty();
++        setRevision((revision) => revision + 1);
++      },
+       onSave: () => handlersRef.current.onSave(),
+     });
+     handleRef.current = handle;
+@@ -180,7 +184,8 @@ export function EditorPane({
+   const diffOpen = Boolean(file && diff && diff.path === file.path);
+   // 内容区显示哪一种，由 lib/pane.ts 一处说了算（单值，所以不可能同时挂两种）。
+   const content = contentKind({ fileKind: file?.kind ?? null, viewerMode: mode, diffOpen });
+-  const editorHidden = content !== "editor";
++  const split = content === "split";
++  const editorHidden = content !== "editor" && !split;
+   /**
+    * 页签只有一组：**编辑 / 预览（表格、树）/ 变更**。
+    *
+@@ -204,7 +209,7 @@ export function EditorPane({
+       ? handleRef.current?.text() ?? file.text
+       : file?.text ?? "";
+   // 内容区现在不是编辑器时，预览/表格/树渲染的是「编辑器里当前那份文本」。
+-  const structuredText = content === "editor" ? "" : liveText;
++  const structuredText = useDeferredValue(content === "editor" ? "" : liveText);
+ 
+   // 预览或查看器占位时编辑器必须藏起来、且要 false 掉 CodeMirror 的测量：
+   // 它在 display:none 的容器里量不到尺寸，回到编辑态会排版错乱。
+@@ -212,7 +217,7 @@ export function EditorPane({
+     if (!hostRef.current) return;
+     hostRef.current.style.display = editorHidden ? "none" : "";
+     if (!editorHidden) handleRef.current?.view.requestMeasure();
+-  }, [editorHidden, handleRef]);
++  }, [editorHidden, split, handleRef]);
+ 
+   // 图片与音视频是「查看」而不是「编辑」，不再挂只读横幅——换成查看器本身。
+   const readOnlyReason =
+@@ -387,13 +392,13 @@ export function EditorPane({
+         </div>
+       ) : null}
+ 
+-      <div className="relative min-h-0 flex-1 overflow-hidden">
+-        <div ref={hostRef} className="h-full" />
++      <div className="relative min-h-0 flex-1 overflow-hidden" style={split ? { display: "flex" } : undefined}>
++        <div ref={hostRef} className="h-full" style={split ? { width: "50%", minWidth: 0, flex: "none" } : undefined} />
+ 
+         {/* 整块视图只有一个在场上：content 是单值（见 lib/pane.ts），所以这里不可能
+             出现「预览与差异叠在一起」。编辑器由 editorHidden 藏起来。 */}
+-        {content === "markdown" && file ? (
+-          <div className="md-scroll">
++        {(content === "markdown" || split) && file ? (
++          <div className="md-scroll" style={split ? { position: "relative", inset: "auto", width: "50%", minWidth: 0, borderLeft: "1px solid var(--border)" } : undefined}>
+             <div className="md-body">
+               <MarkdownPreview text={structuredText} base={base} onLink={onLink} />
+             </div>
+diff --git a/views-src/src/i18n.ts b/views-src/src/i18n.ts
+index 59b44ad..6bd5e9b 100644
+--- a/views-src/src/i18n.ts
++++ b/views-src/src/i18n.ts
+@@ -42,6 +42,7 @@ export const COPY_TABLES = {
+     dirty: "Unsaved changes",
+     editMode: "Edit",
+     previewMode: "Preview",
++    splitMode: "Split",
+     preview: "Preview",
+     linkHint: "Link (not opened): {url}",
+     reload: "Reload from disk",
+@@ -284,6 +285,7 @@ export const COPY_TABLES = {
+     dirty: "未保存",
+     editMode: "编辑",
+     previewMode: "预览",
++    splitMode: "分栏",
+     preview: "预览",
+     linkHint: "链接（未打开）：{url}",
+     reload: "从磁盘重新加载",
+diff --git a/views-src/src/lib/pane.ts b/views-src/src/lib/pane.ts
+index edffb85..462d3f2 100644
+--- a/views-src/src/lib/pane.ts
++++ b/views-src/src/lib/pane.ts
+@@ -19,6 +19,7 @@ export type ContentKind =
+   | "editor"
+   | "diff"
+   | "markdown"
++  | "split"
+   | "table"
+   | "tree"
+   | "image"
+diff --git a/views-src/src/lib/viewers.ts b/views-src/src/lib/viewers.ts
+index 6007231..4094b37 100644
+--- a/views-src/src/lib/viewers.ts
++++ b/views-src/src/lib/viewers.ts
+@@ -12,7 +12,7 @@
+ import type { CopyKey } from "../i18n";
+ import { isMarkdown } from "./languages";
+ 
+-export type ViewerMode = "source" | "markdown" | "table" | "tree";
++export type ViewerMode = "source" | "markdown" | "split" | "table" | "tree";
+ 
+ export type ViewerView = {
+   /** 工具栏切换器里的顺序；只有一项时不该出现切换器。 */
+@@ -24,6 +24,7 @@ export type ViewerView = {
+ export const MODE_LABEL: Record<ViewerMode, CopyKey> = {
+   source: "editMode",
+   markdown: "previewMode",
++  split: "splitMode",
+   table: "tableMode",
+   tree: "treeMode",
+ };
+@@ -40,13 +41,14 @@ export function isJson(filePath: string): boolean {
+ 
+ export type ViewerPrefs = {
+   mdPreview: boolean;
++  mdSplit?: boolean;
+   csvTable: boolean;
+   jsonTree: boolean;
+ };
+ 
+ export function resolveViewer(filePath: string, prefs: ViewerPrefs): ViewerView | null {
+   if (isMarkdown(filePath)) {
+-    return { modes: ["source", "markdown"], mode: prefs.mdPreview ? "markdown" : "source" };
++    return { modes: ["source", "markdown", "split"], mode: prefs.mdSplit ? "split" : prefs.mdPreview ? "markdown" : "source" };
+   }
+   if (csvDelimiterOf(filePath)) {
+     return { modes: ["source", "table"], mode: prefs.csvTable ? "table" : "source" };
+diff --git a/views-src/src/styles/index.css b/views-src/src/styles/index.css
+index fe5b4f6..09e867b 100644
+--- a/views-src/src/styles/index.css
++++ b/views-src/src/styles/index.css
+@@ -1360,3 +1360,7 @@ button.json-row:hover {
+     animation: none !important;
+   }
+ }
++
++/* Keep the bundled search controls readable without host overrides. */
++.cm-editor .cm-panel.cm-search .cm-textfield { background: var(--surface); color: var(--fg); caret-color: var(--fg); }
++.cm-editor .cm-panel.cm-search .cm-button { background: var(--surface-hover); color: var(--fg); }
