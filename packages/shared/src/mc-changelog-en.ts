@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.57",
+    date: "2026-11-06",
+    fixes: [
+      "Web and email links in the file panel's Markdown preview now open directly instead of only showing \"Link (not opened)\".",
+    ],
+  },
+  {
     version: "1.0.56",
     date: "2026-11-05",
     features: [

@@ -77,6 +77,17 @@ Three local changes, plus an upstream fix proposal, so a re-sync stays deliberat
   [Tioit-Wang/pi-desktop-plugin-file-manager#6](https://github.com/Tioit-Wang/pi-desktop-plugin-file-manager/pull/6),
   where it can ship in a release newer than the marketplace's current 0.9.0.
 
+## Host overrides
+
+These live in the host, not in this directory, so they also reach marketplace
+copies. After a re-sync, check they still match the new view's markup:
+
+- `electron/main/mc-file-search-contrast.ts`: search panel contrast.
+- `electron/main/mc-file-preview-links.ts`: opens http(s) and mailto links from
+  the Markdown preview in the default browser. Relies on the `md-link` class and
+  the title suffix of the preview's links; if those change, links fall back to
+  the plugin's toast. Covered by `test:e2e:file-manager-links`.
+
 ## Re-syncing a newer release
 
 1. Check out the new upstream tag and confirm the marketplace entry points at
