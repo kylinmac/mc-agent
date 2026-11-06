@@ -1,6 +1,7 @@
 import { en, type EnglishCatalog } from "../en/index.js";
 
 export const zhTW = {
+  fileManager: en.fileManager,
   dictation: en.dictation,
   worktree: {
     menu: { group: "Git" },
