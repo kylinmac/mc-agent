@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.57",
+    date: "2026-11-06",
+    fixes: [
+      "文件面板 Markdown 预览里的网页和邮件链接可以直接打开，不再只弹“链接（未打开）”。",
+    ],
+  },
+  {
     version: "1.0.56",
     date: "2026-11-05",
     features: [
