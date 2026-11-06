@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.58",
+    date: "2026-11-06",
+    features: [
+      "Markdown 文件可以切换到分栏模式，左边编辑，右边实时预览。",
+    ],
+  },
+  {
     version: "1.0.57",
     date: "2026-11-06",
     fixes: [
