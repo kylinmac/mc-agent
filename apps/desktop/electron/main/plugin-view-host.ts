@@ -1,3 +1,4 @@
+import { installFilePreviewLinks } from "./mc-file-preview-links";
 import { installFileSearchContrast } from "./mc-file-search-contrast";
 import { session, shell, WebContentsView, type BrowserWindow } from "electron";
 import { join } from "node:path";
@@ -475,6 +476,7 @@ export class PluginViewHost {
     });
     const wc = view.webContents;
     installFileSearchContrast(wc, request.pluginId);
+    installFilePreviewLinks(wc, request.pluginId);
     // A docked view gets exactly one web contents. `window.open` would mint a
     // chromeless window outside the egress policy applied above.
     wc.setWindowOpenHandler(({ url }) => {
