@@ -2198,8 +2198,6 @@ sklm: {
       reviewScope: "Review scope",
       reviewSettings: "Review settings",
       wordWrap: "Word wrap",
-      expandAll: "Tout déplier",
-      collapseAll: "Tout replier",
       contextDisplay: "Context lines",
       fileActions: "Actions du fichier",
       openInternal: "Ouvrir en interne",

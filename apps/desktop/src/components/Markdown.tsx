@@ -167,7 +167,7 @@ function tokenStyle(token: ThemedToken): CSSProperties | undefined {
 }
 
 /* Rows are cached by reference in the line cache, so settled lines memo-skip. */
-export const TokenLine = memo(function TokenLine({ line }: { line: ThemedToken[] }) {
+const TokenLine = memo(function TokenLine({ line }: { line: ThemedToken[] }) {
   return (
     <>
       {line.map((token, i) => (
@@ -179,7 +179,7 @@ export const TokenLine = memo(function TokenLine({ line }: { line: ThemedToken[]
   );
 });
 
-export function useHighlightedTokens(
+function useHighlightedTokens(
   code: string,
   lang: string,
 ): ThemedToken[][] | null {
