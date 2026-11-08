@@ -5,6 +5,7 @@ import { session, shell, WebContentsView, type BrowserWindow } from "electron";
 import { join } from "node:path";
 import { getModuleDirectory } from "./module-path";
 import { parseAllowedExternalUrl } from "./safe-open-external";
+import { holdAgentOpen } from "./work-panel-agent/agent-input-gate";
 import { PanelSenders, pageGoneWithin } from "./plugin-panel-senders";
 import {
   PLUGIN_VIEW_LOCATION_EVENT,
@@ -483,7 +484,7 @@ export class PluginViewHost {
     // chromeless window outside the egress policy applied above.
     wc.setWindowOpenHandler(({ url }) => {
       const allowed = parseAllowedExternalUrl(url);
-      if (allowed) void shell.openExternal(allowed);
+      if (allowed && !holdAgentOpen(wc, allowed)) void shell.openExternal(allowed);
       return { action: "deny" };
     });
     return view;
