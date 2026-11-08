@@ -9,6 +9,27 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.59",
+    date: "2026-11-06",
+    features: [
+      "Use Ctrl+F / ⌘F in Markdown previews to search text, see match counts, and jump between results.",
+    ],
+  },
+  {
+    version: "1.0.58",
+    date: "2026-11-06",
+    features: [
+      "Edit Markdown on the left and see a live preview on the right with the new Split mode.",
+    ],
+  },
+  {
+    version: "1.0.57",
+    date: "2026-11-06",
+    fixes: [
+      "Web and email links in the file panel's Markdown preview now open directly instead of only showing \"Link (not opened)\".",
+    ],
+  },
+  {
     version: "1.0.56",
     date: "2026-11-05",
     features: [
