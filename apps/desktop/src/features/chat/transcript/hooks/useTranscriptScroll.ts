@@ -108,12 +108,7 @@ export function useTranscriptScroll({
   // Read by `reachTop`, which must stay referentially stable for the scroll
   // listener; the projection it describes is only known later in this render.
   const historyLengthRef = useRef(0);
-  const latestNavigation = useTranscriptLatestNavigation({
-    scrollRef, visible: paneVisible, onPosition: top => {
-      lastScrollTopRef.current = top;
-      lastLaidOutScrollTopRef.current = top;
-    },
-  });
+  const latestNavigation = useTranscriptLatestNavigation({ scrollRef, visible: paneVisible });
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "auto") => {
     if (latestNavigation.isActive()) return;

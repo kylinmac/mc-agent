@@ -70,6 +70,12 @@ globalThis.transcriptHistoryNavigationProbe = async (reducedOnly = false) => {
   const scroller = () => host.querySelector<HTMLDivElement>(".thread-scroll")!;
   const busy = () => host.querySelector('.transcript-history-loading[aria-hidden="false"]') !== null;
   const bottom = () => Math.abs(scroller().scrollHeight - scroller().clientHeight - scroller().scrollTop) <= 2;
+  // Arrival replaces the prepared identity; connected history data may survive.
+  const latestArrival = () => {
+    const prepared = useAppStore.getState().transcriptViews[id];
+    return () => !prepared || useAppStore.getState().transcriptViews[id] !== prepared ||
+      matchMedia("(prefers-reduced-motion: reduce)").matches;
+  };
   const render = (visible = true) => flushSync(() => root.render(<I18nextProvider i18n={i18n}>
     <div className="session-panes"><SessionPane key={id} sessionId={id} visible={visible} /></div>
   </I18nextProvider>));
@@ -195,6 +201,7 @@ globalThis.transcriptHistoryNavigationProbe = async (reducedOnly = false) => {
         const start = distance();
         const samples: number[] = [start];
         let sampling = true;
+        let arrived = () => false;
         const observers = new Set<ResizeObserver>();
         const sample = () => {
           if (!sampling) return;
@@ -212,7 +219,7 @@ globalThis.transcriptHistoryNavigationProbe = async (reducedOnly = false) => {
                 textOffsets.push(rect.top - viewport.top);
                 // Near-bottom is not arrival: the last animation frames still
                 // travel legitimately. Historical arrival commits the live view.
-                if (bottom() && (tailOnly || !useAppStore.getState().transcriptViews[id])) {
+                if (bottom() && arrived()) {
                   bottomOffsets.push(rect.top - viewport.top);
                 }
                 if (bottom()) {
@@ -221,7 +228,7 @@ globalThis.transcriptHistoryNavigationProbe = async (reducedOnly = false) => {
                   while (text && !text.textContent?.trim()) text = walker.nextNode();
                   const range = document.createRange();
                   if (text) range.selectNodeContents(text);
-                  arrivalSamples.push({ distance: distance(), history: Boolean(useAppStore.getState().transcriptViews[id]),
+                  arrivalSamples.push({ distance: distance(), history: !arrived(),
                     rowTop: rect.top - viewport.top, textTop: text ? range.getBoundingClientRect().top - viewport.top : null,
                     sameNode: latest === previousLatest });
                 }
@@ -240,8 +247,11 @@ globalThis.transcriptHistoryNavigationProbe = async (reducedOnly = false) => {
         };
         requestAnimationFrame(sample);
         host.querySelector<HTMLButtonElement>(".jump-latest-btn")!.click();
+        arrived = latestArrival();
         try {
-          await until(() => !useAppStore.getState().transcriptViews[id] && bottom(), "smooth latest did not finish");
+          await until(() => arrived() && bottom(), "smooth latest did not finish");
+          if (!tailOnly) assert((useAppStore.getState().transcriptViews[id]?.messages.length ?? 0) >= 135,
+            "latest arrival discarded the previously loaded page");
           for (let n = 0; n < 30; n++) await frame();
         } finally { sampling = false; for (const observer of observers) observer.disconnect(); }
         const intermediateFrames = samples.filter(value => value > 2 && value < start - 2).length;
@@ -276,6 +286,7 @@ globalThis.transcriptHistoryNavigationProbe = async (reducedOnly = false) => {
         const el = scroller();
         const oldTop = el.scrollTop;
         host.querySelector<HTMLButtonElement>(".jump-latest-btn")!.click();
+        const arrived = latestArrival();
         await until(() => el.scrollTop > oldTop + 20 && !bottom(), "trip did not enter an intermediate position");
         if (action === "failed-search") {
           deferSearch = true;
@@ -319,14 +330,14 @@ globalThis.transcriptHistoryNavigationProbe = async (reducedOnly = false) => {
         } else {
           if (action === "layout-above") {
             const content = el.querySelector<HTMLElement>(".thread-content")!;
-            const remaining = el.scrollHeight - el.clientHeight - el.scrollTop;
+            const beforeLayout = el.scrollTop;
             const previousPadding = content.style.paddingTop;
             content.style.paddingTop = "2400px";
             await frame();
-            const afterLayout = el.scrollHeight - el.clientHeight - el.scrollTop;
+            const afterLayout = el.scrollTop;
             content.style.paddingTop = previousPadding;
-            assert(afterLayout <= remaining + 2,
-              `layout above reversed latest travel: before=${remaining}, after=${afterLayout}`);
+            assert(afterLayout >= beforeLayout - 2,
+              `native latest reversed during layout: before=${beforeLayout}, after=${afterLayout}`);
           } else if (action === "growth") {
             const live = useAppStore.getState().messages.map(message => ({ ...message, status: "complete" as const }));
             useAppStore.setState({ messages: [...live, { ...data.at(-1)!, id: `${id}-new`,
@@ -336,14 +347,14 @@ globalThis.transcriptHistoryNavigationProbe = async (reducedOnly = false) => {
               messages: useAppStore.getState().messages.map(message => ({ ...message, status: "complete" })) });
           } else if (action === "hide") {
             render(false);
-            await until(() => !useAppStore.getState().transcriptViews[id], "hide did not commit accepted latest intent");
+            await until(arrived, "hide did not commit accepted latest intent");
             render();
           } else if (action === "unmount") {
             flushSync(() => root.render(null));
-            assert(!useAppStore.getState().transcriptViews[id], "unmount did not commit accepted latest intent");
+            assert(arrived(), "unmount did not commit accepted latest intent");
             render();
           }
-          await until(() => !useAppStore.getState().transcriptViews[id] && bottom(), `${action} lost latest`);
+          await until(() => arrived() && bottom(), `${action} lost latest`);
           for (let n = 0; n < 15; n++) { await frame(); assert(bottom(), `${action} reversed accepted latest`); }
         }
         results.push({ lifecycle: action, ok: true });
@@ -526,12 +537,13 @@ globalThis.transcriptHistoryNavigationProbe = async (reducedOnly = false) => {
         assert(button, "actual return-to-latest button missing");
         const readsBeforeJump = reads.length;
         button.click();
+        const arrived = latestArrival();
         if (timing === "pending") { const item = pending.shift()!; item.resolve(item.response); }
-        await until(() => !useAppStore.getState().transcriptViews[id] && bottom(), `latest button failed after ${timing} page`);
+        await until(() => arrived() && bottom(), `latest button failed after ${timing} page`);
         for (let n = 0; n < 15; n++) { await frame(); assert(bottom(), "latest navigation was reversed after reaching bottom"); }
         assert(pending.length === 0 && reads.length === readsBeforeJump, "latest navigation started another history page");
         const result = { timing, role, top: scroller().scrollTop, height: scroller().scrollHeight,
-          historical: Boolean(useAppStore.getState().transcriptViews[id]), reduced: matchMedia("(prefers-reduced-motion: reduce)").matches };
+          historical: !arrived(), reduced: matchMedia("(prefers-reduced-motion: reduce)").matches };
         console.log("REAL_HISTORY_LATEST " + JSON.stringify(result));
         results.push(result);
       } catch (error) {
