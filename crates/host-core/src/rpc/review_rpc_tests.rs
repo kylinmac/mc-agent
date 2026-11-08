@@ -738,7 +738,9 @@ async fn review_rpc_denied_external_write_never_reads_or_captures_before_approva
 }
 
 #[tokio::test]
-async fn review_rollbacks_wait_for_active_host_file_mutations() {
+async fn review_rollbacks_wait_for_the_sessions_running_tools() {
+    // mc-agent has no upstream file-resource fence: a rollback takes the
+    // session-exclusive permit, so it waits for this session's tools.
     use std::future::{poll_fn, Future};
     use std::task::Poll;
     for method in ["review.rollback", "review.rollbackFile"] {
@@ -748,25 +750,19 @@ async fn review_rollbacks_wait_for_active_host_file_mutations() {
         let change = f.capture(f.root.path(), "captured-write", "after\n");
         f.tool("captured-write", json!(change), None, None).await;
         let budget = f.state.lock().await.tool_budget.clone();
-        let active = budget
-            .acquire_files(
-                "other-session",
-                "Write",
-                false,
-                crate::file_resources::FileResources::fence(true),
-                None,
-            )
-            .await
-            .unwrap();
+        let active = budget.acquire(&f.session, "Write").await.unwrap();
         let mut rollback = Box::pin(f.call(method, json!({"snapshotId":change.snapshot_id})));
+        let mut polls = 0;
         poll_fn(|cx| {
             assert!(
                 rollback.as_mut().poll(cx).is_pending(),
-                "rollback bypassed active file mutation: {method}"
+                "rollback bypassed a running tool: {method}"
             );
-            if budget.snapshot().queued == 1 {
+            polls += 1;
+            if polls >= 3 {
                 Poll::Ready(())
             } else {
+                cx.waker().wake_by_ref();
                 Poll::Pending
             }
         })
@@ -782,7 +778,6 @@ async fn review_rollbacks_wait_for_active_host_file_mutations() {
             "before\n"
         );
         assert_eq!(budget.snapshot().active, 0);
-        assert_eq!(budget.snapshot().queued, 0);
     }
 }
 
