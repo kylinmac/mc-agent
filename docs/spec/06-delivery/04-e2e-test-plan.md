@@ -4834,42 +4834,6 @@ window; opening a normal panel afterward must still work.
 - **Milestone**: M5
 - **Status**: Unit-covered (`chat-review-entry.test.mjs`); full UI scenario Draft
 
-#### E2E-CHAT-turn-changed-files-summary: A finished turn lists the files it changed
-
-- **Preconditions**: A project-bound Agent session with a writable workspace.
-- **Steps**: 1) Ask the agent to create one file and edit another; watch the
-  turn while it streams. 2) After the reply finishes, inspect the area below
-  the answer: only the summary header is visible. Click it to expand, click
-  again to collapse, then focus it and repeat with Enter and Space. Confirm
-  hidden rows and the Review link cannot receive keyboard focus and the title
-  keeps its viewport anchor. 3) Ask for a change touching more than twelve files
-  across several directories; confirm its card starts collapsed independently.
-  Expand it. 4) Click a row, then the `View all N files in Review` link.
-  5) Roll back one file's change in Review and return to the turn.
-  6) Ask a question that writes no files. 7) Switch sessions and come back.
-- **Expected**: No summary appears while a turn streams or after a failed
-  turn. A finished turn that wrote workspace files shows one borderless
-  `Changes this turn` card below its answer and above plugin `entryExtra`
-  blocks. It starts collapsed with only its chevron, title, file count, and
-  summed `+`/`−` visible; directory counts remain visible for dense summaries.
-  The full-width header toggles with click, Enter, or Space, exposes its state
-  through ARIA, and leaves Review closed. Collapsed details occupy no space
-  and cannot receive focus. Each turn's explicit choice is independent and
-  survives ordinary rerenders. When expanded, each path appears once with
-  its merged status letter and counts; up to four files use relaxed rows,
-  more use dense rows with a directory count, and rows past 12 fold into
-  `+N more`. A row click opens the session's Review tab scrolled to that file
-  with its changes expanded; the link opens Review without expanding. The
-  rolled-back file stays listed, struck through. Every earlier finished turn
-  keeps its own card, a turn without writes has none, and a session switch
-  fetches nothing extra. The per-call review rows are unchanged.
-- **Specs linked**: `04-ux/08-component-spec.md` §4.4, D674
-- **Acceptance**: D (workspace), Quality
-- **Milestone**: M5
-- **Status**: Unit/SSR-covered (`turn-changes-card.test.mjs`); isolated Chromium
-  pointer, Enter/Space, independent disclosure, hidden-focus, and Review paths
-  covered by `turn-changes-disclosure-user-path.test.mjs`; full UI scenario Draft
-
 #### E2E-058: Built-in interactive terminal is absent
 
 - **Preconditions**: A workspace is open and the Agent has completed a Bash
@@ -10424,7 +10388,6 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 | Quality (sidebar menu placement) | E2E-021c |
 | Quality (project ordering) | E2E-253 |
 | Quality (work-panel tab close visibility) | E2E-WORK-PANEL-active-tab-close-visibility |
-| Quality (turn changed-files disclosure) | E2E-CHAT-turn-changed-files-summary |
 | C / E / G / Quality — Pi kernel upgrade | E2E-PI-130-kernel-upgrade |
 | C — Conversation & stream (IME slash alias) | E2E-255 |
 | E — Tools & permissions (Skill residency) | E2E-254 |
