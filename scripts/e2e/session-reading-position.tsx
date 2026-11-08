@@ -21,8 +21,8 @@ const frame = () => new Promise<void>((resolve) => requestAnimationFrame(() => r
 function assert(condition: unknown, label: string): asserts condition {
   if (!condition) throw new Error(label);
 }
-async function until(predicate: () => boolean, label: string) {
-  for (let i = 0; i < 240; i++) {
+async function until(predicate: () => boolean, label: string, frames = 240) {
+  for (let i = 0; i < frames; i++) {
     if (predicate()) return;
     await frame();
   }
@@ -170,9 +170,21 @@ globalThis.sessionReadingPositionProbe = async () => {
       "explicit search can still load later pages manually");
     const jump = host.querySelector<HTMLButtonElement>('[data-visible="true"] .jump-latest-btn')!;
     flushSync(() => jump.click());
-    await until(() => !useAppStore.getState().transcriptViews["real-A"] &&
-      Math.abs(scroller().scrollHeight - scroller().clientHeight - scroller().scrollTop) < 2,
-    "return to latest exits history and resumes follow");
+    // Pages that reach the live tail stay loaded (ADR 0130); arrival only
+    // leaves search: no focus, no restored range, nothing unread after it.
+    // Native smooth scrolling retargets while lazy rows above grow the page,
+    // so this long trip gets a larger frame budget than the default.
+    await until(() => {
+      const view = useAppStore.getState().transcriptViews["real-A"];
+      return (!view || (!view.focus && !view.restored && !view.hasMoreAfter)) &&
+      Math.abs(scroller().scrollHeight - scroller().clientHeight - scroller().scrollTop) < 2;
+    }, "return to latest exits history and resumes follow", 1200).catch((error) => {
+      const view = useAppStore.getState().transcriptViews["real-A"];
+      throw new Error(`${error instanceof Error ? error.message : error}: ${JSON.stringify({
+        view: view && { focus: Boolean(view.focus), restored: view.restored, hasMoreAfter: view.hasMoreAfter,
+          loading: view.loading, rows: view.messages.length },
+        gap: scroller().scrollHeight - scroller().clientHeight - scroller().scrollTop })}`);
+    });
     assert(unexpected.length === 0, `unexpected IPC: ${unexpected}`);
     return { ok: true, anchor: id, restoredOffset, aroundReads, panes: 3 };
   } catch (error) {

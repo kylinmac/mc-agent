@@ -8,10 +8,10 @@
   without hiding overflow or blocking input. All paths, including the hard edge
   and explicit continuation, track the moving actual-message anchor through IO
   and three stable layout frames. Drive return-to-latest
-  through one custom interruptible `180–420ms` cubic ease-out viewport animation
-  (immediate under reduced motion) that keeps visible messages mounted until
-  arrival. Existing message, page, mounted-window, and retained-pane caches stay
-  unchanged, with no idle TTL or memory reclamation.
+  through browser-native smooth scrolling like the conversation turn markers
+  (`auto` under reduced motion), keeping visible messages mounted until native
+  arrival. Tail-connected loaded pages and cursors remain available, independently
+  of mounted-window bounds; no idle TTL or memory reclamation is introduced.
 - Follow-up integration base: official `vastsa/PI-Desktop` main,
   `14b928f3171e9e00b6d2851d67c832812ff61fc7`, including merged PR #2080.
   The continuous-answer jump and pending-page latest-button race both fail on
@@ -155,12 +155,12 @@ are used. It is not a mock implementation of scrolling.
   and `prefers-reduced-motion: reduce`, and test interrupting mid-flight with
   main-scroller vertical wheel vs horizontal/zero/`Ctrl` wheel or nested/editable
   controls, plus hiding/switching panes mid-trip.
-- Expected: with normal motion, the viewport animates smoothly (`180–420ms`
-  cubic ease-out, monotonic without reversing, no empty message viewport frame)
-  while suppressing competing follow, layout, and turn-completion owners;
-  reduced motion reaches the bottom immediately. Preparing a historical view
-  invalidates any pending page's `TranscriptView` identity (`loading: null`)
-  without removing visible messages and clears that exact view only on arrival,
+- Expected: normal motion uses browser-native smooth scrolling with the same
+  browser-owned timing as turn markers, no instantaneous intermediate position
+  writes, and no empty message viewport frame. Competing follow, layout, and
+  turn-completion owners yield until native completion; reduced motion uses
+  immediate `auto`. Preparing history invalidates pending page ownership without
+  removing visible messages; arrival exits historical ownership but retains connected pages,
   while pane hide or unmount commits the accepted latest intent once. Genuine
   main-scroller input cancels the trip at its current offset without committing
   arrival; horizontal, zero-delta, and `Ctrl`+wheel input and nested/editable/row

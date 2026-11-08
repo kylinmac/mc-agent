@@ -151,23 +151,23 @@ and the `session.get` window contract are untouched.
   before correcting layout, preserving compositor movement even when lazy rows
   lay out before their scroll event. A transaction settles after three stable
   layout frames. Failed or empty reads wait for new input or an explicit retry.
-- **Layout-independent latest trajectory:** Animate remaining distance to the
-  current bottom, not an absolute initial scroll coordinate. Height changes
-  above the reader must not be multiplied into the remaining animation. Tests
-  separate legitimate final travel from history-to-live commit drift and use
-  nonempty layout-complete samples for delayed-layout stability (`<= 2px`).
-- **Interruptible return-to-latest:** Returning to latest uses one custom
-  viewport animation (`180–420ms` cubic ease-out, monotonic retargeting across
-  late stream growth; immediate under `prefers-reduced-motion: reduce`) instead
-  of browser smooth scroll, suppressing competing follow, layout, previous
-  search-alignment, and turn-completion scroll owners while active. A new search
+- **Native latest trajectory:** Return-to-latest uses browser `smooth` scrolling,
+  exactly like conversation turn markers (`auto` under reduced motion). The app
+  does not impose an easing curve, duration, or per-frame position writes.
+  A `scrollend` listener commits arrival only at the current bottom; if lazy
+  layout or a late turn-changes card extends it, native scrolling finishes the
+  remaining distance instead of snapping. Completion and cancellation remove
+  the listener.
+- **Interruptible return-to-latest:** Competing follow, layout, previous search
+  alignment, and turn-completion scroll owners yield while travel is active. A new search
   request still cancels the trip. Genuine main-scroller input
   cancels the animation in place without committing arrival; horizontal,
   zero-delta, or `Ctrl`+wheel input and nested scrollers, editable fields, or
   row controls do not. Preparing return-to-latest from a historical
   `transcriptViews` slice replaces its identity with `loading: null` while
-  keeping current messages mounted, clears that exact prepared view only on
-  arrival, and commits on pane hide or unmount; disjoint search/history ranges
+  keeping current messages mounted, exits that exact view's historical ownership
+  on arrival, and commits on pane hide or unmount; tail-connected older pages and
+  cursors remain available, while disjoint search/history ranges
   join the canonical live tail on arrival without fetching or animating unloaded
   intermediate ranges. Runtime `isRunning` state passed to scroll hooks stays
   real rather than faked stopped by a historical view.
@@ -181,7 +181,8 @@ and the `session.get` window contract are untouched.
   Markdown without changing stored disclosure choices. One observer and frame
   scheduler per viewport handles scroll, resize, focus, and selection, and is
   disposed when its last shell leaves.
-- **Cache invariants:** Message, page, mounted-row-window, recent snapshot, and
-  retained session-pane data caches are unchanged. There is no idle TTL or
-  session-data reclamation; viewport-driven Markdown unmounting is independent
-  of those caches and does not initiate history reads.
+- **Cache invariants:** Returning to latest retains older pages connected to
+  the canonical live tail, without hydrating model input or retaining historical
+  focus. Disjoint snapshots still release to live; pane eviction and canonical
+  rewrites invalidate old pages. Mounted-row bounds and prose recycling remain
+  independent; no idle TTL or unrelated cache reclamation is introduced.
