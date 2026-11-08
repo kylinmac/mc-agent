@@ -58,13 +58,13 @@ it("leaves other session reads unchanged", async () => {
 });
 
 
-it("binds ProjectHistory to the caller before forwarding target ids", async () => {
+it.each(["session.projectHistory", "session.projectWork"])("binds %s to the caller before forwarding", async (method) => {
   const { sidecar, forwarded, read } = harness();
-  await expect(read("s1", "session.projectHistory")).rejects.toMatchObject({ data: { errorCode: "SESSION_NOT_BOUND" } });
+  await expect(read("s1", method)).rejects.toMatchObject({ data: { errorCode: "SESSION_NOT_BOUND" } });
   await sidecar.call("agent.prompt", { sessionId: "s1", text: "hi" });
-  await expect(read("s1", "session.projectHistory")).resolves.toMatchObject({ status: "ok" });
-  await expect(read("s2", "session.projectHistory")).rejects.toMatchObject({ data: { errorCode: "SESSION_NOT_BOUND" } });
-  expect(forwarded.map(call => call.method)).toEqual(["session.projectHistory"]);
+  await expect(read("s1", method)).resolves.toMatchObject({ status: "ok" });
+  await expect(read("s2", method)).rejects.toMatchObject({ data: { errorCode: "SESSION_NOT_BOUND" } });
+  expect(forwarded.map(call => call.method)).toEqual([method]);
   await sidecar.call("agent.disposeSession", { sessionId: "s1" });
-  await expect(read("s1", "session.projectHistory")).rejects.toMatchObject({ data: { errorCode: "SESSION_NOT_BOUND" } });
+  await expect(read("s1", method)).rejects.toMatchObject({ data: { errorCode: "SESSION_NOT_BOUND" } });
 });

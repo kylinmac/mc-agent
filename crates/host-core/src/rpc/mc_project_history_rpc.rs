@@ -25,7 +25,7 @@ fn denied() -> JsonRpcError {
     )
 }
 
-fn group_for_session(
+pub(super) fn group_for_session(
     db: &Database,
     id: &str,
 ) -> Result<(ProjectGroupRecord, SessionSummary), JsonRpcError> {

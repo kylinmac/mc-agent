@@ -85,7 +85,7 @@ pub fn handle(state: &AppState, method: &str, params: &Value) -> Result<Value, J
 }
 
 /// The domain prefixes its refusals with a code; anything else is internal.
-fn coded(error: anyhow::Error) -> JsonRpcError {
+pub(super) fn coded(error: anyhow::Error) -> JsonRpcError {
     let message = format!("{error:#}");
     let (code, kind) = match message.split(':').next().unwrap_or("") {
         "INVALID_ARGUMENT" => (1002, "INVALID_PARAMS"),

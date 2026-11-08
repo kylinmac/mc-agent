@@ -67,20 +67,7 @@ pub fn handle(state: &AppState, method: &str, params: &Value) -> Result<Value, J
             }
         }
         // R2: the project goal shown at the top of the overview.
-        "project.resources.catalog.goal" => {
-            let goal = state
-                .db
-                .kv_get(GOAL_NAMESPACE, &group.id)
-                .map_err(internal)?
-                .and_then(|value| {
-                    value
-                        .get("text")
-                        .and_then(Value::as_str)
-                        .map(str::to_string)
-                })
-                .unwrap_or_default();
-            Ok(json!({ "goal": goal }))
-        }
+        "project.resources.catalog.goal" => Ok(json!({ "goal": read_goal(&state.db, &group.id)? })),
         "project.resources.catalog.setGoal" => {
             let goal = params
                 .get("goal")
@@ -115,6 +102,20 @@ fn required<'a>(params: &'a Value, key: &str) -> Result<&'a str, JsonRpcError> {
 
 fn optional<'a>(params: &'a Value, key: &str) -> &'a str {
     params.get(key).and_then(Value::as_str).unwrap_or("")
+}
+
+/// The project's goal text, empty when none was written.
+pub(super) fn read_goal(db: &crate::db::Database, group_id: &str) -> Result<String, JsonRpcError> {
+    Ok(db
+        .kv_get(GOAL_NAMESPACE, group_id)
+        .map_err(internal)?
+        .and_then(|value| {
+            value
+                .get("text")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or_default())
 }
 
 fn internal(error: anyhow::Error) -> JsonRpcError {

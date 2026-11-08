@@ -66,6 +66,8 @@ const HOST_PROXY_ALLOWED = new Set([
   // admitted only for a session launched into this sidecar (see below).
   "session.historyRead",
   "session.projectHistory",
+  // mc-agent (R29): the session's own project tasks and resources.
+  "session.projectWork",
   "session.appendMessage",
   "session.appendCompaction",
   "session.replaceMessages",
@@ -505,7 +507,7 @@ export class AgentSidecar {
           );
         }
         if (
-          (method === "session.historyRead" || method === "session.projectHistory") &&
+          (method === "session.historyRead" || method === "session.projectHistory" || method === "session.projectWork") &&
           !this.launchedSessions.has(String(params.sessionId ?? "").trim())
         ) {
           throw Object.assign(
