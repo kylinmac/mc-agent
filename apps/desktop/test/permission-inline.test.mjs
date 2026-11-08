@@ -165,7 +165,7 @@ test("asktool stays stepwise with an optional runtime countdown and retained lat
   assert.match(transcriptSource, /continuedAsk && variant === "default" \? <AskToolCard/);
   assert.doesNotMatch(transcriptSource, /headAsk\(|pendingAsks/);
   // Each retained pane subscribes to its own session's ask queue (ADR 0137).
-  assert.match(sessionPaneSource, /askPending=\{transcript\.historical \? false : askPending\}/);
+  assert.match(sessionPaneSource, /askPending=\{transcript\.liveTail \? askPending : false\}/);
   assert.match(sessionPaneSource, /headAsk\(state\.pendingAsks, sessionId\)/);
   assert.match(storeSource, /event\.type === "asktool_request"/);
   assert.match(askCardSource, /current\.multiSelect/);
@@ -255,7 +255,7 @@ test("permission approval is an inline transcript card, never a global dialog", 
   assert.match(chatSurfaceSource, /headPermission\(state\.pendingPermissions/);
   assert.match(
     sessionPaneSource,
-    /pendingPermission=\{transcript\.historical \? undefined : pendingPermission\}/,
+    /pendingPermission=\{transcript\.liveTail \? pendingPermission : undefined\}/,
   );
   assert.match(
     sessionPaneSource,

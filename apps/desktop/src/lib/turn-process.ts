@@ -3,6 +3,7 @@ import type {
   AssistantActivityItem,
   AssistantTurnEntry,
   AssistantTurnPart,
+  TranscriptEntry,
 } from "./assistant-turns";
 import { isStandaloneRunActivity } from "./assistant-turns";
 import type { TranscriptDisplayMode } from "./transcript-display-mode";
@@ -194,21 +195,28 @@ export function segmentTurnProcess(
  * working on, because a shell command can be arbitrarily long and would push
  * the counts off the row.
  *
- * Precedence is deliberate: failure, stop, running, completed. A recorded
- * failure outranks everything: the turn produced no answer, and a header
- * reading "Processed" over a failed run hid that. A user stop outranks a live
- * run and completion alike - the work was interrupted, not finished - and it is
- * read from the turn's own aborted rows because the turn result only
+ * Precedence is deliberate: failure, stop, running, unsettled, completed. A
+ * recorded failure outranks everything: the turn produced no answer, and a
+ * header reading "Processed" over a failed run hid that. A user stop outranks a
+ * live run and completion alike - the work was interrupted, not finished - and
+ * it is read from the turn's own aborted rows because the turn result only
  * distinguishes completed from failed. Both assistant message rows and activity
  * item rows count; a Stop while a tool or reasoning row is in flight settles
  * there rather than in a trailing text. Delegate child rows are deliberately
- * not scanned: a failed child is not a failed or stopped turn.
+ * not scanned: a failed child is not a failed or stopped turn. An idle turn
+ * whose rows never reached a terminal status is not completed either - a crash
+ * or a lost host leaves its last row streaming forever, and reading that as
+ * done is exactly the lie the completed fallback used to tell - so it reports
+ * an unknown outcome. Rows recorded before statuses existed carry no signal
+ * either way and stay completed.
  */
 export type TurnProcessPhase =
   | { kind: "failed" }
   | { kind: "stopped" }
   /** Live work; `phase` names the runtime stage when one is known. */
   | { kind: "running"; phase?: AgentActivity["phase"] }
+  /** Nothing is driving the turn, yet its rows never settled. */
+  | { kind: "unsettled" }
   | { kind: "completed" };
 
 export function turnProcessPhase({
@@ -238,7 +246,42 @@ export function turnProcessPhase({
   );
   if (stopped) return { kind: "stopped" };
   if (isActive) return { kind: "running", phase: activity?.phase };
+  if (turnHasStreamingRows(parts)) return { kind: "unsettled" };
   return { kind: "completed" };
+}
+
+/** A row of the turn is still streaming, so the turn has unsettled live work. */
+export function turnHasStreamingRows(
+  parts: readonly AssistantTurnPart[],
+): boolean {
+  return parts.some((part) =>
+    part.kind === "message"
+      ? part.message.status === "streaming"
+      : part.items.some((item) => item.message.status === "streaming"),
+  );
+}
+
+/**
+ * The turn a running transcript is driving, when that turn is not the tail
+ * entry. Tail position alone cannot identify it: a steering message or a
+ * system row may render after the live turn (#1949), while the history list
+ * renders every entry as inactive. The last assistant-turn with streaming
+ * rows is the running one; an earlier turn with stuck rows is a crash or a
+ * lost host, which `turnProcessPhase` keeps reading as unsettled (#1923).
+ * A tail assistant-turn reports its own active state, so it yields no
+ * history id, and a turn whose rows all settled yields none either: without
+ * a streaming row the turn may genuinely have finished.
+ */
+export function liveHistoryTurnId(
+  entries: readonly TranscriptEntry[],
+  tailEntry?: TranscriptEntry | null,
+): string | undefined {
+  if (tailEntry?.kind === "assistant-turn") return undefined;
+  let live: AssistantTurnEntry | undefined;
+  for (const entry of entries) {
+    if (entry.kind === "assistant-turn") live = entry;
+  }
+  return live && turnHasStreamingRows(live.parts) ? live.id : undefined;
 }
 
 /**

@@ -113,3 +113,27 @@
 | `cargo clippy -p host-core --all-targets` | 无新增警告（既有 8 条在 mc_* 与未改动代码） |
 
 未跑完整 Rust / JS 套件、浏览器后台 e2e 和真实付费模型；费用数值只用本地模拟账本验证。
+
+## 第三轮：对话窗口导航与历史分页（2026-11-08）
+
+单独分支 `feat/upstream-transcript-window`。上游这一块从 Fork 分叉以来有 37 个提交，与径向菜单、轮次变更卡、分组折叠、`@agent`、Pi 1.5 等功能交织。只移植导航 / 分页主链，不带入这些功能。
+
+| 内容 | 上游来源 | 适配 |
+| --- | --- | --- |
+| 展开折叠、恢复中的运行轮次、项目切换时的跟随意图 | `9b4ea27d6`、`0a6f6a06f`、`0c8b038cb`、`69fba162e`、`0aeb5ccf2`、`6a0855bbd` | 测试导入合并 Fork 的 `extendTranscriptView` |
+| 完成一轮后把提问滚到顶部（D676）及其输入打断、滚动归属修复 | `c764d8ab7`、`d3ba191d5`、`5fac16774`、`bf38d5372` | 长历史 e2e 保留 Fork 版本 |
+| 加载历史时保持阅读位置、显式回到最新、预取更早历史 | `2192d31df`、`bd92cbb2b`、`5dfeb8e50`、`3fcdcbbae`、`e64d06f00`、`bb25eb013` | 去掉 Fork 没有的径向菜单代码 |
+| 有界挂载窗口、阅读锚点、保留有状态 Markdown | `1283c8bd5`、`11fa50d37`、`dc3c29dee` | ADR 0130 取上游最新 |
+| 回到最新时保留已加载页、原生平滑滚动 | 上游 #2169 的 merge 提交 `0a25866a2`、`2d20113e3` | 无法单独 cherry-pick；Fork 未改过的文件取上游 main，读取运行时手工移植并保留子代理卡片锚点（`messageParents`） |
+
+未带入：径向菜单（`a440b7798` 等）、轮次变更卡（`73b714ed2`，随审查历史另做）、分组折叠（`c2f3845ca`）、`@agent`、Pi 1.5。
+
+测试调整：`session-reading-position` 原断言“回到最新必须清空视图”，新规则下与实时尾部相连的页保留、只退出搜索态；页面随懒加载增高，原生平滑滚动给更大帧预算。`remote-session-user-path`、`session-switch-performance`、`gen-ui-card` 取上游同名测试修正。
+
+| 实际检查 | 结果 |
+| --- | --- |
+| 桌面 transcript / reading / history / scroll / session 相关单测 | 817 项中 815 通过；2 项 ask 测试单独重跑通过，属并发偶发 |
+| `e2e-transcript-*`：history-loading、prose-state、turn-completion、disclosure-anchor、minimap-jump、reading-position、render、cache | 全部通过（history-loading 在 main 上不存在） |
+| desktop `typecheck`、`pnpm lint` | 通过 |
+
+未跑完整桌面套件（交 CI）；未在安装版手工验证长对话滚动手感。
