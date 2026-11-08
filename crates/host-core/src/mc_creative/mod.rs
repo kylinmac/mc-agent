@@ -483,6 +483,18 @@ pub fn normalize_category(raw: &str) -> Result<String> {
 /// The project's storage: the folder the user chose, else its first
 /// workspace, else its resource folder.
 pub fn storage(db: &Database, group: &ProjectGroupRecord) -> Result<Storage> {
+    let root = storage_root(db, group)?;
+    // Unusable: say why rather than write somewhere else.
+    check_storage_folder(Path::new(&root.path))?;
+    let resources = root.kind == crate::db::ProjectGroupRootKind::Resources;
+    Ok(storage_for(Path::new(&root.path), resources))
+}
+
+/// Which folder of the project is the storage, without opening it.
+fn storage_root<'a>(
+    db: &Database,
+    group: &'a ProjectGroupRecord,
+) -> Result<&'a crate::db::ProjectGroupRoot> {
     let chosen = db.kv_get(STORAGE_NAMESPACE, &group.id)?.and_then(|value| {
         value
             .get("folder")
@@ -509,10 +521,7 @@ pub fn storage(db: &Database, group: &ProjectGroupRecord) -> Result<Storage> {
             .or_else(|| group.roots.first())
             .ok_or_else(|| anyhow!("PRECONDITION: the project has no folder"))?,
     };
-    // Unusable: say why rather than write somewhere else.
-    check_storage_folder(Path::new(&root.path))?;
-    let resources = root.kind == crate::db::ProjectGroupRootKind::Resources;
-    Ok(storage_for(Path::new(&root.path), resources))
+    Ok(root)
 }
 
 /// Opening the folder rather than just checking it exists: a folder macOS
@@ -549,8 +558,9 @@ pub fn managed_resource_subfolder(
     if purpose(db, &group.id).ok()? != Purpose::Creative {
         return None;
     }
-    let store = storage(db, group).ok()?;
-    (store.kind == "resources").then_some(WORKSPACE_DIR)
+    // Not `storage`: a folder macOS has not granted yet must still hide this.
+    let root = storage_root(db, group).ok()?;
+    (root.kind == crate::db::ProjectGroupRootKind::Resources).then_some(WORKSPACE_DIR)
 }
 
 /// Choose which of the project's folders keeps its files. Files already
@@ -794,6 +804,20 @@ mod tests {
 
         let error = check_storage_folder(&dir.path().join("gone")).unwrap_err();
         assert!(error.to_string().contains(STORAGE_UNAVAILABLE), "{error}");
+    }
+
+    #[test]
+    fn the_managed_folder_stays_hidden_while_storage_cannot_be_opened() {
+        let f = fixture();
+        set_purpose(&f.db, &f.group, Purpose::Creative).unwrap();
+        let resources = f.group.resource_root().unwrap().path.clone();
+        set_storage(&f.db, &f.group, &resources).unwrap();
+        fs::remove_dir_all(&resources).unwrap();
+        assert!(storage(&f.db, &f.group).is_err());
+        assert_eq!(
+            managed_resource_subfolder(&f.db, &f.group),
+            Some(WORKSPACE_DIR)
+        );
     }
 
     #[test]

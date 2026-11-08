@@ -13,6 +13,15 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.60",
+    date: "2026-11-08",
+    fixes: [
+      "macOS 终端里选中文字后按 Ctrl+C 也能中断正在运行的程序；复制请用 ⌘C。",
+      "Agent 操作右侧面板时不会再替你打开浏览器或邮件链接，会把地址告诉你。",
+      "创作文件夹还没授权时，资源列表里不再多出 creative 目录。",
+    ],
+  },
+  {
     version: "1.0.59",
     date: "2026-11-06",
     features: [

@@ -49,3 +49,12 @@ test("terminal shortcuts select, clear and scroll while native paste and shell k
   assert.deepEqual(calls, ["all", "clear", -1, 1, "top", "bottom"]);
   for (const event of [key({ key: "v" }), key({ key: "l", shiftKey: false }), key({ key: "a", shiftKey: false })]) assert.equal(handler(event), true);
 });
+
+test("on macOS Ctrl+C interrupts even with a selection; Cmd+C still copies", async () => {
+  const writes = [];
+  const handler = terminalCopyKeyHandler(() => "selected", async text => { writes.push(text); }, assert.fail, undefined, true);
+  assert.equal(handler(key({ shiftKey: false })), true);
+  assert.equal(handler(key({ ctrlKey: false, shiftKey: false, metaKey: true })), false);
+  await Promise.resolve();
+  assert.deepEqual(writes, ["selected"]);
+});

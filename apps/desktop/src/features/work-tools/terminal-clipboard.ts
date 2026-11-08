@@ -4,6 +4,8 @@ export function terminalCopyKeyHandler(
   write: (text: string) => Promise<void>,
   failed: (error: unknown) => void,
   actions?: { selectAll: () => void; clear: () => void; scrollPages: (pages: number) => void; scrollToTop: () => void; scrollToBottom: () => void },
+  // macOS copies with Cmd+C; Ctrl+C there always interrupts, selection or not.
+  mac = false,
 ): (event: KeyboardEvent) => boolean {
   return (event) => {
     const key = event.key.toLowerCase();
@@ -27,7 +29,7 @@ export function terminalCopyKeyHandler(
     if (event.key.toLowerCase() !== "c" || event.altKey) return true;
     const explicitCopy = (event.ctrlKey && event.shiftKey) || event.metaKey;
     const text = selection();
-    if (!explicitCopy && !(event.ctrlKey && text)) return true;
+    if (!explicitCopy && !(event.ctrlKey && text && !mac)) return true;
     event.preventDefault();
     event.stopPropagation();
     if (event.type === "keydown" && text) void write(text).catch(failed);

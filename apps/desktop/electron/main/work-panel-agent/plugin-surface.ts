@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { WebContents } from "electron";
 import { flattenAxTree, type AxNode } from "../browser-cdp";
+import { withAgentInput } from "./agent-input-gate";
 
 type Surface = { wc: WebContents; current: () => boolean };
 type Snapshot = { token: string; uids: Map<string, number>; sessionId: string; current: () => boolean };
@@ -54,6 +55,7 @@ export async function pluginPanelOperation(resource: string, sessionId: string, 
   if (!snapshot || snapshot.sessionId !== sessionId || snapshot.token !== args.snapshot || !snapshot.current()) throw new Error("Stale plugin snapshot; read the panel again");
   snapshots.delete(wc); // Consume once, before any asynchronous input.
   const uid = typeof args.uid === "string" ? args.uid : "";
+  const { blocked } = await withAgentInput(wc, async () => {
   if (args.action === "click" || args.action === "type") {
     const backendNodeId = snapshot.uids.get(uid);
     if (!backendNodeId) throw new Error("Unknown element; read the panel again");
@@ -85,6 +87,8 @@ export async function pluginPanelOperation(resource: string, sessionId: string, 
     await send("Input.dispatchKeyEvent", { type: "keyDown", key: key.key, windowsVirtualKeyCode: key.code, modifiers: key.modifiers ?? 0 });
     await send("Input.dispatchKeyEvent", { type: "keyUp", key: key.key, windowsVirtualKeyCode: key.code, modifiers: key.modifiers ?? 0 });
   } else throw new Error("Unsupported plugin panel action");
+  });
   snapshots.delete(wc);
-  return { ok: true, note: "Read the panel again to verify the result and get a fresh snapshot." };
+  return { ok: true, note: "Read the panel again to verify the result and get a fresh snapshot.",
+    ...(blocked.length ? { linksNotOpened: blocked, linkNote: "Links are not opened from agent input. Tell the user the address instead." } : {}) };
 }

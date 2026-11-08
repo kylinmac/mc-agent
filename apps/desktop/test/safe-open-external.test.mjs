@@ -1,8 +1,8 @@
 import { readMainModuleSync } from "./helpers/source-contracts.mjs";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { register } from "node:module";
-import { dirname, join } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -23,9 +23,7 @@ const windowSource = readMainModuleSync("bootstrap/window.ts");
 const appIpcSource = readMainModuleSync("ipc/app-ipc.ts");
 const mainIndexSource = readMainModuleSync("index.ts");
 const runtimeSource = read("../electron/main/plugin-runtime.ts");
-const viewHostSource = read("../electron/main/plugin-view-host.ts");
 const browserSource = read("../electron/main/browser-view.ts");
-const updaterSource = read("../electron/main/updater.ts");
 
 test("parseAllowedExternalUrl permits http, https, and mailto", () => {
   assert.equal(
@@ -106,43 +104,62 @@ test("openAllowedExternal calls the opener only for allowlisted hrefs and throws
   assert.deepEqual(calls, ["https://example.com/path", "mailto:a@b.test"]);
 });
 
-test("main, plugins, preview, and updater share the allowlist before openExternal", () => {
-  assert.match(desktopServicesSource, /import \{ parseAllowedExternalUrl \} from "\.\.\/safe-open-external"/);
-  assert.match(desktopServicesSource, /const safeOpenExternal = async \(rawUrl: unknown\)/);
-  assert.match(desktopServicesSource, /const url = parseAllowedExternalUrl\(rawUrl\)/);
-  assert.match(desktopServicesSource, /throw new Error\("DISALLOWED_EXTERNAL_URL"\)/);
-  assert.match(
-    windowSource,
-    /window\.webContents\.setWindowOpenHandler\(\(\{ url \}\) => \{\s*void safeOpenExternal\(url\)\.catch/,
-  );
-  assert.match(mainIndexSource, /openExternal: async \(url\) => \{\s*await safeOpenExternal\(url\);/);
-  assert.match(appIpcSource, /assertFeedbackIssueUrl\(url\);\s*await safeOpenExternal\(url\);/);
-  assert.doesNotMatch(
-    windowSource,
-    /setWindowOpenHandler\(\(\{ url \}\) => \{\s*void shell\.openExternal\(url\)/,
-  );
+// Where the OS is actually asked to open a URL. Each file that calls
+// `shell.openExternal` directly must take its URL from the shared allowlist
+// (or, for the listed exceptions, only ever pass fixed URLs). The check is on
+// structure, not formatting: rewrite a call site freely, but a new file that
+// reaches the OS fails here until it routes through safe-open-external.
+const FIXED_URL_ONLY = new Map([
+  // macOS System Settings deep links (x-apple.systempreferences:), constants.
+  ["main/ipc/mc-permissions-ipc.ts", "fixed System Settings URLs"],
+]);
 
-  assert.match(runtimeSource, /import \{ parseAllowedExternalUrl \} from "\.\/safe-open-external"/);
-  const openExternalGate = runtimeSource.slice(
-    runtimeSource.indexOf("openExternal: async (url: string)"),
-    runtimeSource.indexOf("net: {"),
-  );
-  assert.match(openExternalGate, /const allowed = parseAllowedExternalUrl\(url\)/);
-  assert.match(openExternalGate, /only http\(s\)\/mailto URLs allowed/);
-  assert.doesNotMatch(openExternalGate, /\^https\?:\\\/\\\//);
-  assert.doesNotMatch(openExternalGate, /\^mailto:/);
+function sourceFiles(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return sourceFiles(path);
+    return /\.(ts|tsx|mts|cts)$/.test(entry.name) && !/\.test\./.test(entry.name) ? [path] : [];
+  });
+}
 
-  assert.match(viewHostSource, /parseAllowedExternalUrl\(url\)/);
-  assert.match(viewHostSource, /if \(allowed\) void shell\.openExternal\(allowed\)/);
-  assert.doesNotMatch(viewHostSource, /\^https\?:/);
+test("every direct shell.openExternal call takes its URL from the shared allowlist", () => {
+  const electronRoot = join(here, "../electron");
+  const callers = sourceFiles(electronRoot)
+    .map((path) => ({ rel: relative(electronRoot, path).split(sep).join("/"), source: readFileSync(path, "utf8") }))
+    .filter(({ source }) => /\bshell\.openExternal\s*\(/.test(source));
+  assert.ok(callers.length > 0, "no openExternal callers found; did the layout change?");
+  for (const { rel, source } of callers) {
+    if (FIXED_URL_ONLY.has(rel)) {
+      assert.doesNotMatch(source, /safe-open-external/, `${rel}: drop it from FIXED_URL_ONLY if it now takes outside URLs`);
+      continue;
+    }
+    assert.match(
+      source,
+      /from "\.{1,2}(?:\/\.\.)*\/safe-open-external"/,
+      `${rel} calls shell.openExternal without the shared allowlist; use parseAllowedExternalUrl or openAllowedExternal`,
+    );
+    assert.match(source, /\b(?:parseAllowedExternalUrl|openAllowedExternal)\s*\(/, `${rel} imports but never applies the allowlist`);
+  }
+});
 
-  assert.match(browserSource, /parseAllowedExternalUrl\(url\)/);
-  assert.match(browserSource, /isAllowedHttpUrl\(url\)/);
+test("renderer and plugin entry points reach the OS only through the allowlist", () => {
+  // These hand renderer- or plugin-supplied strings onward; none may call the
+  // OS itself, and each must route through the shared gate.
+  for (const [name, source] of [
+    ["bootstrap/window.ts", windowSource],
+    ["index.ts", mainIndexSource],
+    ["ipc/app-ipc.ts", appIpcSource],
+  ]) {
+    assert.doesNotMatch(source, /\bshell\.openExternal\s*\(/, name);
+    assert.match(source, /\bsafeOpenExternal\s*\(/, name);
+  }
+  assert.match(desktopServicesSource, /parseAllowedExternalUrl\(rawUrl\)/);
+  // The plugin runtime must not grow its own scheme regex beside the gate.
+  const gateStart = runtimeSource.indexOf("openExternal: async (url: string)");
+  assert.ok(gateStart >= 0, "plugin runtime openExternal gate not found");
+  const gate = runtimeSource.slice(gateStart, runtimeSource.indexOf("net: {", gateStart));
+  assert.match(gate, /parseAllowedExternalUrl\(url\)/);
+  assert.doesNotMatch(gate, /\^https\?:|\^mailto:/);
+  // In-app browser: file: URLs go to openPath, never openExternal.
   assert.match(browserSource, /shell\.openPath\(fileURLToPath\(url\)\)/);
-  assert.doesNotMatch(
-    browserSource,
-    /openExternal\(\): void \{[\s\S]*void shell\.openExternal\(url\);/,
-  );
-
-  assert.match(updaterSource, /parseAllowedExternalUrl\(RELEASES_URL\)/);
 });

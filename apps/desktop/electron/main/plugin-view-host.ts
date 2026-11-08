@@ -5,6 +5,7 @@ import { session, shell, WebContentsView, type BrowserWindow } from "electron";
 import { join } from "node:path";
 import { getModuleDirectory } from "./module-path";
 import { parseAllowedExternalUrl } from "./safe-open-external";
+import { holdAgentOpen } from "./work-panel-agent/agent-input-gate";
 import { PanelSenders, pageGoneWithin } from "./plugin-panel-senders";
 import {
   PLUGIN_VIEW_LOCATION_EVENT,
@@ -482,6 +483,7 @@ export class PluginViewHost {
     // A docked view gets exactly one web contents. `window.open` would mint a
     // chromeless window outside the egress policy applied above.
     wc.setWindowOpenHandler(({ url }) => {
+      if (holdAgentOpen(wc, url)) return { action: "deny" };
       const allowed = parseAllowedExternalUrl(url);
       if (allowed) void shell.openExternal(allowed);
       return { action: "deny" };
