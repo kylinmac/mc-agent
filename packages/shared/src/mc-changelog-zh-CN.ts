@@ -13,6 +13,17 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.63",
+    date: "2026-11-08",
+    features: [
+      "在对话里可以让 Agent 查看、新建和修改当前项目的任务，任务页会同步显示。",
+      "Agent 可以查询项目资料、读取项目目标，并把项目里的文件或链接登记为资料草稿。",
+    ],
+    improvements: [
+      "Agent 不能启动、验收或取消任务，也不能确认或废弃资料，这些仍由你在工作台操作。",
+    ],
+  },
+  {
     version: "1.0.62",
     date: "2026-11-08",
     features: [

@@ -9,6 +9,17 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.63",
+    date: "2026-11-08",
+    features: [
+      "Ask the agent in a conversation to view, create and edit the current project's tasks; the task board shows the changes.",
+      "The agent can look up project resources, read the project goal, and register project files or links as draft resources.",
+    ],
+    improvements: [
+      "The agent cannot start, accept or cancel tasks, or confirm or deprecate resources; those stay with you in the workbench.",
+    ],
+  },
+  {
     version: "1.0.62",
     date: "2026-11-08",
     features: [
