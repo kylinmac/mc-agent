@@ -9,6 +9,14 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.64",
+    date: "2026-11-08",
+    fixes: [
+      "Fixed update checks failing with a GitHub 504 error.",
+      "A failed update check shows a one-line reason instead of the whole network response.",
+    ],
+  },
+  {
     version: "1.0.63",
     date: "2026-11-08",
     features: [

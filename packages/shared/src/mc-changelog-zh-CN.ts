@@ -13,6 +13,14 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.64",
+    date: "2026-11-08",
+    fixes: [
+      "修复检查更新时 GitHub 返回 504、无法获取新版本的问题。",
+      "检查更新失败时只显示一行原因，不再贴出整段网络响应。",
+    ],
+  },
+  {
     version: "1.0.63",
     date: "2026-11-08",
     features: [

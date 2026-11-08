@@ -324,3 +324,12 @@ for (const selfInstall of [false, true]) {
     }
   });
 }
+
+test("update requests send a browser user agent and errors reach the UI as one short line", async () => {
+  const updater = new FakeUpdater();
+  const { controller } = createController({ updater });
+  assert.match(updater.requestHeaders["User-Agent"], /^Mozilla\/5\.0 /);
+  updater.emit("error", new Error('Cannot parse releases feed: HttpError: 504 "method: GET" Headers: { "set-cookie": ["_gh_sess=secret"] }'));
+  assert.equal(controller.getState().error, "GitHub did not answer the update request (HTTP 504); try again later");
+  controller.dispose?.();
+});

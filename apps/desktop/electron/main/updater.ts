@@ -53,6 +53,7 @@ import {
 } from "./update-policy";
 import { ManualUpdateReminderTracker } from "./manual-update-reminder";
 import { bundleOf, McSelfUpdater } from "./mc-self-update";
+import { conciseUpdateError, updateUserAgent, withUpdateUserAgent } from "./update-request";
 
 export { resolveUpdateMode } from "./update-policy";
 export type { WindowsDistribution } from "./update-policy";
@@ -298,7 +299,7 @@ export class AppUpdaterController {
           bundle,
           workDir: app.getPath("temp"),
           arch: process.arch,
-          fetch: (input, init) => globalThis.fetch(input, init),
+          fetch: (input, init) => globalThis.fetch(input, withUpdateUserAgent(init, updateUserAgent(app.userAgentFallback))),
           quit: () => app.quit(),
         });
         this.setState({ selfInstall: true });
@@ -535,6 +536,11 @@ export class AppUpdaterController {
     // newer stable release such as 0.2.2. Always track GitHub's latest
     // stable release so RC installs can graduate to stable.
     this.autoUpdater.allowPrerelease = false;
+    // mc-agent: GitHub may refuse electron-updater's default agent (update-request.ts).
+    this.autoUpdater.requestHeaders = {
+      ...(this.autoUpdater.requestHeaders ?? {}),
+      "User-Agent": updateUserAgent(app.userAgentFallback),
+    };
     // Only automatic mode may install on quit; manual mode never hands an
     // installer a no-install/portable directory.
     this.autoUpdater.logger = {
@@ -657,7 +663,7 @@ export class AppUpdaterController {
       this.logger.app("updater", "warn", "updater error", { data: String(error) });
       // mc-agent: a failed re-check leaves a downloaded update installable.
       if (this.state.status === "downloaded" && !installing) return;
-      this.setState({ status: "error", error: error.message });
+      this.setState({ status: "error", error: conciseUpdateError(error.message) });
     });
   }
 
