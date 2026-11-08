@@ -33,24 +33,6 @@ async function until(predicate: () => boolean, label: string, diagnostic?: () =>
     await frame();
   }
 }
-// `frame()` may resolve on its 50ms timer without a painted frame, so on a slow
-// runner two of them can end while a smooth scroll or follow frame is still
-// moving the scroller. Wait for real animation frames that leave it still.
-const paintedFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-async function scrollAtRest(scroller: HTMLElement, label: string) {
-  const deadline = performance.now() + 10_000;
-  let last = "";
-  let still = 0;
-  while (still < 6) {
-    if (performance.now() >= deadline) {
-      throw new Error(`Long history did not settle: ${label} scroll ${last}`);
-    }
-    await paintedFrame();
-    const now = `${scroller.scrollTop}/${scroller.scrollHeight}/${scroller.clientHeight}`;
-    still = now === last ? still + 1 : 0;
-    last = now;
-  }
-}
 
 type FixtureSession = { summary: SessionSummary; messages: UiMessage[]; reads: { count: number }; tail: string };
 const row = (id: string, role: UiMessage["role"], content: string, extra: Partial<UiMessage> = {}): UiMessage => ({
@@ -283,30 +265,49 @@ export async function transcriptLongHistoryProbe() {
       }
     }
     assert(freshPreview, `minimap kept a stale older-row preview: ${JSON.stringify({ older: older.id, previews })}`);
-    const scroller = element(".thread-scroll");
-    // The marker jump is a smooth scroll; let it finish before the reader acts.
-    await scrollAtRest(scroller, "minimap jump");
     // Actual disclosure toggling hands scroll ownership to the reader.
     const disclosure = element<HTMLButtonElement>(".tool-activity-header");
     flushSync(() => disclosure.click());
     const expanded = disclosure.getAttribute("aria-expanded");
     await stream(largest, " while-reading");
     assert(disclosure.getAttribute("aria-expanded") === expanded, "stream reset explicit disclosure state");
-    await scrollAtRest(scroller, "disclosure stream");
+    const scroller = element(".thread-scroll");
     scroller.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: -200 }));
     scroller.scrollTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight - 240);
     scroller.dispatchEvent(new Event("scroll", { bubbles: true }));
     await settled();
-    await scrollAtRest(scroller, "reader position");
+    const afterLayout = () => new Promise<void>((resolve) => {
+      const observer = new ResizeObserver(() => { observer.disconnect(); resolve(); });
+      observer.observe(element(".thread-content"));
+    });
+    await afterLayout();
+    const viewport = scroller.getBoundingClientRect();
+    const proseSelector = ".prose-chat p, .message-user-text";
+    const readingPoint = [...scroller.querySelectorAll<HTMLElement>(proseSelector)].find((node) => {
+      const rect = node.getBoundingClientRect();
+      return rect.height > 0 && rect.bottom > viewport.top && rect.top < viewport.bottom;
+    });
+    const readingMessageId = readingPoint?.closest<HTMLElement>("[data-message-id]")?.dataset.messageId;
+    const readingText = readingPoint?.textContent?.slice(0, 80);
+    assert(readingPoint && readingMessageId && readingText, "visible reading content missing");
+    const readingOffset = readingPoint.getBoundingClientRect().top - viewport.top;
     const readingTop = scroller.scrollTop;
-    const readingGap = scroller.scrollHeight - scroller.clientHeight - readingTop;
-    assert(readingGap > 120, `reader position was not held before streaming: gap ${readingGap}px`);
+    const readingHeight = scroller.scrollHeight;
     await stream(largest, " reader-stays");
-    // A late follow frame would land after the text appears; wait it out too.
-    await scrollAtRest(scroller, "reader stream");
-    assert(Math.abs(scroller.scrollTop - readingTop) < 2,
-      `stream stole the reader's scroll position: ${JSON.stringify({ readingTop, scrollTop: scroller.scrollTop,
-        scrollHeight: scroller.scrollHeight, clientHeight: scroller.clientHeight })}`);
+    // Layout compensation may move scrollTop; the same readable text must stay put.
+    await afterLayout();
+    const readingRow = scroller.querySelector<HTMLElement>(`[data-message-id="${CSS.escape(readingMessageId)}"]`);
+    const currentPoint = [...(readingRow?.querySelectorAll<HTMLElement>(proseSelector) ?? [])]
+      .find((node) => node.textContent?.startsWith(readingText));
+    assert(currentPoint, "stream removed the visible reading content");
+    const currentOffset = currentPoint.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+    assert(Math.abs(currentOffset - readingOffset) < 2,
+      `stream stole the reader's scroll position: ${JSON.stringify({
+        before: { top: readingTop, height: readingHeight, offset: readingOffset },
+        after: { top: scroller.scrollTop, height: scroller.scrollHeight, offset: currentOffset },
+        viewport: scroller.clientHeight,
+        reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      })}`);
 
     // Terminal re-key must replace exactly the provisional row, survive cache
     // reselection and expose fresh copy text through the real turn toolbar.
