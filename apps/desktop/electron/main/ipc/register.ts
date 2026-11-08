@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { app, clipboard, dialog, nativeImage, shell, type BrowserWindow, type IpcMain, type IpcMainInvokeEvent } from "electron";
+import { openAllowedExternal } from "../safe-open-external";
 import { err, ErrorCodes, IPC, ok, type LifecycleDialogChoice, type Result } from "@pi-desktop/shared";
 import type { AgentHostBridge } from "../agent-host-bridge";
 import type { AgentSidecar } from "../agent-sidecar";
@@ -388,7 +389,9 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     getHost,
     refreshProjectGroups,
     openPath: (path) => shell.openPath(path),
-    openExternal: (url) => shell.openExternal(url),
+    openExternal: async (url) => {
+      await openAllowedExternal(url, (allowed) => shell.openExternal(allowed));
+    },
     pickFile: async (defaultPath) => {
       const window = getMainWindow();
       const options = { properties: ["openFile" as const], ...(defaultPath ? { defaultPath } : {}) };

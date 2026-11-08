@@ -1,4 +1,5 @@
 import { dialog, globalShortcut, shell, type BrowserWindow } from "electron";
+import { parseAllowedExternalUrl } from "../safe-open-external";
 import { join } from "node:path";
 import {
   IPC,
@@ -666,11 +667,14 @@ export function createPluginServices({
     createPane: (onState, onOpenUrl) => new BrowserPane(onState, onOpenUrl, browserBackingHost),
     onOpenUrl: (url, sessionId) => {
       void (async () => {
+        // The pane already filters, but this is where the OS is reached.
+        const allowed = parseAllowedExternalUrl(url);
+        if (!allowed) return;
         const settings = await getHost()?.call<AppSettings>("settings.get");
-        if (!sessionId || settings?.linkOpenTarget === "external" || !/^https?:/i.test(url)) {
-          await shell.openExternal(url);
+        if (!sessionId || settings?.linkOpenTarget === "external" || !/^https?:/i.test(allowed)) {
+          await shell.openExternal(allowed);
         } else {
-          sendToRenderer(IPC.event.browserPreview, { sessionId, url });
+          sendToRenderer(IPC.event.browserPreview, { sessionId, url: allowed });
         }
       })().catch((error) => logger.app("plugin", "warn", "browser.link.open.failed", { data: String(error) }));
     },
