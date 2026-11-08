@@ -716,7 +716,7 @@ export function createPluginServices({
      * `workspace:changed` event both expose the open project's folder roots
      * (ADR 0263) instead of the bare primary path.
      */
-    getWorkspaceInfo: () => pluginWorkspaceInfo(getWorkspacePath()),
+    getWorkspaceInfo: (path = getWorkspacePath()) => pluginWorkspaceInfo(path),
     openInBrowser: async (fullPath) => {
       const preview = await browserHost.previewFile();
       if (!preview.ok) {

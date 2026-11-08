@@ -3,6 +3,7 @@ import { hostedSearchReplayProjection } from "@earendil-works/pi-ai/utils/hosted
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { COMPACTION_HISTORY_HINT } from "./mc-context-history-tool.js";
 import { formatRestoredFiles, type RestoredFile } from "./mc-compaction-file-restore.js";
+import { omitOversizedImages } from "./image-admission.js";
 
 export type CompactionSummaryMessage = {
   role: "compactionSummary";
@@ -158,7 +159,9 @@ export function convertToLlm(messages: AgentMessage[]): Message[] {
         break;
     }
   }
-  return converted;
+  // Every provider request passes through here, including restored history
+  // that already holds an image the provider would reject (issue #1913).
+  return omitOversizedImages(converted);
 }
 
 function asProviderMessage(message: unknown): Message {

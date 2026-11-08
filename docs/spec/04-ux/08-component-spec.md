@@ -1677,9 +1677,8 @@ storage but compose into one assistant turn until the next user message.
   view. Plain project-file references still prefer the bundled file view, whose
   open contract does not carry a line position.
 - Hover or focus a minimap marker: show the localized sender and a bounded
-  plaintext preview; multiple assistant fragments produced within one user
-  turn are combined into one AI-response marker and preview; nearby markers
-  magnify horizontally without reflowing the rail
+  plaintext preview of that user message; nearby markers magnify horizontally
+  without reflowing the rail
 - Click a minimap marker: smoothly scroll its message near the top of the
   transcript viewport
 - Scroll the transcript: update the active minimap marker against an anchor
@@ -1791,10 +1790,8 @@ storage but compose into one assistant turn until the next user message.
 - The minimap renders when at least two eligible turn markers exist **and** the
   transcript content overflows one viewport (scrollHeight > clientHeight), or
   whenever earlier history remains unmounted or unloaded (D269).
-  Each visible user message creates one marker; all contentful assistant
-  fragments until the next user message create one AI-response marker anchored
-  to the first contentful fragment. Tool-only rows do not create markers or
-  split an AI response, and a one-page transcript never shows the rail.
+  Each visible user message creates one marker; assistant and tool rows do
+  not create markers, and a one-page transcript never shows the rail.
 - Marker previews are capped at 280 source characters and are display-only
 - Derived visible rows, minimap rows, and activity grouping share the immutable
   `messages` projection with the Composer context inspector. After warm-up, an
@@ -2020,7 +2017,12 @@ Single message render — either user (plaintext) or assistant (markdown streami
   across the visual turn's assistant messages; `output` already carries the
   reasoning tokens, so `reasoningTokens` is never added again, and subagent
   spend is not included (D103). Speed is summed output tokens over summed
-  response duration. No meta row, and therefore no capsule, renders while the
+  response duration. When pay-as-you-go requests in the turn have a price, the
+  capsule appends the turn cost after the total and its accessible name ends
+  with it; the popover then adds a cost row and a one-line explanation
+  (provider-billed, catalog estimate, lower bound, or subscription). Turns with
+  no price, or served only by a subscription account, show no inline cost. No
+  meta row, and therefore no capsule, renders while the
   turn is streaming. The capsule's
   accessible name states the speed and total and that activating it shows the
   breakdown. The popover portals to the document body, clamps to the
@@ -2048,8 +2050,17 @@ Single message render — either user (plaintext) or assistant (markdown streami
   regardless of display mode, without making color the only signal.
   Clicking the trigger (or activating it from the keyboard) toggles a
   non-modal panel whose heading follows the same display-mode figure,
-  followed by used/window counts, unboxed turn/speed summary values, and the
-  elapsed session time. Three compact timing rows show request-to-first-response
+  followed by used/window counts, unboxed turn/speed summary values, a cost
+  row, and the elapsed session time. The cost row shows the newest turn's cost
+  and the whole-session total; the session figure is read from Host
+  (`session/usageCost`) only while the panel is open, refreshes in place when
+  another request is billed, and never shows another session's figure. Cost
+  wording is shared with the capsule: a provider-billed amount reads plainly,
+  a catalog estimate is prefixed `≈`, a total that omits unpriced requests is
+  prefixed `≥`, and usage on a subscription account (OAuth sign-in, or Kimi
+  Coding) reads "Subscription" with its API-price equivalent in the tooltip and
+  is never added to the pay-as-you-go amount. A scope with nothing to price is
+  left out. Three compact timing rows show request-to-first-response
   wait, streamed model response time (thinking plus answer), and top-level tool
   execution time, each with its share of the session span. Network/provider wait
   and streamed response are separate; parallel top-level tools count overlapping
@@ -4580,3 +4591,7 @@ Input, selection, submission and dismissal semantics remain unchanged.
 Project-delete descriptions and plugin dialog headings/outcomes also wrap long
 project or plugin names instead of overflowing their existing widths. Project
 instructions, memory and OAuth dialogs retain their existing bounded layouts.
+
+### Browser tab closure (upstream #2162)
+
+Closing the connected Browser tab clears its connection. Subsequent session-only tools use that session's selected replacement page. Explicit closed targets fail; navigation never revives an invisible old tab. Verify close/reopen/snapshot/fill/click/navigate and final closure with `browser-background-session.test.mjs` and `BROWSER_CLOSE_CONNECTION_ONLY=1 node scripts/e2e-browser-background.mjs`.

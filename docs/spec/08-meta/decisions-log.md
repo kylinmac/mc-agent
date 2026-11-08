@@ -335,6 +335,7 @@ Gold source: local Codex electron captures; latest row wins where rows conflict.
 | D668 | One process disclosure per turn, with three transcript display modes | **Amend D661 / the `turn-process-and-thinking-display` ADR. A turn renders exactly one top-level process disclosure holding every pre-answer row; the answer stays outside it. `AppSettings.transcriptDisplayMode` selects the layout: `flat` renders no nested activity groups, `command-first` renders `Bash`/run rows as standalone rows beside activity groups, and `fully-folded` (the default for absent or invalid values) keeps commands inside their groups and lets only ordinary assistant progress text split them. The mode is read while rendering, so switching repaints immediately - the projection cache is keyed by messages and compactions only. The disclosure header reports failed / stopped / running / finished with precedence in that order and never echoes the current item, and the disclosure shares one left edge with the levels it reveals. `transcriptDisplayMode` joins the portable application fields; `keepCommandsExpanded` is deprecated, retained only for persisted-settings compatibility, and no longer exposed or read for rendering. No host protocol, persistence schema, permission, or plugin contract change. See the amended ADR, `04-ux/06-settings-ia.md`, `04-ux/08-component-spec.md`, `04-ux/09-interaction-patterns.md`, and E2E-CHAT-turn-process-and-thinking-display.** | Chronological segmentation split one turn into several sibling disclosures above the answer, and the boolean command-folding preference could only express two layouts; a three-mode setting covers flat, command-first, and the released grouped view without changing what a tool received or stored. |
 | D669 | `@` queries search past a truncated file index | **Amend D124: while the 8000-entry `fs/index` snapshot is truncated, a non-empty `@` query is also searched over the root's full listing through the read-only Electron channel `pi-desktop/fs/search` once typing pauses, and its best 50 rows merge with the local matches. A complete index never searches. Remote sessions keep their snapshot. No host RPC, storage, or schema change.** | The shallowest-8000-entry index left a script several folders down matching no query at all, even though the truncation note invited the reader to refine it (issue #1781). |
 | D671 | Inline generative UI visualizations | **Amend D114: local sessions get a second host-owned contained root `<data_dir>/visualizations/<sessionId>/` for `.html` fragments only (Read/Write/Edit, auto-allowed like scratch, never in remote or contract sessions). A standalone `::visualize{"path","title"}` reply line renders the fragment inline through a sandboxed `pi-genui://session/<sid>/<file>` iframe (`sandbox="allow-scripts"`, strict CSP, no network). Builtin skill `pi-desktop/visualize`. No schema change.** | Interactive explanations need an embedded page; ADR gen-ui-inline-visualization. |
+| D675 | Inline images are admitted by pixel size as well as bytes | **Amend D361: an image whose PNG/JPEG/GIF/WebP header reports a longest edge above `MAX_INLINE_IMAGE_EDGE_PX` (8000) is never inlined. Host Read refuses it with `TOOL_FAILED`; prompt attachments and restored history take the existing `@path` fallback; and the runtime's last provider view replaces any such image block (user or tool result) with a text notice naming its size. The probe reads headers only (no decoder); unknown dimensions keep the byte-only rule. No protocol, schema, or persisted-format change.** | Issue #1913: a 1.89 MB, 780 x 14182 full-page screenshot passed every byte check, the provider rejected it with a non-retriable 400, and replay made every later request in that session fail. Dropping is deterministic for the same bytes, so the request prefix and prompt caching stay stable; resampling would need an image decoder and is deferred. |
 
 
 ## M0. Model catalog decisions
@@ -7994,3 +7995,26 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   `turn-process-and-thinking-display`, `04-ux/08-component-spec.md` §9,
   `04-ux/09-interaction-patterns.md` §4.2, and
   E2E-CHAT-turn-process-and-thinking-display.
+
+## 2026-10-28 — Pixel-size image admission (D675)
+
+- D675 adds a header-only pixel-size probe (`packages/shared/src/image-dimensions.ts`,
+  mirrored in `crates/host-core/src/tools/image_dimensions.rs`) for PNG, JPEG,
+  GIF, and WebP. An image whose longest edge exceeds 8000 px is not inlined
+  (issue #1913).
+- Host Read refuses such a file with `TOOL_FAILED` and a message naming its
+  size, so it never enters history. Prompt attachments and restored history
+  keep the image ref and send the existing `@path` fallback instead of bytes.
+- `convertToLlm` replaces any remaining oversized image block (older sessions,
+  plugin or MCP results) with `[Image omitted: WxH px exceeds the 8000 px
+  longest-edge limit for model input.]`, which recovers a session that already
+  fails every request. The same bytes always produce the same notice, so
+  prompt caching is unaffected.
+- Images whose dimensions cannot be read keep the previous byte-only rule.
+  Resampling an oversized image instead of dropping it needs a decoder and is
+  not part of this change.
+- Covered by `packages/shared/src/image-dimensions.test.ts`,
+  `packages/agent-runtime/src/image-admission.test.ts`,
+  `packages/agent-runtime/src/attachment-history.test.ts`,
+  `apps/desktop/test/prompt-inline-attachments.test.mjs`, and host-core
+  `tools::image_dimensions` / `read_refuses_images_past_the_pixel_limit` tests.

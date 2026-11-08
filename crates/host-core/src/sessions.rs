@@ -14,7 +14,7 @@ mod fork_files;
 mod message_parents;
 mod model_system;
 mod usage;
-pub use usage::record_usage;
+pub use usage::{record_usage, session_usage_cost};
 
 pub const MODES: [&str; 3] = ["plan", "goal", "agent"];
 

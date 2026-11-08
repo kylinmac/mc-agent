@@ -108,6 +108,7 @@ import {
 import { desktopDataDir } from "./data-paths";
 import { McpServerClient, type McpServerClientOptions } from "./plugin-mcp";
 import { PluginToolInvocations, type PluginToolInvocation } from "./plugin-tool-invocations";
+import { pluginWorkspaceForCall, pluginWorkspacePath } from "./plugin-workspace-context";
 import { McpCallRegistry } from "./mcp-call-registry";
 import {
   RendererCallRelay,
@@ -318,7 +319,7 @@ export type PluginHostServices = {
    * The workspace plus the project group behind it, when the caller can supply
    * it. Additive: `workspace.get` falls back to `getWorkspacePath` alone.
    */
-  getWorkspaceInfo?: () => PluginWorkspaceInfo | null;
+  getWorkspaceInfo?: (workspacePath?: string | null) => PluginWorkspaceInfo | null;
   /**
    * The project the tool session behind this call belongs to, when the host
    * tracks one. Additive: an fs call falls back to `getWorkspacePath` -- the
@@ -5000,10 +5001,7 @@ export class PluginRuntime {
   private fsRoot(loaded: LoadedPlugin, rule: PluginFsRule): string | null {
     if (rule.root === "userSelected") return loaded.userRoot ?? null;
     const sessionId = this.inFlightTool(loaded.manifest.id)?.sessionId.trim() || undefined;
-    const scoped = sessionId
-      ? (this.services.getWorkspacePathForSession?.(sessionId) ?? null)
-      : null;
-    return scoped ?? this.services.getWorkspacePath();
+    return pluginWorkspacePath(this.services, sessionId);
   }
 
   /**
@@ -5141,7 +5139,7 @@ export class PluginRuntime {
     if (!isAbsolute(String(requestPath ?? ""))) return null;
     const rule: PluginFsRule = loaded.fsPolicy.read ?? { root: "workspace", scope: [] };
     if (rule.root !== "workspace") return null;
-    const roots = (this.services.getWorkspaceInfo?.()?.roots ?? [])
+    const roots = (pluginWorkspaceForCall(this.services, this.inFlightTool(loaded.manifest.id)?.sessionId.trim() || undefined)?.roots ?? [])
       .map((entry) => entry?.path)
       .filter((path): path is string => Boolean(path));
     if (roots.length === 0) return null;
@@ -5621,14 +5619,7 @@ export class PluginRuntime {
       },
       workspace: {
         get: async () => {
-          // The enriched payload carries the project group behind the visible
-          // workspace (ADR 0263); the path-only fallback keeps `get` working for
-          // any caller whose services never bound the richer provider.
-          const info = this.services.getWorkspaceInfo?.();
-          if (info !== undefined) return info;
-          const path = this.services.getWorkspacePath();
-          if (!path) return null;
-          return { path, name: path.split(/[\\/]/).filter(Boolean).at(-1) || path };
+          return pluginWorkspaceForCall(this.services, this.inFlightTool(pluginId)?.sessionId.trim() || undefined);
         },
       },
       desktop: {

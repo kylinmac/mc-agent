@@ -92,6 +92,8 @@ Fork 已建立：`origin` 为 kylinmac/mc-agent，`upstream` 为 vastsa/PI-Deskt
 
 2026-10-30 单独挑入上游三个压缩修复（不是整体同步）：#1984 折叠尾部的文件操作、#1988 分块预留按同一 token 估算、#1994 上下文用量计入缓存。适配 mc-agent：流式摘要（#55）下的测试夹具，以及 R21.2 压缩后附回读取在时间线中单独记为 `restore`。下次整体同步时这三处应与上游一致。
 
+2026-11-06：[上游更新筛选与修复](upstream-review-2026-11-06.md)。审查到 `7c61674ea`，独立移植图片、文件名、运行时、输入法、退出和历史容错修复；不是整体同步，不升级 Pi 依赖。来源、暂缓项和实际验证见记录。
+
 ## 放在哪
 
 mc-agent 自己的文档都在 `docs/mc-agent/`，ADR 用 `MC-ADR-` 编号放 `docs/mc-agent/adr/`。`docs/` 其余内容（spec、adr、guide、zh-CN 和 VitePress 站点）属于上游，原样保留，便于同步。
