@@ -120,6 +120,9 @@ export const SUBAGENT_INHERIT_DENY_TOOLS: readonly string[] = [
   // mc-agent (R21.1): reads the parent session's checkpoint history.
   "ContextHistory",
   "ProjectHistory",
+  // mc-agent (R29): the project board is the user's; a delegate has no user.
+  "ProjectTasks",
+  "ProjectResources",
 ];
 
 /**

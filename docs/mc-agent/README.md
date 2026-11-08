@@ -103,5 +103,6 @@ mc-agent 自己的文档都在 `docs/mc-agent/`，ADR 用 `MC-ADR-` 编号放 `d
 资料整理流程修订（R5 / P7 / V28）：[先讨论、批准后执行方案](resource-organization-plan.md)。
 
 同项目对话回查（R5.1 / P7 / V70）：[ProjectHistory 工具契约](project-conversation-history.md)。
+项目任务与资料的 Agent 入口（R29 / P8 / V84）：[ProjectTasks、ProjectResources 契约](project-work-agent-access.md)。
 
 [工作面板的 Agent 访问](work-panel-agent-access.md)（R27；P8；V78–V80）：已有能力核对、统一接入方案及终端复制修复；统一访问已实现；验证边界见方案。
