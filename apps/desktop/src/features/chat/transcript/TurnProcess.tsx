@@ -135,6 +135,7 @@ export function TurnProcess({
   const label = (() => {
     if (phase.kind === "failed") return t("chat.processFailed");
     if (phase.kind === "stopped") return t("chat.processStopped");
+    if (phase.kind === "unsettled") return t("chat.processUnsettled");
     if (phase.kind === "completed") return t("chat.processCompleted");
     if (compacting) return compactionProgressLabel(compacting, t);
     // Live: only stages with their own settled wording get their own label. The

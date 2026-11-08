@@ -659,6 +659,7 @@ export const tr = {
     processCompletedFor: "{{time}} içinde tamamlandı",
     processStopped: "Durduruldu",
     processStoppedFor: "{{time}} sonra durduruldu",
+    processUnsettled: "Sonuç bilinmiyor",
     processFailed: "Başarısız",
     processFailedFor: "{{time}} sonra başarısız",
     waitingForModel: "Model bekleniyor",

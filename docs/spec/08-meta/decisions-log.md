@@ -337,6 +337,7 @@ Gold source: local Codex electron captures; latest row wins where rows conflict.
 | D671 | Inline generative UI visualizations | **Amend D114: local sessions get a second host-owned contained root `<data_dir>/visualizations/<sessionId>/` for `.html` fragments only (Read/Write/Edit, auto-allowed like scratch, never in remote or contract sessions). A standalone `::visualize{"path","title"}` reply line renders the fragment inline through a sandboxed `pi-genui://session/<sid>/<file>` iframe (`sandbox="allow-scripts"`, strict CSP, no network). Builtin skill `pi-desktop/visualize`. No schema change.** | Interactive explanations need an embedded page; ADR gen-ui-inline-visualization. |
 | D675 | Inline images are admitted by pixel size as well as bytes | **Amend D361: an image whose PNG/JPEG/GIF/WebP header reports a longest edge above `MAX_INLINE_IMAGE_EDGE_PX` (8000) is never inlined. Host Read refuses it with `TOOL_FAILED`; prompt attachments and restored history take the existing `@path` fallback; and the runtime's last provider view replaces any such image block (user or tool result) with a text notice naming its size. The probe reads headers only (no decoder); unknown dimensions keep the byte-only rule. No protocol, schema, or persisted-format change.** | Issue #1913: a 1.89 MB, 780 x 14182 full-page screenshot passed every byte check, the provider rejected it with a non-retriable 400, and replay made every later request in that session fail. Dropping is deterministic for the same bytes, so the request prefix and prompt caching stay stable; resampling would need an image decoder and is deferred. |
 | D674 | Per-turn changed-files summary under a finished reply | **A completed reply whose turn recorded workspace review changes renders one read-only `TurnChangesCard` below its answer and above `entryExtra`, built only from that turn's message-owned `details.review` records (no new capture, IPC, or persistence). The card starts collapsed, keeping its counts visible in a full-width disclosure button; click or Enter/Space reveals or hides its file list and Review link. Choices remain turn-scoped in the existing transcript disclosure state. Rows merge edits per path (`D` if the turn ends by deleting, else `A` if any edit created the file, else `M`; counts summed; rolled-back files stay listed and struck through). When expanded, up to four files use relaxed rows, more use dense rows, and rows past 12 fold into `+N more`. Clicking a row opens Review on that file's recorded changes; the per-call review rows and the Review tab are unchanged.** | Issue #1891, design 10 (adaptive density): the per-call review rows answer "what did this call change", and Review answers it for the whole session, but nothing answered "what did this turn change" without counting rows. |
+| D676 | A completed turn the reader followed ends at its prompt | **Amend the stream-completion rule: when a turn completes while the transcript is visible and still following the stream, the renderer scrolls that turn's newest user message to 16px below the titlebar band the transcript reserves at its top (smooth unless reduced motion), releases follow mode, and shows jump-to-latest. Nothing moves when the prompt is already in view, the reply failed or was aborted, the pane is hidden or in a reading window, a disclosure position is held, or a new run starts before the move. Renderer only; no setting, IPC, or persistence change.** | Issue #1889: after a long reply the reader sat at its last line and had to scroll back up to find where it began. |
 
 
 ## M0. Model catalog decisions
@@ -8039,3 +8040,19 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   The per-call review rows and the Review tab otherwise keep their behavior.
 - Covered by `apps/desktop/test/turn-changes-card.test.mjs`. See
   `04-ux/08-component-spec.md` §4.4 and E2E-CHAT-turn-changed-files-summary.
+
+## 2026-10-28 — Completed turns end at their prompt (D676)
+
+- D676 replaces "stream completion keeps a following reader at the bottom":
+  when a followed turn completes, its prompt scrolls to the top of the
+  viewport and jump-to-latest appears (issue #1889). A reader who scrolled
+  away keeps their position.
+- The move waits for the reply's final status, runs one frame after the
+  settled reply lays out, and is skipped for failed or aborted turns, a prompt
+  already in view, a hidden pane or reading window, a held disclosure
+  position, and a queued follow-up that starts first.
+- Logic lives in `apps/desktop/src/lib/turn-completion-scroll.ts` and the
+  `useTurnCompletionScroll` hook beside `useTranscriptScroll`. Covered by
+  `apps/desktop/test/turn-completion-scroll.test.mjs` and
+  `pnpm test:e2e:transcript-turn-completion`
+  (E2E-CHAT-completed-turn-scrolls-to-prompt).
