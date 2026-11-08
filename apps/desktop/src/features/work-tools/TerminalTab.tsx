@@ -140,6 +140,7 @@ export function TerminalTab({ tabId, cwd, active }: { tabId: string; cwd: string
       { selectAll: () => entry.term.selectAll(), clear: () => entry.term.clear(),
         scrollPages: (pages) => entry.term.scrollPages(pages),
         scrollToTop: () => entry.term.scrollToTop(), scrollToBottom: () => entry.term.scrollToBottom() },
+      document.documentElement.dataset.platform === "darwin",
     ));
     return () => entry.term.attachCustomKeyEventHandler(() => true);
   }, [tabId, t]);

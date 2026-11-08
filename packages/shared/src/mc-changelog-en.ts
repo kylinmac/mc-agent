@@ -9,6 +9,33 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.61",
+    date: "2026-11-08",
+    features: [
+      "The context usage panel shows the cost of the latest turn and the whole conversation; subscription accounts show \"Subscription\" with the API-price equivalent.",
+    ],
+    improvements: [
+      "The conversation minimap on the left marks only your own messages, so earlier questions are easier to find.",
+    ],
+    fixes: [
+      "Large generated images are no longer lost to a client-side validation error.",
+      "A very tall full-page screenshot no longer makes every later request in the conversation fail.",
+      "File names with Chinese, accented characters or emoji no longer turn garbled or go missing from search.",
+      "Exhausted quota, an invalid key or an oversized context no longer trigger repeated useless requests.",
+      "Typing a slash with a Chinese input method no longer inserts a duplicate character.",
+      "After you cancel quitting, scheduled tasks and voice input keep working.",
+    ],
+  },
+  {
+    version: "1.0.60",
+    date: "2026-11-08",
+    fixes: [
+      "On macOS, Ctrl+C in the terminal interrupts the running program even with text selected; use ⌘C to copy.",
+      "When the agent works in the side panel, it no longer opens browser or mail links for you; it tells you the address instead.",
+      "The creative folder no longer shows up in the resource list while the storage folder is not yet allowed.",
+    ],
+  },
+  {
     version: "1.0.59",
     date: "2026-11-06",
     features: [
