@@ -9,6 +9,23 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.62",
+    date: "2026-11-08",
+    features: [
+      "Review can show past changes turn by turn, with the lines added and removed in each turn.",
+      "A finished reply lists the files that turn changed; click a file to jump to it in Review.",
+      "Files in Review can be opened in the file panel, opened with the system app, or shown in Finder.",
+    ],
+    improvements: [
+      "Loading earlier messages in a long conversation keeps your reading position in place.",
+      "\"Back to latest\" scrolls smoothly to the bottom and keeps the earlier messages you already loaded.",
+      "When a reply finishes, its prompt scrolls to the top so you read the answer from the start; nothing moves while you are scrolled up.",
+    ],
+    fixes: [
+      "After a conversation is restored, a reply that is still running keeps showing as running.",
+    ],
+  },
+  {
     version: "1.0.61",
     date: "2026-11-08",
     features: [
