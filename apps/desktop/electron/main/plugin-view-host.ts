@@ -483,8 +483,9 @@ export class PluginViewHost {
     // A docked view gets exactly one web contents. `window.open` would mint a
     // chromeless window outside the egress policy applied above.
     wc.setWindowOpenHandler(({ url }) => {
+      if (holdAgentOpen(wc, url)) return { action: "deny" };
       const allowed = parseAllowedExternalUrl(url);
-      if (allowed && !holdAgentOpen(wc, allowed)) void shell.openExternal(allowed);
+      if (allowed) void shell.openExternal(allowed);
       return { action: "deny" };
     });
     return view;
