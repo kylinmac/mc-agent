@@ -83,6 +83,8 @@
 | 设置中显示生图标记对聊天模型选择的影响 | `4cd88649c` | 仅文档冲突；V8 |
 | 对话缩略导航只标记用户消息 | `5caa0c227` | 无冲突；V8 |
 | 插件 `workspace.get` / 已注册目录跟随调用会话的项目 | `89c292108` | 并列对话（MC-ADR-0007）下后台工具不再读到可见项目；去掉 Fork 没有的 `projects.list`；V3、V9 |
+| 内联图片按像素尺寸准入（长边 > 8000 px 不内联，Host Read 拒绝，历史回放降级为路径/文本说明） | `49f23668d`（#1913） | 合并 Fork 压缩恢复的 import；决策日志只保留 D675；V3、V7 |
+| 像素被拒的图片不占历史图片字节预算 | `bfc69c73a` | 依赖上一行，无冲突；V3、V7 |
 | **新功能**：上下文面板与轮次用量胶囊显示本轮/会话费用 | `969b7f47a` | 新增只读 Host RPC `session.usageCost`，无数据库结构变化；订阅账号显示为“订阅”及等价价格，无单价请求标为下限。Fork 面板在没有轮次用量时仍显示会话费用；V8 |
 
 费用显示补充 [MC-ADR-0011](adr/mc-0011-usage-statistics.md) 的“不算费用”：统计页仍只展示 token，会话内费用使用请求账本中已有的 Provider 实报或目录估算价格，自定义模型无单价时不猜测。
@@ -95,7 +97,6 @@
 | `1fc3736a2`、`a15dda3d3` 审查历史 | 依赖 Fork 未引入的 Review History 工作面板 |
 | `dda598c6f`、`7d5abca83` 定时任务列表与编辑器 | Fork 定时任务页已按 mc 界面重写，需单独适配 |
 | `028bece76` 压缩后按模型算窗口容量 | Fork 上下文面板改为快照（R20/R21），需单独适配 |
-| `bfc69c73a` 像素超限图片不占历史字节预算 | 依赖 Fork 未引入的 #1913 像素上限修复，建议与之一并移植 |
 | `b7d03c657` 侧栏布局持久化 | Fork 使用自有项目侧栏（MC-ADR-0003） |
 | `6c6d0ff7f`、`398f6d638` | 测试夹具，对应功能 Fork 未引入 |
 
@@ -105,7 +106,8 @@
 | --- | --- |
 | agent-runtime `provider-retry` / `agent-errors` / `agent-messages` / `compaction-tail` | 4 文件 170 项通过 |
 | 桌面 `usage-cost`、`usage-cost-user-path`、`image-model-disclosure-user-path`、`conversation-minimap`、`browser-background-session`、`plugin-workspace-session`、`transcript-projection` | 45 项通过 |
-| `cargo test -p host-core --locked`（`transcripts::`、`usage`） | 63 项、15 项通过 |
+| `cargo test -p host-core --locked`（`transcripts::`、`usage`、`tools::`） | 63 项、15 项、112 项通过 |
+| shared `image-dimensions`、agent-runtime `image-admission` / `attachment-history`、桌面 `prompt-inline-attachments` / `composer-paste-files` | 6 项、9 项、19 项通过 |
 | `node scripts/e2e-compaction-tail.mjs` | 通过 |
 | desktop `typecheck`、`pnpm lint`、`cargo fmt --check` | 通过 |
 | `cargo clippy -p host-core --all-targets` | 无新增警告（既有 8 条在 mc_* 与未改动代码） |
