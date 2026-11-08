@@ -9,6 +9,15 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.60",
+    date: "2026-11-08",
+    fixes: [
+      "On macOS, Ctrl+C in the terminal interrupts the running program even with text selected; use ⌘C to copy.",
+      "When the agent works in the side panel, it no longer opens browser or mail links for you; it tells you the address instead.",
+      "The creative folder no longer shows up in the resource list while the storage folder is not yet allowed.",
+    ],
+  },
+  {
     version: "1.0.59",
     date: "2026-11-06",
     features: [
