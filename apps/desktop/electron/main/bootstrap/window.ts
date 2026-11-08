@@ -1423,6 +1423,39 @@ export async function createWindow({
               `void window.__PI_DESKTOP__?.seedReviewChanges?.(0)`,
             );
             await new Promise((r) => setTimeout(r, 250));
+            // Per-turn changed-files card (D674): relaxed rows for a few
+            // files, dense rows plus `+N more` for many.
+            const shootTurnChanges = async (files: number, name: string) => {
+              await windowState.mainWindow!.webContents.executeJavaScript(
+                `void window.__PI_DESKTOP__?.seedTurnChanges?.(${files})`,
+              );
+              await new Promise((r) => setTimeout(r, 450));
+              await windowState.mainWindow!.webContents.executeJavaScript(
+                `document.querySelector(".turn-changes-card")?.scrollIntoView({ block: "center" })`,
+              );
+              await new Promise((r) => setTimeout(r, 250));
+              await shot(name);
+            };
+            await shootTurnChanges(3, "pi-turn-changes");
+            await shootTurnChanges(15, "pi-turn-changes-dense");
+            await windowState.mainWindow!.webContents.executeJavaScript(
+              `window.__PI_DESKTOP__?.setThemeAttr("dark")`,
+            );
+            await new Promise((r) => setTimeout(r, 350));
+            await shot("pi-turn-changes-dense-dark");
+            await windowState.mainWindow!.webContents.executeJavaScript(
+              `window.__PI_DESKTOP__?.setThemeAttr("light")`,
+            );
+            // A row click opens Review on that file with its change expanded.
+            await windowState.mainWindow!.webContents.executeJavaScript(
+              `document.querySelectorAll(".turn-changes-row")[1]?.click()`,
+            );
+            await new Promise((r) => setTimeout(r, 600));
+            await shot("pi-turn-changes-open-review");
+            await windowState.mainWindow!.webContents.executeJavaScript(
+              `void window.__PI_DESKTOP__?.seedTurnChanges?.(0)`,
+            );
+            await new Promise((r) => setTimeout(r, 250));
             // A run row keeps its command in the head and only its output in the
             // body (D226). Seed one row per state, open the activity groups, and
             // hover the open row so its copy control and caret are on screen.

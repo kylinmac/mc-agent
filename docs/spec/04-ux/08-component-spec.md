@@ -1003,11 +1003,15 @@ pending action cards remain reachable outside a hidden process. See
 | Empty | Restrained hero + optional onboarding checklist in a scrollable content region, with a bottom-reserved home composer and no starter-card or contextual quick-action layer (D111/D204/D206). An open project underlines the project name, including before its first session exists; the control opens a searchable switcher of the sidebar's open projects, with clone-git-project and open-project actions. |
 | Streaming | Auto-scroll follows while pinned; new tokens append |
 | Active progress | Immediately after send, before the first assistant or tool event, a compact localized `Working…` status with elapsed time appears inline. Its model and subagent elapsed labels use the carried-unit format in §9.1. When the runtime names a quiet interval, that same row identifies starting, waiting for the model, preparing the next request, compacting context, recovering an empty response, retrying, or waiting for delegated work (with each running subagent's latest coarse action). It remains visible through thinking, tool execution, completed-tool gaps, and partial answers until the turn ends. Runtime phases take precedence over the Planning/Goal or Working fallback. Pending permissions, questions, and plan/goal approvals suppress the row; history reading never shows live status; no large generic progress card is rendered. The row lives in the reserved tail lane, so it appears and clears mid-turn without changing the transcript's content height. A retrying row remains compact at rest; hovering or focusing it reveals an error-styled tooltip with the localized error summary, stable code/HTTP status, and bounded provider message. The tooltip mixes the error tint over `--ds-bg-elevated-opaque` so transcript text does not show through. |
-| Turn outcome | After a failed turn, a session-scoped recovery card summarizes the interruption and tool evidence. Completed turns use the existing transcript and message-scoped review rows without an extra success card; failed turns can continue through one localized prompt without losing the transcript. |
+| Turn outcome | After a failed turn, a session-scoped recovery card summarizes the interruption and tool evidence. Completed turns use the existing transcript and message-scoped review rows without an extra success card; a completed turn that wrote workspace files also shows the per-turn changed-files summary below (D674). Failed turns can continue through one localized prompt without losing the transcript. |
 | Session switch | A first-opened session paints at its latest record; a revisited pane paints at its own retained position. Bounded first commit and full-history expansion show the same position: no post-paint height correction may shift the visible rows, in either direction |
 | Turn start (send / retry / regenerate) | Re-pins and positions the latest content before paint, even if the user had scrolled up; the later persisted user-message event does not flash the transcript at its top, and the composer collapse / indicator layout clamps during the send never release follow mode |
 | Idle (after stream) | Auto-scroll unlocked; user can scroll freely. A completed turn the user was following ends with its prompt at the top of the viewport and jump-to-latest shown, unless the prompt was already in view (D676) |
 | Message-scoped review snapshot | Each successful workspace Write/Edit renders as one tool-level review row (`ReviewChangeCard`) carrying that message's added/modified/deleted status and explicit addition/deletion totals. The row itself is the file header — Git-style status letter (`A`/`M`/`D`), path, addition/deletion counts, disclosure caret — with no separate generic tool row above it, so the file header appears exactly once. It keeps the tool-row rhythm with no card border, status rail, icon plate, or status pill; hover fill is the only row chrome, and a rolled-back change is struck through. Its hunks sit in the diff body directly beneath that header behind the row's expandable disclosure: every review row (inline and in the Review tab) is collapsed by default, and the user expands it on demand. The diff body's action row keeps hash-guarded rollback and adds Copy for the hunks. The card remains after a Git commit, never becomes a bottom/global entry, and does not leak into another session's transcript. |
+| Per-turn changed files | A completed reply (same mount condition as the reply plugin slots, so never while streaming and never after a failed turn) whose turn recorded at least one workspace review change shows one read-only `TurnChangesCard` below its answer and above `entryExtra` blocks (D674). It is built only from that turn's message-owned review records: one row per path in first-touched order, counts summed across edits, status `D` when the turn ends by deleting the file, else `A` if any edit created it, else `M`; a file whose every edit was rolled back stays listed, struck through, with the state in its accessible name. The card starts collapsed: its full-width header remains visible with a disclosure chevron, `Changes this turn`, the file count, and the summed `+`/`−`. Clicking the header or activating it with Enter/Space toggles the file list and its Review link without opening Review; `aria-expanded` and `aria-controls` expose the state, and hidden details are not keyboard-focusable. Each turn retains its own explicit choice through the existing session-scoped transcript disclosure mechanism and uses the shared scroll anchor. When expanded, up to four files use relaxed 25px rows; more switch to dense 21px rows and add the directory count; rows past 12 fold into `+N more` plus a link that opens Review. The card is one `--ds-tile` surface with no border or rules. Clicking a row opens the originating session's Review tab, scrolls to that file's first recorded change, and expands its changes there — the card has no diff body or rollback of its own. A turn without workspace writes renders nothing. |
+
+Focusing a file from the per-turn summary scrolls within the Review list.
+The window chrome and conversation viewport stay in place.
 
 ### 4.5 Accessibility
 
@@ -1281,7 +1285,9 @@ entirely inside the plugin's isolated page:
   resize the window, or change visible selection/focus. The transcript does
   not create a global Review changes launcher: each successful workspace
   Write/Edit renders only its own tool-level review row, and another session
-  cannot render that card in its transcript. Repeated resources deduplicate
+  cannot render that card in its transcript. The per-turn changed-files card
+  (D674) is scoped to one finished turn and opens Review only on a user
+  click. Repeated resources deduplicate
   within the originating session.
 - Review truth: host-core adds one bounded `details.review` record to each
   successful workspace Write/Edit result. The renderer reads that record from
@@ -4604,3 +4610,83 @@ instructions, memory and OAuth dialogs retain their existing bounded layouts.
 ### Browser tab closure (upstream #2162)
 
 Closing the connected Browser tab clears its connection. Subsequent session-only tools use that session's selected replacement page. Explicit closed targets fail; navigation never revives an invisible old tab. Verify close/reopen/snapshot/fill/click/navigate and final closure with `browser-background-session.test.mjs` and `BROWSER_CLOSE_CONNECTION_ONLY=1 node scripts/e2e-browser-background.mjs`.
+## Round review reader
+
+Local Review defaults to Last round (the latest modified user round). Its
+scope dropdown also offers History, which reveals a separate user-round selector row,
+independent of the chat's loaded message window. Transcript summary focus requests
+carry their originating session; switching back to another conversation cannot
+replay that request there or empty its file list beneath a populated history option.
+Rounds without changes do not
+replace Latest. Main and delegated Write/Edit evidence share a file list; actual
+execution roots distinguish identically named files. The file header opens all
+of that file's recorded operations in order, without claiming a net diff.
+The toolbar counts visible distinct root/path file groups, not operation records.
+A file group appears only when its recorded additions or deletions are greater
+than zero. Groups with both counters zero are hidden, including preview-limited
+records, and excluded from the toolbar file count. This presentation filter does
+not delete native evidence or omit operations from a retained file group.
+
+Expanded file content has no fixed-height inner viewport or vertical scrollbar.
+The outer Review scroll reserves its vertical scrollbar gutter before overflow
+and owns vertical travel; the current file header sticks
+below the toolbar within its file section. It is not reordered. A borderless ellipsis button after the summary totals opens a menu containing
+only Word wrap and Context lines. Hovering Context lines opens a secondary
+menu with 1/3/5 (first-use default 3); the choice is profile-wide, remembered
+across sessions, panel reopening and application restarts. Invalid or missing
+preferences use 3, and unavailable storage never blocks the current selection.
+No context selector is shown in the main toolbar.
+Toggle checks appear on the right. History options show date/time on the left
+and Host-recorded added/deleted line totals on the right, before the check.
+Totals count each successful native operation once, including delegated evidence,
+and do not claim a net diff. Binary/truncated preview flags do not erase saved
+valid counters; absent or unsafe totals show unknown instead of invented zeros.
+The closed selector preserves the same left date/time and right green/red totals
+before its arrow. File headings have no permanent button fill or border; their
+file icon leads the row. A reserved disclosure slot immediately follows the
+visible filename, including an ellipsized name, before the right-aligned statistics.
+It appears on hover or keyboard focus, pointing right
+when closed and down when open, without moving content. Filename and statistics
+have a visible gap; execution roots are not rendered as extra diff rows.
+A separate file ellipsis offers Open internally (disabled without the loaded
+File Manager view; never auto-enables it), Open externally (OS default app),
+and Open folder (system file manager, revealing the current file).
+All three resolve the current exact file through session-aware authorized roots, not
+a historical export or a same-named fallback. Stale session/project results are
+discarded; lookup/open failures are visible without changing stored evidence.
+Absolute and outside-root relative path labels use `.../basename`; full paths
+remain in the title and stored evidence. Native review captures successful
+approved Write/Edit mutations inside and outside the workspace, never Bash or
+external-application changes. Outside snapshots do not grant rollback or general filesystem permissions.
+Their file menu omits internal open and offers only external open and folder
+reveal through explicit snapshot-bound user actions (ADR 0338). Other file-open
+surfaces retain their existing authorization.
+
+Both scope and historical round selectors reuse the shared native Select.
+Review-only CSS opts into Chromium's customizable native picker: its base follows
+the sidebar color, with a contrasting sidebar-derived selected fill (no system
+blue). Only the first option's upper and last option's lower corners are rounded;
+interior edges are square, including when an interior row is selected or hovered.
+A single option has all four outer corners. The scope trigger is 24px high; the
+round field stays 28px high. Both vertically center their text and arrow. Round
+labels retain date/time and recorded counts with reserved arrow space. Native keyboard selection,
+Escape dismissal and focus remain browser-owned. Shared primitives and the AI
+Command shell selector are unchanged.
+Only file action menus opt into compact density. Recorded operations have no
+numbered title or dividing rule. One footer per file copies all its recorded
+hunks or requests a Host-preflighted file rollback; chat's inline actions remain
+unchanged. The copied sequence is not represented as a net diff.
+Review headings and turn-summary file rows share compact 14px file-type glyphs
+(Markdown, JSON, Python, code and document), while status stays in accessible
+labels. Both Review ellipsis menus anchor to the trigger right edge, 4px below;
+when space is insufficient they flip above and clamp within the viewport.
+Pointer position within a button cannot move the menu. They remain body portals,
+and ordinary right-click menus retain pointer placement.
+Diff rows have one line-number gutter: deletions use old coordinates, additions
+and context use new coordinates; EOF markers have no number. Numbered Review
+rows omit the separate add/delete sign column but retain change backgrounds and
+summary signs; chat inline rows are unchanged. Word wrap toggles wrapping without
+introducing nested vertical scrolling. Unsupported
+historical context has an explicit explanation and retains recorded evidence.
+Remote Review retains its existing presentation. Chat inline review rows retain
+their default layout and hash-guarded rollback; no Git or model behavior changes.
