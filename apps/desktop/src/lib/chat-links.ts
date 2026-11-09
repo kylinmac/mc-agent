@@ -280,6 +280,20 @@ export function resolvePreviewTarget(
   return rel ? { kind: "file", path: rel, ...(position ?? {}) } : null;
 }
 
+/**
+ * True when a Markdown href names a local file rather than a web or app URL:
+ * a path (absolute, relative, `~/`, a Windows drive or UNC share) or a
+ * `file:` URL. The window-open fallback refuses every one of these, so a
+ * click on such a link must never be left to it.
+ */
+export function isLocalFileHref(href: string): boolean {
+  const decoded = safeDecodeUri(href).trim();
+  if (!decoded || decoded.startsWith("#")) return false;
+  if (/^file:/i.test(decoded)) return true;
+  if (/^[A-Za-z]:[\\/]/.test(decoded) || decoded.startsWith("\\\\")) return true;
+  return !/^[A-Za-z][A-Za-z0-9+.-]*:/.test(decoded);
+}
+
 /** Route a plain click on a local Markdown link through the existing file opener. */
 export function handleMarkdownFileLinkClick(
   event: { preventDefault(): void },

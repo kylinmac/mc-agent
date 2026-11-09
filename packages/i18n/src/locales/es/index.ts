@@ -447,6 +447,7 @@ export const es = {
     "fileRefMissing": "Ningún archivo coincide con {{name}}",
     "fileRefRestricted": "{{name}} está fuera de las ubicaciones a las que puede acceder la aplicación",
     "fileRefLookupFailed": "No se pudo comprobar esta referencia de archivo.",
+    "fileLinkUnresolved": "No se pudo abrir este enlace: {{name}}",
     "fileManagerUnavailable": "El administrador de archivos no está disponible. El archivo se abrió en el visor integrado.",
     "openWith": "Abrir con",
     "openWithFileManager": "Administrador de archivos",

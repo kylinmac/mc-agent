@@ -77,6 +77,7 @@ import {
 } from "../hooks/use-chat-file-menu";
 import {
   handleMarkdownFileLinkClick,
+  isLocalFileHref,
   remarkChatFileLinks,
   resolvePreviewTarget,
   safeDecodeUri,
@@ -665,13 +666,24 @@ function Anchor({
     });
   };
 
-  // Plain click follows Link open destination. Modifier clicks fall through
-  // to _blank, which main routes to shell.openExternal.
+  // Plain click follows Link open destination. Modifier clicks on a web link
+  // fall through to _blank, which main routes to shell.openExternal. A local
+  // file link never falls through: main refuses file paths there, so the click
+  // would do nothing. It opens like a plain click or says why it cannot.
+  const openLocalLink = (e: React.MouseEvent<HTMLAnchorElement>, target: string) => {
+    if (handleMarkdownFileLinkClick(e, target, root, baseDir, openFileRef)) return;
+    e.preventDefault();
+    showToast(t("chat.fileLinkUnresolved", { name: safeDecodeUri(target) }), { variant: "error" });
+  };
 
   const onClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (!localToolsAllowed) { e.preventDefault(); return; }
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     if (!href) return;
+    if (isLocalFileHref(href)) {
+      openLocalLink(e, href);
+      return;
+    }
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     if (/^https?:\/\//i.test(href)) {
       e.preventDefault();
       openHttpUrl(href);
@@ -679,12 +691,21 @@ function Anchor({
     }
     handleMarkdownFileLinkClick(e, href, root, baseDir, openFileRef);
   };
+
+  // A middle click opens a new window, which would send a local link to the
+  // same refused fallback.
+  const onAuxClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (e.button !== 1 || !href || !isLocalFileHref(href)) return;
+    if (!localToolsAllowed) { e.preventDefault(); return; }
+    openLocalLink(e, href);
+  };
   return (
     <>
       <a
         {...rest}
         href={localToolsAllowed ? href : undefined}
         onClick={onClick}
+        onAuxClick={onAuxClick}
         onContextMenu={onContextMenu}
         target="_blank"
         rel="noopener noreferrer"

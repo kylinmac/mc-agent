@@ -447,6 +447,7 @@ export const de = {
     "fileRefMissing": "Keine Datei entspricht {{name}}",
     "fileRefRestricted": "{{name}} liegt außerhalb der für die App zugänglichen Orte",
     "fileRefLookupFailed": "Dieser Dateiverweis konnte nicht geprüft werden.",
+    "fileLinkUnresolved": "Dieser Link konnte nicht geöffnet werden: {{name}}",
     "fileManagerUnavailable": "Der Dateimanager ist nicht verfügbar. Die Datei wurde im integrierten Viewer geöffnet.",
     "openWith": "Öffnen mit",
     "openWithFileManager": "Dateimanager",

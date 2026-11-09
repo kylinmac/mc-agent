@@ -119,6 +119,28 @@ test("Markdown file anchors use the same project-file opener as inline reference
   assert.match(anchor, /handleMarkdownFileLinkClick\(e, href, root, baseDir, openFileRef\)/);
 });
 
+test("a local file link never falls through to the refused external opener", () => {
+  // Main refuses file paths in shell.openExternal, so a modifier click, a
+  // middle click, or a link the opener cannot resolve used to do nothing at
+  // all. Each now opens like a plain click or shows why it cannot.
+  const anchorStart = markdown.indexOf("function Anchor(");
+  const imageStart = markdown.indexOf("/**\n * Local image references", anchorStart);
+  const anchor = markdown.slice(anchorStart, imageStart);
+  const local = anchor.indexOf("if (isLocalFileHref(href))");
+  const modifier = anchor.indexOf("if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;");
+  assert.ok(local > 0 && modifier > local, "local links are handled before the modifier fallthrough");
+  assert.match(anchor, /if \(handleMarkdownFileLinkClick\(e, target, root, baseDir, openFileRef\)\) return;\s*e\.preventDefault\(\);\s*showToast\(t\("chat\.fileLinkUnresolved"/);
+  assert.match(anchor, /onAuxClick=\{onAuxClick\}/);
+  assert.match(anchor, /e\.button !== 1 \|\| !href \|\| !isLocalFileHref\(href\)/);
+});
+
+test("an unresolved chat file reference is logged with its reason", async () => {
+  const ipc = await readFile(new URL("../electron/main/ipc/workspace-ipc.ts", import.meta.url), "utf8");
+  assert.match(ipc, /logMiss\("outside-allowed-roots"\);\s*return \{ match: null, reason: "outside-allowed-roots" \};/);
+  assert.match(ipc, /if \(!match\) logMiss\("not-found"\);/);
+  assert.match(ipc, /"chat file reference did not resolve"/);
+});
+
 test("a tool row and a tool result row open a file where the message body does", () => {
   // One opener serves every transcript surface that names a file. It completes
   // the reference the same way a chat chip does instead of handing the raw path
