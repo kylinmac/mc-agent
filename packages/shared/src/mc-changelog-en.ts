@@ -9,6 +9,14 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.64",
+    date: "2026-11-09",
+    fixes: [
+      "In the file panel's Markdown preview, relative, absolute and file: links now open the file in the file panel instead of showing \"link (not opened)\".",
+      "#heading links in the preview jump to that heading, and www. addresses open in the browser.",
+    ],
+  },
+  {
     version: "1.0.63",
     date: "2026-11-08",
     features: [

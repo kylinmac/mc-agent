@@ -15,7 +15,7 @@ Rebuild: clone the pinned tag, apply the patch with `git apply`, install `views-
 
 Preview text search is provided by `electron/main/mc-file-preview-search.ts` (Ctrl/Cmd+F, rendered-text highlights and navigation); it also applies to marketplace copies and leaves the CodeMirror search intact.
 
-Host overrides remain in `electron/main/mc-file-search-contrast.ts` and `electron/main/mc-file-preview-links.ts`; verify both against rebuilt views. Links opened while the agent drives the panel (`electron/main/work-panel-agent/agent-input-gate.ts`) are reported to the agent instead of opened.
+Host overrides remain in `electron/main/mc-file-search-contrast.ts` and `electron/main/mc-file-preview-links.ts`; verify both against rebuilt views. The preview-links script opens web links externally, opens file links (relative to the open file, absolute, `file:`) in this view through `ui.revealView`, and scrolls `#heading` links; it reads the open file from the header's copy-path button. Links opened while the agent drives the panel (`electron/main/work-panel-agent/agent-input-gate.ts`) are reported to the agent instead of opened.
 
 ## Shipped SHA-256
 

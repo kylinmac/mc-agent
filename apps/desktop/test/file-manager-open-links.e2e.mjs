@@ -23,7 +23,23 @@ const DOCUMENT = [
   "",
   "[relative](./other.md)",
   "",
+  "[parent](../uninstall%20one.sql#L3)",
+  "",
+  "[absolute](/elsewhere/notes.txt)",
+  "",
+  "[fileurl](file:///elsewhere/a%20b.md)",
+  "",
+  "[www](www.example.test/page)",
+  "",
+  "[jump](#section-two)",
+  "",
+  "[missing](#nowhere)",
+  "",
   "[script](javascript:alert(1))",
+  "",
+  "[scheme](ms-msdt:/id)",
+  "",
+  "## Section Two",
   "",
 ].join("\n");
 
@@ -63,6 +79,9 @@ contextBridge.exposeInMainWorld("pluginBridge", {
       case "fm.read":
         return { ok: true, kind: "text", path: payload.path, text, eol: "lf", bom: false, size: text.length, mtimeMs: 1 };
       case "fm.prefs.set": return { ok: true, prefs: { ...prefs, ...(payload.partial ?? {}) } };
+      case "ui.revealView":
+        ipcRenderer.send("fixture-reveal", payload);
+        return { ok: true };
       case "ui.showToast":
         ipcRenderer.send("fixture-toast", payload.message);
         return { ok: true };
@@ -82,7 +101,9 @@ app.setPath("userData", path.join(__dirname, "profile"));
 
 const opened = [];
 const toasts = [];
+const reveals = [];
 ipcMain.on("fixture-toast", (_event, message) => toasts.push(message));
+ipcMain.on("fixture-reveal", (_event, payload) => reveals.push(payload));
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function run() {
@@ -97,11 +118,11 @@ async function run() {
   contents.setWindowOpenHandler(({ url }) => { opened.push(url); return { action: "deny" }; });
   contents.on("dom-ready", () => { void contents.executeJavaScript(process.env.MC_FILE_PREVIEW_LINKS); });
   const url = pathToFileURL(process.env.PI_FILE_MANAGER_VIEW);
-  url.searchParams.set("piViewOpen", "a.md");
+  url.searchParams.set("piViewOpen", "docs/a.md");
   await window.loadURL(url.href);
   await contents.executeJavaScript(
     "new Promise((resolve, reject) => { const end = Date.now() + 8000; const poll = () => {" +
-    "if (document.querySelectorAll('.md-link').length >= 4) resolve();" +
+    "if (document.querySelectorAll('.md-link').length >= 11) resolve();" +
     "else if (Date.now() > end) reject(new Error('no preview links: ' + document.body.innerText.slice(0, 300)));" +
     "else setTimeout(poll, 50); }; poll(); })",
   );
@@ -117,18 +138,22 @@ async function run() {
     contents.sendInputEvent({ type: "mouseDown", ...at, button: "left", clickCount: 1 });
     contents.sendInputEvent({ type: "mouseUp", ...at, button: "left", clickCount: 1 });
     await sleep(300);
-    return { opened: opened.splice(0), toasts: toasts.splice(0) };
+    return { opened: opened.splice(0), toasts: toasts.splice(0), reveals: reveals.splice(0) };
   };
   const result = {};
   result.web = await click("web");
   result.webTitle = await contents.executeJavaScript(linkExpr("web") + ".title");
   result.relative = await click("relative");
-  result.script = await click("script");
+  result.relativeTitle = await contents.executeJavaScript(linkExpr("relative") + ".title");
+  result.relativeAgain = await click("relative");
+  for (const label of ["parent", "absolute", "fileurl", "www", "jump", "missing", "script", "scheme"]) {
+    result[label] = await click(label);
+  }
   await contents.executeJavaScript(linkExpr("key") + ".focus()");
   contents.sendInputEvent({ type: "keyDown", keyCode: "Enter" });
   contents.sendInputEvent({ type: "keyUp", keyCode: "Enter" });
   await sleep(300);
-  result.keyboard = { opened: opened.splice(0), toasts: toasts.splice(0) };
+  result.keyboard = { opened: opened.splice(0), toasts: toasts.splice(0), reveals: reveals.splice(0) };
   return result;
 }
 
@@ -144,7 +169,7 @@ app.whenReady().then(async () => {
 `;
 
 test(
-  "File Manager preview opens web links and leaves other links alone",
+  "File Manager preview opens web, file and heading links and leaves unsafe ones alone",
   { skip: process.platform === "linux" && !process.env.DISPLAY ? "Electron requires a display" : false },
   async () => {
     const temp = await mkdtemp(join(tmpdir(), "pi-file-manager-links-"));
@@ -172,16 +197,31 @@ test(
       assert.ok(line, output.slice(-4000));
       const report = JSON.parse(line.slice("FILE_MANAGER_LINKS_PROBE ".length));
       assert.equal(report.ok, true, report.error);
-      const { web, webTitle, relative, script, keyboard } = report.result;
+      const r = report.result;
+      const none = { opened: [], toasts: [], reveals: [] };
+      const reveal = (location) => ({ ...none, reveals: [{ viewId: "manager", location }] });
 
-      assert.deepEqual(web, { opened: ["https://gitlab.example.test/group/project"], toasts: [] });
-      assert.equal(webTitle, "https://gitlab.example.test/group/project");
-      assert.deepEqual(keyboard, { opened: ["https://gitlab.example.test/keyboard"], toasts: [] });
-      // Not web links: nothing opens, and the plugin still reports them.
-      assert.deepEqual(relative.opened, []);
-      assert.equal(relative.toasts.length, 1);
-      assert.deepEqual(script.opened, []);
-      assert.equal(script.toasts.length, 1);
+      assert.deepEqual(r.web, { ...none, opened: ["https://gitlab.example.test/group/project"] });
+      assert.equal(r.webTitle, "https://gitlab.example.test/group/project");
+      assert.deepEqual(r.keyboard, { ...none, opened: ["https://gitlab.example.test/keyboard"] });
+      assert.deepEqual(r.www, { ...none, opened: ["https://www.example.test/page"] });
+      // File links open in the file manager, relative to the open file's folder.
+      assert.deepEqual(r.relative, reveal("docs/other.md"));
+      assert.equal(r.relativeTitle, "./other.md");
+      // The view ignores a repeated path, so the second click spells it absolutely.
+      assert.deepEqual(r.relativeAgain, reveal("/fixture/project/docs/other.md"));
+      assert.deepEqual(r.parent, reveal("uninstall one.sql"));
+      assert.deepEqual(r.absolute, reveal("/elsewhere/notes.txt"));
+      assert.deepEqual(r.fileurl, reveal("/elsewhere/a b.md"));
+      // A heading anchor scrolls in place; an unknown one keeps the plugin's toast.
+      assert.deepEqual(r.jump, none);
+      assert.equal(r.missing.toasts.length, 1);
+      // Unsafe schemes: nothing opens, and the plugin still reports them.
+      for (const item of [r.script, r.scheme]) {
+        assert.deepEqual(item.opened, []);
+        assert.deepEqual(item.reveals, []);
+        assert.equal(item.toasts.length, 1);
+      }
     } finally {
       await rm(temp, { recursive: true, force: true });
     }

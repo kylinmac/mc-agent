@@ -13,6 +13,14 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.64",
+    date: "2026-11-09",
+    fixes: [
+      "文件面板的 Markdown 预览里，点相对路径、绝对路径或 file: 链接会直接在文件面板打开对应文件，不再只弹「链接（未打开）」。",
+      "预览里点 #标题 链接会跳到对应标题，www. 开头的地址会用浏览器打开。",
+    ],
+  },
+  {
     version: "1.0.63",
     date: "2026-11-08",
     features: [
