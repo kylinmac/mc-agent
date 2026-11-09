@@ -9,6 +9,14 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.65",
+    date: "2026-11-09",
+    fixes: [
+      "Links to local files in a conversation now open in the app on a modifier click or middle click too, instead of doing nothing.",
+      "When a local file link cannot be opened, a message says why, and the log records which file and why it was not found.",
+    ],
+  },
+  {
     version: "1.0.64",
     date: "2026-11-09",
     fixes: [

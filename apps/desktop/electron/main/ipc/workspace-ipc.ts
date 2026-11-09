@@ -94,6 +94,7 @@ export type WorkspaceIpcDependencies = {
   setCurrentWorkspacePath: (path: string | null) => void;
   withGitBranch: (workspace: WorkspaceRecord | null) => Promise<unknown>;
   stripWinLongPrefix: (path: string) => string;
+  logger: Pick<Logger, "app">;
 };
 
 export function registerWorkspaceIpc({
@@ -111,6 +112,7 @@ export function registerWorkspaceIpc({
   setCurrentWorkspacePath,
   withGitBranch,
   stripWinLongPrefix,
+  logger,
 }: WorkspaceIpcDependencies): void {
   let host: HostProcess | null = null;
   const handle = (channel: string, fn: (...args: any[]) => Promise<any>) => {
@@ -1104,10 +1106,20 @@ export function registerWorkspaceIpc({
         containment: [{ kind: "scratch" as const, path: join(dataDir, "scratch") }],
         attachments: join(dataDir, "attachments"),
       };
+      // A chat link that opens nothing only shows a toast in the renderer; the
+      // log keeps which reference failed and why, so a report can be traced.
+      const logMiss = (reason: string) =>
+        logger.app("tool", "warn", "chat file reference did not resolve", {
+          sessionId: input.sessionId,
+          data: { ref: rawRef.slice(0, 256), reason, workspaceRoot },
+        });
       if (await isChatRefOutsideRoots(ref, roots)) {
+        logMiss("outside-allowed-roots");
         return { match: null, reason: "outside-allowed-roots" };
       }
-      return { match: await resolveChatFileRef(ref, roots) };
+      const match = await resolveChatFileRef(ref, roots);
+      if (!match) logMiss("not-found");
+      return { match };
     },
   );
 

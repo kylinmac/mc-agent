@@ -460,6 +460,7 @@ export const tr = {
     fileRefMissing: "{{name}} ile eşleşen dosya yok",
     fileRefRestricted: "{{name}} uygulamanın erişebildiği konumların dışında",
     fileRefLookupFailed: "Bu dosya başvurusu denetlenemedi.",
+    fileLinkUnresolved: "Bu bağlantı açılamadı: {{name}}",
     fileManagerUnavailable: "Dosya yöneticisi kullanılamıyor. Dosya yerleşik görüntüleyicide açıldı.",
     openWith: "Birlikte aç",
     openWithFileManager: "Dosya yöneticisi",

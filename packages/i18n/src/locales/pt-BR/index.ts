@@ -450,6 +450,7 @@ export const ptBR = {
     fileRefMissing: "Nenhum arquivo corresponde a {{name}}",
     fileRefRestricted: "{{name}} está fora dos locais que o aplicativo pode acessar",
     fileRefLookupFailed: "Não foi possível verificar esta referência de arquivo.",
+    fileLinkUnresolved: "Não foi possível abrir este link: {{name}}",
     fileManagerUnavailable: "O gerenciador de arquivos está indisponível. O arquivo foi aberto no visualizador integrado.",
     openWith: "Abrir com",
     openWithFileManager: "Gerenciador de arquivos",

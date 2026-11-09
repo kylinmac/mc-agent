@@ -11,6 +11,7 @@ import {
   getToolPreviewTarget,
   handleMarkdownFileLinkClick,
   isHttpUrl,
+  isLocalFileHref,
   linkifyMdastTree,
   parseFileRef,
   parseFileRefPosition,
@@ -956,4 +957,31 @@ test("session links segment as their own target", () => {
   // A remote id and a bare scheme are not local conversations.
   assert.equal(resolvePreviewTarget("pi-desktop://session/remote:abc", ROOT), null);
   assert.equal(resolvePreviewTarget("pi-desktop://session/", ROOT), null);
+});
+
+test("local file hrefs are told apart from web and app links", () => {
+  for (const href of [
+    "/Users/me/Desktop/dbx/out/README.md",
+    "out/README.md",
+    "./a.md",
+    "../a.md",
+    "~/notes.md",
+    "file:///Users/me/a.md",
+    "file://server/share/a.md",
+    "C:\\work\\a.md",
+    "D%3A%5Cwork%5Ca.md",
+    "%2FUsers%2Fme%2Fa.md",
+  ]) {
+    assert.equal(isLocalFileHref(href), true, href);
+  }
+  for (const href of [
+    "https://example.com/a.md",
+    "http://localhost:3000",
+    "mailto:me@example.com",
+    "mc-agent://session/abc",
+    "#heading",
+    "",
+  ]) {
+    assert.equal(isLocalFileHref(href), false, href);
+  }
 });

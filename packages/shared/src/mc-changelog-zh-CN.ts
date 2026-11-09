@@ -13,6 +13,14 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.65",
+    date: "2026-11-09",
+    fixes: [
+      "对话里指向本地文件的链接，按住 ⌘ 等修饰键点击或用中键点击也会在应用内打开，不再没有反应。",
+      "本地文件链接打不开时会提示原因，并在日志里记录是哪个文件、为什么没找到。",
+    ],
+  },
+  {
     version: "1.0.64",
     date: "2026-11-09",
     fixes: [

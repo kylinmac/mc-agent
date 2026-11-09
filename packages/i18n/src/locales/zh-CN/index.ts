@@ -475,6 +475,7 @@ export const zhCN = {
     fileRefMissing: "没有匹配 {{name}} 的文件",
     fileRefRestricted: "{{name}} 不在应用允许访问的范围内",
     fileRefLookupFailed: "无法检查此文件引用。",
+    fileLinkUnresolved: "无法打开这个链接：{{name}}",
     fileManagerUnavailable: "文件管理器当前不可用，已在内置文件查看器中打开。",
     openWith: "打开方式",
     openWithFileManager: "文件管理器",
