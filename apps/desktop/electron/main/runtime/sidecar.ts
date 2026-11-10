@@ -55,6 +55,7 @@ const COMPACTION_DIAGNOSTICS: Record<string, { level: "info" | "warn"; message: 
   context_restore: { level: "info", message: "context restore integrity", event: "session.context.restore" },
   context_request: { level: "info", message: "model request context shape", event: "session.context.request" },
   compaction_summary: { level: "info", message: "context compaction summary attempt", event: "session.compaction.summary" },
+  response_end: { level: "info", message: "model response ended", event: "session.response.end" },
 };
 
 export type SidecarRuntimeDependencies = {
@@ -301,7 +302,10 @@ export function createSidecarRuntime({
       ) {
         logger.app(
           "session",
-          diagnostic.kind === "context_restore" && Reflect.get(diagnostic.data, "ok") === false ? "warn" : entry.level,
+          (diagnostic.kind === "context_restore" && Reflect.get(diagnostic.data, "ok") === false) ||
+            (diagnostic.kind === "response_end" && Reflect.get(diagnostic.data, "reason") === "length")
+            ? "warn"
+            : entry.level,
           entry.message,
           {
             sessionId: diagnostic.sessionId,

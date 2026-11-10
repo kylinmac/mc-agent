@@ -1151,8 +1151,21 @@ export type AgentRuntimeOptions = {
   subagentModelKeys?: string[];
 };
 
+/**
+ * How a model response ended, as persisted on the assistant row: pi's
+ * normalized `stopReason` and the provider's raw value when it says more.
+ */
+export function responseStopReason(
+  message: { stopReason?: unknown; rawStopReason?: unknown },
+): { reason: string; provider?: string } | undefined {
+  const reason = typeof message.stopReason === "string" ? message.stopReason : undefined;
+  if (!reason) return undefined;
+  const raw = typeof message.rawStopReason === "string" ? message.rawStopReason.slice(0, 64) : undefined;
+  return raw && raw !== reason ? { reason, provider: raw } : { reason };
+}
+
 export type AgentRuntimeDiagnostic = {
-  kind: "compaction_failure" | "compaction_shape" | "compaction_restore" | "compaction_summary" | "context_restore" | "context_request";
+  kind: "compaction_failure" | "compaction_shape" | "compaction_restore" | "compaction_summary" | "context_restore" | "context_request" | "response_end";
   sessionId: string;
   turnId?: string;
   requestId: string;
@@ -8992,6 +9005,7 @@ export class DesktopAgentRuntime {
               : this.streamStartedAt !== undefined
                 ? Math.max(0, endedAt - this.streamStartedAt)
                 : undefined;
+          const stopReasonMeta = responseStopReason(event.message);
           const responseOutputTokens =
             aborted && (!usage || usage.outputTokens <= 0)
               ? estimateVisibleResponseOutputTokens({
@@ -9020,11 +9034,29 @@ export class DesktopAgentRuntime {
             ...(responseOutputTokens !== undefined
               ? { responseOutputTokens }
               : {}),
+            ...(stopReasonMeta ? { stopReason: stopReasonMeta } : {}),
             ...(classifiedError
               ? { error: classifiedError, isError: true }
               : {}),
             ...(hostedSearch ? { hostedSearch } : {}),
           };
+          if (stopReasonMeta) {
+            // The only record of why a response ended. Without it a reply cut
+            // by the output limit and one the model closed itself look the
+            // same in the transcript and in the logs.
+            this.emitCompactionDiagnostic("response_end", randomUUID(), {
+              reason: stopReasonMeta.reason,
+              ...(stopReasonMeta.provider ? { provider: stopReasonMeta.provider } : {}),
+              modelId: this.provider.modelId,
+              ...(usage
+                ? {
+                    outputTokens: usage.outputTokens,
+                    ...(usage.reasoningTokens !== undefined ? { reasoningTokens: usage.reasoningTokens } : {}),
+                  }
+                : {}),
+              ...(responseDurationMs !== undefined ? { durationMs: responseDurationMs } : {}),
+            });
+          }
           this.emit({ type: "message_end", message: this.currentAssistant });
           this.activeProviderRetryAttempt = 0;
           this.streamStartedAt = undefined;
