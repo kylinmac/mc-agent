@@ -8587,14 +8587,16 @@ describe("DesktopAgentRuntime subagents", () => {
     } finally { await runtime.dispose(); }
   });
 
-  it("is the only tool allowed to run in parallel", async () => {
+  it("shares parallel execution only with the read-only core tools", async () => {
     const runtime = createRuntime({ subagents: [explorer] });
     const catalog = (runtime as any).toolCatalog as Map<string, any>;
 
+    // mc-agent (#116): an all-read-only batch fans out like an all-Task one.
+    const parallel = new Set(["Task", "Read", "Glob", "Grep"]);
     expect(catalog.get("Task").executionMode).toBe("parallel");
+    expect(catalog.get("Read").executionMode).toBe("parallel");
     for (const [name, tool] of catalog) {
-      if (name === "Task") continue;
-      expect(tool.executionMode).toBe("sequential");
+      expect(tool.executionMode).toBe(parallel.has(name) ? "parallel" : "sequential");
     }
 
     await runtime.dispose();
