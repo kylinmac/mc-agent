@@ -22,24 +22,31 @@ index 8f4a530..9118796 100644
      else if (viewer.modes.includes("table")) persistPrefs({ csvTable: mode === "table" });
      else if (viewer.modes.includes("tree")) persistPrefs({ jsonTree: mode === "tree" });
 diff --git a/views-src/src/components/EditorPane.tsx b/views-src/src/components/EditorPane.tsx
-index 90d6de5..40c57b5 100644
+index 90d6de5..651b5a5 100644
 --- a/views-src/src/components/EditorPane.tsx
 +++ b/views-src/src/components/EditorPane.tsx
-@@ -1,4 +1,4 @@
+@@ -1,9 +1,10 @@
 - import { useCallback, useEffect, useRef, useState } from "react";
 + import { useCallback, useDeferredValue, useEffect, useRef, useState } from "react";
  import { createEditor, type EditorHandle } from "../lib/editor";
  import type { Base } from "../lib/appearance";
  import type { CopyKey, T } from "../i18n";
-@@ -90,6 +90,7 @@ export function EditorPane({
+ import { baseNameOf, formatSize, formatTime } from "../lib/format";
+ import { FileIcon } from "../lib/fileIcons";
++import { bindMarkdownScroll } from "../lib/markdownScroll";
+ import { MarkdownPreview } from "../lib/markdown";
+ import { MODE_LABEL, csvDelimiterOf, type ViewerMode, type ViewerView } from "../lib/viewers";
+ import { activeTabKey, contentKind, tabs as paneTabs } from "../lib/pane";
+@@ -90,6 +91,8 @@ export function EditorPane({
    onCloseDiff,
    onRefreshDiff,
  }: Props) {
 +  const [, setRevision] = useState(0);
++  const previewRef = useRef<HTMLDivElement | null>(null);
    const hostRef = useRef<HTMLDivElement | null>(null);
    // 编辑器里装的是哪一次「从磁盘读进来」的内容；null = 还没装。
    const [loadedToken, setLoadedToken] = useState<number | null>(null);
-@@ -132,7 +133,10 @@ export function EditorPane({
+@@ -132,7 +135,10 @@ export function EditorPane({
      if (!host) return;
      const handle = createEditor(host, {
        base,
@@ -51,7 +58,7 @@ index 90d6de5..40c57b5 100644
        onSave: () => handlersRef.current.onSave(),
      });
      handleRef.current = handle;
-@@ -180,7 +184,8 @@ export function EditorPane({
+@@ -180,7 +186,8 @@ export function EditorPane({
    const diffOpen = Boolean(file && diff && diff.path === file.path);
    // 内容区显示哪一种，由 lib/pane.ts 一处说了算（单值，所以不可能同时挂两种）。
    const content = contentKind({ fileKind: file?.kind ?? null, viewerMode: mode, diffOpen });
@@ -61,7 +68,7 @@ index 90d6de5..40c57b5 100644
    /**
     * 页签只有一组：**编辑 / 预览（表格、树）/ 变更**。
     *
-@@ -204,7 +209,7 @@ export function EditorPane({
+@@ -204,7 +211,7 @@ export function EditorPane({
        ? handleRef.current?.text() ?? file.text
        : file?.text ?? "";
    // 内容区现在不是编辑器时，预览/表格/树渲染的是「编辑器里当前那份文本」。
@@ -70,16 +77,23 @@ index 90d6de5..40c57b5 100644
  
    // 预览或查看器占位时编辑器必须藏起来、且要 false 掉 CodeMirror 的测量：
    // 它在 display:none 的容器里量不到尺寸，回到编辑态会排版错乱。
-@@ -212,7 +217,7 @@ export function EditorPane({
+@@ -212,7 +219,14 @@ export function EditorPane({
      if (!hostRef.current) return;
      hostRef.current.style.display = editorHidden ? "none" : "";
      if (!editorHidden) handleRef.current?.view.requestMeasure();
 -  }, [editorHidden, handleRef]);
 +  }, [editorHidden, split, handleRef]);
++
++  useEffect(() => {
++    const view = handleRef.current?.view;
++    const preview = previewRef.current;
++    if (!split || !view || !preview || structuredText !== liveText || !isDocumentLoaded(file, loadedToken)) return;
++    return bindMarkdownScroll(view, preview);
++  }, [split, structuredText, liveText, loadedToken, handleRef]);
  
    // 图片与音视频是「查看」而不是「编辑」，不再挂只读横幅——换成查看器本身。
    const readOnlyReason =
-@@ -387,13 +392,13 @@ export function EditorPane({
+@@ -387,13 +401,13 @@ export function EditorPane({
          </div>
        ) : null}
  
@@ -93,7 +107,7 @@ index 90d6de5..40c57b5 100644
 -        {content === "markdown" && file ? (
 -          <div className="md-scroll">
 +        {(content === "markdown" || split) && file ? (
-+          <div className="md-scroll" style={split ? { position: "relative", inset: "auto", width: "50%", minWidth: 0, borderLeft: "1px solid var(--border)" } : undefined}>
++          <div ref={previewRef} className="md-scroll" style={split ? { position: "relative", inset: "auto", width: "50%", minWidth: 0, borderLeft: "1px solid var(--border)" } : undefined}>
              <div className="md-body">
                <MarkdownPreview text={structuredText} base={base} onLink={onLink} />
              </div>
@@ -117,6 +131,230 @@ index 59b44ad..6bd5e9b 100644
      preview: "预览",
      linkHint: "链接（未打开）：{url}",
      reload: "从磁盘重新加载",
+diff --git a/views-src/src/lib/markdown.tsx b/views-src/src/lib/markdown.tsx
+index 272dcc1..db9d112 100644
+--- a/views-src/src/lib/markdown.tsx
++++ b/views-src/src/lib/markdown.tsx
+@@ -147,7 +147,7 @@ function renderLink(
+ 
+ // ── 代码块 ──────────────────────────────────────────────────────────────────
+ 
+-function CodeBlock({ code, language, base }: { code: string; language: string; base: Base }) {
++function CodeBlock({ code, language, base, line }: { code: string; language: string; base: Base; line: number }) {
+   const [nodes, setNodes] = useState<ReactNode[] | null>(null);
+ 
+   useEffect(() => {
+@@ -176,13 +176,14 @@ function CodeBlock({ code, language, base }: { code: string; language: string; b
+   return createElement(
+     "pre",
+     { className: "md-code" },
+-    createElement("code", null, ...(nodes ?? [code.replace(/\n$/, "")])),
++    createElement("code", { "data-source-line": line, "data-source-end": line + code.replace(/\n$/, "").split("\n").length }, ...(nodes ?? [code.replace(/\n$/, "")])),
+   );
+ }
+ 
+ // ── 块级 ────────────────────────────────────────────────────────────────────
+ 
+-type Block =
++type Block = BlockContent & { line: number; end: number };
++type BlockContent =
+   | { kind: "heading"; level: number; text: string }
+   | { kind: "code"; language: string; code: string }
+   | { kind: "hr" }
+@@ -191,7 +192,7 @@ type Block =
+   | { kind: "list"; ordered: boolean; items: ListItem[] }
+   | { kind: "table"; head: string[]; align: Array<"left" | "center" | "right" | null>; rows: string[][] };
+ 
+-type ListItem = { text: string; task: boolean | null; children: Block[] };
++type ListItem = { line: number; end: number; text: string; task: boolean | null; children: Block[] };
+ 
+ const HEADING = /^(#{1,6})\s+(.*)$/;
+ const FENCE = /^(```+|~~~+)\s*([^`\s]*)\s*$/;
+@@ -208,11 +209,14 @@ function splitTableRow(line: string): string[] {
+   return inner.split("|").map((cell) => cell.trim());
+ }
+ 
+-function parseBlocks(lines: string[]): Block[] {
++function parseBlocks(lines: string[], offset = 0): Block[] {
+   const blocks: Block[] = [];
+   let index = 0;
++  let start = 0;
++  const push = (block: BlockContent) => blocks.push({ ...block, line: offset + start + 1, end: offset + Math.max(index, start + 1) + 1 });
+ 
+   while (index < lines.length) {
++    start = index;
+     const line = lines[index];
+ 
+     if (!line.trim()) {
+@@ -231,19 +235,19 @@ function parseBlocks(lines: string[]): Block[] {
+         index += 1;
+       }
+       index += 1; // 跳过收尾围栏
+-      blocks.push({ kind: "code", language, code: body.join("\n") });
++      push({ kind: "code", language, code: body.join("\n") });
+       continue;
+     }
+ 
+     if (HR.test(line)) {
+-      blocks.push({ kind: "hr" });
++      push({ kind: "hr" });
+       index += 1;
+       continue;
+     }
+ 
+     const heading = HEADING.exec(line);
+     if (heading) {
+-      blocks.push({ kind: "heading", level: heading[1].length, text: heading[2].trim() });
++      push({ kind: "heading", level: heading[1].length, text: heading[2].trim() });
+       index += 1;
+       continue;
+     }
+@@ -255,7 +259,7 @@ function parseBlocks(lines: string[]): Block[] {
+         body.push(quoted ? quoted[1] : lines[index]);
+         index += 1;
+       }
+-      blocks.push({ kind: "quote", lines: body });
++      push({ kind: "quote", lines: body });
+       continue;
+     }
+ 
+@@ -264,10 +268,11 @@ function parseBlocks(lines: string[]): Block[] {
+       const items: ListItem[] = [];
+       let itemLines: string[] = [];
+       let itemTask: boolean | null = null;
++      let itemStart = index;
+ 
+       const flush = () => {
+         if (itemLines.length === 0) return;
+-        items.push({ text: itemLines[0], task: itemTask, children: parseBlocks(itemLines.slice(1)) });
++        items.push({ line: offset + itemStart + 1, end: offset + index + 1, text: itemLines[0], task: itemTask, children: parseBlocks(itemLines.slice(1), offset + itemStart + 1) });
+         itemLines = [];
+         itemTask = null;
+       };
+@@ -280,6 +285,7 @@ function parseBlocks(lines: string[]): Block[] {
+           const next = lines[index + 1] ?? "";
+           const nextIsItem = ordered ? ORDERED.test(next) : BULLET.test(next);
+           if (!nextIsItem) break;
++          itemLines.push("");
+           index += 1;
+           continue;
+         }
+@@ -294,6 +300,7 @@ function parseBlocks(lines: string[]): Block[] {
+             itemTask = task[1].toLowerCase() === "x";
+             content = task[2];
+           }
++          itemStart = index;
+           itemLines = [content];
+           index += 1;
+           continue;
+@@ -304,7 +311,7 @@ function parseBlocks(lines: string[]): Block[] {
+         index += 1;
+       }
+       flush();
+-      blocks.push({ kind: "list", ordered, items });
++      push({ kind: "list", ordered, items });
+       continue;
+     }
+ 
+@@ -324,7 +331,7 @@ function parseBlocks(lines: string[]): Block[] {
+         rows.push(splitTableRow(lines[index]));
+         index += 1;
+       }
+-      blocks.push({ kind: "table", head, align, rows });
++      push({ kind: "table", head, align, rows });
+       continue;
+     }
+ 
+@@ -344,7 +351,7 @@ function parseBlocks(lines: string[]): Block[] {
+       paragraph.push(current);
+       index += 1;
+     }
+-    if (paragraph.length) blocks.push({ kind: "para", lines: paragraph });
++    if (paragraph.length) push({ kind: "para", lines: paragraph });
+   }
+ 
+   return blocks;
+@@ -355,26 +362,27 @@ function parseBlocks(lines: string[]): Block[] {
+ function renderBlocks(blocks: Block[], context: InlineContext, base: Base): ReactNode[] {
+   return blocks.map((block, index) => {
+     const key = `${context.keyPrefix}-b${index}`;
++    const source = { "data-source-line": block.line, "data-source-end": block.end };
+ 
+     switch (block.kind) {
+       case "heading":
+         return createElement(
+           `h${Math.min(block.level, 6)}`,
+-          { key, className: `md-h${Math.min(block.level, 6)}` },
++          { key, ...source, className: `md-h${Math.min(block.level, 6)}` },
+           ...renderInline(block.text, { ...context, keyPrefix: key }),
+         );
+ 
+       case "code":
+-        return createElement(CodeBlock, { key, code: block.code, language: block.language, base });
++        return createElement(CodeBlock, { key, code: block.code, language: block.language, base, line: block.line + 1 });
+ 
+       case "hr":
+-        return createElement("hr", { key, className: "md-hr" });
++        return createElement("hr", { key, ...source, className: "md-hr" });
+ 
+       case "quote":
+         return createElement(
+           "blockquote",
+-          { key, className: "md-quote" },
+-          ...renderBlocks(parseBlocks(block.lines), { ...context, keyPrefix: key }, base),
++          { key, ...source, className: "md-quote" },
++          ...renderBlocks(parseBlocks(block.lines, block.line - 1), { ...context, keyPrefix: key }, base),
+         );
+ 
+       case "list": {
+@@ -405,17 +413,17 @@ function renderBlocks(blocks: Block[], context: InlineContext, base: Base): Reac
+           }
+           return createElement(
+             "li",
+-            { key: itemKey, className: item.task !== null ? "md-li md-li-task" : "md-li" },
++            { key: itemKey, "data-source-line": item.line, "data-source-end": item.end, className: item.task !== null ? "md-li md-li-task" : "md-li" },
+             ...content,
+           );
+         });
+-        return createElement(block.ordered ? "ol" : "ul", { key, className: "md-list" }, ...children);
++        return createElement(block.ordered ? "ol" : "ul", { key, ...source, className: "md-list" }, ...children);
+       }
+ 
+       case "table":
+         return createElement(
+           "div",
+-          { key, className: "md-table-wrap" },
++          { key, ...source, className: "md-table-wrap" },
+           createElement(
+             "table",
+             { className: "md-table" },
+@@ -424,7 +432,7 @@ function renderBlocks(blocks: Block[], context: InlineContext, base: Base): Reac
+               null,
+               createElement(
+                 "tr",
+-                null,
++                { "data-source-line": block.line, "data-source-end": block.line + 1 },
+                 ...block.head.map((cell, cellIndex) =>
+                   createElement(
+                     "th",
+@@ -443,7 +451,7 @@ function renderBlocks(blocks: Block[], context: InlineContext, base: Base): Reac
+               ...block.rows.map((row, rowIndex) =>
+                 createElement(
+                   "tr",
+-                  { key: `${key}-r${rowIndex}` },
++                  { key: `${key}-r${rowIndex}`, "data-source-line": block.line + 2 + rowIndex, "data-source-end": block.line + 3 + rowIndex },
+                   ...block.head.map((_, cellIndex) =>
+                     createElement(
+                       "td",
+@@ -467,7 +475,7 @@ function renderBlocks(blocks: Block[], context: InlineContext, base: Base): Reac
+       default:
+         return createElement(
+           "p",
+-          { key, className: "md-p" },
++          { key, ...source, className: "md-p" },
+           ...renderInline(block.lines.join("\n"), { ...context, keyPrefix: key }),
+         );
+     }
 diff --git a/views-src/src/lib/pane.ts b/views-src/src/lib/pane.ts
 index edffb85..462d3f2 100644
 --- a/views-src/src/lib/pane.ts
@@ -178,3 +416,100 @@ index fe5b4f6..09e867b 100644
 +/* Keep the bundled search controls readable without host overrides. */
 +.cm-editor .cm-panel.cm-search .cm-textfield { background: var(--surface); color: var(--fg); caret-color: var(--fg); }
 +.cm-editor .cm-panel.cm-search .cm-button { background: var(--surface-hover); color: var(--fg); }
+diff --git a/views-src/src/lib/markdownScroll.ts b/views-src/src/lib/markdownScroll.ts
+new file mode 100644
+index 0000000..3bf6195
+--- /dev/null
++++ b/views-src/src/lib/markdownScroll.ts
+@@ -0,0 +1,91 @@
++import type { EditorView } from "@codemirror/view";
++
++type Point = { editor: number; preview: number };
++type Side = keyof Point;
++
++export function bindMarkdownScroll(view: EditorView, preview: HTMLElement): () => void {
++  const editor = view.scrollDOM;
++  let frame = 0;
++  let leader: Side = "editor";
++  let stopped = false;
++
++  const synchronize = () => {
++    frame = 0;
++    if (stopped || !preview.isConnected) return;
++    const previewTop = preview.getBoundingClientRect().top - preview.scrollTop;
++    const editorTop = view.documentTop - editor.getBoundingClientRect().top + editor.scrollTop;
++    const points: Point[] = [{ editor: 0, preview: 0 }];
++    for (const element of preview.querySelectorAll<HTMLElement>("[data-source-line]")) {
++      const line = Number(element.dataset.sourceLine);
++      const end = Number(element.dataset.sourceEnd);
++      if (line < 1 || line > view.state.doc.lines || !element.getClientRects().length) continue;
++      const rect = element.getBoundingClientRect();
++      points.push({ editor: editorTop + view.lineBlockAt(view.state.doc.line(line).from).top, preview: rect.top - previewTop });
++      if (element.matches(".md-code > code")) {
++        const height = Number.parseFloat(getComputedStyle(element).lineHeight);
++        for (let codeLine = line + 1; codeLine < end && codeLine <= view.state.doc.lines; codeLine++) {
++          points.push({ editor: editorTop + view.lineBlockAt(view.state.doc.line(codeLine).from).top, preview: rect.top - previewTop + (codeLine - line) * height });
++        }
++      }
++      // Nested blocks supply their own boundaries; a parent's bottom would obscure them.
++      if (end > line && !element.querySelector("[data-source-line]")) {
++        const last = view.state.doc.line(Math.min(end - 1, view.state.doc.lines));
++        points.push({ editor: editorTop + view.lineBlockAt(last.from).bottom, preview: rect.bottom - previewTop });
++      }
++    }
++    // shortcut: interpolate inside wrapped paragraphs; use character positions if finer alignment is needed.
++    points.sort((a, b) => a.editor - b.editor || a.preview - b.preview);
++    const anchors: Point[] = [];
++    for (const point of points) {
++      const previous = anchors.at(-1);
++      if (!previous || (point.editor > previous.editor && point.preview > previous.preview)) anchors.push(point);
++    }
++    const from = leader === "editor" ? editor : preview;
++    const to = leader === "editor" ? preview : editor;
++    const target: Side = leader === "editor" ? "preview" : "editor";
++    const position = from.scrollTop;
++    const max = Math.max(0, from.scrollHeight - from.clientHeight);
++    const targetMax = Math.max(0, to.scrollHeight - to.clientHeight);
++    let destination = 0;
++    if (max > 0 && position >= max - 1) destination = targetMax;
++    else if (position > 0 && anchors.length > 1) {
++      let index = 0;
++      while (index + 1 < anchors.length && anchors[index + 1][leader] <= position) index++;
++      const a = anchors[index];
++      const b = anchors[Math.min(index + 1, anchors.length - 1)];
++      const fraction = b[leader] > a[leader] ? (position - a[leader]) / (b[leader] - a[leader]) : 0;
++      destination = a[target] + fraction * (b[target] - a[target]);
++    }
++    destination = Math.min(targetMax, Math.max(0, destination));
++    if (Math.abs(to.scrollTop - destination) > 0.5) {
++      to.scrollTop = destination;
++    }
++  };
++  const schedule = () => {
++    if (!frame && !stopped) frame = requestAnimationFrame(synchronize);
++  };
++  // CodeMirror corrects estimated heights after revealing off-screen lines.
++  // Only a new user gesture changes the leader; those corrections must not pull it back.
++  const section = preview.closest("section")!;
++  const chooseLeader = (event: Event) => {
++    if (event.target instanceof Element) leader = event.target.closest(".cm-editor") ? "editor" : "preview";
++  };
++  const events = ["wheel", "pointerdown", "keydown", "input"] as const;
++  for (const event of events) section.addEventListener(event, chooseLeader, { capture: true, passive: true });
++  editor.addEventListener("scroll", schedule, { passive: true });
++  preview.addEventListener("scroll", schedule, { passive: true });
++  const resize = new ResizeObserver(schedule);
++  resize.observe(editor);
++  resize.observe(view.contentDOM);
++  resize.observe(preview);
++  if (preview.firstElementChild) resize.observe(preview.firstElementChild);
++  schedule();
++  return () => {
++    stopped = true;
++    cancelAnimationFrame(frame);
++    resize.disconnect();
++    for (const event of events) section.removeEventListener(event, chooseLeader, true);
++    editor.removeEventListener("scroll", schedule);
++    preview.removeEventListener("scroll", schedule);
++  };
++}
