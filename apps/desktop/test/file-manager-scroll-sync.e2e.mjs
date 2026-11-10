@@ -84,9 +84,12 @@ async function run() {
     },
   });
   const contents = window.webContents;
+  contents.on("console-message", (_event, level, message) => { if (level >= 2) console.error("RENDERER", message); });
   const url = pathToFileURL(process.env.PI_FILE_MANAGER_VIEW);
   url.searchParams.set("piViewOpen", "a.md");
   await window.loadURL(url.href);
+  // Chromium on Linux throttles animation frames in never-shown windows.
+  window.showInactive();
   const waitFor = async (expression) => contents.executeJavaScript(
     "new Promise((resolve, reject) => { const end = Date.now() + 8000; const poll = () => {" +
     "if (" + expression + ") resolve(); else if (Date.now() > end) reject(new Error('timeout: ' + " + JSON.stringify(expression) + ")); else setTimeout(poll, 30); }; poll(); })"
@@ -207,8 +210,8 @@ test(
       const report = JSON.parse(line.slice("FILE_MANAGER_SCROLL_PROBE ".length));
       assert.equal(report.ok, true, report.error + output);
       for (const position of report.result) {
-        assert.notEqual(position.source, null, JSON.stringify(report.result));
-        assert.ok(Math.abs(position.source - position.preview) < 24, JSON.stringify(report.result));
+        assert.notEqual(position.source, null, JSON.stringify(report.result) + output);
+        assert.ok(Math.abs(position.source - position.preview) < 24, JSON.stringify(report.result) + output);
       }
 
     } finally {
