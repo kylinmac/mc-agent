@@ -206,3 +206,4 @@ Main：`apps/desktop/electron/main/work-panel-agent/`；UI：`features/work-tool
 | 重复调用空转检测（R32） | 计数与提醒文本 `packages/agent-runtime/src/mc-repeated-tool-calls.ts`；接线在 `runtime.ts`：`noteRepeatedToolCall()`（经 `resolveOwnToolOutcome()`，主代理与子代理共用）、`reportRepeatedCallTermination()`；子代理结果改写 `subagent.ts` 的 `afterToolCall()`；错误码 `packages/shared/src/errors.ts`，文案 `packages/i18n` |
 | 恢复提醒分节（B-046） | `RECOVERY_NUDGE_SECTION`、`setSystemSection()` 在 `packages/agent-runtime/src/system-transcript.ts`；`runtime.ts` 的 `applyRecoveryNudge()` 供静默重跑和进度重跑共用 |
 | 运行恢复状态（#120） | `packages/agent-runtime/src/mc-run-recovery.ts`：溢出、服务商重试、静默重跑、进度重跑四种恢复的阶段，以及“是否抑制结束事件／是否有待处理／是否进行中／重置”四个统一查询；`runtime.ts` 里原有字段名保留为访问器 |
+| 压缩缓存基线汇总（R21.3） | `scripts/mc-compaction-cache-report.mjs`（只读，目录需显式传入），测试 `scripts/mc-compaction-cache-report.test.mjs`（`node --test`） |
