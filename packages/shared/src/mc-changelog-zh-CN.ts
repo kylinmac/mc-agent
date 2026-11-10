@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.67",
+    date: "2026-11-10",
+    improvements: [
+      "Markdown 分栏滚动任意一侧，另一侧会跟随对应内容；表格和代码尽量按行对齐。",
+    ],
+  },
+  {
     version: "1.0.66",
     date: "2026-11-10",
     fixes: [

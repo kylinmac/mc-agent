@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.67",
+    date: "2026-11-10",
+    improvements: [
+      "In Markdown split view, scrolling either pane makes the other follow the same content, with row and line alignment for tables and code where possible.",
+    ],
+  },
+  {
     version: "1.0.66",
     date: "2026-11-10",
     fixes: [
