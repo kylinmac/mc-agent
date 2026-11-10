@@ -206,6 +206,8 @@ import type {
 import {
   initialSystemTranscript,
   CONTEXT_BUDGET_SECTION,
+  RECOVERY_NUDGE_SECTION,
+  setSystemSection,
   syncSystemSections,
   systemTranscriptCheckpoint,
   removeTrailingAssistantMessages,
@@ -7043,6 +7045,40 @@ export class DesktopAgentRuntime {
   }
 
   /**
+   * Show one recovery reminder to the next request and return its cleanup.
+   *
+   * With system messages in the transcript (pi 1.x) the reminder is its own
+   * section (mc-agent #119): two small deltas, and the composed sections are
+   * never touched, so a path-scoped reload or a resumable-list refresh during
+   * the re-run needs no special case. The legacy writable prompt keeps the old
+   * shape: append, then restore unless something newer rewrote it meanwhile.
+   */
+  private applyRecoveryNudge(nudge: string): () => void {
+    if (this.agentUsesTranscriptSystemMessages()) {
+      this.agent.state.messages = setSystemSection(
+        this.agent.state.messages,
+        RECOVERY_NUDGE_SECTION,
+        nudge,
+      );
+      return () => {
+        this.agent.state.messages = setSystemSection(
+          this.agent.state.messages,
+          RECOVERY_NUDGE_SECTION,
+          null,
+        );
+      };
+    }
+    const promptBefore = this.agentSystemPromptContent();
+    const promptWithNudge = `${promptBefore}\n\n${nudge}`;
+    this.setAgentSystemPrompt(promptWithNudge);
+    return () => {
+      if (this.agentSystemPromptContent() === promptWithNudge) {
+        this.setAgentSystemPrompt(promptBefore);
+      }
+    };
+  }
+
+  /**
    * Re-run the request that came back silent, once, with SILENT_TURN_NUDGE
    * appended. The nudge goes on `agent.state.systemPrompt` rather than through
    * `prepareNextTurn`, because that hook only shapes turns inside a live run
@@ -7060,9 +7096,7 @@ export class DesktopAgentRuntime {
     const messages = removeTrailingAssistantMessages(this.agent.state.messages);
     this.setAgentMessages(messages);
 
-    const promptBefore = this.agentSystemPromptContent();
-    const promptWithNudge = `${promptBefore}\n\n${SILENT_TURN_NUDGE}`;
-    this.setAgentSystemPrompt(promptWithNudge);
+    const removeNudge = this.applyRecoveryNudge(SILENT_TURN_NUDGE);
     this.silentTurnRerunInProgress = true;
     this.requestStartedAt = Date.now();
     this.setAgentActivity({ phase: "recovering", since: Date.now() });
@@ -7071,9 +7105,7 @@ export class DesktopAgentRuntime {
       await this.agent.continue();
       await this.waitForIdleAndSteering();
     } finally {
-      if (this.agentSystemPromptContent() === promptWithNudge) {
-        this.setAgentSystemPrompt(promptBefore);
-      }
+      removeNudge();
       this.applyPendingResumablePrompt();
       this.silentTurnRerunInProgress = false;
       this.suppressSilentTurnRunEnd = false;
@@ -7170,9 +7202,7 @@ export class DesktopAgentRuntime {
     const messages = removeTrailingAssistantMessages(this.agent.state.messages);
     this.setAgentMessages(messages);
 
-    const promptBefore = this.agentSystemPromptContent();
-    const promptWithNudge = `${promptBefore}\n\n${PROGRESS_TURN_NUDGE}`;
-    this.setAgentSystemPrompt(promptWithNudge);
+    const removeNudge = this.applyRecoveryNudge(PROGRESS_TURN_NUDGE);
     this.progressTurnRerunInProgress = true;
     this.requestStartedAt = Date.now();
     this.setAgentActivity({ phase: "recovering", since: Date.now() });
@@ -7182,9 +7212,7 @@ export class DesktopAgentRuntime {
       await this.agent.continue();
       await this.waitForIdleAndSteering();
     } finally {
-      if (this.agentSystemPromptContent() === promptWithNudge) {
-        this.setAgentSystemPrompt(promptBefore);
-      }
+      removeNudge();
       this.applyPendingResumablePrompt();
       this.progressTurnRerunInProgress = false;
       this.suppressProgressTurnRunEnd = false;
