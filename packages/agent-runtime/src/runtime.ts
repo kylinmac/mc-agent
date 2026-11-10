@@ -1,4 +1,5 @@
 import { toolExecutionModeFor } from "./mc-parallel-tools.js";
+import { applyToolResultPruning, planToolResultPruning, pruningUsageCredit } from "./mc-tool-result-pruning.js";
 import { taskThinkingParameter, taskThinkingOverride } from "./mc-task-thinking.js";
 import { buildProjectHistoryTool, PROJECT_HISTORY_TOOL_NAME } from "./mc-project-history-tool.js";
 import { buildProjectResourcesTool, buildProjectTasksTool, PROJECT_RESOURCES_TOOL_NAME, PROJECT_TASKS_TOOL_NAME } from "./mc-project-work-tools.js";
@@ -1166,7 +1167,7 @@ export function responseStopReason(
 }
 
 export type AgentRuntimeDiagnostic = {
-  kind: "compaction_failure" | "compaction_shape" | "compaction_restore" | "compaction_summary" | "context_restore" | "context_request" | "response_end";
+  kind: "tool_result_pruning" | "compaction_failure" | "compaction_shape" | "compaction_restore" | "compaction_summary" | "context_restore" | "context_request" | "response_end";
   sessionId: string;
   turnId?: string;
   requestId: string;
@@ -2048,6 +2049,15 @@ export class DesktopAgentRuntime {
    * Without the pair there is nothing to measure the estimator against.
    */
   private inFlightContextEstimate?: ContextCalibration;
+  /**
+   * mc-agent (#117): tool results cleared from the model context, by call id.
+   * `anchorTimestamp` is the usage-reporting assistant message that was current
+   * when the result was cleared; see `pruningUsageCredit`.
+   */
+  private clearedToolResults = new Map<
+    string,
+    { originalTokens: number; savedTokens: number; anchorTimestamp: number | null }
+  >();
   private readonly contextCalibration = new ContextEstimateCalibration();
   /**
    * Transport cause of the last provider attempt that rejected before any
@@ -2321,7 +2331,7 @@ export class DesktopAgentRuntime {
         // same shape).
         // The target model travels with the estimate: hosted search only
         // costs what this model's adapter will actually replay.
-        this.inFlightContextEstimate = estimateContextTokens(
+        this.inFlightContextEstimate = this.estimateContext(
           context.messages ?? [],
           m,
         );
@@ -7136,6 +7146,68 @@ export class DesktopAgentRuntime {
     this.setAgentTools(this.activeTools());
   }
 
+  /**
+   * `estimateContextTokens`, less what was cleared since the usage report it
+   * anchors on (mc-agent #117). Without the credit a context reads as full
+   * right after clearing emptied it, and the calibration would learn from the
+   * gap as if the estimator had been wrong.
+   */
+  private estimateContext(
+    messages: AgentMessage[],
+    model: Model<Api>,
+  ): ReturnType<typeof estimateContextTokens> {
+    const estimate = estimateContextTokens(messages, model);
+    const credit = Math.min(
+      estimate.usageTokens,
+      pruningUsageCredit(messages, estimate.lastUsageIndex, this.clearedToolResults),
+    );
+    if (credit <= 0) return estimate;
+    return {
+      ...estimate,
+      usageTokens: estimate.usageTokens - credit,
+      tokens: estimate.tokens - credit,
+    };
+  }
+
+  /**
+   * Clear old bulky tool results once the context passes the pruning trigger,
+   * so a full summary is needed later or not at all (mc-agent #117). Runs at
+   * the same boundaries as automatic compaction and before it; it follows the
+   * same switch, because a user who turned compaction off asked for the
+   * context to be left alone.
+   */
+  private clearOldToolResults(
+    additionalMessages: AgentMessage[] = [],
+    measured?: { messages: AgentMessage[]; budget: ContextBudget },
+  ): boolean {
+    if (!this.compactionEnabled) return false;
+    const messages = measured?.messages
+      ?? [...this.liveSessionContext().messages, ...additionalMessages];
+    const budget = measured?.budget ?? this.contextBudget(messages);
+    const plan = planToolResultPruning({
+      messages,
+      tokens: budget.tokens,
+      hardLimit: budget.hardLimit,
+      keepRecentTokens: budget.keepRecentTokens,
+      estimate: (message) => estimateTokens(message, this.model),
+    });
+    if (!plan) return false;
+    const { lastUsageIndex } = estimateContextTokens(messages, this.model);
+    const anchorTimestamp =
+      lastUsageIndex === null ? null : (messages[lastUsageIndex]?.timestamp ?? null);
+    for (const [toolCallId, entry] of plan.cleared) {
+      this.clearedToolResults.set(toolCallId, { ...entry, anchorTimestamp });
+    }
+    // Counts and sizes only: no paths, commands or output text.
+    this.emitCompactionDiagnostic("tool_result_pruning", randomUUID(), {
+      clearedResults: plan.cleared.size,
+      savedTokens: plan.savedTokens,
+      tokensBefore: budget.tokens,
+      hardLimit: budget.hardLimit,
+    });
+    return true;
+  }
+
   private contextBudget(messages: AgentMessage[]): ContextBudget {
     const budget = contextBudgetFor(this.model, messages);
     // Calibration learns from message usage; the output-cap estimator adds the
@@ -7144,7 +7216,7 @@ export class DesktopAgentRuntime {
     // once unanchored calibration has learned it, while keeping that overhead as
     // a hard floor before the first usable sample.
     const calibratedMessageTokens = this.contextCalibration.correct(
-      estimateContextTokens(messages, this.model),
+      this.estimateContext(messages, this.model),
     );
     const requestTokens = estimateOutputCapInputTokens(
       {
@@ -7376,7 +7448,13 @@ export class DesktopAgentRuntime {
     _signal?: AbortSignal,
   ): Promise<AgentLoopTurnUpdate> {
     let context = this.rebuiltAgentContext();
-    const budget = this.contextBudget(context.messages);
+    let budget = this.contextBudget(context.messages);
+    // Measured once in the common case; only a pass that cleared something
+    // pays for a second rebuild and estimate.
+    if (this.clearOldToolResults([], { messages: context.messages, budget })) {
+      context = this.rebuiltAgentContext();
+      budget = this.contextBudget(context.messages);
+    }
     const hardLimitReached = budget.tokens >= budget.hardLimit;
     if (!this.compactionEnabled) {
       this.pendingModelCompaction = false;
@@ -7617,10 +7695,16 @@ export class DesktopAgentRuntime {
   private liveSessionContext(
     checkpoint: ContextCompactionRecord | undefined = this.activeCompaction,
   ): { messages: AgentMessage[] } {
-    const context = buildSessionContext(
+    const built = buildSessionContext(
       this.entriesWithCompaction(checkpoint),
       this.reasoningReplayIdentity(),
     );
+    // mc-agent (#117): cleared tool results stay cleared in every view of the
+    // model context — request, budget and breakdown read the same projection.
+    const context = {
+      ...built,
+      messages: applyToolResultPruning(built.messages, this.clearedToolResults),
+    };
     // mc-agent (R21.1): point at the history lookup only while it is callable.
     if (!this.compactionEnabled || !this.isToolAllowedInMode(CONTEXT_HISTORY_TOOL_NAME)) return context;
     return {
@@ -7931,6 +8015,8 @@ export class DesktopAgentRuntime {
     }
 
     this.activeCompaction = checkpoint;
+    // The summary replaced every message a cleared result belonged to.
+    this.clearedToolResults.clear();
     // A new window means both reminders are available again, matching Codex
     // resetting its `claim_*` flags when the context window turns over.
     this.contextReminderClaimed = false;
@@ -9420,6 +9506,7 @@ export class DesktopAgentRuntime {
     };
     this.appendLiveEntry(internalId, internalMessage);
     this.setAgentActivity({ phase: "starting", since: Date.now() });
+    this.clearOldToolResults();
     this.setAgentMessages(this.liveSessionContext().messages);
     if (this.automaticCompactionNeeded()) {
       const compacted = await this.runCompaction(
@@ -9527,6 +9614,7 @@ export class DesktopAgentRuntime {
         content,
         timestamp: Date.now(),
       };
+      this.clearOldToolResults([incomingUserMessage]);
       if (this.automaticCompactionNeeded([incomingUserMessage])) {
         const compacted = await this.runCompaction("threshold", false);
         if (!compacted) {

@@ -202,3 +202,4 @@ Main：`apps/desktop/electron/main/work-panel-agent/`；UI：`features/work-tool
 | 功能 | 位置 |
 |---|---|
 | 只读工具并行（R30） | 白名单与执行模式 `packages/agent-runtime/src/mc-parallel-tools.ts`；接线在 `runtime.ts` 的 `rebuildToolCatalog()`；路径规则按调用顺序生效在 `loadPathInstructions()` |
+| 旧工具结果清理（R31） | 规则与占位 `packages/agent-runtime/src/mc-tool-result-pruning.ts`（纯函数）；接线在 `runtime.ts`：`clearOldToolResults()`（触发点：`prepareNextTurn`、新提问、批准计划执行）、`liveSessionContext()`（投影）、`estimateContext()`（用量扣减）；日志映射 `apps/desktop/electron/main/runtime/sidecar.ts` |

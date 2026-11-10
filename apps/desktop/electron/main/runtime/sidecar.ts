@@ -48,6 +48,8 @@ import { createCreateProjectTool, createProjectTemplatesTool, loadProjectLocatio
 
 /** Runtime compaction diagnostics this host logs; anything else is ignored. */
 const COMPACTION_DIAGNOSTICS: Record<string, { level: "info" | "warn"; message: string; event: string }> = {
+  // mc-agent (#117): counts and token sizes only.
+  tool_result_pruning: { level: "info", message: "old tool results cleared from context", event: "session.context.tool_results_cleared" },
   compaction_failure: { level: "warn", message: "context compaction failed", event: "session.compaction.failed" },
   compaction_shape: { level: "info", message: "context compaction request shape", event: "session.compaction.request_shape" },
   // mc-agent (R21.2 / R21.3): counts and reasons only, no paths or text.
