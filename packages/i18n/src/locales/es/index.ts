@@ -3130,6 +3130,7 @@ sklm: {
     foldersMissing: "This project's folders no longer exist, so no resource folder is created. Remove the project or point it at existing folders.",
     appRailLabel: "App",
     sessionTabsLabel: "Open conversations",
+    sessionTabsAll: "All open tabs ({{count}})",
     sessionTabClose: "Close {{title}}",
     sessionTabCloseCurrent: "Cerrar pestaña",
     sessionTabCloseOthers: "Cerrar las demás pestañas",

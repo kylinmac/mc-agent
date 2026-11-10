@@ -3157,6 +3157,7 @@ sklm: {
     foldersMissing: "這個專案的目錄都已不存在，不會補建資料目錄。可以刪除該專案，或改成現有目錄。",
     appRailLabel: "應用",
     sessionTabsLabel: "已開啟的對話",
+    sessionTabsAll: "全部已開啟的分頁（{{count}}）",
     sessionTabClose: "關閉 {{title}}",
     sessionTabCloseCurrent: "關閉標籤",
     sessionTabCloseOthers: "關閉其他標籤",

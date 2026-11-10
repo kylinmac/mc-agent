@@ -3229,6 +3229,7 @@ sklm: {
     foldersMissing: "这个项目的目录都已不存在，不会补建资料目录。可以删除该项目，或改成现有目录。",
     appRailLabel: "应用",
     sessionTabsLabel: "已打开的对话",
+    sessionTabsAll: "全部已打开的标签（{{count}}）",
     sessionTabClose: "关闭 {{title}}",
     sessionTabCloseCurrent: "关闭标签",
     sessionTabCloseOthers: "关闭其他标签",

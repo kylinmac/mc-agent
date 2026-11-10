@@ -187,7 +187,7 @@ export function NetworkProxySection({
         </SettingsRow>
         <SettingsRow
           title={t("settings.networkRelaxedMode")}
-          description={
+          caution={
             relaxed
               ? t("settings.networkRelaxedModeDesc")
               : t("settings.networkRelaxedModeStrictDesc")

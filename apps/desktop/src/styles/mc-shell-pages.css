@@ -72,6 +72,28 @@
   padding-top: calc(var(--ds-toolbar-height) + 20px);
 }
 
+/* Settings forms read as one column: on a wide window an unbounded row puts
+   the title at the far left and its control at the far right (ui-review
+   2026-10-25, item 2). Sections that are tables, charts or embedded surfaces
+   opt out by not being a plain card stack. */
+.mc-settings-tab .settings-content-inner {
+  max-width: var(--mc-settings-max-width, 860px);
+  margin-inline: auto;
+}
+
+.mc-settings-tab .settings-content-inner:has(.plugin-settings-destination, .mc-usage-daily, .mc-settings-wide, table, textarea, iframe) {
+  max-width: none;
+}
+
+/* A setting that costs money or weakens a safeguard states so on the page
+   (ui-review 2026-10-25, item 3); ordinary explanations stay behind "?". */
+.settings-row-caution {
+  margin-top: 3px;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+}
+
 /* Full pages (extensions, scheduled tasks, projects) start the same distance
    under the title bar as settings; upstream's 8px suited its taller band. */
 :root[data-platform] .app-shell .page-frame {

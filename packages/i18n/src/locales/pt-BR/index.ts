@@ -3101,6 +3101,7 @@ export const ptBR = {
     foldersMissing: "This project's folders no longer exist, so no resource folder is created. Remove the project or point it at existing folders.",
     appRailLabel: "App",
     sessionTabsLabel: "Open conversations",
+    sessionTabsAll: "All open tabs ({{count}})",
     sessionTabClose: "Close {{title}}",
     sessionTabCloseCurrent: "Fechar aba",
     sessionTabCloseOthers: "Fechar outras abas",

@@ -599,7 +599,7 @@ export function SettingsPage() {
                 </SettingsRow>
                 <SettingsRow
                   title={t("mcProject.promptSuggestions")}
-                  description={t("mcProject.promptSuggestionsDesc")}
+                  caution={t("mcProject.promptSuggestionsDesc")}
                 >
                   <SettingsToggle
                     checked={settings.promptSuggestions === true}
@@ -609,7 +609,7 @@ export function SettingsPage() {
                 </SettingsRow>
                 <SettingsRow
                   title={t("settings.infiniteProviderRetry")}
-                  description={t("settings.infiniteProviderRetryDesc")}
+                  caution={t("settings.infiniteProviderRetryDesc")}
                 >
                   <SettingsToggle
                     checked={settings.infiniteProviderRetry === true}

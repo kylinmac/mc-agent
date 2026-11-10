@@ -85,3 +85,25 @@ test("tabs reorder by drag position or a neighbour move", () => {
   assert.deepEqual(tabDropTarget(-5, rects), { key: "a", after: false });
   assert.equal(tabDropTarget(10, []), null);
 });
+
+test("the strip reports overflow only past a one-pixel tolerance", async () => {
+  const { tabStripOverflows } = await import("../src/features/session-tabs/tab-list.ts");
+  assert.equal(tabStripOverflows(800, 800), false);
+  // Fractional layout widths round to a pixel of difference without clipping anything.
+  assert.equal(tabStripOverflows(801, 800), false);
+  assert.equal(tabStripOverflows(802, 800), true);
+  assert.equal(tabStripOverflows(0, 0), false);
+});
+
+test("the all-tabs menu lists every tab in strip order and checks the one on screen", async () => {
+  const { tabOverflowMenuItems } = await import("../src/features/session-tabs/tab-list.ts");
+  const titles = { a: "First", "page:creative": "Creative", b: "Second" };
+  const items = tabOverflowMenuItems(["a", "page:creative", "b"], "b", (key) => titles[key]);
+  assert.deepEqual(items, [
+    { id: "tab:a", key: "a", label: "First", checked: false },
+    { id: "tab:page:creative", key: "page:creative", label: "Creative", checked: false },
+    { id: "tab:b", key: "b", label: "Second", checked: true },
+  ]);
+  assert.deepEqual(tabOverflowMenuItems([], null, () => ""), []);
+  assert.equal(tabOverflowMenuItems(["a"], null, () => "x")[0].checked, false);
+});
