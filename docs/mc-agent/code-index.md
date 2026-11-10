@@ -196,3 +196,9 @@ host-core 也可作为内部工具子进程启动（`tools::INTERNAL_TOOL_RUNNER
 ## 工作面板 Agent 访问（R27）
 
 Main：`apps/desktop/electron/main/work-panel-agent/`；UI：`features/work-tools/use-work-panel-agent.ts`；工具声明：`packages/agent-runtime/src/mc-work-panel-tools.ts`；契约：`packages/shared/src/work-panel-agent.ts`。权限、终端、插件 UI 与验证边界见[访问契约](work-panel-agent-access.md)。
+
+## Agent 循环与上下文（R30 起）
+
+| 功能 | 位置 |
+|---|---|
+| 只读工具并行（R30） | 白名单与执行模式 `packages/agent-runtime/src/mc-parallel-tools.ts`；接线在 `runtime.ts` 的 `rebuildToolCatalog()`；路径规则按调用顺序生效在 `loadPathInstructions()` |

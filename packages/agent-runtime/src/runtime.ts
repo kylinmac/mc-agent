@@ -1,3 +1,4 @@
+import { toolExecutionModeFor } from "./mc-parallel-tools.js";
 import { taskThinkingParameter, taskThinkingOverride } from "./mc-task-thinking.js";
 import { buildProjectHistoryTool, PROJECT_HISTORY_TOOL_NAME } from "./mc-project-history-tool.js";
 import { buildProjectResourcesTool, buildProjectTasksTool, PROJECT_RESOURCES_TOOL_NAME, PROJECT_TASKS_TOOL_NAME } from "./mc-project-work-tools.js";
@@ -2020,6 +2021,8 @@ export class DesktopAgentRuntime {
     string,
     Promise<PathInstructionResolution>
   >();
+  /** Applies path-scoped rules in call order across a concurrent batch. */
+  private pathInstructionApplyChain: Promise<void> = Promise.resolve();
   /* Timing anchors (D137). `requestStartedAt` marks the moment the agent is
    * free to issue the next provider request — turn start, or the last tool
    * result coming back — so `providerWaitMs` below is the model's own latency
@@ -2483,11 +2486,12 @@ export class DesktopAgentRuntime {
       // Sequential execution also makes the host-confirmed mode change visible
       // before the next model request in the same run.
       beforeToolCall: (context) => this.beforeToolCall(context),
-      // Every tool except `Task` carries `executionMode: "sequential"`, and pi
-      // runs a batch sequentially as soon as it contains one such tool. So the
-      // only batch that actually runs concurrently is a batch of nothing but
-      // `Task` calls — subagent fan-out (ADR 0062) — and every existing tool
-      // ordering guarantee is untouched.
+      // Every tool except `Task` and the read-only core tools carries
+      // `executionMode: "sequential"`, and pi runs a batch sequentially as soon
+      // as it contains one such tool. So the only batches that actually run
+      // concurrently are subagent fan-out (ADR 0062) and all-read-only batches
+      // (mc-agent #116, see `mc-parallel-tools.ts`); every ordering guarantee
+      // for writes, commands and mode changes is untouched.
       toolExecution: "parallel",
       steeringMode: "all",
       // pi-agent-core 0.87 replaces shouldStopAfterTurn with finishTurn. A
@@ -4328,9 +4332,10 @@ export class DesktopAgentRuntime {
     for (const tool of this.buildToolDefinitions()) {
       if (!this.isToolAllowedInMode(tool.name) && !retainModeToolDeclaration(tool.name)) continue;
       // The execution mode is decided here, in one place, so no tool can grow
-      // an accidental parallel batch: everything is sequential except `Task`.
-      // pi runs a whole batch sequentially when it holds one sequential tool,
-      // so only an all-`Task` batch fans out.
+      // an accidental parallel batch: everything is sequential except `Task`
+      // and the read-only tools listed in `mc-parallel-tools.ts`. pi runs a
+      // whole batch sequentially when it holds one sequential tool, so only a
+      // batch made entirely of those tools fans out.
       // The provider-facing schema is settled here too, at the single origin of
       // every tool, so the session agent and a delegated `Task` run send the
       // same declaration (#864).
@@ -4339,8 +4344,7 @@ export class DesktopAgentRuntime {
         withModeExecutionGuard(
           withExplicitRequired({
             ...tool,
-            executionMode:
-              tool.name === SUBAGENT_TOOL_NAME ? "parallel" : "sequential",
+            executionMode: toolExecutionModeFor(tool.name, SUBAGENT_TOOL_NAME),
           }),
           () => this.isToolAllowedInMode(tool.name) ? undefined : modeToolDenial(tool.name, this.mode),
         ),
@@ -6558,13 +6562,24 @@ export class DesktopAgentRuntime {
         }));
       this.pathInstructionClaims.set(key, resolution);
     }
-    const resolved = await resolution;
     // Rules are scoped to the file currently being accessed. Rebuild the
     // complete chain so sibling-directory rules never leak into one another
     // and edits to an existing instruction file take effect immediately.
-    this.applyProjectInstructions(
-      resolved.fallback ? this.baseProjectInstructions : resolved.instructions,
-    );
+    //
+    // Read-only tools can run as one concurrent batch (mc-agent #116). The
+    // lookups above already overlap; only the apply step is chained, in call
+    // order, so the rules left in the prompt are those of the batch's last
+    // call — what sequential execution produced — and not of whichever lookup
+    // happened to resolve last.
+    const applied = this.pathInstructionApplyChain
+      .then(() => resolution)
+      .then((resolved) => {
+        this.applyProjectInstructions(
+          resolved.fallback ? this.baseProjectInstructions : resolved.instructions,
+        );
+      });
+    this.pathInstructionApplyChain = applied.catch(() => undefined);
+    await applied;
   }
 
   private applyProjectInstructions(resolved: ProjectInstructions | undefined): void {
