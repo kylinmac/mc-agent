@@ -13,6 +13,14 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.66",
+    date: "2026-11-10",
+    fixes: [
+      "回复因模型输出长度上限被截断时，会在回复下方提示，并可以点“继续”接着写完；以前会显示成正常完成。",
+      "每条回复的结束原因会保存下来并写入日志，回复中途停止时可以查到是模型自己停的还是被截断。",
+    ],
+  },
+  {
     version: "1.0.65",
     date: "2026-11-09",
     fixes: [

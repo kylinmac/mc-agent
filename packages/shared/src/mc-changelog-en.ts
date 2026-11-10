@@ -9,6 +9,14 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.66",
+    date: "2026-11-10",
+    fixes: [
+      "When a reply is cut off by the model's output limit, a notice appears under it with a Continue button; it used to look like a normal finish.",
+      "Each reply's stop reason is saved and logged, so a reply that stops midway shows whether the model ended it or it was cut off.",
+    ],
+  },
+  {
     version: "1.0.65",
     date: "2026-11-09",
     fixes: [

@@ -11,6 +11,12 @@ export type VoiceOrigin = {
   operationId: string;
 };
 
+/** How a model response ended; see `UiMessage.stopReason`. */
+export type MessageStopReason = {
+  reason: string;
+  provider?: string;
+};
+
 export type MessageUsageCost = {
   input: number;
   output: number;
@@ -146,6 +152,12 @@ export type UiMessage = {
   modelStreamDurationMs?: number;
   /** Output tokens used only for throughput when a stopped stream has no final usage. */
   responseOutputTokens?: number;
+  /**
+   * Why the model ended this response: pi's normalized reason ("stop",
+   * "length", "toolUse", ...) and, when it differs, the provider's own value.
+   * A reply cut by the output limit otherwise reads as finished text.
+   */
+  stopReason?: MessageStopReason;
   /** Structured failure attached to the assistant turn that failed. */
   error?: AppError;
   /** Stable regenerate-family key shared across rewritten user prompts. */

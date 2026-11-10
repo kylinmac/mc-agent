@@ -225,6 +225,11 @@ pub struct UiMessage {
     /// Partial output estimate used when a user stops before final usage arrives.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_output_tokens: Option<i64>,
+    /// Why the model ended this response ("stop", "length", "toolUse", ...),
+    /// plus the provider's own spelling when it differs. A reply cut by the
+    /// output limit reads as finished text without it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop_reason: Option<Value>,
     /// Structured AppError for an assistant turn that failed.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<Value>,
@@ -422,6 +427,9 @@ pub(crate) fn ui_to_record(message: &UiMessage) -> (MessageRecord, Option<String
     if let Some(tokens) = message.response_output_tokens {
         meta_obj.insert("responseOutputTokens".into(), json!(tokens));
     }
+    if let Some(stop) = &message.stop_reason {
+        meta_obj.insert("stopReason".into(), stop.clone());
+    }
     if let Some(error) = &message.error {
         meta_obj.insert("error".into(), error.clone());
     }
@@ -602,6 +610,7 @@ pub(crate) fn record_to_ui(record: MessageRecord) -> UiMessage {
     let error = meta.get("error").cloned();
     let response_duration_ms = meta.get("responseDurationMs").and_then(|v| v.as_i64());
     let response_output_tokens = meta.get("responseOutputTokens").and_then(|v| v.as_i64());
+    let stop_reason = meta.get("stopReason").cloned();
     let revision_root_id = meta
         .get("revisionRootId")
         .and_then(|v| v.as_str())
@@ -697,6 +706,7 @@ pub(crate) fn record_to_ui(record: MessageRecord) -> UiMessage {
             usage,
             response_duration_ms,
             response_output_tokens,
+            stop_reason: stop_reason.clone(),
             error,
             revision_root_id,
             revision_count,
@@ -751,6 +761,7 @@ pub(crate) fn record_to_ui(record: MessageRecord) -> UiMessage {
             usage,
             response_duration_ms,
             response_output_tokens,
+            stop_reason: stop_reason.clone(),
             error,
             revision_root_id,
             revision_count,
@@ -4348,6 +4359,7 @@ mod tests {
             usage: None,
             response_duration_ms: None,
             response_output_tokens: None,
+            stop_reason: None,
             error: None,
             revision_root_id: None,
             revision_count: None,
@@ -5239,6 +5251,7 @@ mod tests {
             usage: None,
             response_duration_ms: None,
             response_output_tokens: None,
+            stop_reason: None,
             error: None,
             revision_root_id: None,
             revision_count: None,
@@ -5950,6 +5963,7 @@ mod tests {
             }),
             response_duration_ms: Some(2_000),
             response_output_tokens: Some(34),
+            stop_reason: Some(json!({ "reason": "length" })),
             error: None,
             revision_root_id: None,
             revision_count: None,
@@ -6008,6 +6022,10 @@ mod tests {
         assert_eq!(usage.total_tokens, 48);
         assert_eq!(detail.messages[0].response_duration_ms, Some(2_000));
         assert_eq!(detail.messages[0].response_output_tokens, Some(34));
+        assert_eq!(
+            detail.messages[0].stop_reason,
+            Some(json!({ "reason": "length" }))
+        );
     }
 
     #[test]
@@ -6031,6 +6049,7 @@ mod tests {
             usage: None,
             response_duration_ms: None,
             response_output_tokens: None,
+            stop_reason: None,
             error: None,
             revision_root_id: None,
             revision_count: None,

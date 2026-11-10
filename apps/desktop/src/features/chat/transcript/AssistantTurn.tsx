@@ -453,6 +453,20 @@ export const AssistantTurn = memo(function AssistantTurn({
             responseOutputEstimated={summary.responseOutputEstimated}
           />
         ) : null}
+        {/* A reply cut by the output limit reads as finished text; say so and
+            offer to pick it up where it stopped. */}
+        {!isActive && summary.messages.at(-1)?.stopReason?.reason === "length" ? (
+          <section className="message-stopped" aria-label={t("chat.responseTruncatedLabel")}>
+            <span className="message-stopped-text">{t("chat.responseTruncated")}</span>
+            <button
+              type="button"
+              className="copy-btn"
+              onClick={() => void useAppStore.getState().sendPrompt(t("chat.continueTruncatedPrompt"))}
+            >
+              {t("errors.action.continue")}
+            </button>
+          </section>
+        ) : null}
         {complete && actionMessage ? (
           <div className="message-actions">
             <MessageTimestamp createdAt={actionMessage.createdAt} />

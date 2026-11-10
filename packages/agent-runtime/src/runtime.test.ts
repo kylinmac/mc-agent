@@ -19,6 +19,8 @@ import { estimateContextTokens as estimateAgentContextTokens, estimateTokens } f
 import {
   COMPACTION_FALLBACK_MARKER,
   DesktopAgentRuntime,
+  responseStopReason,
+  type AgentRuntimeDiagnostic,
   PATH_INSTRUCTION_RESOLUTION_TIMEOUT_MS,
   isolatedWorkspaceGuidance,
   delegateWorktreeNote,
@@ -238,6 +240,7 @@ function runtimeTool(runtime: DesktopAgentRuntime, name: string): AgentTool {
 function assistantMessage(overrides: {
   content: unknown[];
   stopReason?: string;
+  rawStopReason?: string;
   durationMs?: number;
 }) {
   return {
@@ -254,6 +257,7 @@ function assistantMessage(overrides: {
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
     },
     stopReason: overrides.stopReason ?? "stop",
+    ...(overrides.rawStopReason !== undefined ? { rawStopReason: overrides.rawStopReason } : {}),
     timestamp: 2,
     ...(overrides.durationMs !== undefined ? { durationMs: overrides.durationMs } : {}),
     content: overrides.content,
@@ -6114,6 +6118,46 @@ describe("DesktopAgentRuntime assistant thinking events", () => {
     expect(terminal.event.message.responseDurationMs).toBeGreaterThanOrEqual(2_000);
     expect(terminal.event.message.responseOutputTokens).toBeGreaterThan(0);
     await runtime.dispose();
+  });
+});
+
+describe("DesktopAgentRuntime response stop reason", () => {
+  it("keeps a length stop on the message and logs it", async () => {
+    const onEvent = vi.fn();
+    const runtime = createRuntime({ onEvent });
+    const diagnostics: AgentRuntimeDiagnostic[] = [];
+    (runtime as unknown as { onDiagnostic: (d: AgentRuntimeDiagnostic) => void }).onDiagnostic =
+      (diagnostic) => diagnostics.push(diagnostic);
+    const internals = runtime as unknown as { handleAgentEvent(event: unknown): Promise<void> };
+
+    await internals.handleAgentEvent({ type: "message_start", message: { role: "assistant", content: [] } });
+    await internals.handleAgentEvent({
+      type: "message_end",
+      message: assistantMessage({
+        content: [{ type: "text", text: "half an ans" }],
+        stopReason: "length",
+        rawStopReason: "length",
+      }),
+    });
+
+    expect(onEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: expect.objectContaining({
+          type: "message_end",
+          message: expect.objectContaining({ status: "complete", stopReason: { reason: "length" } }),
+        }),
+      }),
+    );
+    const ended = diagnostics.find((item) => item.kind === "response_end");
+    expect(ended?.data).toMatchObject({ reason: "length", outputTokens: 1 });
+    await runtime.dispose();
+  });
+
+  it("keeps the provider's own reason only when it says more", () => {
+    expect(responseStopReason({ stopReason: "stop", rawStopReason: "stop" })).toEqual({ reason: "stop" });
+    expect(responseStopReason({ stopReason: "error", rawStopReason: "insufficient_system_resource" }))
+      .toEqual({ reason: "error", provider: "insufficient_system_resource" });
+    expect(responseStopReason({})).toBeUndefined();
   });
 });
 
