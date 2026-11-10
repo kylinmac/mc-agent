@@ -2995,6 +2995,7 @@ importConfirm: "İçe aktarılan uzantılar ajan sürecinde, ajanın kendi araç
     STREAM_FAILED: "Yanıt kesildi.",
     EMPTY_MODEL_RESPONSE:
       "Model iki tur üst üste hiçbir şey söylemeden bitirdi. Yeniden deneyin veya isteği başka türlü sorun.",
+    REPEATED_TOOL_CALL_LIMIT: "Aynı araç çağrısı art arda beş kez aynı sonucu döndürdü; döngüye girmemek için bu tur durduruldu. Devam etmek için tekrar isteyin.",
     MUTATION_RETRY_BUDGET_EXHAUSTED:
       "Aynı düzenleme üç kez başarısız oldu, bu yüzden körü körüne yeniden denemek yerine tur durdu. Devam etmek için yeniden sorun.",
     CONTEXT_TOO_LARGE: "Bağlam kurtarmadan sonra bu sohbet hâlâ çok uzun. İletinizi kısaltın veya yeni sohbet açın.",

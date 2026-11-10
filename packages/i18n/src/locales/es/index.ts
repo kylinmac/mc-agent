@@ -2961,6 +2961,7 @@ sklm: {
     "TIMEOUT": "Se agotó el tiempo de espera de la solicitud al proveedor de IA.",
     "STREAM_FAILED": "La respuesta fue interrumpida.",
     "EMPTY_MODEL_RESPONSE": "El modelo terminó su turno sin decir nada, dos veces seguidas. Inténtelo de nuevo o reformule su solicitud.",
+    "REPEATED_TOOL_CALL_LIMIT": "La misma llamada de herramienta devolvió el mismo resultado cinco veces seguidas, por lo que este turno se detuvo en lugar de entrar en bucle. Vuelve a pedirlo para continuar.",
     "MUTATION_RETRY_BUDGET_EXHAUSTED": "La misma edición falló tres veces, por lo que este turno se detuvo en lugar de volver a intentarlo a ciegas. Pregunta nuevamente para continuar.",
     "CONTEXT_TOO_LARGE": "Este chat aún dura demasiado después de la recuperación del contexto. Acorta tu mensaje o inicia un nuevo chat.",
     "CONTEXT_COMPACTION_FAILED": "No se pudo compactar el contexto del modelo de esta conversación.",

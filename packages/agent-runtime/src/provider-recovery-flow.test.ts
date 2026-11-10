@@ -89,7 +89,10 @@ function fixture(steps: Step[]) {
         if (method !== "tools.execute")
           throw new Error(`Unexpected host method: ${method}`);
         reads++;
-        return { ok: true, content: "fixture contents" } as T;
+        // Each read returns something new: eleven identical calls with an
+        // identical result would be stopped as a loop (mc-agent #118), and
+        // this fixture is about provider recovery, not that guard.
+        return { ok: true, content: `fixture contents ${reads}` } as T;
       },
     },
     onEvent: (event) => events.push(event),
