@@ -3161,6 +3161,7 @@ pub fn save_message_revision(
             revision_index: next_index,
             created_at: ms_to_ts(created),
             messages: records,
+            compactions: Some(transcripts::read_compactions(db.data_dir(), session_id)?),
             turns,
         },
     )?;
@@ -3262,6 +3263,7 @@ pub fn refresh_message_revision(
             revision_index,
             created_at: ms_to_ts(created),
             messages: records,
+            compactions: Some(transcripts::read_compactions(db.data_dir(), session_id)?),
             turns,
         },
     )?;
@@ -3577,10 +3579,11 @@ pub fn activate_message_revision(
         transcripts::read_revision(db.data_dir(), session_id, root_user_id, revision_index)?
             .ok_or_else(|| anyhow!("revision payload missing from revisions file"))?;
     let archived_turns = payload.turns().clone();
-    let branch: Vec<UiMessage> = match payload {
-        transcripts::RevisionPayload::Stored(record) => {
-            record.messages.into_iter().map(record_to_ui).collect()
-        }
+    let (branch, archived_compactions): (Vec<UiMessage>, _) = match payload {
+        transcripts::RevisionPayload::Stored(record) => (
+            record.messages.into_iter().map(record_to_ui).collect(),
+            record.compactions,
+        ),
         // The branch never left the transcript, so its messages are the live
         // suffix rooted at its user turn — the same slice `archive_live_branch`
         // measured one call ago, and the reason no copy of it is on disk.
@@ -3597,7 +3600,7 @@ pub fn activate_message_revision(
             let start = live_start.ok_or_else(|| {
                 anyhow!("revision payload missing from transcript for {root_user_id}")
             })?;
-            live.get(start..).unwrap_or_default().to_vec()
+            (live.get(start..).unwrap_or_default().to_vec(), None)
         }
     };
 
@@ -3634,13 +3637,19 @@ pub fn activate_message_revision(
     }
 
     let (records, texts) = records_and_texts(&combined);
-    // A checkpoint whose anchors survive the switch stays valid; the rest is
-    // dropped with the branch it summarised, exactly as on truncation.
-    let compactions: Vec<CompactionRecord> =
-        transcripts::read_compactions(db.data_dir(), session_id)?
-            .into_iter()
-            .filter(|record| compaction_valid_for_records(record, &records))
-            .collect();
+    // Restore the target branch's own checkpoint chain. Reading only the live
+    // transcript loses it permanently after a round trip through a short branch.
+    // Legacy archives have no snapshot; retain the previous anchor-filtered
+    // fallback for them. An explicit empty snapshot must not borrow another
+    // branch's summary, even when their message ids happen to match.
+    let compactions = match archived_compactions {
+        Some(records) => records,
+        None => transcripts::read_compactions(db.data_dir(), session_id)?,
+    };
+    let compactions: Vec<CompactionRecord> = compactions
+        .into_iter()
+        .filter(|record| compaction_valid_for_records(record, &records))
+        .collect();
     // The switch drops everything the restored variant does not contain. Any
     // other family whose root is in that prefix was referenced rather than
     // copied while it was live, so it has to be stored in full before the
@@ -7122,6 +7131,105 @@ mod tests {
                 .unwrap();
             assert_eq!(present, 1, "{name} was not created");
         }
+    }
+
+    #[test]
+    fn revision_roundtrip_restores_compaction_chain() {
+        let mut db = test_db();
+        let session = create_session(&db, None, None, None, None, None).unwrap();
+        let messages = [
+            user_msg("u1", "original", "2026-07-28T00:00:00Z"),
+            user_msg("u2", "recent", "2026-07-28T00:00:01Z"),
+            user_msg("u3", "after", "2026-07-28T00:00:02Z"),
+        ];
+        replace_messages(&db, &session.id, &messages).unwrap();
+        let first = checkpoint("u1", "u1");
+        let last = checkpoint("u2", "u3");
+        append_compaction(&db, &session.id, &first).unwrap();
+        append_compaction(&db, &session.id, &last).unwrap();
+        save_message_revision(&db, &session.id, "u1", &messages, true).unwrap();
+        let alternative = [user_msg("u-other", "alternative", "2026-07-28T00:00:04Z")];
+        save_message_revision(&db, &session.id, "u1", &alternative, false).unwrap();
+
+        for _ in 0..2 {
+            activate_message_revision(&db, &session.id, "u1", 2, &[]).unwrap();
+            assert!(get_session(&db, &session.id)
+                .unwrap()
+                .unwrap()
+                .compactions
+                .is_empty());
+            let path = db.data_dir().join("test.sqlite");
+            drop(db);
+            db = Database::open(&path).unwrap();
+            activate_message_revision(&db, &session.id, "u1", 1, &[]).unwrap();
+            let restored = get_session(&db, &session.id).unwrap().unwrap();
+            assert_eq!(restored.messages.len(), messages.len());
+            assert_eq!(restored.compactions.len(), 2);
+            assert_eq!(
+                serde_json::to_value(&restored.compactions).unwrap(),
+                json!([first, last])
+            );
+            assert_eq!(restored.compaction.unwrap().id, last.id);
+        }
+    }
+
+    #[test]
+    fn revision_compactions_are_branch_local_even_with_identical_message_ids() {
+        let db = test_db();
+        let session = create_session(&db, None, None, None, None, None).unwrap();
+        let messages = [user_msg("u1", "shared anchor", "2026-07-28T00:00:00Z")];
+        replace_messages(&db, &session.id, &messages).unwrap();
+        save_message_revision(&db, &session.id, "u1", &messages, false).unwrap();
+        let first = checkpoint("u1", "u1");
+        append_compaction(&db, &session.id, &first).unwrap();
+        save_message_revision(&db, &session.id, "u1", &messages, true).unwrap();
+
+        activate_message_revision(&db, &session.id, "u1", 1, &[]).unwrap();
+        assert!(get_session(&db, &session.id)
+            .unwrap()
+            .unwrap()
+            .compactions
+            .is_empty());
+        let second = checkpoint("u1", "u1");
+        append_compaction(&db, &session.id, &second).unwrap();
+        for (revision, expected) in [(2, &first), (1, &second)] {
+            activate_message_revision(&db, &session.id, "u1", revision, &[]).unwrap();
+            let restored = get_session(&db, &session.id).unwrap().unwrap();
+            assert_eq!(restored.compactions.len(), 1);
+            assert_eq!(restored.compaction.unwrap().id, expected.id);
+        }
+    }
+
+    #[test]
+    fn revision_restores_checkpoint_with_an_anchor_in_the_unchanged_prefix() {
+        let db = test_db();
+        let session = create_session(&db, None, None, None, None, None).unwrap();
+        let messages = [
+            user_msg("prefix", "prefix", "2026-07-28T00:00:00Z"),
+            user_msg("u1", "branch", "2026-07-28T00:00:01Z"),
+        ];
+        replace_messages(&db, &session.id, &messages).unwrap();
+        let compacted = checkpoint("prefix", "u1");
+        append_compaction(&db, &session.id, &compacted).unwrap();
+        save_message_revision(&db, &session.id, "u1", &messages[1..], true).unwrap();
+        let other = [user_msg("u2", "alternative", "2026-07-28T00:00:02Z")];
+        save_message_revision(&db, &session.id, "u1", &other, false).unwrap();
+        activate_message_revision(&db, &session.id, "u1", 2, &messages[..1]).unwrap();
+        assert!(get_session(&db, &session.id)
+            .unwrap()
+            .unwrap()
+            .compactions
+            .is_empty());
+        activate_message_revision(&db, &session.id, "u1", 1, &messages[..1]).unwrap();
+        assert_eq!(
+            get_session(&db, &session.id)
+                .unwrap()
+                .unwrap()
+                .compaction
+                .unwrap()
+                .id,
+            compacted.id
+        );
     }
 
     #[test]

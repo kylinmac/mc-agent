@@ -92,6 +92,11 @@ pub struct RevisionRecord {
     pub revision_index: i64,
     pub created_at: String,
     pub messages: Vec<MessageRecord>,
+    /// The checkpoint chain belongs to the archived branch, including anchors
+    /// in its unchanged prefix. None identifies archives written before this
+    /// field existed; Some([]) explicitly records an uncompacted branch.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compactions: Option<Vec<CompactionRecord>>,
     /// message id -> owning turn id, for the branch messages that had one.
     /// The turn lives only in the SQLite index row, which a revision switch
     /// deletes; carrying it here lets the switch back restore attribution.
@@ -2362,9 +2367,32 @@ mod tests {
     }
 
     #[test]
+    fn revision_checkpoint_snapshot_is_optional_for_legacy_archives() {
+        let legacy = json!({
+            "rootUserId": "u1", "revisionIndex": 1,
+            "createdAt": "2026-07-26T00:00:00Z", "messages": []
+        });
+        let mut revision: RevisionRecord = serde_json::from_value(legacy.clone()).unwrap();
+        assert!(revision.compactions.is_none());
+        assert_eq!(serde_json::to_value(&revision).unwrap(), legacy);
+        revision.compactions = Some(vec![compaction()]);
+        let decoded: RevisionRecord =
+            serde_json::from_value(serde_json::to_value(&revision).unwrap()).unwrap();
+        assert_eq!(
+            serde_json::to_value(decoded.compactions).unwrap(),
+            serde_json::to_value(&revision.compactions).unwrap()
+        );
+        revision.compactions = Some(vec![]);
+        let decoded: RevisionRecord =
+            serde_json::from_value(serde_json::to_value(&revision).unwrap()).unwrap();
+        assert!(decoded.compactions.unwrap().is_empty());
+    }
+
+    #[test]
     fn revisions_roundtrip_by_root_and_index() {
         let dir = tempdir().unwrap();
         let rev = |i: i64, text: &str| RevisionRecord {
+            compactions: None,
             turns: Default::default(),
             root_user_id: "u1".into(),
             revision_index: i,
@@ -2392,6 +2420,7 @@ mod tests {
     fn revisions_resolve_the_newest_line_across_kinds() {
         let dir = tempdir().unwrap();
         let stored = |text: &str| RevisionRecord {
+            compactions: None,
             turns: Default::default(),
             root_user_id: "u1".into(),
             revision_index: 1,
@@ -2430,6 +2459,7 @@ mod tests {
     fn a_payload_that_spells_another_family_is_not_an_answer() {
         let dir = tempdir().unwrap();
         let decoy = RevisionRecord {
+            compactions: None,
             turns: Default::default(),
             root_user_id: "u1".into(),
             revision_index: 1,
@@ -2464,6 +2494,7 @@ mod tests {
             dir.path(),
             "s1",
             &RevisionRecord {
+                compactions: None,
                 turns: Default::default(),
                 root_user_id: "u1".into(),
                 revision_index: 1,
@@ -2479,6 +2510,7 @@ mod tests {
         let torn = tagged(
             "revision",
             &RevisionRecord {
+                compactions: None,
                 turns: Default::default(),
                 root_user_id: "u1".into(),
                 revision_index: 1,
@@ -2502,6 +2534,7 @@ mod tests {
             dir.path(),
             "s1",
             &RevisionRecord {
+                compactions: None,
                 turns: Default::default(),
                 root_user_id: "u9".into(),
                 revision_index: 1,
@@ -2531,6 +2564,7 @@ mod tests {
                 revision_index: 1,
                 created_at: "2026-07-26T00:00:00Z".into(),
                 messages: vec![record("m", "x")],
+                compactions: None,
                 turns: Default::default(),
             },
         )

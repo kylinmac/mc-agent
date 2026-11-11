@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { withPiFileOpToolNames } from "./pi-file-ops.js";
 
-function toolCallMessage(name: string, path: string, id = "call-1"): AgentMessage {
+function toolCallMessage(name: string, path: string, id = "call-1", stopReason = "toolUse"): AgentMessage {
   return {
     role: "assistant",
     content: [{ type: "toolCall", id, name, arguments: { path } }],
@@ -20,7 +20,7 @@ function toolCallMessage(name: string, path: string, id = "call-1"): AgentMessag
       totalTokens: 2,
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
     },
-    stopReason: "toolUse",
+    stopReason,
     timestamp: 2,
   } as AgentMessage;
 }
@@ -114,6 +114,19 @@ describe("withPiFileOpToolNames", () => {
 });
 
 describe("pi's file-op collection through the adapter", () => {
+  for (const stopReason of ["error", "aborted", "deferred"]) {
+    it(`does not record unexecuted ${stopReason} calls as file changes`, () => {
+      const preparation = preparationOf([
+        messageEntry("u1", userMessage("change files", 1), 1),
+        messageEntry("a1", toolCallMessage("Write", "never-written.txt", "failed", stopReason), 2),
+        messageEntry("a2", toolCallMessage("Edit", "actually-edited.txt", "ok"), 3),
+        messageEntry("u2", userMessage("latest question", 4), 4),
+      ], true);
+      expect([...preparation.fileOps.written]).toEqual([]);
+      expect([...preparation.fileOps.edited]).toEqual(["actually-edited.txt"]);
+    });
+  }
+
   const entries = [
     messageEntry("u1", userMessage("read src/a.txt and then edit src/a.ts", 1), 1),
     messageEntry("a1", toolCallMessage("Read", "src/a.txt"), 2),

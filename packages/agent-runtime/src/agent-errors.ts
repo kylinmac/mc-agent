@@ -61,7 +61,7 @@ const EXHAUSTED_QUOTA_CODE_PATTERN =
   /\b(?:insufficient_quota|credit_balance_exhausted|organization_spend_limit_exceeded|project_spend_limit_exceeded|organization_usage_limit_exceeded|FreeUsageLimitError)\b/i;
 
 const EXHAUSTED_QUOTA_MESSAGE_PATTERN =
-  /\b(?:billing|spending|credit|disk)\s+quotas?\b|\b(?:organization|project)\s+spend\s+limit\s+(?:reached|exceeded)\b|\bquota\b.{0,100}\b(?:plan|billing)\b|\binsufficient\s+credits\b|\brequires\s+more\s+credits\b|\bpayment\s+required\b/i;
+  /\b(?:billing|spending|credit|disk)\s+quotas?\b|\b(?:organization|project)\s+spend\s+limit\s+(?:reached|exceeded)\b|\bquota\b.{0,100}\b(?:plan|billing)\b|\binsufficient\s+(?:credits|balance)\b|\bbalance\s+is\s+insufficient\b|\brequires\s+more\s+credits\b|\bpayment\s+required\b/i;
 
 /**
  * Whether a provider message reports a context overflow.
@@ -118,11 +118,12 @@ function redactSensitiveErrorText(message: string): string {
 
 /**
  * Probe the HTTP status across SDK error shapes: `status`/`statusCode`
- * fields (walking the `cause` chain), then a leading "<status>:" or a
- * "(status)" / "status code NNN" marker, or a DashScope "Code: <status>"
- * envelope in the message. Gemini's
+ * fields (walking the `cause` chain), then a leading "<status>:", an
+ * OpenAI SDK "Error code: NNN" prefix, a "(status)" / "status code NNN"
+ * marker, or a DashScope "Code: <status>" envelope in the message. Gemini's
  * `@google/genai` ApiError.message is the JSON body with no prefix, so the
- * last probe reads a 400-599 `code` from that object.
+ * last probe reads a 400-599 `code` from that object. A bare `code: NNN`
+ * business field is not an HTTP status.
  */
 function extractStatus(err: unknown, message: string): number | undefined {
   let current: any = err;
@@ -135,6 +136,10 @@ function extractStatus(err: unknown, message: string): number | undefined {
     /^\s*[A-Za-z][A-Za-z0-9_.-]*:\s*<(\d{3})>/,
     /^\s*(\d{3})\s*:/,
     /^\s*(\d{3})\b/,
+    // OpenAI Node/Python SDK: "Error code: 402 - …". Anchored so a later
+    // "(NNN)" or a business `code` field cannot replace the prefix. The
+    // word boundary keeps a longer code such as 30001 from matching.
+    /^\s*error\s+code\s*:\s*(\d{3})\b/i,
     /\((\d{3})\)/,
     /status(?: code)?[ :]+(\d{3})\b/i,
   ];
