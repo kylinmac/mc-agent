@@ -191,6 +191,12 @@ export class PluginPanelHost {
   private senderResolvers: Array<(senderId: number) => string | null> = [];
   /** Observer for failures of the fire-and-forget legacy sync bridge. */
   private onBridgeError?: (pluginId: string, channel: string, error: unknown) => void;
+  private bridgeObserver?: (senderId: number, channel: string, result: unknown) => void;
+
+  /** Watch successful bridge answers, such as a docked view reading the workspace. */
+  setBridgeObserver(observer: (senderId: number, channel: string, result: unknown) => void): void {
+    this.bridgeObserver = observer;
+  }
   /**
    * Locale per floating-widget web contents. Presence in this map is also what
    * makes a window a widget for `showWidgetMenu`, so a panel never gets a
@@ -248,7 +254,13 @@ export class PluginPanelHost {
           channel === "fs.registerDropped"
             ? this.consumeDroppedPath(event.sender.id, payload?.path)
             : undefined;
-        return this.bridge(pluginId, channel, payload, droppedPath ? { droppedPath } : undefined);
+        const result = await this.bridge(pluginId, channel, payload, droppedPath ? { droppedPath } : undefined);
+        try {
+          this.bridgeObserver?.(event.sender.id, channel, result);
+        } catch {
+          // An observer must never change what the page receives.
+        }
+        return result;
       },
     );
 

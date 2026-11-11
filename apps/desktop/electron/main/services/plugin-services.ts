@@ -662,6 +662,13 @@ export function createPluginServices({
     });
   });
   pluginPanels.addSenderResolver((senderId) => pluginViews.pluginIdForSender(senderId));
+  // A docked view that follows the workspace by polling resets on a project
+  // switch; the view host re-delivers its subject once it has seen the switch.
+  pluginPanels.setBridgeObserver((senderId, channel, result) => {
+    if (channel !== "workspace.get") return;
+    const path = result && typeof result === "object" ? (result as { path?: unknown }).path : null;
+    pluginViews.noteWorkspace(senderId, path);
+  });
   const browserBackingHost = new BrowserBackingHost();
   const browserHost = new BrowserHost({
     createPane: (onState, onOpenUrl) => new BrowserPane(onState, onOpenUrl, browserBackingHost),

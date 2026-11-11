@@ -10,6 +10,7 @@ import { PanelSenders, pageGoneWithin } from "./plugin-panel-senders";
 import {
   PLUGIN_VIEW_LOCATION_EVENT,
   PLUGIN_VIEW_LOCATION_PARAM,
+  locationSpelling,
   normalizeLocation,
   planLocationDelivery,
   viewEntryUrl,
@@ -54,6 +55,11 @@ export { PLUGIN_VIEW_LOCATION_EVENT, PLUGIN_VIEW_LOCATION_PARAM, viewEntryUrl };
 
 /** Live views kept warm; the least recently shown one is evicted past this. */
 const MAX_LIVE_VIEWS = 4;
+/**
+ * Delay between a page reading a new workspace and the host re-delivering
+ * its subject: long enough for the page to finish resetting to the new root.
+ */
+const WORKSPACE_REDELIVER_MS = 800;
 /** The browser view: its guest page follows this view's rect. */
 const SURFACE_PREFERRED_KEY = "pi.browser/browser";
 
@@ -81,6 +87,11 @@ export type PluginViewOpenRequest = {
    * instead and never receives this.
    */
   location?: string;
+  /**
+   * An explicit request (a click on a chat file link): delivered even when it
+   * repeats the last subject, because the view may no longer be showing it.
+   */
+  force?: boolean;
 };
 
 export type { PluginViewBounds };
@@ -99,6 +110,12 @@ type LiveView = {
    * request is re-delivered against.
    */
   location: string | null;
+  /** The exact string the page last received (URL or event), for respelling repeats. */
+  sent: string | null;
+  /** The workspace path this page last read through `workspace.get`. */
+  workspaceSeen?: string | null;
+  /** Pending re-delivery after the page noticed a project switch. */
+  redeliverTimer?: ReturnType<typeof setTimeout>;
   /** False until the first document finished loading. */
   loaded: boolean;
   agentSessionId?: string;
@@ -231,7 +248,7 @@ export class PluginViewHost {
     const existing = this.views.get(key);
     if (existing) {
       existing.usedAt = ++this.clock;
-      this.deliverLocation(existing, location);
+      this.deliverLocation(existing, location, request.force === true);
       return;
     }
     const view = this.createView(request);
@@ -242,6 +259,7 @@ export class PluginViewHost {
       htmlPath: request.htmlPath,
       usedAt: ++this.clock,
       location,
+      sent: location,
       loaded: false,
     };
     this.views.set(key, entry);
@@ -267,8 +285,8 @@ export class PluginViewHost {
    * nothing has run, so nothing is lost. Once loaded, the view subscribes and
    * is told through the same preload event channel as every other panel event.
    */
-  private deliverLocation(entry: LiveView, location: string | null): void {
-    const delivery = planLocationDelivery(entry.location, location, entry.loaded);
+  private deliverLocation(entry: LiveView, location: string | null, force = false): void {
+    const delivery = planLocationDelivery(entry.location, location, entry.loaded, force);
     if (delivery.kind === "none") return;
     // The page reads its subject from the URL it was loaded with, so the
     // remembered value has to follow every accepted request.
@@ -277,14 +295,49 @@ export class PluginViewHost {
       this.load(entry);
       return;
     }
+    this.sendLocation(entry, delivery.location);
+  }
+
+  private sendLocation(entry: LiveView, location: string): void {
     const wc = entry.view.webContents;
     if (wc.isDestroyed()) return;
-    wc.send(`pi-plugin-panel-event:${PLUGIN_VIEW_LOCATION_EVENT}`, {
-      path: delivery.location,
+    // A view may ignore a verbatim repeat of its last subject even after it
+    // moved on, so a repeat goes out in an equivalent spelling.
+    const path = locationSpelling(location, entry.sent);
+    entry.sent = path;
+    wc.send(`pi-plugin-panel-event:${PLUGIN_VIEW_LOCATION_EVENT}`, { path });
+  }
+
+  /**
+   * A docked page read the workspace through `workspace.get`. A page that
+   * follows the workspace by polling (the bundled file manager, every two
+   * seconds) resets itself when it notices a project switch, discarding a
+   * subject delivered just before. Once it has seen the new workspace, the
+   * current subject is handed over again; the view ignores it if it already
+   * shows it.
+   */
+  noteWorkspace(senderId: number, workspacePath: unknown): void {
+    const path = typeof workspacePath === "string" ? workspacePath : null;
+    const entry = [...this.views.values()].find((item) => {
+      const wc = item.view.webContents;
+      return !wc.isDestroyed() && wc.id === senderId;
     });
+    if (!entry) return;
+    const previous = entry.workspaceSeen;
+    entry.workspaceSeen = path;
+    if (previous === undefined || previous === path || !entry.location || !entry.loaded) return;
+    clearTimeout(entry.redeliverTimer);
+    entry.redeliverTimer = setTimeout(() => {
+      entry.redeliverTimer = undefined;
+      if (this.views.get(entry.key) !== entry || !entry.location) return;
+      this.sendLocation(entry, entry.location);
+    }, WORKSPACE_REDELIVER_MS);
   }
 
   private load(entry: LiveView): void {
+    // A fresh document reads its subject from the URL and has seen nothing yet.
+    entry.sent = entry.location;
+    entry.workspaceSeen = undefined;
     void entry.view.webContents
       .loadURL(viewEntryUrl(entry.htmlPath, entry.location))
       .catch(() => {
@@ -392,6 +445,7 @@ export class PluginViewHost {
     const entry = this.views.get(key);
     if (!entry) return;
     if (this.visibleKeys.has(key)) this.detach(key);
+    clearTimeout(entry.redeliverTimer);
     this.views.delete(key);
     this.cssBounds.delete(key);
     if (!entry.view.webContents.isDestroyed()) entry.view.webContents.close();

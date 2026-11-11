@@ -413,6 +413,13 @@ export type AppState = {
    * when the sidebar collapses or the user resizes the panel.
    */
   workPanelYieldedWidth: number | null;
+  /**
+   * Bumped by every explicit open in the visible session. A collapsed pane
+   * opens on it even when the opened tab was already the active one (a second
+   * chat file link while the file view is focused). `tabId` is the tab that
+   * was opened, so its view can tell an explicit open from a tab switch.
+   */
+  workPanelOpenRequest: { seq: number; tabId: string | null };
   /** Chat-initiated "preview this file" request consumed by the files viewer. */
   workPanelFileRequest: {
     path: string;

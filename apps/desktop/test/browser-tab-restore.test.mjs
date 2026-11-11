@@ -23,7 +23,7 @@ new Function("require", "exports", "module", outputText)((id) => {
 function store() {
   let state = {
     activeSessionId: "A", sessions: [], workPanelOpen: false,
-    workPanelTabs: [], activeWorkPanelTabId: null, workPanelFileRequest: null,
+    workPanelTabs: [], activeWorkPanelTabId: null, workPanelFileRequest: null, workPanelOpenRequest: { seq: 0, tabId: null },
     workPanelContexts: {},
   };
   const get = () => state;
@@ -65,4 +65,23 @@ test("renderer recovery does not duplicate tabs or replace a user-selected resou
   assert.equal(get().workPanelTabs[1].label, "A");
   get().closeWorkPanelTab("a");
   assert.deepEqual(get().workPanelTabs.map((tab) => tab.id), ["review"]);
+});
+
+test("re-opening the focused tab counts as an open; in-place updates do not", () => {
+  const { get } = store();
+  const files = () => workPanelTabs.fileManagerPluginTab("/fixture/a.sql");
+  get().openWorkPanelTab(files());
+  assert.equal(get().workPanelOpenRequest.seq, 1);
+  // Same tab id, already active: a collapsed files pane must still reopen.
+  get().openWorkPanelTab(files());
+  assert.equal(get().activeWorkPanelTabId, files().id);
+  assert.deepEqual(get().workPanelOpenRequest, { seq: 2, tabId: files().id });
+  get().openWorkPanelTab(workPanelTabs.browserPluginTab("https://fixture.invalid/x"));
+  const seq = get().workPanelOpenRequest.seq;
+  const tabId = get().activeWorkPanelTabId;
+  get().updateBrowserWorkPanelTab(page("A", tabId, "Title"));
+  assert.equal(get().workPanelOpenRequest.seq, seq);
+  // Opens for a session not on screen leave the visible counter alone.
+  get().openWorkPanelTabForSession("B", files());
+  assert.equal(get().workPanelOpenRequest.seq, seq);
 });

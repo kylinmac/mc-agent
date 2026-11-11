@@ -9,6 +9,18 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.68",
+    date: "2026-11-11",
+    features: [
+      "Settings can prepare context compaction in the background: when the context is nearly full, the summary is written while the agent keeps working, so compaction no longer waits. Off by default; if the conversation changes before it is used, the summary is discarded and its usage is still billed.",
+    ],
+    fixes: [
+      "Clicking a file link in chat expands the file panel when it is collapsed.",
+      "Clicking the same file link again always opens it; before, it could do nothing after you browsed other files in the panel or switched projects.",
+      "Switching to a conversation in another project and back shows that conversation's file in the file panel again instead of the project root.",
+    ],
+  },
+  {
     version: "1.0.67",
     date: "2026-11-10",
     improvements: [

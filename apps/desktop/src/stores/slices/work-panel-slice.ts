@@ -191,6 +191,7 @@ export function createWorkPanelSlice({
               workPanelTabs: next.tabs,
               activeWorkPanelTabId: next.activeTabId,
               workPanelFileRequest: fileRequest,
+              workPanelOpenRequest: { seq: state.workPanelOpenRequest.seq + 1, tabId: next.activeTabId },
             }
           : {}),
       };
