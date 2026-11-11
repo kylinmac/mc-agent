@@ -3702,6 +3702,8 @@ export const ptBR = {
     projectPromptDefaultHintGlobal: "Model rules apply; with none, the global default “{{name}}”.",
     promptSuggestions: "Input suggestions",
     promptSuggestionsDesc: "After a reply, suggest your likely next message as gray text in the empty input; press Tab to use it. Each reply makes one extra request with the conversation's model, mostly read from its prompt cache.",
+    backgroundCompaction: "Prepare context compaction in the background",
+    backgroundCompactionDesc: "When the context is nearly full, the summary is written while the agent keeps working, so compaction no longer makes you wait. If the conversation changes before it is used, the summary is discarded and its usage is still charged.",
     dictationHoldHint: "hold {{keys}} to talk",
     dictationHoldSettingsHint: "Hold {{keys}} to talk and release to transcribe; a quick tap is ignored. Change or turn it off under Shortcuts. Works while the app window is focused.",
     pluginCategory_community: "Community",

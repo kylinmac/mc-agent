@@ -223,6 +223,12 @@ export type AppSettings = {
    */
   promptSuggestions?: boolean;
   /**
+   * mc-agent (MC-ADR-0028): prepare the compaction summary in the background
+   * before the automatic threshold. Off by default: a prepared summary that is
+   * later discarded is usage the user paid for and never saw.
+   */
+  backgroundCompaction?: boolean;
+  /**
    * mc-agent (R11.14): work-panel placement in a single-column window. Absent
    * means `auto`. `workPanelStackChatWidth` is the conversation width (px)
    * below which `auto` docks the panel under it; absent means 450.

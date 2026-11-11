@@ -618,6 +618,16 @@ export function SettingsPage() {
                   />
                 </SettingsRow>
                 <SettingsRow
+                  title={t("mcProject.backgroundCompaction")}
+                  caution={t("mcProject.backgroundCompactionDesc")}
+                >
+                  <SettingsToggle
+                    checked={settings.backgroundCompaction === true}
+                    label={t("mcProject.backgroundCompaction")}
+                    onChange={() => void saveSettings({ backgroundCompaction: settings.backgroundCompaction !== true })}
+                  />
+                </SettingsRow>
+                <SettingsRow
                   title={t("settings.smoothStreaming")}
                   description={t("settings.smoothStreamingDesc")}
                 >

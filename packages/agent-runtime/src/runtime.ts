@@ -1,4 +1,8 @@
 import { toolExecutionModeFor } from "./mc-parallel-tools.js";
+import {
+  keepsRetainedUserMessage, preparedSummaryDiscardReason, shouldPrepareSummary,
+  usageAnchorIsStale, USAGE_STALE_BEFORE_KEY, type PreparedSummaryBasis,
+} from "./mc-background-compaction.js";
 import { RunRecoveryState } from "./mc-run-recovery.js";
 import { REPEATED_TOOL_CALL_ERROR_CODE, RepeatedToolCallTracker } from "./mc-repeated-tool-calls.js";
 import { applyToolResultPruning, planToolResultPruning, pruningUsageCredit } from "./mc-tool-result-pruning.js";
@@ -1087,6 +1091,8 @@ export type AgentRuntimeOptions = {
   thinkingLevel: SessionThinkingLevel;
   /** Persisted opt-in for retrying transient provider failures until success. */
   infiniteProviderRetry?: boolean;
+  /** mc-agent (MC-ADR-0028): prepare the compaction summary ahead of the threshold. */
+  backgroundCompaction?: boolean;
   /** TypeSafe Jev credential, resolved by Electron main only when enabled. */
   jevApiKey?: string;
   systemPrompt?: string;
@@ -1171,7 +1177,7 @@ export function responseStopReason(
 }
 
 export type AgentRuntimeDiagnostic = {
-  kind: "tool_result_pruning" | "compaction_failure" | "compaction_shape" | "compaction_restore" | "compaction_summary" | "context_restore" | "context_request" | "response_end";
+  kind: "tool_result_pruning" | "background_compaction" | "compaction_failure" | "compaction_shape" | "compaction_restore" | "compaction_summary" | "context_restore" | "context_request" | "response_end";
   sessionId: string;
   turnId?: string;
   requestId: string;
@@ -2084,6 +2090,18 @@ export class DesktopAgentRuntime {
   private providerRateLimitRetryAttempt = 0;
   /** Opt-in mode removes only the retry-count ceiling; abort and backoff stay intact. */
   private infiniteProviderRetry = false;
+  /** mc-agent (MC-ADR-0028): user setting; off unless the user turned it on. */
+  private backgroundCompaction = false;
+  /**
+   * The summary being prepared, or prepared and waiting for the threshold.
+   * At most one exists, and never alongside an inline compaction.
+   */
+  private preparedSummary?: PreparedSummaryBasis & {
+    abort: AbortController;
+    build: Promise<CheckpointBuild>;
+    startedAt: number;
+    tokensAtStart: number;
+  };
   private jevApiKey?: string;
   private activeProviderRetryAttempt = 0;
   private providerRetryAbort?: AbortController;
@@ -2238,6 +2256,7 @@ export class DesktopAgentRuntime {
     this.provider = opts.provider;
     this.thinkingLevel = clampThinkingLevel(opts.provider, opts.thinkingLevel);
     this.infiniteProviderRetry = opts.infiniteProviderRetry === true;
+    this.backgroundCompaction = opts.backgroundCompaction === true;
     this.jevApiKey = opts.jevApiKey;
     this.host = opts.host;
     this.onDiagnostic = opts.onDiagnostic ?? (() => undefined);
@@ -2573,6 +2592,13 @@ export class DesktopAgentRuntime {
   setInfiniteProviderRetry(enabled: boolean): void {
     if (this.disposed) throw new Error("runtime disposed");
     this.infiniteProviderRetry = enabled;
+  }
+
+  /** mc-agent (MC-ADR-0028): turning the option off also drops a summary in preparation. */
+  setBackgroundCompaction(enabled: boolean): void {
+    if (this.disposed) throw new Error("runtime disposed");
+    this.backgroundCompaction = enabled;
+    if (!enabled) this.discardPreparedSummary("disabled");
   }
 
   /** Refresh catalog instructions without changing the running session owner. */
@@ -7237,6 +7263,7 @@ export class DesktopAgentRuntime {
 
   setCompactionSettings(settings?: ContextCompactionSettings): void {
     this.compactionEnabled = compactionEnabled(settings);
+    if (!this.compactionEnabled) this.discardPreparedSummary("disabled");
     this.pendingModelCompaction = false;
     this.rebuildToolCatalog();
     this.setAgentTools(this.activeTools());
@@ -7251,8 +7278,23 @@ export class DesktopAgentRuntime {
   private estimateContext(
     messages: AgentMessage[],
     model: Model<Api>,
+    checkpoint: ContextCompactionRecord | undefined = this.activeCompaction,
   ): ReturnType<typeof estimateContextTokens> {
     const estimate = estimateContextTokens(messages, model);
+    // mc-agent (MC-ADR-0028): a checkpoint installed from a prepared summary
+    // leaves assistant messages in the verbatim tail whose usage describes the
+    // context before the install. Until a newer response reports usage, count
+    // the messages instead of trusting that report.
+    if (
+      estimate.lastUsageIndex !== null &&
+      usageAnchorIsStale(
+        messages[estimate.lastUsageIndex]?.timestamp,
+        isRecord(checkpoint?.details) ? checkpoint.details[USAGE_STALE_BEFORE_KEY] : undefined,
+      )
+    ) {
+      const tokens = messages.reduce((sum, message) => sum + estimateTokens(message, model), 0);
+      return { tokens, usageTokens: 0, trailingTokens: tokens, lastUsageIndex: null };
+    }
     const credit = Math.min(
       estimate.usageTokens,
       pruningUsageCredit(messages, estimate.lastUsageIndex, this.clearedToolResults),
@@ -7309,7 +7351,10 @@ export class DesktopAgentRuntime {
    * directly: it runs ahead of the turn-boundary guard, and that guard's own
    * single `contextBudget` read is what decides whether to compact.
    */
-  private measureContextBudget(messages: AgentMessage[]): ContextBudget {
+  private measureContextBudget(
+    messages: AgentMessage[],
+    checkpoint: ContextCompactionRecord | undefined = this.activeCompaction,
+  ): ContextBudget {
     const budget = contextBudgetFor(this.model, messages);
     // Calibration learns from message usage; the output-cap estimator adds the
     // active system prompt and tool schemas that the provider also receives.
@@ -7317,7 +7362,7 @@ export class DesktopAgentRuntime {
     // once unanchored calibration has learned it, while keeping that overhead as
     // a hard floor before the first usable sample.
     const calibratedMessageTokens = this.contextCalibration.correct(
-      this.estimateContext(messages, this.model),
+      this.estimateContext(messages, this.model, checkpoint),
     );
     const requestTokens = estimateOutputCapInputTokens(
       {
@@ -7571,6 +7616,7 @@ export class DesktopAgentRuntime {
     const modelRequested = this.pendingModelCompaction;
     this.pendingModelCompaction = false;
     if (!automaticThresholdReached && !modelRequested) {
+      this.maybePrepareSummary(budget);
       return { context: this.withContextBudgetReminder(context, budget) };
     }
 
@@ -8113,8 +8159,13 @@ export class DesktopAgentRuntime {
     }
 
     this.activeCompaction = checkpoint;
-    // The summary replaced every message a cleared result belonged to.
-    this.clearedToolResults.clear();
+    // The summary replaced every message a cleared result belonged to — except
+    // after a prepared summary, whose verbatim tail can still hold some.
+    if (!(isRecord(checkpoint.details) && USAGE_STALE_BEFORE_KEY in checkpoint.details)) {
+      this.clearedToolResults.clear();
+    }
+    // Any other summary in preparation described the window this one closed.
+    this.discardPreparedSummary("superseded");
     // A new window means both reminders are available again, matching Codex
     // resetting its `claim_*` flags when the context window turns over.
     this.contextReminderClaimed = false;
@@ -8387,6 +8438,11 @@ export class DesktopAgentRuntime {
     retentionMode: CompactionRetentionMode,
   ): Promise<CheckpointBuild> {
     this.compactionDiagnosticBudget = undefined;
+    // Captured before the summary request: a summary prepared while the turn
+    // keeps running (MC-ADR-0028) covers history up to here, not up to whatever
+    // has been appended by the time the request returns. Inline, nothing is
+    // appended in between and this is the same id as before.
+    const boundaryAtStart = compactionBoundaryId(this.fullEntries);
     const entries = this.entriesWithCompaction();
     const context = buildSessionContext(entries, this.reasoningReplayIdentity());
     const budget = this.contextBudget(context.messages);
@@ -8505,7 +8561,7 @@ export class DesktopAgentRuntime {
       };
     }
 
-    const throughMessageId = compactionBoundaryId(this.fullEntries);
+    const throughMessageId = boundaryAtStart;
     if (!throughMessageId) {
       return {
         ok: false,
@@ -8713,6 +8769,16 @@ export class DesktopAgentRuntime {
     retentionMode: CompactionRetentionMode,
   ): Promise<boolean> {
     this.emit({ type: "compaction_start", reason });
+    // mc-agent (MC-ADR-0028): the threshold compaction installs a summary that
+    // was prepared ahead of it. Every other reason (overflow, manual) describes
+    // a context the prepared summary was not built for, and drops it.
+    if (reason === "threshold") {
+      const prepared = await this.installPreparedSummary(reason, willRetry, retentionMode);
+      if (prepared === "installed") return true;
+      if (prepared === "stopped") return false;
+    } else {
+      this.discardPreparedSummary("superseded");
+    }
     this.compactionAbort = new AbortController();
     let build: CheckpointBuild;
     try {
@@ -8737,6 +8803,153 @@ export class DesktopAgentRuntime {
       );
     }
     return await this.installCheckpoint(build, reason, willRetry, retentionMode);
+  }
+
+  private summaryModelKey(): string {
+    return `${this.provider.id}\u0000${this.provider.modelId}\u0000${this.thinkingLevel}`;
+  }
+
+  /**
+   * Start preparing a summary once the context enters the band below the
+   * automatic threshold (MC-ADR-0028). Called at the turn boundary, where every
+   * tool call already has its result, so the boundary never splits a pair. The
+   * turn carries on; nothing here is awaited.
+   */
+  private maybePrepareSummary(budget: ContextBudget): void {
+    if (
+      !shouldPrepareSummary({
+        enabled: this.backgroundCompaction && this.compactionEnabled && this.compactionStrategy !== "fresh_window",
+        tokens: budget.tokens,
+        hardLimit: budget.hardLimit,
+        automaticThreshold: automaticCompactionThresholdFor(budget),
+        busy: this.preparedSummary !== undefined || this.compactionInProgress,
+      })
+    ) return;
+    const boundaryId = compactionBoundaryId(this.fullEntries);
+    if (!boundaryId) return;
+    const abort = new AbortController();
+    const build = this.buildCheckpoint(abort.signal, "active_turn").catch(
+      (error): CheckpointBuild => ({
+        ok: false,
+        entries: [],
+        budget,
+        message: error instanceof Error ? error.message : String(error),
+        failureReason: "summary_provider",
+        recoverable: true,
+      }),
+    );
+    this.preparedSummary = {
+      boundaryId,
+      ...(this.activeCompaction ? { activeCheckpointId: this.activeCompaction.id } : {}),
+      modelKey: this.summaryModelKey(),
+      abort,
+      build,
+      startedAt: Date.now(),
+      tokensAtStart: budget.tokens,
+    };
+    this.emitCompactionDiagnostic("background_compaction", randomUUID(), {
+      stage: "started",
+      tokens: budget.tokens,
+      hardLimit: budget.hardLimit,
+    });
+  }
+
+  /** Drop the summary in preparation and cancel its request. Counts only, no content. */
+  private discardPreparedSummary(reason: string): void {
+    const prepared = this.preparedSummary;
+    if (!prepared) return;
+    this.preparedSummary = undefined;
+    prepared.abort.abort();
+    this.emitCompactionDiagnostic("background_compaction", randomUUID(), {
+      stage: "discarded",
+      reason,
+      ageMs: Date.now() - prepared.startedAt,
+    });
+  }
+
+  /**
+   * Install the prepared summary in place of an inline one.
+   *
+   * `none` means there is nothing usable and the caller compacts inline, which
+   * is exactly what happens with the option off. `stopped` means the user
+   * stopped the turn while the summary was still being generated, or the
+   * checkpoint could not be stored; the caller must not issue another request.
+   */
+  private async installPreparedSummary(
+    reason: ContextCompactionReason,
+    willRetry: boolean,
+    retentionMode: CompactionRetentionMode,
+  ): Promise<"installed" | "none" | "stopped"> {
+    const prepared = this.preparedSummary;
+    if (!prepared) return "none";
+    this.preparedSummary = undefined;
+    const discard = (why: string): "none" => {
+      this.emitCompactionDiagnostic("background_compaction", randomUUID(), {
+        stage: "discarded",
+        reason: why,
+        ageMs: Date.now() - prepared.startedAt,
+      });
+      return "none";
+    };
+    // Still generating: wait for it rather than start a second request. Stop
+    // cancels it through the same handle an inline compaction uses.
+    this.compactionAbort = prepared.abort;
+    let build: CheckpointBuild;
+    try {
+      build = await prepared.build;
+    } finally {
+      this.compactionAbort = undefined;
+    }
+    if (prepared.abort.signal.aborted) {
+      this.emitCompactionFailure(reason, undefined, "Turn aborted while compacting context");
+      return "stopped";
+    }
+    if (!build.ok) return discard("build_failed");
+    const invalid = preparedSummaryDiscardReason(prepared, {
+      hasMessage: (id) => this.fullEntries.some((entry) => entry.id === id),
+      ...(this.activeCompaction ? { activeCheckpointId: this.activeCompaction.id } : {}),
+      modelKey: this.summaryModelKey(),
+    });
+    if (invalid) return discard(invalid);
+
+    const boundaryIndex = this.fullEntries.findIndex((entry) => entry.id === prepared.boundaryId);
+    const userAfterBoundary = this.fullEntries
+      .slice(boundaryIndex + 1)
+      .some((entry) => entry.message.role === "user");
+    const keepRetained = keepsRetainedUserMessage(
+      retentionMode === "active_turn",
+      userAfterBoundary,
+    );
+    const details = {
+      ...(isRecord(build.checkpoint.details) ? build.checkpoint.details : {}),
+      retainedTailMode: (keepRetained ? "active_turn" : "completed_turn") satisfies CompactionRetentionMode,
+      [USAGE_STALE_BEFORE_KEY]: Date.now(),
+    };
+    const checkpoint: ContextCompactionRecord = {
+      ...build.checkpoint,
+      ...(keepRetained ? {} : { retainedTail: [] }),
+      details,
+    };
+    // The verbatim tail grew while the summary was written. If the result is
+    // still at the threshold, installing it would only compact again at once.
+    const after = this.measureContextBudget(
+      this.liveSessionContext(checkpoint).messages,
+      checkpoint,
+    );
+    if (after.tokens >= automaticCompactionThresholdFor(after)) {
+      return discard("still_over_threshold");
+    }
+    const persisted = await this.persistCheckpoint(checkpoint, reason, willRetry, true);
+    if (persisted === "oversized") return discard("still_over_threshold");
+    if (persisted === "failed") return "stopped";
+    this.emitCompactionDiagnostic("background_compaction", randomUUID(), {
+      stage: "installed",
+      preparedForMs: Date.now() - prepared.startedAt,
+      tokensAtStart: prepared.tokensAtStart,
+      tokensAfter: after.tokens,
+      hardLimit: after.hardLimit,
+    });
+    return "installed";
   }
 
   async compactManually(): Promise<void> {
@@ -10192,6 +10405,7 @@ export class DesktopAgentRuntime {
     const closingExtensions = runner?.dispose();
     this.streamSink.dispose();
     this.disposed = true;
+    this.discardPreparedSummary("disposed");
     this.acceptingSteering = false;
     this.runCancelled = true;
     this.steeringWaitAbort?.abort();

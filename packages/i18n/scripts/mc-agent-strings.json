@@ -3599,6 +3599,16 @@
     "zh-CN": "回复结束后，在空的输入框里用灰字给出你可能要发的下一句，按 Tab 采用。每次回复会多一次请求，用当前对话的模型，大部分内容走提示词缓存。",
     "zh-TW": "回覆結束後，在空的輸入框裡用灰字給出你可能要送出的下一句，按 Tab 採用。每次回覆會多一次請求，用目前對話的模型，大部分內容走提示詞快取。"
   },
+  "backgroundCompaction": {
+    "en": "Prepare context compaction in the background",
+    "zh-CN": "提前在后台准备上下文压缩",
+    "zh-TW": "提前在背景準備上下文壓縮"
+  },
+  "backgroundCompactionDesc": {
+    "en": "When the context is nearly full, the summary is written while the agent keeps working, so compaction no longer makes you wait. If the conversation changes before it is used, the summary is discarded and its usage is still charged.",
+    "zh-CN": "上下文快满时，在 Agent 继续工作的同时提前写好摘要，压缩时不用再干等。如果用上之前对话发生变化，这份摘要会被丢弃，已产生的用量仍会计费。",
+    "zh-TW": "上下文快滿時，在 Agent 繼續工作的同時提前寫好摘要，壓縮時不用再乾等。如果用上之前對話發生變化，這份摘要會被丟棄，已產生的用量仍會計費。"
+  },
   "dictationHoldHint": {
     "en": "hold {{keys}} to talk",
     "zh-CN": "按住 {{keys}} 说话",

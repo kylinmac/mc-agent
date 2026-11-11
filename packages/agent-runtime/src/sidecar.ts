@@ -112,6 +112,8 @@ type RuntimeParams = {
   turnId?: string;
   thinkingLevel?: SessionThinkingLevel;
   infiniteProviderRetry?: boolean;
+  /** mc-agent (MC-ADR-0028). */
+  backgroundCompaction?: boolean;
   /** Opt-in TypeSafe classifier credential resolved by Electron main. */
   jevApiKey?: string;
   provider: RuntimeProviderConfig;
@@ -267,6 +269,7 @@ async function runtimeFor(
     reusable.setCompactionSettings(params.compactionSettings);
     reusable.setAskToolSettings(params.askToolAutoContinue, params.askToolTimeoutSeconds);
     reusable.setInfiniteProviderRetry(params.infiniteProviderRetry === true);
+    reusable.setBackgroundCompaction(params.backgroundCompaction === true);
     reusable.setMode(mode);
     return reusable;
   }
@@ -322,6 +325,7 @@ async function runtimeFor(
     commandShell: params.commandShell,
     thinkingLevel,
     infiniteProviderRetry: params.infiniteProviderRetry === true,
+    backgroundCompaction: params.backgroundCompaction === true,
     jevApiKey: params.jevApiKey,
     history,
     compaction,

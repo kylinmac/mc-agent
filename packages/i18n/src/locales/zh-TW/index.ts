@@ -3758,6 +3758,8 @@ sklm: {
     projectPromptDefaultHintGlobal: "依模型規則選擇；沒有符合時使用全域預設「{{name}}」。",
     promptSuggestions: "輸入建議",
     promptSuggestionsDesc: "回覆結束後，在空的輸入框裡用灰字給出你可能要送出的下一句，按 Tab 採用。每次回覆會多一次請求，用目前對話的模型，大部分內容走提示詞快取。",
+    backgroundCompaction: "提前在背景準備上下文壓縮",
+    backgroundCompactionDesc: "上下文快滿時，在 Agent 繼續工作的同時提前寫好摘要，壓縮時不用再乾等。如果用上之前對話發生變化，這份摘要會被丟棄，已產生的用量仍會計費。",
     dictationHoldHint: "按住 {{keys}} 說話",
     dictationHoldSettingsHint: "按住 {{keys}} 說話，放開後辨識；輕按一下不算。可在「快捷鍵」裡修改或關閉。應用程式視窗在前景時可用。",
     pluginCategory_community: "社群",
