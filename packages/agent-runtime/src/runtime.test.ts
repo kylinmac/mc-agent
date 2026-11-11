@@ -6150,6 +6150,8 @@ describe("DesktopAgentRuntime response stop reason", () => {
     );
     const ended = diagnostics.find((item) => item.kind === "response_end");
     expect(ended?.data).toMatchObject({ reason: "length", outputTokens: 1 });
+    // mc-agent (R21.3): the request side is logged too, for the cache baseline.
+    expect(ended?.data).toMatchObject({ api: expect.any(String), inputTokens: expect.any(Number) });
     await runtime.dispose();
   });
 
