@@ -207,3 +207,5 @@ Main：`apps/desktop/electron/main/work-panel-agent/`；UI：`features/work-tool
 | 恢复提醒分节（B-046） | `RECOVERY_NUDGE_SECTION`、`setSystemSection()` 在 `packages/agent-runtime/src/system-transcript.ts`；`runtime.ts` 的 `applyRecoveryNudge()` 供静默重跑和进度重跑共用 |
 | 运行恢复状态（#120） | `packages/agent-runtime/src/mc-run-recovery.ts`：溢出、服务商重试、静默重跑、进度重跑四种恢复的阶段，以及“是否抑制结束事件／是否有待处理／是否进行中／重置”四个统一查询；`runtime.ts` 里原有字段名保留为访问器 |
 | 压缩缓存基线汇总（R21.3） | `scripts/mc-compaction-cache-report.mjs`（只读，目录需显式传入），测试 `scripts/mc-compaction-cache-report.test.mjs`（`node --test`） |
+| 标签溢出菜单（R11.19） | `apps/desktop/src/features/session-tabs/tab-list.ts`（`tabStripOverflows`、`tabOverflowMenuItems`）、`SessionTabs.tsx`；样式 `styles/mc-session-tabs.css` |
+| 设置页限宽与常显说明（R11.19） | 样式 `apps/desktop/src/styles/mc-shell-pages.css`；`SettingsRow` 的 `caution` 在 `features/settings/primitives.tsx` |
