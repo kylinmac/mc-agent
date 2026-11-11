@@ -9,6 +9,25 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.70",
+    date: "2026-11-11",
+    features: [
+      "When tabs no longer fit, they group by project. Open a project to switch conversations or close one with ×; individual tabs return when space allows.",
+    ],
+    improvements: [
+      "When the agent reads several files or runs several searches at once, they run at the same time instead of one after another.",
+      "In long conversations, older large command outputs and file contents are dropped from the agent's context first, so full context compaction happens later; the conversation transcript keeps the originals.",
+      "When the agent keeps calling the same tool with the same arguments and gets the same result, it is first told to try something else; after five repeats the turn stops and explains why, and you can tell it to continue.",
+      "Settings that cost extra usage or loosen safety limits show their explanation next to the switch instead of behind a question mark.",
+    ],
+    fixes: [
+      "After opening many tabs and scrolling across them, hidden tabs no longer block dragging or double-clicking the left title bar.",
+      "Session hover cards and tab menus are no longer covered by the native file panel.",
+
+      "After switching projects, clicking the same relative link again in the file panel's Markdown preview no longer opens a path from the previous project.",
+    ],
+  },
+  {
     version: "1.0.69",
     date: "2026-11-11",
     improvements: [
