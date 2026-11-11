@@ -804,6 +804,7 @@ export function createSessionLaunchRuntime({
         ...(overrides.turnId ? { turnId: overrides.turnId } : {}),
         thinkingLevel,
         infiniteProviderRetry: settings.infiniteProviderRetry === true,
+        backgroundCompaction: settings.backgroundCompaction === true,
         askToolAutoContinue: settings.askToolAutoContinue === true,
         askToolTimeoutSeconds: settings.askToolTimeoutSeconds,
         ...(jevApiKey ? { jevApiKey } : {}),

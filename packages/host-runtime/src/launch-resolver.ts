@@ -381,6 +381,7 @@ export function createHeadlessLaunchResolver(options: HeadlessLaunchResolverOpti
         ...(overrides.turnId ? { turnId: overrides.turnId } : {}),
         thinkingLevel,
         infiniteProviderRetry: settings.infiniteProviderRetry === true,
+        backgroundCompaction: settings.backgroundCompaction === true,
         askToolAutoContinue: settings.askToolAutoContinue === true,
         askToolTimeoutSeconds: settings.askToolTimeoutSeconds,
         commandShell,

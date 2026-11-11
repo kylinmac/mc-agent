@@ -199,6 +199,7 @@ export function createProviderCatalogRuntime({
       keepAwakeWhileRunning?: unknown;
       jevEnabled?: unknown;
       promptSuggestions?: unknown;
+      backgroundCompaction?: unknown;
       updatePreference?: unknown;
       lastNotifiedUpdateVersion?: unknown;
       networkProxy?: unknown;
@@ -236,6 +237,14 @@ export function createProviderCatalogRuntime({
       typeof value.keepAwakeWhileRunning !== "boolean"
     ) {
       throw Object.assign(new Error("keepAwakeWhileRunning is invalid"), {
+        errorCode: ErrorCodes.INVALID_PARAMS,
+      });
+    }
+    if (
+      Object.prototype.hasOwnProperty.call(value, "backgroundCompaction") &&
+      typeof value.backgroundCompaction !== "boolean"
+    ) {
+      throw Object.assign(new Error("backgroundCompaction is invalid"), {
         errorCode: ErrorCodes.INVALID_PARAMS,
       });
     }

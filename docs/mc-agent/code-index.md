@@ -209,3 +209,4 @@ Main：`apps/desktop/electron/main/work-panel-agent/`；UI：`features/work-tool
 | 压缩缓存基线汇总（R21.3） | `scripts/mc-compaction-cache-report.mjs`（只读，目录需显式传入），测试 `scripts/mc-compaction-cache-report.test.mjs`（`node --test`） |
 | 标签溢出菜单（R11.19） | `apps/desktop/src/features/session-tabs/tab-list.ts`（`tabStripOverflows`、`tabOverflowMenuItems`）、`SessionTabs.tsx`；样式 `styles/mc-session-tabs.css` |
 | 设置页限宽与常显说明（R11.19） | 样式 `apps/desktop/src/styles/mc-shell-pages.css`；`SettingsRow` 的 `caution` 在 `features/settings/primitives.tsx` |
+| 后台预生成压缩摘要（R33，MC-ADR-0028） | 规则 `packages/agent-runtime/src/mc-background-compaction.ts`；接线 `runtime.ts` 的 `maybePrepareSummary()`、`installPreparedSummary()`、`discardPreparedSummary()`；设置 `backgroundCompaction` 经 `session-launch.ts` / `launch-resolver.ts` → `sidecar.ts` → `setBackgroundCompaction()`；开关在 `features/settings/SettingsPage.tsx` |

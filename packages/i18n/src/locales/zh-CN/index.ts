@@ -3830,6 +3830,8 @@ sklm: {
     projectPromptDefaultHintGlobal: "按模型规则选择；没有匹配时使用全局默认「{{name}}」。",
     promptSuggestions: "输入建议",
     promptSuggestionsDesc: "回复结束后，在空的输入框里用灰字给出你可能要发的下一句，按 Tab 采用。每次回复会多一次请求，用当前对话的模型，大部分内容走提示词缓存。",
+    backgroundCompaction: "提前在后台准备上下文压缩",
+    backgroundCompactionDesc: "上下文快满时，在 Agent 继续工作的同时提前写好摘要，压缩时不用再干等。如果用上之前对话发生变化，这份摘要会被丢弃，已产生的用量仍会计费。",
     dictationHoldHint: "按住 {{keys}} 说话",
     dictationHoldSettingsHint: "按住 {{keys}} 说话，松开后识别；轻点一下不算。可在“快捷键”里修改或关闭。应用窗口在前台时可用。",
     pluginCategory_community: "社区",
