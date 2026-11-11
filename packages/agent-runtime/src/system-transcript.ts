@@ -41,6 +41,24 @@ function desktopSectionNames(sections: Record<string, unknown>): string[] {
     .sort((a, b) => a.localeCompare(b)), "context"];
 }
 
+/**
+ * mc-agent (#119): a one-request recovery reminder. It is its own section so
+ * adding and removing it costs two small deltas, instead of rewriting the whole
+ * `runtime` section twice and dropping every other section in between.
+ */
+export const RECOVERY_NUDGE_SECTION = "recovery_nudge";
+
+/** Set or clear (`null`) one named section, leaving every other section alone. */
+export function setSystemSection(
+  messages: AgentMessage[],
+  name: string,
+  value: string | null,
+): AgentMessage[] {
+  const current = getCurrentSystemMessage(messages)?.sections?.[name] ?? null;
+  if (current === value) return messages;
+  return [...messages, { role: "system", content: "", sections: { [name]: value }, timestamp: nextSystemTimestamp(messages) }];
+}
+
 export function systemPromptContent(messages: readonly AgentMessage[]): string {
   const current = getCurrentSystemMessage(messages);
   const sections = current?.sections;
@@ -71,7 +89,9 @@ export function initialSystemTranscript(
   sections: Record<string, string> = { runtime: prompt },
 ): AgentMessage[] {
   if (messages.some((message) => message.role === "system")) {
-    return syncSystemSections(messages, sections);
+    // A reminder that outlived its request (the process ended mid-recovery)
+    // must not ride along into every later request of the restored session.
+    return setSystemSection(syncSystemSections(messages, sections), RECOVERY_NUDGE_SECTION, null);
   }
   if (!prompt && tools.length === 0) return messages;
   // Old sessions have no recorded baseline. Declare the current state at the
@@ -113,8 +133,9 @@ export function systemTranscriptCheckpoint(messages: readonly AgentMessage[]): S
   // Use the journal's durable shape, including extension-provided text blocks.
   const checkpoint: SystemMessage = { ...current, content: contentText(current.content),
     ...(current.toolsAdded ? { toolsAdded: current.toolsAdded.map(toToolDeclaration) } : {}) };
-  if (!checkpoint.sections || !(CONTEXT_BUDGET_SECTION in checkpoint.sections)) return checkpoint;
-  const { [CONTEXT_BUDGET_SECTION]: _expired, ...sections } = checkpoint.sections;
+  if (!checkpoint.sections) return checkpoint;
+  if (!(CONTEXT_BUDGET_SECTION in checkpoint.sections) && !(RECOVERY_NUDGE_SECTION in checkpoint.sections)) return checkpoint;
+  const { [CONTEXT_BUDGET_SECTION]: _expired, [RECOVERY_NUDGE_SECTION]: _transient, ...sections } = checkpoint.sections;
   return { ...checkpoint, sections };
 }
 
