@@ -9,6 +9,20 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.69",
+    date: "2026-11-11",
+    improvements: [
+      "When the agent reads several files or runs several searches at once, they run at the same time instead of one after another.",
+      "In long conversations, older large command outputs and file contents are dropped from the agent's context first, so full context compaction happens later; the conversation transcript keeps the originals.",
+      "When the agent keeps calling the same tool with the same arguments and gets the same result, it is first told to try something else; after five repeats the turn stops and explains why, and you can tell it to continue.",
+      "When there are more tabs than fit, a menu at the right of the title bar lists every open tab so you can switch to it.",
+      "Settings that cost extra usage or loosen safety limits show their explanation next to the switch instead of behind a question mark.",
+    ],
+    fixes: [
+      "After switching projects, clicking the same relative link again in the file panel's Markdown preview no longer opens a path from the previous project.",
+    ],
+  },
+  {
     version: "1.0.68",
     date: "2026-11-11",
     features: [
