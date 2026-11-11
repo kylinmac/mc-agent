@@ -62,7 +62,7 @@ function preparationOf(entries: Entry[], converted: boolean) {
   const prepared = converted
     ? prepareCompaction(withPiFileOpToolNames(entries), settings)
     : prepareCompaction(entries, settings);
-  if (!prepared.ok) throw new Error("prepareCompaction refused the fixture");
+  if (!prepared.ok || !prepared.value) throw new Error("prepareCompaction refused the fixture");
   return prepared.value;
 }
 

@@ -25,10 +25,11 @@ test("an unchanged bounded read still hydrates the transcript and its window", a
   const state = { retainedTranscripts: {}, runningSessions: {} };
   const runtime = createSessionRuntime({ get: () => state, set() {} });
   const messages = [{ id: "answer", role: "assistant", content: "saved answer" }];
-  t.mock.method(api, "getSession", async () => ({ session: { id: "session", messages, messageStart: 5, hasMoreBefore: true } }));
+  const messageParents = { answer: "parent" };
+  t.mock.method(api, "getSession", async () => ({ session: { id: "session", messages, messageStart: 5, hasMoreBefore: true, messageParents } }));
   await runtime.loadSessionDetail("session", { messageLimit: 100, contentLimit: 65536 });
   assert.deepEqual(runtime.sessionTranscriptCache.get("session"), messages);
-  assert.deepEqual(runtime.sessionHistoryCache.get("session"), { messageStart: 5, hasMoreBefore: true, contentLimited: true });
+  assert.deepEqual(runtime.sessionHistoryCache.get("session"), { messageStart: 5, hasMoreBefore: true, contentLimited: true, messageParents });
 });
 
 test("live session reads still merge a streamed tail rather than discarding it", async t => {
