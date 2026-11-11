@@ -74,6 +74,17 @@
     "zh-CN": "创建时复制一次到项目的资料目录。",
     "zh-TW": "建立時複製一次到專案的資料目錄。"
   },
+  "templatePickerFolders": {
+    "en": "Folders this template creates",
+    "zh-CN": "模板会建立的资料分类",
+    "zh-TW": "範本會建立的資料分類",
+    "de": "Ordner, die diese Vorlage anlegt",
+    "es": "Carpetas que crea esta plantilla",
+    "fr": "Dossiers créés par ce modèle",
+    "ko": "이 템플릿이 만드는 폴더",
+    "pt-BR": "Pastas que este modelo cria",
+    "tr": "Bu şablonun oluşturduğu klasörler"
+  },
   "resourcesRenameError": {
     "en": "The project was renamed, but its resource folder stayed in place: {{message}}",
     "zh-CN": "项目已改名，但资料目录没有跟着改名：{{message}}",
@@ -723,6 +734,72 @@
     "en": "Close {{title}}",
     "zh-CN": "关闭 {{title}}",
     "zh-TW": "關閉 {{title}}"
+  },
+  "sessionTabCloseCurrent": {
+    "en": "Close tab",
+    "zh-CN": "关闭标签",
+    "zh-TW": "關閉標籤",
+    "de": "Tab schließen",
+    "es": "Cerrar pestaña",
+    "fr": "Fermer l’onglet",
+    "ko": "탭 닫기",
+    "pt-BR": "Fechar aba",
+    "tr": "Sekmeyi kapat"
+  },
+  "sessionTabCloseOthers": {
+    "en": "Close other tabs",
+    "zh-CN": "关闭其他标签",
+    "zh-TW": "關閉其他標籤",
+    "de": "Andere Tabs schließen",
+    "es": "Cerrar las demás pestañas",
+    "fr": "Fermer les autres onglets",
+    "ko": "다른 탭 닫기",
+    "pt-BR": "Fechar outras abas",
+    "tr": "Diğer sekmeleri kapat"
+  },
+  "sessionTabCloseRight": {
+    "en": "Close tabs to the right",
+    "zh-CN": "关闭右侧标签",
+    "zh-TW": "關閉右側標籤",
+    "de": "Tabs rechts schließen",
+    "es": "Cerrar pestañas a la derecha",
+    "fr": "Fermer les onglets à droite",
+    "ko": "오른쪽 탭 닫기",
+    "pt-BR": "Fechar abas à direita",
+    "tr": "Sağdaki sekmeleri kapat"
+  },
+  "sessionTabCloseAll": {
+    "en": "Close all tabs",
+    "zh-CN": "关闭全部标签",
+    "zh-TW": "關閉全部標籤",
+    "de": "Alle Tabs schließen",
+    "es": "Cerrar todas las pestañas",
+    "fr": "Fermer tous les onglets",
+    "ko": "모든 탭 닫기",
+    "pt-BR": "Fechar todas as abas",
+    "tr": "Tüm sekmeleri kapat"
+  },
+  "sessionTabMoveLeft": {
+    "en": "Move tab left",
+    "zh-CN": "向左移动标签",
+    "zh-TW": "向左移動標籤",
+    "de": "Tab nach links verschieben",
+    "es": "Mover pestaña a la izquierda",
+    "fr": "Déplacer l’onglet à gauche",
+    "ko": "탭을 왼쪽으로 이동",
+    "pt-BR": "Mover aba para a esquerda",
+    "tr": "Sekmeyi sola taşı"
+  },
+  "sessionTabMoveRight": {
+    "en": "Move tab right",
+    "zh-CN": "向右移动标签",
+    "zh-TW": "向右移動標籤",
+    "de": "Tab nach rechts verschieben",
+    "es": "Mover pestaña a la derecha",
+    "fr": "Déplacer l’onglet à droite",
+    "ko": "탭을 오른쪽으로 이동",
+    "pt-BR": "Mover aba para a direita",
+    "tr": "Sekmeyi sağa taşı"
   },
   "appRailHome": {
     "en": "Conversations",
@@ -1504,6 +1581,72 @@
     "zh-CN": "系统提示词",
     "zh-TW": "系統提示詞"
   },
+  "promptBuiltinTitle": {
+    "en": "Built-in default",
+    "zh-CN": "内置默认",
+    "zh-TW": "內建預設"
+  },
+  "promptBuiltinReadonly": {
+    "en": "Read only",
+    "zh-CN": "只读",
+    "zh-TW": "唯讀"
+  },
+  "promptBuiltinSummary": {
+    "en": "The original identity and rules shipped with the app.",
+    "zh-CN": "随应用提供的原始身份与运行规则。",
+    "zh-TW": "隨應用提供的原始身分與執行規則。"
+  },
+  "promptBuiltinView": {
+    "en": "View",
+    "zh-CN": "查看",
+    "zh-TW": "檢視"
+  },
+  "promptBuiltinCollapse": {
+    "en": "Collapse",
+    "zh-CN": "收起",
+    "zh-TW": "收合"
+  },
+  "promptBuiltinRetry": {
+    "en": "Retry",
+    "zh-CN": "重试",
+    "zh-TW": "重試"
+  },
+  "promptBuiltinScope": {
+    "en": "These are the built-in base rules, shown in their original language. Delegation and mode rules apply only when relevant. Session-specific tool guidance, shell and paths, skills, project instructions, memory, and custom additions are not included. To see the complete prompt for a conversation, open System prompt in its information panel.",
+    "zh-CN": "以下是内置基础规则原文，保持原语言。协作与模式规则按条件生效；不包含按会话生成的工具说明、命令行与路径、技能、项目指令、记忆和自定义附加内容。查看某个对话的完整提示词，请打开该对话信息栏中的「系统提示」。",
+    "zh-TW": "以下是內建基礎規則原文，保留原語言。協作與模式規則依條件生效；不包含依對話產生的工具說明、命令列與路徑、技能、專案指令、記憶及自訂附加內容。若要查看完整提示詞，請開啟該對話資訊欄中的「系統提示」。"
+  },
+  "promptBuiltinError": {
+    "en": "Could not load the built-in prompt.",
+    "zh-CN": "无法加载内置提示词。",
+    "zh-TW": "無法載入內建提示詞。"
+  },
+  "promptBuiltinSection": {
+    "en": {
+      "persona": "Default identity",
+      "runtime": "General runtime rules",
+      "delegation": "Delegation rules (when enabled)",
+      "agent": "Agent mode",
+      "plan": "Plan mode",
+      "goal": "Goal mode"
+    },
+    "zh-CN": {
+      "persona": "默认身份",
+      "runtime": "通用运行规则",
+      "delegation": "协作规则（启用时）",
+      "agent": "智能体模式",
+      "plan": "计划模式",
+      "goal": "目标模式"
+    },
+    "zh-TW": {
+      "persona": "預設身分",
+      "runtime": "通用執行規則",
+      "delegation": "協作規則（啟用時）",
+      "agent": "代理模式",
+      "plan": "計畫模式",
+      "goal": "目標模式"
+    }
+  },
   "promptTemplates": {
     "en": "Templates",
     "zh-CN": "模板",
@@ -1520,9 +1663,15 @@
     "zh-TW": "新增範本"
   },
   "promptNoTemplates": {
-    "en": "No templates yet.",
-    "zh-CN": "还没有模板。",
-    "zh-TW": "還沒有範本。"
+    "en": "No custom templates yet.",
+    "zh-CN": "还没有自建模板。",
+    "zh-TW": "尚未建立自訂範本。",
+    "de": "Noch keine eigenen Vorlagen.",
+    "es": "Todavía no hay plantillas personalizadas.",
+    "fr": "Aucun modèle personnalisé pour le moment.",
+    "ko": "아직 사용자 지정 템플릿이 없습니다.",
+    "pt-BR": "Ainda não há modelos personalizados.",
+    "tr": "Henüz özel şablon yok."
   },
   "promptUntitled": {
     "en": "Untitled template",
@@ -2990,9 +3139,19 @@
     "zh-TW": "之前選的資料夾已不屬於這個專案"
   },
   "creativeStorageUnavailable": {
-    "en": "The chosen folder is not available (disconnected or no access)",
-    "zh-CN": "之前选的文件夹现在不可用（未连接或无权限）",
-    "zh-TW": "之前選的資料夾現在不可用（未連接或無權限）"
+    "en": "The chosen folder is not available (disconnected or moved)",
+    "zh-CN": "之前选的文件夹现在不可用（未连接或已移动）",
+    "zh-TW": "之前選的資料夾現在不可用（未連接或已移動）"
+  },
+  "creativeStorageDenied": {
+    "en": "The system denies access to this folder",
+    "zh-CN": "系统未授权访问这个文件夹",
+    "zh-TW": "系統未授權存取這個資料夾"
+  },
+  "creativeStorageOpenSettings": {
+    "en": "Open Settings",
+    "zh-CN": "去授权",
+    "zh-TW": "前往授權"
   },
   "creativeStoragePick": {
     "en": "Choose another folder…",
