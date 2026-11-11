@@ -3058,6 +3058,7 @@ sklm: {
     TIMEOUT: "请求 AI 服务超时。",
     STREAM_FAILED: "回复中断了。",
     EMPTY_MODEL_RESPONSE: "模型连续两轮都没有输出内容。可以重试，或换一种说法。",
+    REPEATED_TOOL_CALL_LIMIT: "同一个工具调用连续五次返回相同结果，本轮已停止，避免空转。再说一次即可继续。",
     MUTATION_RETRY_BUDGET_EXHAUSTED:
       "同一处修改连续失败三次，本轮已停止，不再盲目重试。再说一次即可继续。",
     CONTEXT_TOO_LARGE: "上下文恢复后对话仍然过长。请缩短消息内容或新开对话。",

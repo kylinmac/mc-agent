@@ -1,4 +1,5 @@
 import { toolExecutionModeFor } from "./mc-parallel-tools.js";
+import { REPEATED_TOOL_CALL_ERROR_CODE, RepeatedToolCallTracker } from "./mc-repeated-tool-calls.js";
 import { applyToolResultPruning, planToolResultPruning, pruningUsageCredit } from "./mc-tool-result-pruning.js";
 import { taskThinkingParameter, taskThinkingOverride } from "./mc-task-thinking.js";
 import { buildProjectHistoryTool, PROJECT_HISTORY_TOOL_NAME } from "./mc-project-history-tool.js";
@@ -2128,6 +2129,10 @@ export class DesktopAgentRuntime {
   private mutationRecoveryGraces = new Set<string>();
   /** Tool-call ownership keeps concurrent delegates' mutation budgets apart. */
   private mutationOwners = new Map<string, string>();
+  /** mc-agent (#118): one consecutive-repeat counter per agent: "parent" or a delegation id. */
+  private repeatedToolCalls = new Map<string, RepeatedToolCallTracker>();
+  /** Held for agent_end, so a run stopped for looping says why. */
+  private pendingRepeatedCallTermination?: { toolName: string; count: number };
   /** Why the recovery guard ended the turn, pending its visible error row. */
   private pendingMutationTermination?: {
     kind: "edit" | "patch-command";
@@ -2711,18 +2716,73 @@ export class DesktopAgentRuntime {
    * id while the call runs; this is where they reach pi's tool-error channel.
    * Subagents reuse it so a delegate's host failure behaves like the parent's.
    */
-  private resolveOwnToolOutcome({
-    toolCall,
-  }: AfterToolCallContext): SubagentToolOutcome | undefined {
-    const terminate = this.terminatingToolCalls.delete(toolCall.id);
+  private resolveOwnToolOutcome(
+    context: AfterToolCallContext,
+    owner = "parent",
+  ): SubagentToolOutcome | undefined {
+    const { toolCall } = context;
+    const mutationTerminate = this.terminatingToolCalls.delete(toolCall.id);
+    const noted = this.noteRepeatedToolCall(context, owner);
+    // The mutation guard already ends this run and reports why; a second
+    // explanation on the same result would only blur it.
+    const repeated = mutationTerminate ? undefined : noted;
+    if (mutationTerminate && owner === "parent") this.pendingRepeatedCallTermination = undefined;
+    const terminate = mutationTerminate || repeated?.terminate === true;
     const failed = this.failedHostToolCalls.delete(toolCall.id);
-    const error = this.delegateMutationTerminations.get(toolCall.id);
+    const error = this.delegateMutationTerminations.get(toolCall.id) ?? repeated?.error;
     this.delegateMutationTerminations.delete(toolCall.id);
-    if (!failed) return terminate ? { terminate: true } : undefined;
+    const content = repeated?.content ? { content: repeated.content } : {};
+    if (!failed) {
+      return terminate || repeated?.content
+        ? { ...(terminate ? { terminate: true } : {}), ...(error ? { error } : {}), ...content }
+        : undefined;
+    }
     return {
       isError: true,
       ...(terminate ? { terminate: true } : {}),
       ...(error ? { error } : {}),
+      ...content,
+    };
+  }
+
+  /**
+   * mc-agent (#118): count this finished call against the agent that made it.
+   * The third identical call-and-result in a row gets a reminder appended to
+   * its result; the fifth ends that agent's run.
+   */
+  private noteRepeatedToolCall(
+    context: AfterToolCallContext,
+    owner: string,
+  ): Pick<SubagentToolOutcome, "terminate" | "error" | "content"> | undefined {
+    const { toolCall, result } = context;
+    let tracker = this.repeatedToolCalls.get(owner);
+    if (!tracker) {
+      tracker = new RepeatedToolCallTracker();
+      this.repeatedToolCalls.set(owner, tracker);
+    }
+    const blocks = Array.isArray(result?.content) ? result.content : [];
+    const text = blocks
+      .map((block) => (block.type === "text" ? block.text : `[${block.type}]`))
+      .join("\n");
+    const verdict = tracker.note(toolCall.name, context.args, text);
+    if (owner === "parent" && verdict.action !== "stop") {
+      // A stop that did not end the batch (other calls in it were fine) must
+      // not be reported by a later, unrelated agent_end.
+      this.pendingRepeatedCallTermination = undefined;
+    }
+    if (verdict.action === "none") return undefined;
+    const content = [...blocks, { type: "text" as const, text: verdict.notice }];
+    if (verdict.action === "warn") return { content };
+    if (owner === "parent") {
+      this.pendingRepeatedCallTermination = { toolName: toolCall.name, count: verdict.count };
+    }
+    return {
+      content,
+      terminate: true,
+      error: {
+        code: REPEATED_TOOL_CALL_ERROR_CODE,
+        message: `${toolCall.name} was called ${verdict.count} times in a row with identical arguments and an identical result`,
+      },
     };
   }
 
@@ -5342,7 +5402,7 @@ export class DesktopAgentRuntime {
             },
             // A host failure inside a delegate reaches its tool-error channel
             // through the same bookkeeping the parent uses.
-            resolveToolOutcome: (context) => this.resolveOwnToolOutcome(context),
+            resolveToolOutcome: (context) => this.resolveOwnToolOutcome(context, delegationId),
             signal: abortSignal,
             // A resumed run replays its chain before this turn's `task` (ADR 0276).
             ...(initialMessages ? { initialMessages } : {}),
@@ -6870,6 +6930,9 @@ export class DesktopAgentRuntime {
   }
 
   private clearMutationRecovery(owner: string): void {
+    // A delegate's repeat counter ends with it; the session agent's is reset
+    // per prompt instead, so an automatic re-run cannot launder a loop.
+    if (owner !== "parent") this.repeatedToolCalls.delete(owner);
     const prefix = `${owner}\0`;
     for (const key of this.mutationFailureCounts.keys()) {
       if (key.startsWith(prefix)) this.mutationFailureCounts.delete(key);
@@ -9296,6 +9359,7 @@ export class DesktopAgentRuntime {
         this.autonomousExecution = false;
         this.clearAgentActivity();
         this.reportMutationTermination();
+        this.reportRepeatedCallTermination();
         this.emit({
           type: "agent_end",
           messageIds: [],
@@ -9313,6 +9377,22 @@ export class DesktopAgentRuntime {
    * learns the agent stopped on purpose, and the UI keeps its continue
    * affordance (spec 18-line-anchored-edit-contract §9.3).
    */
+  /** mc-agent (#118): the visible, retriable row for a run stopped for looping. */
+  private reportRepeatedCallTermination(): void {
+    const termination = this.pendingRepeatedCallTermination;
+    if (!termination) return;
+    this.pendingRepeatedCallTermination = undefined;
+    const error = {
+      code: REPEATED_TOOL_CALL_ERROR_CODE,
+      message: `${termination.toolName} was called ${termination.count} times in a row with identical arguments and an identical result, so the run stopped instead of looping.`,
+      retriable: true,
+      details: { toolName: termination.toolName, count: termination.count },
+    };
+    this.terminateParentTurn();
+    this.finalizeCurrentAssistant("error", error);
+    this.emit({ type: "error", error });
+  }
+
   private reportMutationTermination(): void {
     const termination = this.pendingMutationTermination;
     if (!termination) return;
@@ -9606,6 +9686,8 @@ export class DesktopAgentRuntime {
       origin.targetSessionId === this.sessionId &&
       Boolean(origin.messageId?.trim() && origin.replyToMessageId?.trim());
     this.turnEpoch += 1;
+    this.repeatedToolCalls.delete("parent");
+    this.pendingRepeatedCallTermination = undefined;
     this.abortDelegationsFromPreviousTurns();
     this.requestStartedAt = Date.now();
     this.setAgentActivity({ phase: "starting", since: Date.now() });

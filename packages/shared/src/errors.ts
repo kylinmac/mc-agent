@@ -152,6 +152,11 @@ export const ErrorCodes = {
    * or patch-command failures (spec 18-line-anchored-edit-contract §9.3). Retriable: the user may continue.
    */
   MUTATION_RETRY_BUDGET_EXHAUSTED: "MUTATION_RETRY_BUDGET_EXHAUSTED",
+  /**
+   * mc-agent (#118): the run stopped after the same tool call returned the same
+   * result five times in a row. Retriable: the user may continue.
+   */
+  REPEATED_TOOL_CALL_LIMIT: "REPEATED_TOOL_CALL_LIMIT",
   PROCESS_RESOURCE_EXHAUSTED: "PROCESS_RESOURCE_EXHAUSTED",
   TOOL_ABORTED: "TOOL_ABORTED",
   EDIT_TAG_REQUIRED: "EDIT_TAG_REQUIRED",

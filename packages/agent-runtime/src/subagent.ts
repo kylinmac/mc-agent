@@ -131,6 +131,8 @@ export type SubagentToolOutcome = {
   isError?: boolean;
   terminate?: boolean;
   error?: { code: string; message: string };
+  /** mc-agent (#118): replacement result content, e.g. with a reminder appended. */
+  content?: NonNullable<AfterToolCallResult["content"]>;
 };
 
 export type SubagentRunOptions = {
@@ -758,11 +760,12 @@ export class SubagentRun {
   ): Promise<AfterToolCallResult | undefined> {
     const parent = this.opts.resolveToolOutcome?.(context);
     const terminate = parent?.terminate === true;
-    if (!parent?.isError && !terminate) return undefined;
+    if (!parent?.isError && !terminate && !parent?.content) return undefined;
     if (terminate && parent?.error) this.mutationTermination = parent.error;
     return {
       ...(parent?.isError ? { isError: true } : {}),
       ...(terminate ? { terminate: true } : {}),
+      ...(parent?.content ? { content: parent.content } : {}),
     };
   }
 
