@@ -9443,10 +9443,18 @@ export class DesktopAgentRuntime {
               reason: stopReasonMeta.reason,
               ...(stopReasonMeta.provider ? { provider: stopReasonMeta.provider } : {}),
               modelId: this.provider.modelId,
+              // mc-agent (R21.3): the wire API and the request side of usage,
+              // so a compaction summary's cache read can be compared with what
+              // ordinary requests on the same API report. A bucket the provider
+              // did not report stays absent: unknown is not zero.
+              api: this.model.api,
               ...(usage
                 ? {
                     outputTokens: usage.outputTokens,
                     ...(usage.reasoningTokens !== undefined ? { reasoningTokens: usage.reasoningTokens } : {}),
+                    inputTokens: usage.inputTokens,
+                    ...(usage.cacheReadTokens !== undefined ? { cacheReadTokens: usage.cacheReadTokens } : {}),
+                    ...(usage.cacheWriteTokens !== undefined ? { cacheWriteTokens: usage.cacheWriteTokens } : {}),
                   }
                 : {}),
               ...(responseDurationMs !== undefined ? { durationMs: responseDurationMs } : {}),

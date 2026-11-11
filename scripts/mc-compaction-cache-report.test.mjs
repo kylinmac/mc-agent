@@ -4,6 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import {
+  parseResponseRecord,
+  renderResponsesMarkdown,
+  summarizeResponses,
   parseSummaryRecord,
   readMeasures,
   renderMarkdown,
@@ -89,4 +92,33 @@ test("reads session logs and their rotations from a log directory, and nothing e
   // Passing the app directory itself works too; a missing directory yields nothing.
   assert.equal(sessionLogFiles(join(dir, "app")).length, 2);
   assert.deepEqual(sessionLogFiles(join(dir, "missing")), []);
+});
+
+function response(data, extra = {}) {
+  return JSON.stringify({ ts: "2026-11-11T00:00:00.000Z", level: "info", channel: "app", category: "session",
+    event: "session.response.end", message: "model response ended", sessionId: "s1", requestId: "q", data, ...extra });
+}
+
+test("ordinary responses: only the request-side numbers are read, and a missing cache figure is unknown", () => {
+  const withCache = parseResponseRecord(response(
+    { api: "openai-codex-responses", reason: "stop", modelId: "m", inputTokens: 500, cacheReadTokens: 4500, outputTokens: 80, text: SECRET },
+    { apiKey: SECRET },
+  ));
+  assert.deepEqual(withCache, { api: "openai-codex-responses", input: 500, cacheReported: true, cacheRead: 4500, cacheWrite: 0 });
+  const withoutCache = parseResponseRecord(response({ api: "openai-codex-responses", inputTokens: 900 }));
+  assert.equal(withoutCache.cacheReported, false);
+  // Records from before the request side was logged carry no input at all.
+  assert.equal(parseResponseRecord(response({ reason: "stop", outputTokens: 3 })), undefined);
+  assert.equal(parseResponseRecord(record("r", { api: "x", input: 1 })), undefined);
+
+  const rows = summarizeResponses([withCache, withoutCache,
+    parseResponseRecord(response({ api: "other-api", inputTokens: 10 }))]);
+  assert.deepEqual(rows[0], { api: "openai-codex-responses", responses: 2, responsesWithCacheFigure: 1,
+    inputTokens: 500, cacheReadTokens: 4500, cacheWriteTokens: 0, cacheReadShare: 0.9 });
+  // No response on this API reported a cache figure: unknown, not 0%.
+  assert.equal(rows[1].cacheReadShare, null);
+  const table = renderResponsesMarkdown(rows);
+  assert.match(table, /\| openai-codex-responses \|.*\| 90\.0% \|/);
+  assert.match(table, /\| other-api \|.*\| unknown \|/);
+  assert.equal(table.includes(SECRET), false);
 });

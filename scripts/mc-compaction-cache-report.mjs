@@ -13,6 +13,11 @@
  * `usageReported`. Nothing else from a record is read into the report, so no
  * conversation text, path or key can appear in its output.
  *
+ * It also reads `session.response.end` records, with the same care, to report
+ * the cache-read share of ordinary requests per API. Without that comparison a
+ * 0% share for summaries cannot be told apart from an API that never reports
+ * cache reads at all.
+ *
  * Usage:
  *   node scripts/mc-compaction-cache-report.mjs <log-dir> [--json]
  *
@@ -25,6 +30,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const SUMMARY_EVENT = "session.compaction.summary";
+/** Ordinary model responses: the comparison the summary's cache read needs. */
+export const RESPONSE_EVENT = "session.response.end";
 const NUMERIC_FIELDS = ["durationMs", "input", "output", "cacheRead", "cacheWrite", "attempt"];
 
 function finite(value) {
@@ -51,6 +58,67 @@ export function parseSummaryRecord(line) {
   };
   for (const field of NUMERIC_FIELDS) measure[field] = finite(data[field]);
   return measure;
+}
+
+/**
+ * One log line → the request side of an ordinary response, or undefined.
+ *
+ * `cacheReported` is true only when the record carries a cache-read figure.
+ * Records written before the field existed, and providers that report no cache
+ * bucket, both lack it, and both mean "unknown" here rather than zero.
+ */
+export function parseResponseRecord(line) {
+  const text = line.trim();
+  if (!text || !text.includes(RESPONSE_EVENT)) return undefined;
+  let record;
+  try {
+    record = JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+  if (!record || typeof record !== "object" || record.event !== RESPONSE_EVENT) return undefined;
+  const data = record.data && typeof record.data === "object" ? record.data : {};
+  if (typeof data.inputTokens !== "number") return undefined;
+  return {
+    api: typeof data.api === "string" && data.api ? data.api : "unknown",
+    input: finite(data.inputTokens),
+    cacheReported: typeof data.cacheReadTokens === "number",
+    cacheRead: finite(data.cacheReadTokens),
+    cacheWrite: finite(data.cacheWriteTokens),
+  };
+}
+
+/** Per wire API: how much of ordinary requests' input was served from cache. */
+export function summarizeResponses(responses) {
+  const byApi = new Map();
+  for (const response of responses) {
+    let group = byApi.get(response.api);
+    if (!group) {
+      group = { api: response.api, responses: 0, withCache: 0, input: 0, cacheRead: 0, cacheWrite: 0 };
+      byApi.set(response.api, group);
+    }
+    group.responses += 1;
+    if (!response.cacheReported) continue;
+    group.withCache += 1;
+    group.input += response.input;
+    group.cacheRead += response.cacheRead;
+    group.cacheWrite += response.cacheWrite;
+  }
+  return [...byApi.values()]
+    .map((group) => {
+      const requestInput = group.input + group.cacheRead + group.cacheWrite;
+      return {
+        api: group.api,
+        responses: group.responses,
+        responsesWithCacheFigure: group.withCache,
+        inputTokens: group.input,
+        cacheReadTokens: group.cacheRead,
+        cacheWriteTokens: group.cacheWrite,
+        // null until at least one response reported a cache figure.
+        cacheReadShare: group.withCache > 0 && requestInput > 0 ? group.cacheRead / requestInput : null,
+      };
+    })
+    .sort((a, b) => b.responses - a.responses || a.api.localeCompare(b.api));
 }
 
 function percentile(sorted, p) {
@@ -117,15 +185,23 @@ export function sessionLogFiles(dir) {
     .map((name) => join(appDir, name));
 }
 
-export function readMeasures(files) {
-  const measures = [];
+function readWith(files, parse) {
+  const rows = [];
   for (const file of files) {
     for (const line of readFileSync(file, "utf8").split("\n")) {
-      const measure = parseSummaryRecord(line);
-      if (measure) measures.push(measure);
+      const row = parse(line);
+      if (row) rows.push(row);
     }
   }
-  return measures;
+  return rows;
+}
+
+export function readMeasures(files) {
+  return readWith(files, parseSummaryRecord);
+}
+
+export function readResponses(files) {
+  return readWith(files, parseResponseRecord);
 }
 
 const number = (value) => value.toLocaleString("en-US");
@@ -148,6 +224,22 @@ export function renderMarkdown(rows) {
   return lines.join("\n");
 }
 
+export function renderResponsesMarkdown(rows) {
+  if (rows.length === 0) return "No ordinary responses with request-side usage found.";
+  const lines = [
+    "| API | Responses | With cache figure | Input | Cache read | Cache write | Cache read share |",
+    "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+  ];
+  for (const row of rows) {
+    lines.push(`| ${[
+      row.api, number(row.responses), number(row.responsesWithCacheFigure),
+      number(row.inputTokens), number(row.cacheReadTokens), number(row.cacheWriteTokens),
+      row.cacheReadShare === null ? "unknown" : `${(row.cacheReadShare * 100).toFixed(1)}%`,
+    ].join(" | ")} |`);
+  }
+  return lines.join("\n");
+}
+
 function main(argv) {
   const json = argv.includes("--json");
   const dir = argv.find((arg) => !arg.startsWith("--"));
@@ -161,7 +253,13 @@ function main(argv) {
     return 1;
   }
   const rows = summarize(readMeasures(files));
-  console.log(json ? JSON.stringify(rows, null, 2) : renderMarkdown(rows));
+  const responses = summarizeResponses(readResponses(files));
+  if (json) {
+    console.log(JSON.stringify({ summaries: rows, responses }, null, 2));
+    return 0;
+  }
+  console.log(["Compaction summary requests", "", renderMarkdown(rows), "",
+    "Ordinary responses (for comparison)", "", renderResponsesMarkdown(responses)].join("\n"));
   return 0;
 }
 
