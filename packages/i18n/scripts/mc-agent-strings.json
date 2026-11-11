@@ -730,6 +730,16 @@
     "zh-CN": "全部已打开的标签（{{count}}）",
     "zh-TW": "全部已開啟的分頁（{{count}}）"
   },
+  "sessionTabsUngrouped": {
+    "en": "Ungrouped",
+    "zh-CN": "未分组",
+    "zh-TW": "未分組"
+  },
+  "sessionTabsProject": {
+    "en": "{{title}} ({{count}} conversations)",
+    "zh-CN": "{{title}}（{{count}} 个对话）",
+    "zh-TW": "{{title}}（{{count}} 個對話）"
+  },
   "sessionTabClose": {
     "en": "Close {{title}}",
     "zh-CN": "关闭 {{title}}",

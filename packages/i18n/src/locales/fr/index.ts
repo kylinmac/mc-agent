@@ -3131,6 +3131,8 @@ sklm: {
     appRailLabel: "App",
     sessionTabsLabel: "Open conversations",
     sessionTabsAll: "All open tabs ({{count}})",
+    sessionTabsUngrouped: "Ungrouped",
+    sessionTabsProject: "{{title}} ({{count}} conversations)",
     sessionTabClose: "Close {{title}}",
     sessionTabCloseCurrent: "Fermer l’onglet",
     sessionTabCloseOthers: "Fermer les autres onglets",

@@ -4,6 +4,11 @@ import { create } from "zustand";
 import { useAppStore } from "../../stores/app-store";
 import { IconChevronDown, IconClose, IconPalette, IconPlus } from "../../components/icons";
 import { NotificationCenter } from "../../components/NotificationCenter";
+import { Button } from "../../components/ui";
+import { useProjectFolderIndex } from "../project-sidebar/useProjectFolderIndex";
+import { groupProjectTabs } from "./tab-groups";
+import { TabListMenu } from "./TabListMenu";
+import { useBlockingOverlay } from "../../lib/blocking-overlay";
 import type { SessionSummary } from "@pi-desktop/shared";
 import { SessionRenameDialog } from "../../components/SessionRenameDialog";
 import { sessionPinned } from "../../lib/sidebar-session-groups";
@@ -23,7 +28,6 @@ import {
   tabDropTarget,
   tabPage,
   type PageTab,
-  tabOverflowMenuItems,
   tabStripOverflows,
 } from "./tab-list";
 
@@ -87,6 +91,10 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
   const setTabs = useTabStore((s) => s.setTabs);
   const activeKey = activeTabKey(page, activeSessionId);
   const stripRef = useRef<HTMLDivElement | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const menuAnchorRef = useRef<HTMLButtonElement | null>(null);
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [grouped, setGrouped] = useState(false);
   const drag = useRef<{ pointerId: number; key: string; startX: number; armed: boolean } | null>(null);
   const suppressClick = useRef(false);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -94,6 +102,7 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
   const splitColumns = useSplitView((s) => s.columns);
   const splitHint = useSplitView((s) => s.dropHint);
   const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
+  useBlockingOverlay(contextMenu !== null);
   const [overflowing, setOverflowing] = useState(false);
   /*
     The conversation to put on the left when the one on screen opens to the
@@ -160,6 +169,16 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
   };
 
   const byId = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
+  const openProjectPaths = useAppStore((s) => s.openProjectPaths);
+  const { index: folders } = useProjectFolderIndex(`${openProjectPaths.join("\n")}|${sessions.length}`);
+  const groups = useMemo(() => groupProjectTabs(tabs, byId, folders, t("mcProject.sessionTabsUngrouped")),
+    [tabs, byId, folders, t]);
+  const entries = grouped ? groups : tabs.map((key) => ({ kind: "tab" as const, key }));
+  const menuGroup = groups.find((entry) => entry.kind === "project" && entry.id === menuId);
+  const menuKeys = menuId === "all" ? tabs : menuGroup?.kind === "project" ? menuGroup.keys : [];
+
+  useEffect(() => { setMenuId(null); }, [grouped]);
+  useEffect(() => { if (menuKeys.length === 0) setMenuId(null); }, [menuKeys.length]);
 
   // What is on screen always has a tab.
   useEffect(() => {
@@ -184,28 +203,33 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
     const key = activeKeyRef.current;
     if (!key) return;
     const tab = [...(stripRef.current?.querySelectorAll<HTMLElement>("[data-tab-key]") ?? [])]
-      .find((element) => element.dataset.tabKey === key);
+      .find((element) => element.dataset.tabKey === key)
+      ?? stripRef.current?.querySelector<HTMLElement>('[data-active-group="true"]');
     tab?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
   };
 
-  // The strip scrolls with its scrollbar hidden; when it holds more tabs than
-  // fit, a menu button lists them all (ui-review 2026-10-25, item 1). A window
-  // made narrower must not leave the active tab scrolled out of sight either.
+  // Measure the ungrouped minimum, not the grouped content, to avoid oscillating.
   useEffect(() => {
     const strip = stripRef.current;
-    if (!strip) return;
+    const viewport = viewportRef.current;
+    if (!strip || !viewport) return;
     const measure = () => {
+      const style = getComputedStyle(strip);
+      const minimum = Number.parseFloat(style.getPropertyValue("--mc-tab-min-width"));
+      const gap = Number.parseFloat(style.columnGap);
+      setGrouped(tabStripOverflows(tabs.length * minimum + Math.max(0, tabs.length - 1) * gap, viewport.clientWidth));
       setOverflowing(tabStripOverflows(strip.scrollWidth, strip.clientWidth));
       revealActiveTab();
     };
     measure();
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(measure);
+    observer.observe(viewport);
     observer.observe(strip);
     return () => observer.disconnect();
-  }, [tabs]);
+  }, [tabs, grouped, groups]);
 
-  useEffect(revealActiveTab, [activeKey, tabs]);
+  useEffect(revealActiveTab, [activeKey, tabs, grouped, groups]);
 
   const pageTitle: Record<PageTab, string> = {
     creative: t("mcProject.creativeTitle"),
@@ -256,146 +280,176 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
     return neighbour ? moveTab(current, key, neighbour, direction > 0) : current;
   });
 
+  const openList = (event: MouseEvent<HTMLButtonElement>, id: string) => {
+    menuAnchorRef.current = event.currentTarget;
+    setMenuId((current) => current === id ? null : id);
+  };
+
+  const openTabMenu = (event: MouseEvent<HTMLElement>, key: string) => {
+    const title = titleOf(key);
+    const target = tabPage(key);
+    const session = byId.get(key);
+    const index = tabs.indexOf(key);
+    openContextMenu(event, {
+      label: title,
+      items: [
+        ...(session && session.source !== "pi-native" ? [{
+          id: "rename-session", label: t("nav.renameTask"), onSelect: () => setRenameFor(session),
+        }] : []),
+        ...(session ? [{
+          id: "toggle-session-pin",
+          label: t(sessionPinned(session, sessionMeta[key] ?? {}) ? "nav.unpinTask" : "nav.pinTask"),
+          onSelect: () => toggleSessionPinned(key),
+        }] : []),
+        ...(!target ? [{
+          id: "open-right",
+          label: t("mcProject.splitOpenRight"),
+          separatorBefore: Boolean(session),
+          disabled: !canOpenRight(key),
+          onSelect: () => openRight(key),
+        }] : []),
+        ...(splitColumns.includes(key)
+          ? [{ id: "close-column", label: t("mcProject.splitCloseColumn"), onSelect: () => closeSplitColumn(key) }]
+          : []),
+        { id: "move-left", label: t("mcProject.sessionTabMoveLeft"), disabled: index === 0, onSelect: () => move(key, -1) },
+        { id: "move-right", label: t("mcProject.sessionTabMoveRight"), disabled: index === tabs.length - 1, onSelect: () => move(key, 1) },
+        {
+          id: "close-tab",
+          label: t("mcProject.sessionTabCloseCurrent"),
+          separatorBefore: true,
+          onSelect: () => close(key),
+        },
+        { id: "close-others", label: t("mcProject.sessionTabCloseOthers"), disabled: tabs.length < 2, onSelect: () => closeGroup(key, "others") },
+        { id: "close-right", label: t("mcProject.sessionTabCloseRight"), disabled: index === tabs.length - 1, onSelect: () => closeGroup(key, "right") },
+        { id: "close-all", label: t("mcProject.sessionTabCloseAll"), onSelect: () => closeGroup(key, "all") },
+      ],
+    });
+  };
+
   return (
     <div className="mc-titlebar-tabs">
-      <div ref={stripRef} className="mc-session-tabs" role="tablist" aria-label={t("mcProject.sessionTabsLabel")}>
-        {tabs.map((key) => {
-          const active = key === activeKey;
-          const title = titleOf(key);
-          const target = tabPage(key);
-          return (
-            <div
-              key={key}
-              role="tab"
-              tabIndex={0}
-              aria-selected={active}
-              aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight"
-              data-tab-key={key}
-              className={[
-                "mc-session-tab",
-                active && "active",
-                splitColumns.includes(key) && "in-split",
-                dragging === key && "is-dragging",
-                drop?.key === key && (drop.after ? "is-drop-after" : "is-drop-before"),
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              title={title}
-              onPointerDown={(event) => onTabPointerDown(event, key)}
-              onPointerMove={onTabPointerMove}
-              onPointerUp={onTabPointerUp}
-              onPointerCancel={onTabPointerUp}
-              onClick={() => {
-                if (suppressClick.current) {
-                  suppressClick.current = false;
-                  return;
-                }
-                if (!active) show(key);
-              }}
-              onAuxClick={(event) => {
-                if (event.button === 1) close(key, event);
-              }}
-              onContextMenu={(event) => {
-                const session = byId.get(key);
-                const index = tabs.indexOf(key);
-                openContextMenu(event, {
-                  label: title,
-                  items: [
-                    ...(session && session.source !== "pi-native" ? [{
-                      id: "rename-session", label: t("nav.renameTask"), onSelect: () => setRenameFor(session),
-                    }] : []),
-                    ...(session ? [{
-                      id: "toggle-session-pin",
-                      label: t(sessionPinned(session, sessionMeta[key] ?? {}) ? "nav.unpinTask" : "nav.pinTask"),
-                      onSelect: () => toggleSessionPinned(key),
-                    }] : []),
-                    ...(!target ? [{
-                      id: "open-right",
-                      label: t("mcProject.splitOpenRight"),
-                      separatorBefore: Boolean(session),
-                      disabled: !canOpenRight(key),
-                      onSelect: () => openRight(key),
-                    }] : []),
-                    ...(splitColumns.includes(key)
-                      ? [{ id: "close-column", label: t("mcProject.splitCloseColumn"), onSelect: () => closeSplitColumn(key) }]
-                      : []),
-                    { id: "move-left", label: t("mcProject.sessionTabMoveLeft"), disabled: index === 0, onSelect: () => move(key, -1) },
-                    { id: "move-right", label: t("mcProject.sessionTabMoveRight"), disabled: index === tabs.length - 1, onSelect: () => move(key, 1) },
-                    {
-                      id: "close-tab",
-                      label: t("mcProject.sessionTabCloseCurrent"),
-                      separatorBefore: true,
-                      onSelect: () => close(key),
-                    },
-                    { id: "close-others", label: t("mcProject.sessionTabCloseOthers"), disabled: tabs.length < 2, onSelect: () => closeGroup(key, "others") },
-                    { id: "close-right", label: t("mcProject.sessionTabCloseRight"), disabled: index === tabs.length - 1, onSelect: () => closeGroup(key, "right") },
-                    { id: "close-all", label: t("mcProject.sessionTabCloseAll"), onSelect: () => closeGroup(key, "all") },
-                  ],
-                });
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
+      <div ref={viewportRef} className="mc-session-tabs-viewport">
+        <div ref={stripRef} className="mc-session-tabs" role={grouped ? "toolbar" : "tablist"} aria-label={t("mcProject.sessionTabsLabel")}>
+          {entries.map((entry) => {
+            if (entry.kind === "project") {
+              const active = activeKey !== null && entry.keys.includes(activeKey);
+              return <Button key={entry.id} variant="ghost"
+                className={`mc-session-tab mc-project-tab${active ? " active" : ""}`}
+                data-project-tab={entry.id} data-active-group={active}
+                aria-haspopup="dialog" aria-expanded={menuId === entry.id}
+                aria-label={t("mcProject.sessionTabsProject", { title: entry.title, count: entry.keys.length })}
+                title={entry.title} onClick={(event) => openList(event, entry.id)}>
+                <span className={`mc-session-tab-dot${entry.keys.some((key) => runningSessions[key]) ? " running" : ""}`} aria-hidden />
+                <span className="mc-session-tab-title">{entry.title}</span>
+                <span className="mc-project-tab-count">{entry.keys.length}</span>
+                <IconChevronDown size={12} aria-hidden />
+              </Button>;
+            }
+            const key = entry.key;
+            const active = key === activeKey;
+            const title = titleOf(key);
+            const target = tabPage(key);
+            return (
+              <div
+                key={key}
+                role="tab"
+                tabIndex={0}
+                aria-selected={active}
+                aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight"
+                data-tab-key={key}
+                className={[
+                  "mc-session-tab",
+                  active && "active",
+                  splitColumns.includes(key) && "in-split",
+                  dragging === key && "is-dragging",
+                  drop?.key === key && (drop.after ? "is-drop-after" : "is-drop-before"),
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                title={title}
+                onPointerDown={(event) => onTabPointerDown(event, key)}
+                onPointerMove={onTabPointerMove}
+                onPointerUp={onTabPointerUp}
+                onPointerCancel={onTabPointerUp}
+                onClick={() => {
+                  if (suppressClick.current) {
+                    suppressClick.current = false;
+                    return;
+                  }
                   if (!active) show(key);
-                  return;
-                }
-                if (event.altKey && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
-                  event.preventDefault();
-                  const index = tabs.indexOf(key);
-                  const neighbour = tabs[index + (event.key === "ArrowLeft" ? -1 : 1)];
-                  if (neighbour) setTabs((current) => moveTab(current, key, neighbour, event.key === "ArrowRight"));
-                }
-              }}
-            >
-              {target ? (
-                <span className="mc-session-tab-icon">{PAGE_ICONS[target]}</span>
-              ) : (
-                <span className={`mc-session-tab-dot${runningSessions[key] ? " running" : ""}`} aria-hidden />
-              )}
-              <span className="mc-session-tab-title">{title}</span>
-              <button
-                type="button"
-                className="mc-session-tab-close"
-                aria-label={t("mcProject.sessionTabClose", { title })}
-                onClick={(event) => close(key, event)}
+                }}
+                onAuxClick={(event) => {
+                  if (event.button === 1) close(key, event);
+                }}
+                onContextMenu={(event) => openTabMenu(event, key)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    if (!active) show(key);
+                    return;
+                  }
+                  if (event.altKey && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+                    event.preventDefault();
+                    const index = tabs.indexOf(key);
+                    const neighbour = tabs[index + (event.key === "ArrowLeft" ? -1 : 1)];
+                    if (neighbour) setTabs((current) => moveTab(current, key, neighbour, event.key === "ArrowRight"));
+                  }
+                }}
               >
-                <IconClose size={11} aria-hidden />
-              </button>
-            </div>
-          );
-        })}
-        <button
-          type="button"
-          className="mc-session-tab-new"
-          aria-label={t("nav.newTask")}
-          title={t("nav.newTask")}
-          onClick={onNewTask}
-        >
-          <IconPlus size={13} aria-hidden />
-        </button>
-      </div>
-      {overflowing ? (
-        <button
-          type="button"
-          className="mc-session-tab-new mc-session-tab-overflow"
-          aria-haspopup="menu"
-          aria-label={t("mcProject.sessionTabsAll", { count: tabs.length })}
-          title={t("mcProject.sessionTabsAll", { count: tabs.length })}
-          onClick={(event) => openContextMenu(event, {
-            label: t("mcProject.sessionTabsAll", { count: tabs.length }),
-            anchor: "bottom-end",
-            items: tabOverflowMenuItems(tabs, activeKey, titleOf).map(({ id, key, label, checked }) => ({
-              id, label, checked, onSelect: () => show(key),
-            })),
+                {target ? (
+                  <span className="mc-session-tab-icon">{PAGE_ICONS[target]}</span>
+                ) : (
+                  <span className={`mc-session-tab-dot${runningSessions[key] ? " running" : ""}`} aria-hidden />
+                )}
+                <span className="mc-session-tab-title">{title}</span>
+                <button
+                  type="button"
+                  className="mc-session-tab-close"
+                  aria-label={t("mcProject.sessionTabClose", { title })}
+                  onClick={(event) => close(key, event)}
+                >
+                  <IconClose size={11} aria-hidden />
+                </button>
+              </div>
+            );
           })}
-        >
-          <IconChevronDown size={13} aria-hidden />
-        </button>
-      ) : null}
+        </div>
+      </div>
+      <button
+        type="button"
+        className="mc-session-tab-new"
+        aria-label={t("nav.newTask")}
+        title={t("nav.newTask")}
+        onClick={onNewTask}
+      >
+        <IconPlus size={13} aria-hidden />
+      </button>
+      <div className="mc-tab-overflow-slot">
+        {grouped || overflowing ? (
+          <button
+            type="button"
+            className="mc-session-tab-new mc-session-tab-overflow"
+            aria-haspopup="dialog"
+            aria-expanded={menuId === "all"}
+            aria-label={t("mcProject.sessionTabsAll", { count: tabs.length })}
+            title={t("mcProject.sessionTabsAll", { count: tabs.length })}
+            onClick={(event) => openList(event, "all")}
+          >
+            <IconChevronDown size={13} aria-hidden />
+          </button>
+        ) : null}
+      </div>
       <div className="mc-titlebar-end">
         {(typeof window === "undefined" || window.piDesktop?.platform !== "win32") && <NotificationCenter />}
       </div>
       <ContextMenu state={contextMenu} onClose={closeContextMenu} />
+      <TabListMenu open={menuId !== null && menuKeys.length > 0} anchorRef={menuAnchorRef}
+        label={menuGroup?.kind === "project" ? menuGroup.title : t("mcProject.sessionTabsAll", { count: tabs.length })}
+        keys={menuKeys} activeKey={activeKey} titleOf={titleOf} onClose={() => setMenuId(null)}
+        onSelect={show} onCloseTab={close} onContextMenu={(event, key) => {
+          setMenuId(null);
+          openTabMenu(event, key);
+        }} />
       {renameFor ? <SessionRenameDialog
         session={renameFor}
         onClose={() => setRenameFor(null)}

@@ -3158,6 +3158,8 @@ sklm: {
     appRailLabel: "應用",
     sessionTabsLabel: "已開啟的對話",
     sessionTabsAll: "全部已開啟的分頁（{{count}}）",
+    sessionTabsUngrouped: "未分組",
+    sessionTabsProject: "{{title}}（{{count}} 個對話）",
     sessionTabClose: "關閉 {{title}}",
     sessionTabCloseCurrent: "關閉標籤",
     sessionTabCloseOthers: "關閉其他標籤",

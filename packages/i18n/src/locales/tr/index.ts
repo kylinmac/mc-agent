@@ -3167,6 +3167,8 @@ importConfirm: "İçe aktarılan uzantılar ajan sürecinde, ajanın kendi araç
     appRailLabel: "App",
     sessionTabsLabel: "Open conversations",
     sessionTabsAll: "All open tabs ({{count}})",
+    sessionTabsUngrouped: "Ungrouped",
+    sessionTabsProject: "{{title}} ({{count}} conversations)",
     sessionTabClose: "Close {{title}}",
     sessionTabCloseCurrent: "Sekmeyi kapat",
     sessionTabCloseOthers: "Diğer sekmeleri kapat",

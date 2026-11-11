@@ -16,6 +16,7 @@ import {
 } from "./session-collaboration-view";
 import type { SessionHoverCardData } from "./useSessionHoverCard";
 import { useHoverCardSelection } from "./useHoverCardSelection";
+import { useBlockingOverlay } from "../../lib/blocking-overlay";
 
 export function SessionHoverCard({
   card,
@@ -36,6 +37,7 @@ export function SessionHoverCard({
   scheduleHide: () => void;
   registerDismissGuard: (guard: () => boolean) => () => void;
 }) {
+  useBlockingOverlay();
   const { t, i18n } = useTranslation();
   const elementRef = useRef<HTMLDivElement>(null);
   useHoverCardSelection(elementRef, keepVisible, scheduleHide, registerDismissGuard);

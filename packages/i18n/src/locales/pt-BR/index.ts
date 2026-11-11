@@ -3102,6 +3102,8 @@ export const ptBR = {
     appRailLabel: "App",
     sessionTabsLabel: "Open conversations",
     sessionTabsAll: "All open tabs ({{count}})",
+    sessionTabsUngrouped: "Ungrouped",
+    sessionTabsProject: "{{title}} ({{count}} conversations)",
     sessionTabClose: "Close {{title}}",
     sessionTabCloseCurrent: "Fechar aba",
     sessionTabCloseOthers: "Fechar outras abas",

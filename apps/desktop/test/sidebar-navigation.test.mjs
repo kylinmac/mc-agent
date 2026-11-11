@@ -22,6 +22,9 @@ const railSource = await readFile(
   "utf8",
 );
 const appSource = await readAppSource();
+test("session hover cards suppress native plugin surfaces while mounted", () => {
+  assert.match(hoverSource, /useBlockingOverlay\(\)/);
+});
 const panelSource = await readFile(
   new URL("../src/components/workpanel/WorkPanel.tsx", import.meta.url),
   "utf8",

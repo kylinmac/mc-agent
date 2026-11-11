@@ -3299,6 +3299,8 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     appRailLabel: "App",
     sessionTabsLabel: "Open conversations",
     sessionTabsAll: "All open tabs ({{count}})",
+    sessionTabsUngrouped: "Ungrouped",
+    sessionTabsProject: "{{title}} ({{count}} conversations)",
     sessionTabClose: "Close {{title}}",
     sessionTabCloseCurrent: "Close tab",
     sessionTabCloseOthers: "Close other tabs",

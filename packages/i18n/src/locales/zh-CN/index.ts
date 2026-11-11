@@ -3230,6 +3230,8 @@ sklm: {
     appRailLabel: "应用",
     sessionTabsLabel: "已打开的对话",
     sessionTabsAll: "全部已打开的标签（{{count}}）",
+    sessionTabsUngrouped: "未分组",
+    sessionTabsProject: "{{title}}（{{count}} 个对话）",
     sessionTabClose: "关闭 {{title}}",
     sessionTabCloseCurrent: "关闭标签",
     sessionTabCloseOthers: "关闭其他标签",

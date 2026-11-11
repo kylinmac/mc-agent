@@ -3174,6 +3174,8 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
     appRailLabel: "App",
     sessionTabsLabel: "Open conversations",
     sessionTabsAll: "All open tabs ({{count}})",
+    sessionTabsUngrouped: "Ungrouped",
+    sessionTabsProject: "{{title}} ({{count}} conversations)",
     sessionTabClose: "Close {{title}}",
     sessionTabCloseCurrent: "탭 닫기",
     sessionTabCloseOthers: "다른 탭 닫기",
