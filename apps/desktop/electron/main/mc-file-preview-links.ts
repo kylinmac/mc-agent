@@ -100,31 +100,11 @@ export const FILE_PREVIEW_LINKS_SCRIPT = String.raw`(() => {
     return true;
   };
 
-  // The view ignores a repeat of the path it was last handed, so a second
-  // click on the same link after browsing away sends the other spelling of it
-  // (relative to the primary root vs absolute).
-  let lastSent = null;
-  let primaryRoot;
-  const rootPath = async () => {
-    if (primaryRoot !== undefined) return primaryRoot;
-    try {
-      const ws = await window.pluginBridge.invoke("workspace.get", {});
-      const roots = Array.isArray(ws && ws.roots) ? ws.roots : [];
-      const primary = roots.find((r) => r && r.primary) || roots[0] || ws;
-      primaryRoot = primary && typeof primary.path === "string" ? primary.path.replace(/[\\/]+$/, "") : null;
-    } catch { primaryRoot = null; }
-    return primaryRoot;
-  };
+  // A second click on the same link is sent as is: the host forces a repeat
+  // through and respells it for a view that ignores repeats.
   const openFile = async (path) => {
-    let location = path;
-    if (location === lastSent) {
-      const root = await rootPath();
-      if (root && !isAbsolute(location)) location = root + "/" + location;
-      else if (root && location.startsWith(root + "/")) location = location.slice(root.length + 1);
-    }
-    lastSent = location;
     try {
-      await window.pluginBridge.invoke("ui.revealView", { viewId: "manager", location });
+      await window.pluginBridge.invoke("ui.revealView", { viewId: "manager", location: path });
     } catch {
       const zh = String(navigator.language || "").toLowerCase().startsWith("zh");
       window.pluginBridge

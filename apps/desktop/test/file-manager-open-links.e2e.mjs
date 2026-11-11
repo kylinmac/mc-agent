@@ -208,8 +208,8 @@ test(
       // File links open in the file manager, relative to the open file's folder.
       assert.deepEqual(r.relative, reveal("docs/other.md"));
       assert.equal(r.relativeTitle, "./other.md");
-      // The view ignores a repeated path, so the second click spells it absolutely.
-      assert.deepEqual(r.relativeAgain, reveal("/fixture/project/docs/other.md"));
+      // A repeat goes out unchanged; the host forces and respells it.
+      assert.deepEqual(r.relativeAgain, reveal("docs/other.md"));
       assert.deepEqual(r.parent, reveal("uninstall one.sql"));
       assert.deepEqual(r.absolute, reveal("/elsewhere/notes.txt"));
       assert.deepEqual(r.fileurl, reveal("/elsewhere/a b.md"));
