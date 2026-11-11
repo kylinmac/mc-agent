@@ -119,6 +119,9 @@ export function collectMessageFileOperations(
   fileOps: FileOperations,
 ): void {
   if (message.role !== "assistant" || !Array.isArray(message.content)) return;
+  // Failed, aborted and deferred calls were never executed. Keep their paths
+  // out of the checkpoint's read/modified files just as context replay does.
+  if (["error", "aborted", "deferred"].includes(message.stopReason)) return;
   for (const block of message.content) {
     if (!block || block.type !== "toolCall") continue;
     const args = block.arguments;

@@ -9,6 +9,20 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.72",
+    date: "2026-11-11",
+    fixes: [
+      "Fixed earlier messages reappearing at the bottom of long conversations after a turn, with incorrect revision controls.",
+      "Revision switches now preserve each branch's compacted summaries, preventing context from expanding unexpectedly on return to a long branch. Summaries already lost in older versions require compaction again.",
+      "Fixed slow history reads overwriting newer messages and forked conversations remaining stuck in a loading state.",
+      "Fixed sent queue items reappearing and failed stop requests incorrectly showing a task as stopped.",
+      "Failed or interrupted model responses no longer contribute unexecuted file operations or failed reasoning to later summaries.",
+      "Improved insufficient-balance and server-error detection; output-limit errors now retry with the provider's reported limit.",
+      "Custom model image support, context limits and output limits now apply to main conversation requests.",
+      "Browser storage cleanup now skips ordinary files in the partition directory instead of failing the entire operation.",
+    ],
+  },
+  {
     version: "1.0.71",
     date: "2026-11-11",
     fixes: [

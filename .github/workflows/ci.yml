@@ -262,6 +262,9 @@ jobs:
       - name: Run transcript rendering and disclosure E2E
         run: xvfb-run --auto-servernum sh -c 'node scripts/e2e-transcript-render.mjs && node scripts/e2e-transcript-disclosure-anchor.mjs && node --test apps/desktop/test/subagent-roster-user-path.test.mjs'
 
+      - name: Run session revision and refresh race regressions
+        run: xvfb-run --auto-servernum sh -c 'node scripts/e2e-regenerate-root.mjs && node scripts/e2e-session-window-cache-race.mjs && node scripts/e2e-queue-refresh-event-order.mjs'
+
       - name: Run trusted extensions E2E
         env:
           DEBUG_E2E: "1"
