@@ -177,12 +177,27 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
     });
   }, [sessions, activeSessionId, setTabs]);
 
+  // What is on screen should also be on screen in the strip.
+  const activeKeyRef = useRef(activeKey);
+  activeKeyRef.current = activeKey;
+  const revealActiveTab = () => {
+    const key = activeKeyRef.current;
+    if (!key) return;
+    const tab = [...(stripRef.current?.querySelectorAll<HTMLElement>("[data-tab-key]") ?? [])]
+      .find((element) => element.dataset.tabKey === key);
+    tab?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  };
+
   // The strip scrolls with its scrollbar hidden; when it holds more tabs than
-  // fit, a menu button lists them all (ui-review 2026-10-25, item 1).
+  // fit, a menu button lists them all (ui-review 2026-10-25, item 1). A window
+  // made narrower must not leave the active tab scrolled out of sight either.
   useEffect(() => {
     const strip = stripRef.current;
     if (!strip) return;
-    const measure = () => setOverflowing(tabStripOverflows(strip.scrollWidth, strip.clientWidth));
+    const measure = () => {
+      setOverflowing(tabStripOverflows(strip.scrollWidth, strip.clientWidth));
+      revealActiveTab();
+    };
     measure();
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(measure);
@@ -190,13 +205,7 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
     return () => observer.disconnect();
   }, [tabs]);
 
-  // What is on screen should also be on screen in the strip.
-  useEffect(() => {
-    if (!activeKey) return;
-    const tab = [...(stripRef.current?.querySelectorAll<HTMLElement>("[data-tab-key]") ?? [])]
-      .find((element) => element.dataset.tabKey === activeKey);
-    tab?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
-  }, [activeKey, tabs]);
+  useEffect(revealActiveTab, [activeKey, tabs]);
 
   const pageTitle: Record<PageTab, string> = {
     creative: t("mcProject.creativeTitle"),
