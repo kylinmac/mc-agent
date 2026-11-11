@@ -797,7 +797,9 @@ describe("classifyAgentError", () => {
       '{"error":{"code":"1308","message":"Usage limit reached"}}',
     );
     expect(zhipu.details?.providerStatus).toBeUndefined();
-    expect(zhipu).toMatchObject({ code: "PROVIDER_ERROR", retriable: false });
+    // The Fork has not adopted Pi 1.5's separate Zhipu business-code matcher.
+    // This HTTP-prefix backport must preserve its existing classification.
+    expect(zhipu).toMatchObject({ code: "PROVIDER_ERROR", retriable: true });
   });
 
   it("keeps a structured status ahead of an OpenAI Error code prefix", () => {
