@@ -127,3 +127,21 @@ export function saveTabs(tabs: readonly string[]): void {
     // Tabs are a convenience; without storage they last for this window only.
   }
 }
+
+/**
+ * Whether the tab strip holds more than it can show. The strip scrolls with a
+ * hidden scrollbar, so without this the only sign of more tabs is a clipped
+ * one at the edge. A one-pixel tolerance absorbs fractional layout widths.
+ */
+export function tabStripOverflows(scrollWidth: number, clientWidth: number): boolean {
+  return scrollWidth - clientWidth > 1;
+}
+
+/** Rows of the "all open tabs" menu: every tab in strip order, the active one checked. */
+export function tabOverflowMenuItems(
+  tabs: readonly string[],
+  activeKey: string | null,
+  titleOf: (key: string) => string,
+): Array<{ id: string; key: string; label: string; checked: boolean }> {
+  return tabs.map((key) => ({ id: `tab:${key}`, key, label: titleOf(key), checked: key === activeKey }));
+}

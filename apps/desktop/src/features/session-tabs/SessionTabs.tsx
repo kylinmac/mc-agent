@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEven
 import { useTranslation } from "react-i18next";
 import { create } from "zustand";
 import { useAppStore } from "../../stores/app-store";
-import { IconClose, IconPalette, IconPlus } from "../../components/icons";
+import { IconChevronDown, IconClose, IconPalette, IconPlus } from "../../components/icons";
 import { NotificationCenter } from "../../components/NotificationCenter";
 import type { SessionSummary } from "@pi-desktop/shared";
 import { SessionRenameDialog } from "../../components/SessionRenameDialog";
@@ -23,6 +23,8 @@ import {
   tabDropTarget,
   tabPage,
   type PageTab,
+  tabOverflowMenuItems,
+  tabStripOverflows,
 } from "./tab-list";
 
 /* One tab list for every title bar (chat and route pages share it). */
@@ -92,6 +94,7 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
   const splitColumns = useSplitView((s) => s.columns);
   const splitHint = useSplitView((s) => s.dropHint);
   const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
+  const [overflowing, setOverflowing] = useState(false);
   /*
     The conversation to put on the left when the one on screen opens to the
     right: the last other conversation visited, else the nearest tab.
@@ -173,6 +176,36 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
       return pruned.length === current.length ? current : pruned;
     });
   }, [sessions, activeSessionId, setTabs]);
+
+  // What is on screen should also be on screen in the strip.
+  const activeKeyRef = useRef(activeKey);
+  activeKeyRef.current = activeKey;
+  const revealActiveTab = () => {
+    const key = activeKeyRef.current;
+    if (!key) return;
+    const tab = [...(stripRef.current?.querySelectorAll<HTMLElement>("[data-tab-key]") ?? [])]
+      .find((element) => element.dataset.tabKey === key);
+    tab?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  };
+
+  // The strip scrolls with its scrollbar hidden; when it holds more tabs than
+  // fit, a menu button lists them all (ui-review 2026-10-25, item 1). A window
+  // made narrower must not leave the active tab scrolled out of sight either.
+  useEffect(() => {
+    const strip = stripRef.current;
+    if (!strip) return;
+    const measure = () => {
+      setOverflowing(tabStripOverflows(strip.scrollWidth, strip.clientWidth));
+      revealActiveTab();
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(strip);
+    return () => observer.disconnect();
+  }, [tabs]);
+
+  useEffect(revealActiveTab, [activeKey, tabs]);
 
   const pageTitle: Record<PageTab, string> = {
     creative: t("mcProject.creativeTitle"),
@@ -341,6 +374,24 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
           <IconPlus size={13} aria-hidden />
         </button>
       </div>
+      {overflowing ? (
+        <button
+          type="button"
+          className="mc-session-tab-new mc-session-tab-overflow"
+          aria-haspopup="menu"
+          aria-label={t("mcProject.sessionTabsAll", { count: tabs.length })}
+          title={t("mcProject.sessionTabsAll", { count: tabs.length })}
+          onClick={(event) => openContextMenu(event, {
+            label: t("mcProject.sessionTabsAll", { count: tabs.length }),
+            anchor: "bottom-end",
+            items: tabOverflowMenuItems(tabs, activeKey, titleOf).map(({ id, key, label, checked }) => ({
+              id, label, checked, onSelect: () => show(key),
+            })),
+          })}
+        >
+          <IconChevronDown size={13} aria-hidden />
+        </button>
+      ) : null}
       <div className="mc-titlebar-end">
         {(typeof window === "undefined" || window.piDesktop?.platform !== "win32") && <NotificationCenter />}
       </div>

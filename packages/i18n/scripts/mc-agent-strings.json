@@ -714,6 +714,11 @@
     "zh-CN": "已打开的对话",
     "zh-TW": "已開啟的對話"
   },
+  "sessionTabsAll": {
+    "en": "All open tabs ({{count}})",
+    "zh-CN": "全部已打开的标签（{{count}}）",
+    "zh-TW": "全部已開啟的分頁（{{count}}）"
+  },
   "sessionTabClose": {
     "en": "Close {{title}}",
     "zh-CN": "关闭 {{title}}",

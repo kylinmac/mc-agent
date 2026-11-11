@@ -28,16 +28,24 @@ import { useAppStore } from "../../stores/app-store";
  * `detail` is the exception in kind, not in styling: a row that shows a live
  * value (the pinned default model) keeps it visible, because that is data the
  * user came to read, not prose explaining a switch.
+ *
+ * mc-agent: `caution` is the second exception. A setting that spends API usage
+ * or relaxes a safeguard says so under its title instead of behind the help
+ * icon, because that is what the user must know before flipping it. Pass
+ * either `description` or `caution` for the same text, not both.
  */
 export function SettingsRow({
   title,
   description,
+  caution,
   detail,
   children,
 }: {
   title: string;
   /** Explanatory copy, revealed on demand from the help icon. */
   description?: string;
+  /** Cost or risk of the setting; always visible under the title. */
+  caution?: string;
   /** Live row metadata that stays visible (not an explanation). */
   detail?: ReactNode;
   children: ReactNode;
@@ -49,6 +57,7 @@ export function SettingsRow({
           {title}
           {description ? <HelpIcon label={description} /> : null}
         </div>
+        {caution ? <div className="settings-row-caution">{caution}</div> : null}
         {detail ? <div className="settings-row-detail">{detail}</div> : null}
       </div>
       <div className="settings-row-control">{children}</div>

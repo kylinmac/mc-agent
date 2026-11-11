@@ -176,3 +176,9 @@
   flex-basis: 24px;
   margin-left: 4px;
 }
+
+/* Lists every open tab once the strip holds more than it can show. It sits
+   outside the scrolling strip so it stays reachable at any scroll position. */
+.mc-session-tab-overflow {
+  margin-left: 0;
+}

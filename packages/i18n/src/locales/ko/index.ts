@@ -3173,6 +3173,7 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
     foldersMissing: "This project's folders no longer exist, so no resource folder is created. Remove the project or point it at existing folders.",
     appRailLabel: "App",
     sessionTabsLabel: "Open conversations",
+    sessionTabsAll: "All open tabs ({{count}})",
     sessionTabClose: "Close {{title}}",
     sessionTabCloseCurrent: "탭 닫기",
     sessionTabCloseOthers: "다른 탭 닫기",
