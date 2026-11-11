@@ -401,3 +401,7 @@ P8；V88：来源 [kylinmac/mc-agent#118](https://github.com/kylinmac/mc-agent/i
 | 结束方式 | 沿用“同一处修改连续失败”的呈现：一条可继续的错误提示（`REPEATED_TOOL_CALL_LIMIT`，九种语言）。子代理被结束时错误返回给发起它的 Task |
 | 与修改失败保护的关系 | 同一次调用已被修改失败保护结束时，不再附加本提醒 |
 | 批次 | 一批里只有部分调用到达上限时本轮不会立刻结束（需整批都要求结束）；下一次仍重复会再次触发 |
+
+## X-COMPACT-04 后台预生成压缩摘要（2026-11-10 待评审）
+
+来源 [kylinmac/mc-agent#121](https://github.com/kylinmac/mc-agent/issues/121)。用量到 80% 时在后台提前生成摘要，到 90% 时直接安装，把等待移出关键路径。方案、失效条件、费用风险和三个待确认点见 [MC-ADR-0028](adr/mc-0028-background-compaction.md)。评审通过前不实现。
