@@ -468,6 +468,8 @@ pub async fn serve(state: Arc<Mutex<AppState>>) -> Result<()> {
                 request_tasks.spawn(async move {
                     let _permit = permit;
                     let budget = request_budget_ms(&method, &params);
+                    let tool_call = tool_call_of(&method, &params);
+                    let budget_state = state.clone();
                     // Deferred checkpoint writes are committed after the
                     // handler releases the state lock and before the response
                     // leaves. Transcript appends are synced inside their write
@@ -479,6 +481,12 @@ pub async fn serve(state: Arc<Mutex<AppState>>) -> Result<()> {
                         ),
                     )
                     .await;
+                    // A budget cut drops the handler while it may still be
+                    // waiting on the approval card; the card would stay listed
+                    // as pending (and come back on the next restore) for a call
+                    // that has already failed.
+                    withdraw_approval_after_budget(&budget_state, tool_call.as_ref(), &handled)
+                        .await;
                     let out = response_for(id, handled, committed);
                     if let Ok(raw) = serde_json::to_string(&out) {
                         let _ = tx.send(format!("{raw}\n"));
@@ -599,6 +607,50 @@ fn request_budget_ms(method: &str, params: &Value) -> Option<u64> {
             .saturating_add(RPC_PERMISSION_WAIT_CAP_MS)
             .saturating_add(RPC_TOOL_BUDGET_GRACE_MS)
     })
+}
+
+/// The session and tool call of a `tools.execute` request, whose approval card
+/// has to be withdrawn if the request's budget runs out.
+fn tool_call_of(method: &str, params: &Value) -> Option<(String, String)> {
+    if !matches!(method, "tools.execute" | "tools.workspaceExecute") {
+        return None;
+    }
+    let field = |camel: &str, snake: &str| {
+        params
+            .get(camel)
+            .or_else(|| params.get(snake))
+            .and_then(Value::as_str)
+            .map(str::to_string)
+    };
+    Some((
+        field("sessionId", "session_id")?,
+        field("toolCallId", "tool_call_id")?,
+    ))
+}
+
+/// Withdraw the approval card of a tool call whose request ran out of budget.
+async fn withdraw_approval_after_budget(
+    state: &Arc<Mutex<AppState>>,
+    tool_call: Option<&(String, String)>,
+    handled: &Result<Value, JsonRpcError>,
+) -> bool {
+    let (Some((session_id, tool_call_id)), Err(error)) = (tool_call, handled) else {
+        return false;
+    };
+    if !is_budget_timeout(error) {
+        return false;
+    }
+    let mut st = state.lock().await;
+    st.cancel_pending_permission(session_id, tool_call_id)
+}
+
+fn is_budget_timeout(error: &JsonRpcError) -> bool {
+    error
+        .data
+        .as_ref()
+        .and_then(|data| data.get("errorCode"))
+        .and_then(Value::as_str)
+        == Some("HOST_RPC_TIMEOUT")
 }
 
 /// Wrap one request's handler future in its wall-clock budget (issue #1071).
@@ -5892,7 +5944,8 @@ mod tests {
         capability_err, handle_request, parse_capability_query, parse_capability_target,
         peek_jsonrpc_id, provider_rpc_err, request_budget_ms, resolve_plan_workspace,
         resolve_tool_workspace, resolve_tool_workspace_for_call, response_for, rpc_err, scope_err,
-        skill_err, with_request_budget, JsonRpcError, RPC_REQUEST_BUDGET_MS,
+        skill_err, tool_call_of, with_request_budget, withdraw_approval_after_budget, JsonRpcError,
+        RPC_REQUEST_BUDGET_MS,
     };
     use crate::agent_capabilities::CapabilityLevel;
     use crate::plans::{PlanResolveParams, PlanSubmitParams};
@@ -6034,6 +6087,47 @@ mod tests {
         .await
         .expect("fast future must pass through untouched");
         assert_eq!(result, json!({"ok": true}));
+    }
+
+    #[tokio::test]
+    async fn budget_timeout_withdraws_the_pending_approval_card() {
+        let data_dir = tempfile::tempdir().unwrap();
+        let state = Arc::new(Mutex::new(AppState::open(data_dir.path()).unwrap()));
+        let rx = {
+            let mut st = state.lock().await;
+            let (req, rx) = st.permissions.create_request_with_risk_and_shell(
+                crate::permissions::PermissionRequestParams {
+                    session_id: "s1",
+                    tool_call_id: "call-1",
+                    tool_name: "Bash",
+                    args_preview: json!({ "command": "git push origin main" }),
+                    reason: "Auto mode still asks: pushes to the main branch",
+                    declared_risk: None,
+                    command_shell_id: None,
+                },
+            );
+            st.register_pending_permission(&req.request_id, "s1", "call-1");
+            rx
+        };
+        let params = json!({ "sessionId": "s1", "toolCallId": "call-1", "toolName": "Bash" });
+        let tool_call = tool_call_of("tools.execute", &params);
+        let handled = with_request_budget(Some(10), async {
+            tokio::time::sleep(Duration::from_secs(5)).await;
+            Ok::<_, JsonRpcError>(json!(null))
+        })
+        .await;
+        // Another failure leaves the card alone; a budget cut withdraws it.
+        let other: Result<Value, JsonRpcError> = Err(rpc_err(-32000, "boom", "TOOL_FAILED"));
+        assert!(!withdraw_approval_after_budget(&state, tool_call.as_ref(), &other).await);
+        assert!(withdraw_approval_after_budget(&state, tool_call.as_ref(), &handled).await);
+        assert!(state
+            .lock()
+            .await
+            .permissions
+            .pending_requests(None)
+            .is_empty());
+        drop(rx);
+        assert_eq!(tool_call_of("session.get", &params), None);
     }
 
     #[tokio::test]

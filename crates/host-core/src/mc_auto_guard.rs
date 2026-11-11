@@ -20,6 +20,8 @@ struct Rule {
     pattern: Regex,
     reason: &'static str,
     command_only: bool,
+    /// A second look at a command the pattern matched; `false` clears it.
+    confirm: Option<fn(&str) -> bool>,
 }
 
 /// One shell segment: no `;`, `&`, `|` or newline inside, so a match never
@@ -33,6 +35,7 @@ fn rules() -> &'static [Rule] {
             pattern: Regex::new(&pattern).expect("auto guard pattern"),
             reason,
             command_only: false,
+            confirm: None,
         };
         let command_rule = |pattern: String, reason| Rule {
             command_only: true,
@@ -44,10 +47,13 @@ fn rules() -> &'static [Rule] {
                 git(&format!(r"\bpush\b{SEG}(\s-[a-zA-Z]*f\b|--force|--mirror|--delete\b|\s-d\b|\s:\S)")),
                 "Auto mode still asks: force-pushes or deletes a remote branch",
             ),
-            rule(
-                git(&format!(r"\bpush\b{SEG}\b(main|master)\b")),
-                "Auto mode still asks: pushes to the main branch",
-            ),
+            Rule {
+                confirm: Some(push_targets_main_branch),
+                ..rule(
+                    git(&format!(r"\bpush\b{SEG}\b(main|master)\b")),
+                    "Auto mode still asks: pushes to the main branch",
+                )
+            },
             rule(
                 git(&format!(r"\b(reset\b{SEG}--hard|clean\b{SEG}\s-[a-zA-Z]*f|branch\b{SEG}\s-D\b|checkout\b{SEG}\s--\s+\.|restore\b{SEG}\s\.(\s|$))")),
                 "Auto mode still asks: discards local changes or branches",
@@ -208,6 +214,99 @@ fn needs_conservative_scan(command: &str) -> bool {
     quote.is_some() || escaped
 }
 
+fn main_branch_word() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"\b(main|master)\b").expect("main branch pattern"))
+}
+
+/// The branch a direct `git push` writes to is main or master. Only the
+/// destination of each refspec counts: `main` in a push option such as
+/// `-o merge_request.target=master`, in a branch like `fix/main-menu`, or as
+/// the source of `main:feat/x` is not a push to the main branch.
+///
+/// Anything this cannot read as a plain `git push` (substitutions, a shell or
+/// wrapper running git, unbalanced quotes) keeps the pattern's answer.
+fn push_targets_main_branch(command: &str) -> bool {
+    if needs_conservative_scan(command) {
+        return true;
+    }
+    for words in shell_pipelines(command).into_iter().flatten() {
+        if !words.iter().any(|word| main_branch_word().is_match(word)) {
+            continue;
+        }
+        match git_push_refspecs(&words) {
+            Some(refspecs) => {
+                if refspecs.iter().any(|spec| is_main_branch_destination(spec)) {
+                    return true;
+                }
+            }
+            None => {
+                // Not a direct git push: a wrapper (`env`, `bash -c`) or another
+                // tool. Keep the pattern's answer for its text.
+                static PUSH_MAIN: OnceLock<Regex> = OnceLock::new();
+                let pattern = PUSH_MAIN.get_or_init(|| {
+                    Regex::new(&format!(r"\bgit\b{SEG}\bpush\b{SEG}\b(main|master)\b"))
+                        .expect("push main pattern")
+                });
+                if pattern.is_match(&words.join(" ")) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// The refspecs of `git [global options] push [options] [remote] [refspec...]`,
+/// or `None` when the words are not a direct git push.
+fn git_push_refspecs(words: &[String]) -> Option<Vec<&str>> {
+    let name = words.first()?.rsplit('/').next()?;
+    if name != "git" {
+        return None;
+    }
+    let mut rest = words[1..].iter().map(String::as_str);
+    // Global options before the subcommand; these take their value as the next word.
+    loop {
+        match rest.next()? {
+            "-C" | "-c" | "--git-dir" | "--work-tree" | "--namespace" | "--config-env" => {
+                rest.next()?;
+            }
+            "push" => break,
+            word if word.starts_with('-') => {}
+            _ => return None,
+        }
+    }
+    let mut positional = Vec::new();
+    let mut options_done = false;
+    while let Some(word) = rest.next() {
+        if !options_done && word == "--" {
+            options_done = true;
+        } else if !options_done
+            && matches!(
+                word,
+                "-o" | "--push-option" | "--repo" | "--receive-pack" | "--exec"
+            )
+        {
+            rest.next();
+        } else if !options_done && word.starts_with('-') {
+            // `--push-option=…`, `-oValue`, flags.
+        } else {
+            positional.push(word);
+        }
+    }
+    // The first positional is the remote.
+    Some(positional.into_iter().skip(1).collect())
+}
+
+fn is_main_branch_destination(refspec: &str) -> bool {
+    let destination = refspec.rsplit(':').next().unwrap_or(refspec);
+    let destination = destination.trim_start_matches('+');
+    let destination = destination
+        .strip_prefix("refs/heads/")
+        .unwrap_or(destination);
+    matches!(destination, "main" | "master")
+}
+
 /// Why this call needs a card even in Auto mode, or `None` when Auto may run it.
 pub fn auto_mode_reason(tool_name: &str, args: &Value) -> Option<&'static str> {
     // Main requires termId for every terminal mutation. An interactive shell may
@@ -226,11 +325,12 @@ pub fn auto_mode_reason(tool_name: &str, args: &Value) -> Option<&'static str> {
     rules()
         .iter()
         .find(|rule| {
-            if rule.command_only {
+            let matched = if rule.command_only {
                 command_rule_matches(rule, command)
             } else {
                 rule.pattern.is_match(command)
-            }
+            };
+            matched && rule.confirm.is_none_or(|confirm| confirm(command))
         })
         .map(|rule| rule.reason)
 }
@@ -251,6 +351,12 @@ mod tests {
             "git push -f",
             "git push origin main",
             "git -C repo push origin HEAD:master",
+            "git push origin +main",
+            "git push origin feat/x:refs/heads/main",
+            "git push -o ci.skip origin main",
+            "git push origin feat/x main",
+            "env GIT_TRACE=1 git push origin main",
+            "bash -c 'git push origin main'",
             "git push origin --delete old-branch",
             "git push origin :old-branch",
             "git reset --hard HEAD~3",
@@ -281,6 +387,11 @@ mod tests {
             "git status",
             "git push -u origin feat/background-wake",
             "git push origin feat/maintenance-fix",
+            "git push origin fix/main-menu",
+            "git push origin main:feat/from-main",
+            "git -C hjy-tl/hjy-tl-meta push -u origin docs/add-agent-guidelines -o merge_request.create -o merge_request.target=master -o 'merge_request.title=docs: x' -o 'merge_request.description=target master, not main'",
+            "git push --push-option=merge_request.target=main origin feat/x",
+            "git commit -m 'merge main' && git push origin feat/x",
             "git commit -m 'force push docs'",
             "git log --oneline main..HEAD",
             "git checkout -b feat/x",

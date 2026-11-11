@@ -9,6 +9,14 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.71",
+    date: "2026-11-11",
+    fixes: [
+      "In Auto mode, pushing an ordinary branch no longer asks for approval as a push to the main branch; before, a push option such as merge_request.target=master, a branch name containing main, or main/master in a message triggered it.",
+      "When a call times out while its approval card is still waiting, the card is withdrawn instead of staying up and coming back when you return to the conversation.",
+    ],
+  },
+  {
     version: "1.0.70",
     date: "2026-11-11",
     features: [
