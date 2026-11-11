@@ -1,4 +1,5 @@
 import { toolExecutionModeFor } from "./mc-parallel-tools.js";
+import { RunRecoveryState } from "./mc-run-recovery.js";
 import { REPEATED_TOOL_CALL_ERROR_CODE, RepeatedToolCallTracker } from "./mc-repeated-tool-calls.js";
 import { applyToolResultPruning, planToolResultPruning, pruningUsageCredit } from "./mc-tool-result-pruning.js";
 import { taskThinkingParameter, taskThinkingOverride } from "./mc-task-thinking.js";
@@ -2077,7 +2078,6 @@ export class DesktopAgentRuntime {
    */
   private readonly providerTransportHealth: ProviderTransportHealth =
     createProviderTransportHealth();
-  private pendingProviderRetry?: ReturnType<typeof classifyAgentError>;
   /** Non-429 setup + stream failures since the last successful response. */
   private providerTransientRetryAttempt = 0;
   /** Shared OpenCode-style 429 retry count across setup and stream phases. */
@@ -2086,29 +2086,19 @@ export class DesktopAgentRuntime {
   private infiniteProviderRetry = false;
   private jevApiKey?: string;
   private activeProviderRetryAttempt = 0;
-  private providerRetryInProgress = false;
-  private suppressProviderRetryRunEnd = false;
   private providerRetryAbort?: AbortController;
   /* Silent-turn recovery: a turn that ends with no tool call and no visible
    * text is invisible to the user. 15 of 255 recorded sessions ended a turn
    * that way, and every one of them was followed by the user typing "继续".
    * One automatic re-run per prompt, then the failure becomes visible. */
-  private pendingSilentTurnRerun = false;
-  private silentTurnRerunAttempted = false;
   /**
    * The first settled reply to a current Host-ledger completion notice may
    * need no acknowledgement (D446). Spent by that reply, and revoked as soon
    * as accepted user steering enters the model context.
    */
   private allowSilentCompletion = false;
-  private silentTurnRerunInProgress = false;
-  private suppressSilentTurnRunEnd = false;
   /** Autonomous plan/goal execution: one progress-only continue (#43). */
   private autonomousExecution = false;
-  private pendingProgressTurnRerun = false;
-  private progressTurnRerunAttempted = false;
-  private progressTurnRerunInProgress = false;
-  private suppressProgressTurnRunEnd = false;
   private activeToolCalls = new Map<
     string,
     { toolName: string; args: unknown; startedAt: number }
@@ -2155,10 +2145,43 @@ export class DesktopAgentRuntime {
   private steeringContinuation = false;
   private steeringWaitAbort?: AbortController;
   private pendingSteering = new Map<AgentMessage, { id: string; toolNames: string[] }>();
-  private pendingOverflow = false;
-  private overflowRecoveryAttempted = false;
-  private overflowRecoveryInProgress = false;
-  private suppressOverflowRunEnd = false;
+  /**
+   * mc-agent (#120): overflow, provider-retry, silent-turn and progress-turn
+   * recovery share one state object, so "does anything suppress the end
+   * events", "is anything pending" and "reset" cannot drift apart per kind.
+   * The accessors below keep the field names this file has always used.
+   */
+  private readonly recovery = new RunRecoveryState<ReturnType<typeof classifyAgentError>>();
+  private get pendingOverflow(): boolean { return this.recovery.overflow.pending; }
+  private set pendingOverflow(value: boolean) { this.recovery.overflow.pending = value; }
+  private get overflowRecoveryAttempted(): boolean { return this.recovery.overflow.attempted; }
+  private set overflowRecoveryAttempted(value: boolean) { this.recovery.overflow.attempted = value; }
+  private get overflowRecoveryInProgress(): boolean { return this.recovery.overflow.inProgress; }
+  private set overflowRecoveryInProgress(value: boolean) { this.recovery.overflow.inProgress = value; }
+  private get suppressOverflowRunEnd(): boolean { return this.recovery.overflow.suppressRunEnd; }
+  private set suppressOverflowRunEnd(value: boolean) { this.recovery.overflow.suppressRunEnd = value; }
+  private get pendingProviderRetry(): ReturnType<typeof classifyAgentError> | undefined { return this.recovery.providerRetry.pending; }
+  private set pendingProviderRetry(value: ReturnType<typeof classifyAgentError> | undefined) { this.recovery.providerRetry.pending = value; }
+  private get providerRetryInProgress(): boolean { return this.recovery.providerRetry.inProgress; }
+  private set providerRetryInProgress(value: boolean) { this.recovery.providerRetry.inProgress = value; }
+  private get suppressProviderRetryRunEnd(): boolean { return this.recovery.providerRetry.suppressRunEnd; }
+  private set suppressProviderRetryRunEnd(value: boolean) { this.recovery.providerRetry.suppressRunEnd = value; }
+  private get pendingSilentTurnRerun(): boolean { return this.recovery.silentTurn.pending; }
+  private set pendingSilentTurnRerun(value: boolean) { this.recovery.silentTurn.pending = value; }
+  private get silentTurnRerunAttempted(): boolean { return this.recovery.silentTurn.attempted; }
+  private set silentTurnRerunAttempted(value: boolean) { this.recovery.silentTurn.attempted = value; }
+  private get silentTurnRerunInProgress(): boolean { return this.recovery.silentTurn.inProgress; }
+  private set silentTurnRerunInProgress(value: boolean) { this.recovery.silentTurn.inProgress = value; }
+  private get suppressSilentTurnRunEnd(): boolean { return this.recovery.silentTurn.suppressRunEnd; }
+  private set suppressSilentTurnRunEnd(value: boolean) { this.recovery.silentTurn.suppressRunEnd = value; }
+  private get pendingProgressTurnRerun(): boolean { return this.recovery.progressTurn.pending; }
+  private set pendingProgressTurnRerun(value: boolean) { this.recovery.progressTurn.pending = value; }
+  private get progressTurnRerunAttempted(): boolean { return this.recovery.progressTurn.attempted; }
+  private set progressTurnRerunAttempted(value: boolean) { this.recovery.progressTurn.attempted = value; }
+  private get progressTurnRerunInProgress(): boolean { return this.recovery.progressTurn.inProgress; }
+  private set progressTurnRerunInProgress(value: boolean) { this.recovery.progressTurn.inProgress = value; }
+  private get suppressProgressTurnRunEnd(): boolean { return this.recovery.progressTurn.suppressRunEnd; }
+  private set suppressProgressTurnRunEnd(value: boolean) { this.recovery.progressTurn.suppressRunEnd = value; }
   private turnHadError = false;
   /** Bumped at the start of each parent `prompt()` / `executeApprovedPlan()`. */
   private turnEpoch = 0;
@@ -6952,28 +6975,15 @@ export class DesktopAgentRuntime {
    * following turn ends invisibly even though nothing went wrong in it.
    */
   private resetRunRecoveryState(): void {
-    this.pendingOverflow = false;
-    this.overflowRecoveryAttempted = false;
-    this.overflowRecoveryInProgress = false;
-    this.suppressOverflowRunEnd = false;
-    this.pendingProviderRetry = undefined;
+    // Every recovery phase at once; see `RunRecoveryState.reset`.
+    this.recovery.reset();
     this.providerTransientRetryAttempt = 0;
     this.providerRateLimitRetryAttempt = 0;
     this.providerRetryHeaders = undefined;
     this.providerFetchFailure = undefined;
     this.providerTransportHealth.reset();
     this.activeProviderRetryAttempt = 0;
-    this.providerRetryInProgress = false;
-    this.suppressProviderRetryRunEnd = false;
-    this.pendingSilentTurnRerun = false;
-    this.silentTurnRerunAttempted = false;
     this.allowSilentCompletion = false;
-    this.silentTurnRerunInProgress = false;
-    this.suppressSilentTurnRunEnd = false;
-    this.pendingProgressTurnRerun = false;
-    this.progressTurnRerunAttempted = false;
-    this.progressTurnRerunInProgress = false;
-    this.suppressProgressTurnRunEnd = false;
     this.providerRetryAbort?.abort();
     this.providerRetryAbort = undefined;
     this.clearMutationRecovery("parent");
@@ -7125,12 +7135,7 @@ export class DesktopAgentRuntime {
    * caller must stop; the error event is already emitted.
    */
   private async runPendingRecoveries(): Promise<boolean> {
-    while (
-      this.pendingProviderRetry ||
-      this.pendingOverflow ||
-      this.pendingSilentTurnRerun ||
-      this.pendingProgressTurnRerun
-    ) {
+    while (this.recovery.hasPending()) {
       if (this.pendingProviderRetry) {
         await this.retryPendingProviderFailure();
         continue;
@@ -8781,25 +8786,11 @@ export class DesktopAgentRuntime {
     switch (event.type) {
       case "agent_start":
         if (this.steeringContinuation) break;
-        if (
-          this.providerRetryInProgress ||
-          this.overflowRecoveryInProgress ||
-          this.silentTurnRerunInProgress ||
-          this.progressTurnRerunInProgress
-        ) {
-          break;
-        }
+        if (this.recovery.isRecovering()) break;
         this.emit({ type: "agent_start" });
         break;
       case "turn_start":
-        if (
-          this.providerRetryInProgress ||
-          this.overflowRecoveryInProgress ||
-          this.silentTurnRerunInProgress ||
-          this.progressTurnRerunInProgress
-        ) {
-          break;
-        }
+        if (this.recovery.isRecovering()) break;
         this.emit({ type: "turn_start" });
         break;
       case "message_start": {
@@ -8808,10 +8799,7 @@ export class DesktopAgentRuntime {
           this.streamStartedAt = Date.now();
           const content = assistantContent((event.message as any).content);
           const retryingAssistant =
-            this.providerRetryInProgress ||
-            this.overflowRecoveryInProgress ||
-            this.silentTurnRerunInProgress ||
-            this.progressTurnRerunInProgress
+            this.recovery.isRecovering()
               ? this.currentAssistant
               : undefined;
           const requestWaitMs =
@@ -9356,10 +9344,7 @@ export class DesktopAgentRuntime {
         break;
       case "turn_end":
         if (
-          this.suppressOverflowRunEnd ||
-          this.suppressProviderRetryRunEnd ||
-          this.suppressSilentTurnRunEnd ||
-          this.suppressProgressTurnRunEnd ||
+          this.recovery.suppressesRunEnd() ||
           this.keepTurnOpenForDelegates()
         )
           break;
@@ -9375,10 +9360,7 @@ export class DesktopAgentRuntime {
         // Continue after the current run settles; never wake the follow-up FIFO.
         if (this.pendingSteering.size && this.acceptingSteering && !this.runCancelled && !this.turnHadError) break;
         if (
-          this.suppressOverflowRunEnd ||
-          this.suppressProviderRetryRunEnd ||
-          this.suppressSilentTurnRunEnd ||
-          this.suppressProgressTurnRunEnd ||
+          this.recovery.suppressesRunEnd() ||
           this.keepTurnOpenForDelegates()
         )
           break;
@@ -9937,8 +9919,7 @@ export class DesktopAgentRuntime {
     }
     // Recovery owns the next request when the previous response failed. Its
     // continuation will consume steering after repairing the context/backoff.
-    if (this.suppressOverflowRunEnd || this.suppressProviderRetryRunEnd ||
-        this.suppressSilentTurnRunEnd || this.suppressProgressTurnRunEnd) return;
+    if (this.recovery.suppressesRunEnd()) return;
     while (this.pendingSteering.size && this.acceptingSteering && !this.runCancelled && !this.turnHadError) {
       this.steeringContinuation = true;
       try {
@@ -9947,12 +9928,7 @@ export class DesktopAgentRuntime {
         // The steering continuation may itself finish with a recoverable
         // provider/silent/overflow/progress failure. Let runPendingRecoveries
         // repair that assistant tail before another steering continuation.
-        if (
-          this.suppressOverflowRunEnd ||
-          this.suppressProviderRetryRunEnd ||
-          this.suppressSilentTurnRunEnd ||
-          this.suppressProgressTurnRunEnd
-        ) return;
+        if (this.recovery.suppressesRunEnd()) return;
       } finally {
         this.steeringContinuation = false;
       }
