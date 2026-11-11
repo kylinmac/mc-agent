@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { loadStyles } from "./helpers/styles.mjs";
 import { MAX_TABS, closeTab, closeTabGroup, moveTab, openTab, pruneTabs, tabDropTarget } from "../src/features/session-tabs/tab-list.ts";
+
+test("only the visible tab strip excludes native window dragging", async () => {
+  const css = await loadStyles();
+  assert.match(css.match(/\.mc-session-tabs\s*\{[^}]*\}/)?.[0] ?? "", /app-region:\s*no-drag;/);
+  for (const rule of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (!/app-region:\s*no-drag/.test(rule[2])) continue;
+    assert.doesNotMatch(rule[1], /\.mc-session-tab\s*(?:,|$)|\.mc-titlebar-tabs button/,
+      "scrolled tabs and their close buttons must not carve out offscreen caption rectangles");
+  }
+});
 
 test("batch close follows the clicked tab and keeps a surviving focus", () => {
   const tabs = ["a", "page:creative", "b", "c"];
@@ -93,17 +104,4 @@ test("the strip reports overflow only past a one-pixel tolerance", async () => {
   assert.equal(tabStripOverflows(801, 800), false);
   assert.equal(tabStripOverflows(802, 800), true);
   assert.equal(tabStripOverflows(0, 0), false);
-});
-
-test("the all-tabs menu lists every tab in strip order and checks the one on screen", async () => {
-  const { tabOverflowMenuItems } = await import("../src/features/session-tabs/tab-list.ts");
-  const titles = { a: "First", "page:creative": "Creative", b: "Second" };
-  const items = tabOverflowMenuItems(["a", "page:creative", "b"], "b", (key) => titles[key]);
-  assert.deepEqual(items, [
-    { id: "tab:a", key: "a", label: "First", checked: false },
-    { id: "tab:page:creative", key: "page:creative", label: "Creative", checked: false },
-    { id: "tab:b", key: "b", label: "Second", checked: true },
-  ]);
-  assert.deepEqual(tabOverflowMenuItems([], null, () => ""), []);
-  assert.equal(tabOverflowMenuItems(["a"], null, () => "x")[0].checked, false);
 });

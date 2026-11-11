@@ -136,12 +136,3 @@ export function saveTabs(tabs: readonly string[]): void {
 export function tabStripOverflows(scrollWidth: number, clientWidth: number): boolean {
   return scrollWidth - clientWidth > 1;
 }
-
-/** Rows of the "all open tabs" menu: every tab in strip order, the active one checked. */
-export function tabOverflowMenuItems(
-  tabs: readonly string[],
-  activeKey: string | null,
-  titleOf: (key: string) => string,
-): Array<{ id: string; key: string; label: string; checked: boolean }> {
-  return tabs.map((key) => ({ id: `tab:${key}`, key, label: titleOf(key), checked: key === activeKey }));
-}
