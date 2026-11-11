@@ -13,6 +13,14 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.71",
+    date: "2026-11-11",
+    fixes: [
+      "全自动模式下推送普通分支不再被误判为“推送到主分支”而要求确认；以前命令里的推送选项（如 merge_request.target=master）、分支名里带 main 或提交说明里出现 main/master 都会触发。",
+      "确认卡片等太久、这次调用已经超时失败后，卡片会随之撤下，不再一直挂着、切回对话时又出现。",
+    ],
+  },
+  {
     version: "1.0.70",
     date: "2026-11-11",
     features: [
