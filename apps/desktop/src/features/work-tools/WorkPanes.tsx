@@ -71,6 +71,7 @@ export function WorkPanes({ tabs, activeTabId, terminalCwd, labelFor, iconFor, r
   const closeTab = useAppStore((s) => s.closeWorkPanelTab);
   const openTab = useAppStore((s) => s.openWorkPanelTab);
   const reorderTabs = useAppStore((s) => s.reorderWorkPanelTabs);
+  const openSeq = useAppStore((s) => s.workPanelOpenRequest.seq);
   const [remembered, setRemembered] = useState<Partial<Record<PaneId, string>>>({});
   const [interacting, setInteracting] = useState(false);
   const [drop, setDrop] = useState<{ id: PaneId; after: boolean } | null>(null);
@@ -87,7 +88,8 @@ export function WorkPanes({ tabs, activeTabId, terminalCwd, labelFor, iconFor, r
   // The focused tab (opened from chat, a tool icon or a chip) becomes its
   // pane's shown tab, and a collapsed pane opens to show it.
   // Keyed by id: a tab object replaced in place (a browser page's title) must
-  // not reopen a pane the user just collapsed.
+  // not reopen a pane the user just collapsed. `openSeq` covers an explicit
+  // open of the tab that was already focused, such as a second file link.
   const focusedTabId = focusedPane?.id;
   useEffect(() => {
     if (!focusedTabId || !focusedPaneId) return;
@@ -95,7 +97,7 @@ export function WorkPanes({ tabs, activeTabId, terminalCwd, labelFor, iconFor, r
       current[focusedPaneId] === focusedTabId ? current : { ...current, [focusedPaneId]: focusedTabId },
     );
     expandPane(focusedPaneId);
-  }, [focusedTabId, focusedPaneId]);
+  }, [focusedTabId, focusedPaneId, openSeq]);
 
   const paneElement = (id: PaneId) =>
     rootRef.current?.querySelector<HTMLElement>(`[data-mc-pane="${id}"]`) ?? null;

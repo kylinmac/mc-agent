@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
+import { useAppStore } from "../../stores/app-store";
 import { pluginViewIcon } from "../../lib/plugin-view-icons";
 import { IconPlug } from "../icons";
 import { WorkTabEmpty } from "./WorkTabEmpty";
@@ -16,6 +17,9 @@ import { WorkTabEmpty } from "./WorkTabEmpty";
  * keeps the menu inside the dock without changing plugin bounds or pushing the
  * plugin body down.
  */
+/** Last explicit open each tab has delivered, keyed by view and tab. */
+const handledOpenRequests = new Map<string, number>();
+
 export function PluginViewTab({
   pluginId,
   viewId,
@@ -41,6 +45,11 @@ export function PluginViewTab({
   locationRef.current = location;
   const viewLocation = pluginId === "pi.browser" && viewId === "browser" ? undefined : location;
   const [failed, setFailed] = useState(false);
+  // Bumps on every explicit open of this tab (a chat file link, even for the
+  // file the tab already names), so the request reaches the view.
+  const openRequest = useAppStore((s) =>
+    tabId && s.workPanelOpenRequest.tabId === tabId ? s.workPanelOpenRequest.seq : 0,
+  );
   const boundsFrameRef = useRef(0);
   const reportBounds = useCallback(() => {
     // Replacing a pending frame on every commit can starve bounds updates.
@@ -73,8 +82,21 @@ export function PluginViewTab({
   // the previous web contents while this tab stays open.
   useEffect(() => {
     let current = true;
+    // An explicit open is delivered even when its subject did not change: the
+    // view may have moved on, and it ignores a subject it already shows. The
+    // record outlives this component, which a collapsed pane unmounts.
+    const handledKey = `${pluginId}/${viewId}/${tabId ?? ""}`;
+    let force = openRequest > (handledOpenRequests.get(handledKey) ?? 0);
+    if (force) handledOpenRequests.set(handledKey, openRequest);
     const open = () => {
-      void api.pluginViewOpen(pluginId, viewId, { sessionId, location: locationRef.current, tabId }).then(
+      const explicit = force;
+      force = false;
+      void api.pluginViewOpen(pluginId, viewId, {
+        sessionId,
+        location: locationRef.current,
+        tabId,
+        ...(explicit ? { force: true } : {}),
+      }).then(
         () => {
           if (current) setFailed(false);
         },
@@ -92,7 +114,7 @@ export function PluginViewTab({
       current = false;
       off();
     };
-  }, [pluginId, viewId, sessionId, viewLocation, tabId]);
+  }, [pluginId, viewId, sessionId, viewLocation, tabId, openRequest]);
 
   useEffect(() => {
     const surface = surfaceRef.current;

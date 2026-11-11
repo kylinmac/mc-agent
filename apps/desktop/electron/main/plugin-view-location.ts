@@ -66,8 +66,41 @@ export function planLocationDelivery(
   previous: string | null,
   next: string | null,
   loaded: boolean,
+  /**
+   * An explicit request from the user, such as a click on a chat file link.
+   * It is delivered even when it repeats the last subject: the view may have
+   * moved on since (the user browsed, or a project switch reset it), and the
+   * view itself ignores a subject it is already showing.
+   */
+  force = false,
 ): PluginViewLocationDelivery {
-  if (!next || next === previous) return { kind: "none" };
+  if (!next || (next === previous && !force)) return { kind: "none" };
   if (!loaded) return { kind: "reload", location: next };
   return { kind: "event", location: next };
+}
+
+/**
+ * The same absolute path, spelled differently.
+ *
+ * A view may drop an event that repeats the last subject it was handed
+ * verbatim (the bundled file manager does), even when it no longer shows that
+ * subject. A repeated request is therefore sent in the other spelling: a `.`
+ * segment after the root, which path resolution ignores. Relative subjects are
+ * left alone, since what they mean is up to the plugin.
+ */
+export function respellLocation(location: string): string {
+  if (location.startsWith("/./")) return location.slice(2);
+  if (location.startsWith("/")) return "/." + location;
+  const drive = /^([A-Za-z]:)([\\/])(\.[\\/])?/.exec(location);
+  if (drive) {
+    return drive[3]
+      ? drive[1] + drive[2] + location.slice(drive[0].length)
+      : drive[1] + drive[2] + "." + drive[2] + location.slice(drive[0].length);
+  }
+  return location;
+}
+
+/** The string to send so a view cannot mistake a repeat for one it already handled. */
+export function locationSpelling(location: string, lastSent: string | null): string {
+  return location === lastSent ? respellLocation(location) : location;
 }

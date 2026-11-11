@@ -11,7 +11,9 @@ const {
   PLUGIN_VIEW_LOCATION_EVENT,
   PLUGIN_VIEW_LOCATION_PARAM,
   normalizeLocation,
+  locationSpelling,
   planLocationDelivery,
+  respellLocation,
   viewEntryUrl,
 } = await import("../electron/main/plugin-view-location.ts");
 
@@ -156,7 +158,7 @@ test("the view host routes every request through those rules", () => {
   // The decision is the pure one, taken against the view's own load state.
   assert.match(
     viewHostSource,
-    /planLocationDelivery\(entry\.location, location, entry\.loaded\)/,
+    /planLocationDelivery\(entry\.location, location, entry\.loaded, force\)/,
   );
   assert.match(
     viewHostSource,
@@ -168,16 +170,19 @@ test("the view host routes every request through those rules", () => {
   );
   const body = deliver.slice(0, deliver.indexOf("\n  }"));
   assert.match(body, /if \(delivery\.kind === "none"\) return;/);
+  assert.match(body, /this\.sendLocation\(entry, delivery\.location\);/);
+  const sender = viewHostSource.slice(viewHostSource.indexOf("private sendLocation"));
+  const sendBody = sender.slice(0, sender.indexOf("\n  }"));
+  assert.match(sendBody, /const path = locationSpelling\(location, entry\.sent\);/);
   assert.match(
-    body,
-    /wc\.send\(`pi-plugin-panel-event:\$\{PLUGIN_VIEW_LOCATION_EVENT\}`, \{/,
+    sendBody,
+    /wc\.send\(`pi-plugin-panel-event:\$\{PLUGIN_VIEW_LOCATION_EVENT\}`, \{ path \}\);/,
   );
-  assert.match(body, /path: delivery\.location,/);
   // A navigation exists on exactly one path — the document that has not run —
   // and the live path sends the event instead.
   const reload = body.indexOf('if (delivery.kind === "reload")');
   const load = body.indexOf("this.load(entry)");
-  const send = body.indexOf("wc.send(");
+  const send = body.indexOf("this.sendLocation(");
   assert.ok(reload > 0, "expected the reload branch");
   assert.ok(load > reload, "a restart must happen only when nothing has run yet");
   assert.ok(send > reload, "a live view must be reached by event, not by navigation");
@@ -197,8 +202,32 @@ test("pi.browser keeps its own location channel", () => {
   );
   assert.match(
     body,
-    /\.\.\.\(isBrowserView \|\| !location \? \{\} : \{ location \}\),/,
+    /\.\.\.\(isBrowserView \|\| !location \? \{\} : \{ location, force: payload\?\.force === true \}\),/,
   );
   assert.match(body, /browserHost\.setChromeSession\(sessionId,.*location\)/);
   assert.doesNotMatch(body, /browserHost\.navigate\(/);
+});
+
+test("an explicit request reaches a view even when it repeats the last subject", () => {
+  // A chat file link clicked again after the user browsed elsewhere in the
+  // view, or after a project switch reset it, must show that file again.
+  assert.deepEqual(planLocationDelivery("/p/a.sql", "/p/a.sql", true), { kind: "none" });
+  assert.deepEqual(planLocationDelivery("/p/a.sql", "/p/a.sql", true, true), {
+    kind: "event",
+    location: "/p/a.sql",
+  });
+  assert.deepEqual(planLocationDelivery(null, null, true, true), { kind: "none" });
+});
+
+test("a repeated subject goes out in an equivalent spelling", () => {
+  // The file manager drops a verbatim repeat of its last subject; a `.`
+  // segment resolves to the same file and alternates back on the next repeat.
+  assert.equal(respellLocation("/Users/me/a.sql"), "/./Users/me/a.sql");
+  assert.equal(respellLocation("/./Users/me/a.sql"), "/Users/me/a.sql");
+  assert.equal(respellLocation("C:\\work\\a.sql"), "C:\\.\\work\\a.sql");
+  assert.equal(respellLocation("C:\\.\\work\\a.sql"), "C:\\work\\a.sql");
+  assert.equal(respellLocation("src/a.ts"), "src/a.ts");
+  assert.equal(locationSpelling("/p/a.sql", "/p/a.sql"), "/./p/a.sql");
+  assert.equal(locationSpelling("/p/a.sql", "/./p/a.sql"), "/p/a.sql");
+  assert.equal(locationSpelling("/p/b.sql", "/p/a.sql"), "/p/b.sql");
 });
