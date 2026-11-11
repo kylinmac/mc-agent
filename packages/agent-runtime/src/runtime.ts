@@ -7267,14 +7267,10 @@ export class DesktopAgentRuntime {
    * same switch, because a user who turned compaction off asked for the
    * context to be left alone.
    */
-  private clearOldToolResults(
-    additionalMessages: AgentMessage[] = [],
-    measured?: { messages: AgentMessage[]; budget: ContextBudget },
-  ): boolean {
+  private clearOldToolResults(additionalMessages: AgentMessage[] = []): boolean {
     if (!this.compactionEnabled) return false;
-    const messages = measured?.messages
-      ?? [...this.liveSessionContext().messages, ...additionalMessages];
-    const budget = measured?.budget ?? this.contextBudget(messages);
+    const messages = [...this.liveSessionContext().messages, ...additionalMessages];
+    const budget = this.measureContextBudget(messages);
     const plan = planToolResultPruning({
       messages,
       tokens: budget.tokens,
@@ -7300,6 +7296,15 @@ export class DesktopAgentRuntime {
   }
 
   private contextBudget(messages: AgentMessage[]): ContextBudget {
+    return this.measureContextBudget(messages);
+  }
+
+  /**
+   * The measurement behind `contextBudget`. Clearing old tool results reads it
+   * directly: it runs ahead of the turn-boundary guard, and that guard's own
+   * single `contextBudget` read is what decides whether to compact.
+   */
+  private measureContextBudget(messages: AgentMessage[]): ContextBudget {
     const budget = contextBudgetFor(this.model, messages);
     // Calibration learns from message usage; the output-cap estimator adds the
     // active system prompt and tool schemas that the provider also receives.
@@ -7538,14 +7543,11 @@ export class DesktopAgentRuntime {
     turn: PrepareNextTurnContext,
     _signal?: AbortSignal,
   ): Promise<AgentLoopTurnUpdate> {
+    // Clearing comes first and measures for itself, so the budget below is
+    // read once, from the context the request will actually carry.
+    this.clearOldToolResults();
     let context = this.rebuiltAgentContext();
-    let budget = this.contextBudget(context.messages);
-    // Measured once in the common case; only a pass that cleared something
-    // pays for a second rebuild and estimate.
-    if (this.clearOldToolResults([], { messages: context.messages, budget })) {
-      context = this.rebuiltAgentContext();
-      budget = this.contextBudget(context.messages);
-    }
+    const budget = this.contextBudget(context.messages);
     const hardLimitReached = budget.tokens >= budget.hardLimit;
     if (!this.compactionEnabled) {
       this.pendingModelCompaction = false;
