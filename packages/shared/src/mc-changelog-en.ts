@@ -9,6 +9,14 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.73",
+    date: "2026-11-11",
+    fixes: [
+      "A Markdown file link with a line number in a conversation (such as doc.md:69) now opens rendered, scrolled to the paragraph holding that line and briefly highlighted, instead of as source.",
+      "Absolute paths in the file panel header and the new project card no longer show their leading \"/\" at the end (as in \"doc.md/\").",
+    ],
+  },
+  {
     version: "1.0.72",
     date: "2026-11-11",
     fixes: [
