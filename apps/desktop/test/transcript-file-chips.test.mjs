@@ -79,11 +79,17 @@ test("a file chip is routed by where the reference resolved, never optimisticall
   assert.match(hook, /!hasPosition[\s\S]*?ensureFileManagerView/);
   assert.match(hook, /fileManagerPluginTab\(resolved\.path\)/);
   assert.match(filesTab, /data-line=\{i \+ 1\}/);
-  assert.match(filesTab, /viewerBodyRef\.current\?\.querySelector/);
+  assert.match(filesTab, /const body = viewerBodyRef\.current;/);
   assert.match(filesTab, /if \(!file \|\| selectedLine == null\) return/);
   assert.match(filesTab, /data-line="\$\{selectedLine\}"/);
-  assert.match(filesTab, /return \(\) => cancelAnimationFrame\(frame\)/);
-  assert.match(filesTab, /selectedLine === undefined/);
+  assert.match(filesTab, /return \(\) => \{\s*cancelAnimationFrame\(frame\);/);
+  // A positioned Markdown link still renders, then scrolls to the block that
+  // holds the line through the renderer's source offsets.
+  assert.doesNotMatch(filesTab, /selectedLine === undefined/);
+  assert.match(filesTab, /sourceAnchorIndex\(/);
+  // The header trims from the left with direction: rtl; without left-to-right
+  // marks an absolute path's leading slash is drawn at the end ("a.md/").
+  assert.match(filesTab, /\{`\\u200E\$\{selected\}\\u200E`\}/);
   // Session scratch and attachment files live outside the plugin's project
   // roots, and positioned references need the host viewer's line navigation.
   assert.match(hook, /inProject: false/);

@@ -888,6 +888,18 @@
   min-height: 1em;
 }
 
+/* Rendered Markdown keeps the same inset as the source view. */
+.file-viewer-markdown {
+  padding: 10px 12px 20px;
+}
+
+/* The Markdown block a `path:line` link landed on. */
+.file-viewer-target {
+  border-radius: var(--radius-sm);
+  background: var(--ds-bg-active);
+  transition: background-color 400ms ease-out;
+}
+
 .file-viewer-cap {
   padding: 8px 0;
   color: var(--ds-text-muted);
