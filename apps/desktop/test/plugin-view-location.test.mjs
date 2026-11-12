@@ -202,8 +202,10 @@ test("pi.browser keeps its own location channel", () => {
   );
   assert.match(
     body,
-    /\.\.\.\(isBrowserView \|\| !location \? \{\} : \{ location, force: payload\?\.force === true \}\),/,
+    /\.\.\.\(isBrowserView \|\| !location \? \{\} : \{ location, force: payload\?\.force === true, \.\.\.\(line \? \{ line \} : \{\}\) \}\),/,
   );
+  // A line is accepted only as a positive integer.
+  assert.match(body, /Number\.isSafeInteger\(payload\?\.line\) && \(payload\.line as number\) > 0/);
   assert.match(body, /browserHost\.setChromeSession\(sessionId,.*location\)/);
   assert.doesNotMatch(body, /browserHost\.navigate\(/);
 });

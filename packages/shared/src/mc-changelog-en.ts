@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.74",
+    date: "2026-11-11",
+    fixes: [
+      "A link to a project file with a line number in a conversation (such as doc.md:69) now opens in the File Manager like the same link without one, at that line: the editor puts the cursor on it and the preview scrolls to the paragraph holding it, both briefly highlighted. Before, it opened in a separate read-only Files tab.",
+    ],
+  },
+  {
     version: "1.0.73",
     date: "2026-11-11",
     fixes: [

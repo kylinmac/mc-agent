@@ -10,7 +10,8 @@ import { LinkifiedText } from "../../apps/desktop/src/features/chat/transcript/s
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";
 import { splitChatText } from "../../apps/desktop/src/lib/chat-links";
 
-const targetPath = "src/scroll-target.txt";
+// A session-scratch file: positioned references to it keep the host viewer.
+const targetPath = "/data/scratch/fixture-session/scroll-target.txt";
 const targetLine = 65;
 const content = Array.from({ length: 90 }, (_, index) => `line ${index + 1}`).join("\n");
 const resolveRefs: string[] = [];
@@ -35,14 +36,27 @@ window.piDesktop = {
     if (channel === IPC.invoke.fsResolveRef) {
       const ref = String(input?.ref ?? "");
       resolveRefs.push(ref);
-      const relativePath = ref === "核查报告.md" ? ref : targetPath;
+      if (ref !== "核查报告.md") {
+        return {
+          ok: true,
+          data: {
+            match: {
+              root: "scratch",
+              relativePath: "scroll-target.txt",
+              absolutePath: targetPath,
+              matchedBy: "exact-absolute",
+              sessionScratch: true,
+            },
+          },
+        };
+      }
       return {
         ok: true,
         data: {
           match: {
             root: "workspace",
-            relativePath,
-            absolutePath: `/workspace/${relativePath}`,
+            relativePath: ref,
+            absolutePath: `/workspace/${ref}`,
             matchedBy: "exact-relative",
             projectRoot: { path: "/workspace", name: "Fixture", primary: true },
           },
@@ -113,7 +127,7 @@ void i18n
             <LinkifiedText text={`Review ${targetPath}:${targetLine}-70.`} />
           </div>
           <div className="fixture-markdown">
-            <Markdown source="[核查报告.md](核查报告.md)" renderDiagrams={false} />
+            <Markdown source="[核查报告.md](核查报告.md:12)" renderDiagrams={false} />
           </div>
           <FilesTab />
         </I18nextProvider>,
@@ -177,6 +191,7 @@ void i18n
         ),
         pluginEnableCalls,
         fileManagerLocation: fileManagerTab?.location ?? null,
+        fileManagerLine: fileManagerTab?.line ?? null,
         selectedPath: document.querySelector(".file-viewer-path")?.textContent,
         segments: splitChatText(`Review ${targetPath}:${targetLine}-70.`, "/workspace"),
         resolveRefs,
@@ -205,6 +220,7 @@ declare global {
       fileManagerAvailable: boolean;
       pluginEnableCalls: string[];
       fileManagerLocation: string | null;
+      fileManagerLine: number | null;
       selectedPath: string | null | undefined;
       segments: unknown[];
       resolveRefs: string[];

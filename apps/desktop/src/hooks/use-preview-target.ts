@@ -237,13 +237,12 @@ function useResolveChatFileRef() {
  * Open a file reference the conversation mentioned.
  *
  * A project or session-scratch `.html` page stays with the side browser
- * (ADR 0163): it is a page to run, not a file to read. A direct click on a
- * plain project file starts or retries the bundled file view; a positioned
- * `path:line` reference uses the host file tab, which can scroll to the line.
- * The plugin view accepts opaque path locations and has no line-navigation
- * contract, so positioned references keep their path unchanged and use the
- * host viewer's existing scroll support. Other scratch and attachment files
- * also use the host file tab.
+ * (ADR 0163): it is a page to run, not a file to read; a positioned
+ * `page.html:12` reference asks for its source instead. A click on a project
+ * file, with or without a line, starts or retries the bundled file view, so
+ * every chat reference to a project file lands in the same place. The view's
+ * location stays the path alone; a line travels beside it and the host moves
+ * the view to it. Scratch and attachment files use the host file tab.
  */
 export function useOpenChatFileRef() {
   const { t } = useTranslation();
@@ -360,7 +359,7 @@ export function useOpenChatFileRef() {
           openUrl(resolved.absolutePath);
           return;
         }
-        if (!current.workspace?.remote && resolved.inProject && !hasPosition) {
+        if (!current.workspace?.remote && resolved.inProject) {
           if (await ensureFileManagerView(workspacePath)) {
             const latest = useAppStore.getState();
             if (
@@ -369,7 +368,7 @@ export function useOpenChatFileRef() {
             ) {
               return;
             }
-            openTab(fileManagerPluginTab(resolved.path));
+            openTab(fileManagerPluginTab(resolved.path, line));
             return;
           }
           const latest = useAppStore.getState();

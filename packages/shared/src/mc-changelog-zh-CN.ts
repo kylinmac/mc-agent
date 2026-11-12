@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.74",
+    date: "2026-11-11",
+    fixes: [
+      "对话里带行号的项目文件链接（如 文档.md:69）现在和不带行号时一样在文件管理器里打开，并跳到该行：编辑模式下光标落在该行，预览模式下滚到包含该行的段落，都会短暂高亮；以前会改用另一个只读的“文件”页签。",
+    ],
+  },
+  {
     version: "1.0.73",
     date: "2026-11-11",
     fixes: [
