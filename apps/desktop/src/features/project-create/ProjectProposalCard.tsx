@@ -238,7 +238,7 @@ export function ProjectProposalCard({ proposal }: { proposal: ProjectProposal })
         {proposal.note ? <p className="mc-np-note">{proposal.note}</p> : null}
         <div className="mc-np-path">
           <IconFolder size={15} aria-hidden />
-          <span className="mc-np-parent" title={parent}>{parent.replace(/[\\/]+$/, "")}/</span>
+          <span className="mc-np-parent" title={parent}>{`\u200E${parent.replace(/[\\/]+$/, "")}/\u200E`}</span>
           <input
             className="mc-np-folder"
             value={folder}

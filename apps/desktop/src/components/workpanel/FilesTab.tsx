@@ -12,6 +12,7 @@ import { useAppStore } from "../../stores/app-store";
 import { api } from "../../lib/api";
 import { Markdown } from "../Markdown";
 import { fileDirOf } from "../../lib/chat-links";
+import { lineStartOffset, sourceAnchorIndex } from "../../lib/markdown-source";
 import { Button, cx } from "../ui";
 import { TooltipButton } from "../ui";
 import {
@@ -33,6 +34,8 @@ import {
 import { WorkTabEmpty } from "./WorkTabEmpty";
 
 const VIEWER_LINE_CAP = 5000;
+// How long a Markdown block reached through a `path:line` link stays marked.
+const TARGET_HIGHLIGHT_MS = 1600;
 
 const EXT_LANG: Record<string, string> = {
   ts: "typescript",
@@ -247,13 +250,39 @@ export function FilesTab() {
 
   useEffect(() => {
     if (!file || selectedLine == null) return;
+    let clearTarget: number | undefined;
     const frame = requestAnimationFrame(() => {
-      const lineNode = viewerBodyRef.current?.querySelector(
-        `[data-line="${selectedLine}"]`,
+      const body = viewerBodyRef.current;
+      const lineNode = body?.querySelector(`[data-line="${selectedLine}"]`);
+      if (lineNode) {
+        lineNode.scrollIntoView({ block: "center" });
+        return;
+      }
+      // Rendered Markdown has no line rows: find the block the line falls in
+      // through the renderer's source offsets, and mark it briefly.
+      const anchors = Array.from(
+        body?.querySelectorAll<HTMLElement>("[data-source-start]") ?? [],
       );
-      lineNode?.scrollIntoView({ block: "center" });
+      const index = sourceAnchorIndex(
+        anchors.map((node) => ({
+          start: Number(node.dataset.sourceStart),
+          end: Number(node.dataset.sourceEnd),
+        })),
+        lineStartOffset(file.content ?? "", selectedLine),
+      );
+      const target = anchors[index];
+      if (!target) return;
+      target.scrollIntoView({ block: "center" });
+      target.classList.add("file-viewer-target");
+      clearTarget = window.setTimeout(
+        () => target.classList.remove("file-viewer-target"),
+        TARGET_HIGHLIGHT_MS,
+      );
     });
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(clearTarget);
+    };
   }, [file, selectedLine]);
 
   const openMp4 = useCallback(async () => {
@@ -376,7 +405,8 @@ export function FilesTab() {
             <IconChevronLeft size={14} />
           </TooltipButton>
           <span className="file-viewer-path" title={selected}>
-            {selected}
+            {/* Left-to-right marks keep the slashes in place under the rtl trim. */}
+            {`\u200E${selected}\u200E`}
           </span>
           {file && <span className="file-viewer-size">{formatSize(file.size)}</span>}
           {!remote ? <TooltipButton
@@ -396,8 +426,7 @@ export function FilesTab() {
             <div className="file-tree-note">{t("panel.files.loading")}</div>
           ) :
           file.kind === "text" &&
-          isMarkdownPath(selected) &&
-          selectedLine === undefined ? (
+          isMarkdownPath(selected) ? (
             <div className="file-viewer-markdown prose-chat">
               <Markdown source={file.content ?? ""} baseDir={fileDirOf(selected)} />
             </div>

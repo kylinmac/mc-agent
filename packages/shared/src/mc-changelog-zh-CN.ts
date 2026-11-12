@@ -13,6 +13,14 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.73",
+    date: "2026-11-11",
+    fixes: [
+      "对话里带行号的 Markdown 文件链接（如 文档.md:69）打开后按 Markdown 渲染，并滚到该行所在段落、短暂高亮；以前会显示成源码。",
+      "文件面板顶部和新建项目卡片里的绝对路径，开头的“/”不再被显示到末尾（如“文档.md/”）。",
+    ],
+  },
+  {
     version: "1.0.72",
     date: "2026-11-11",
     fixes: [

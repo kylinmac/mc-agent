@@ -36,3 +36,38 @@ export function sourcePositionProps(props: SourcePositionProps): SourcePositionP
     "data-source-end": props["data-source-end"],
   };
 }
+
+/** Offset of the first code unit of a 1-based line; past the end clamps to the length. */
+export function lineStartOffset(source: string, line: number): number {
+  let offset = 0;
+  for (let current = 1; current < line; current += 1) {
+    const next = source.indexOf("\n", offset);
+    if (next < 0) return source.length;
+    offset = next + 1;
+  }
+  return offset;
+}
+
+/**
+ * The rendered element that best stands for a source offset: the narrowest
+ * range containing it, else the first one starting after it (a blank line
+ * between blocks), else the last one. Returns an index into `ranges`, or -1.
+ */
+export function sourceAnchorIndex(
+  ranges: readonly { start: number; end: number }[],
+  offset: number,
+): number {
+  let best = -1;
+  let next = -1;
+  for (let i = 0; i < ranges.length; i += 1) {
+    const { start, end } = ranges[i]!;
+    if (start <= offset && offset < end) {
+      if (best < 0 || end - start < ranges[best]!.end - ranges[best]!.start) best = i;
+    } else if (start > offset && (next < 0 || start < ranges[next]!.start)) {
+      next = i;
+    }
+  }
+  if (best >= 0) return best;
+  if (next >= 0) return next;
+  return ranges.length - 1;
+}
