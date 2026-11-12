@@ -518,6 +518,7 @@ function LocalWorkPanel({
             icon={pluginViews.find((view) => view.ref === tab.resource)?.icon}
             sessionId={activeSessionId ?? undefined}
             location={tab.location}
+            line={tab.line}
             tabId={tab.id}
             // Native WebContentsViews composite above renderer content.
             blocked={blocked || exiting || panelBlocked || blockingOverlayActive}

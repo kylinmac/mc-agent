@@ -272,8 +272,10 @@ export function registerPluginUiIpc({
       location?: string;
       tabId?: string;
       force?: boolean;
+      line?: number;
     }) => {
       const pluginId = String(payload?.pluginId ?? "");
+      const line = Number.isSafeInteger(payload?.line) && (payload.line as number) > 0 ? payload.line : undefined;
       const viewId = String(payload?.viewId ?? "");
       const sessionId = String(payload?.sessionId ?? "").trim();
       const location = String(payload?.location ?? "").trim();
@@ -306,7 +308,7 @@ export function registerPluginUiIpc({
         // The browser view owns an address bar and its own history, so its
         // location keeps going through `browserHost`; every other contributed
         // view receives the opener's subject untouched (D320 follow-up).
-        ...(isBrowserView || !location ? {} : { location, force: payload?.force === true }),
+        ...(isBrowserView || !location ? {} : { location, force: payload?.force === true, ...(line ? { line } : {}) }),
       });
       return { ok: true };
     },

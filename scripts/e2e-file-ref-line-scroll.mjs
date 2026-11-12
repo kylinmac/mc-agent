@@ -1,5 +1,9 @@
 #!/usr/bin/env node
-/** Follow a real transcript path:line chip into the production host file viewer. */
+/**
+ * Follow real transcript path:line references: a project file opens in the
+ * File Manager with its line beside the path, and a session-scratch file opens
+ * in the production host file viewer scrolled to the line.
+ */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
@@ -87,10 +91,12 @@ app.whenReady().then(async () => {
   assert.equal(result.fileManagerAvailable, true, "fixture must use the normal project-file setup");
   assert.deepEqual(result.pluginEnableCalls, ["pi.file-manager"]);
   assert.equal(result.fileManagerLocation, "核查报告.md");
-  assert.deepEqual(result.resolveRefs, ["src/scroll-target.txt", "核查报告.md", "src/scroll-target.txt"]);
-  assert.deepEqual(result.readPaths, ["src/scroll-target.txt"]);
-  assert.equal(result.selectedPath, "src/scroll-target.txt");
-  assert.deepEqual(result.request, { path: "src/scroll-target.txt", seq: 1, line: 65 });
+  assert.equal(result.fileManagerLine, 12);
+  const target = "/data/scratch/fixture-session/scroll-target.txt";
+  assert.deepEqual(result.resolveRefs.filter((ref) => ref !== "核查报告.md").every((ref) => ref === target), true);
+  assert.deepEqual(result.readPaths, [target]);
+  assert.equal(result.selectedPath, `\u200E${target}\u200E`);
+  assert.deepEqual(result.request, { path: target, seq: 1, line: 65 });
   assert.deepEqual(result.scrollCall, { line: "65", block: "center" });
   assert.ok(result.scrollTop > 0, "host file viewer did not scroll away from the top");
   assert.equal(result.targetLineVisible, true, "requested line is outside the visible viewer area");

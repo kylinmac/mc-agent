@@ -3724,8 +3724,11 @@ Anatomy:
   in the bundled `pi.file-manager` view (the host `file:` tab when that view is
   unavailable), a session-scratch or attachment file in the host `file:` tab,
   and a `.html`/`.htm` page of the primary folder in the side browser. A
-  positioned `path:line` reference uses the host read-only `file:` tab and
-  scrolls the requested line into view. A
+  positioned `path:line` reference opens where the same unpositioned
+  reference would; in the bundled view the host then moves to the line (the
+  editor cursor, or the preview block holding it) once the file is showing,
+  and a scratch or attachment file's host `file:` tab scrolls the line into
+  view, rendering Markdown and marking the block that holds it. A
   primary-folder file is addressed to the view as a project-relative path and a
   sibling-folder file as an absolute one, which is also how scratch and
   attachment files are addressed. A reference that matches no file opens nothing

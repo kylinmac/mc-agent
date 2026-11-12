@@ -9837,8 +9837,9 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   writes stay inside the jail of the one project folder it is browsing
   (ADR 0241, ADR 0263). Plain project-file links open in the bundled view,
   bringing it up on demand after a direct click when its scope and permission
-  allow it; a positioned `path:line` reference opens the host file tab and
-  scrolls the requested line even while the plugin view is available.
+  allow it; a positioned `path:line` reference to a project file opens in the
+  same view, which the host then moves to the requested line
+  (`pnpm test:e2e:file-manager-reveal-line` covers the editor and preview).
 - **Specs linked**: `07-plugins/03-plugin-api.md` §3,
   `07-plugins/13-plugin-permissions-matrix.md` §2,
   `04-ux/08-component-spec.md` §5, ADR 0104, ADR 0109, ADR 0111,
@@ -18466,20 +18467,23 @@ renderer's durable transcript reads. No real model or provider is contacted.
   closure behavior. Covered by the parameterized runtime overflow user-path test.
 
 
-#### E2E-262: Transcript positioned file references open and scroll the host file viewer
+#### E2E-262: Transcript positioned file references open at their line
 
 - **Preconditions:** Isolated Electron/Chromium, an active workspace and session,
   the bundled file-manager view available, and deterministic filesystem IPC
   fixtures.
-- **Steps:** Render a real transcript `path:line-range` reference followed by
-  sentence punctuation; click its verified file chip and wait for the host file
-  viewer to load. Unit coverage also exercises `path:line:column` and GitHub
-  `path#Lline[-Lend]` references.
-- **Expected:** Despite the bundled file-manager view being available, the
-  positioned reference opens in the host's read-only file tab. The file request
-  retains the range's starting line, and the viewer scrolls that line into the
-  visible center area. The path and file contents remain the same as the
-  reference target.
+- **Steps:** Click a Markdown link to a project file with a `:line` suffix.
+  Render a real transcript `path:line-range` reference to a session-scratch
+  file followed by sentence punctuation; click its verified file chip and wait
+  for the host file viewer to load. Unit coverage also exercises
+  `path:line:column` and GitHub `path#Lline[-Lend]` references.
+- **Expected:** The project file opens in the bundled file-manager view, like
+  the same reference without a line, and its tab carries the line beside the
+  path (`pnpm test:e2e:file-manager-reveal-line` covers the view moving to
+  it). The scratch file opens in the host's read-only file tab; the file
+  request retains the range's starting line, and the viewer scrolls that line
+  into the visible center area. The path and file contents remain the same as
+  the reference target.
 - **Specs:** `04-ux/08` §11.8; ADR 0262.
 - **Status:** `node scripts/e2e-file-ref-line-scroll.mjs` mounts production
   `LinkifiedText` and `FilesTab` in isolated Electron with filesystem IPC

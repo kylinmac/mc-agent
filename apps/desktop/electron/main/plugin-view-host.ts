@@ -1,5 +1,6 @@
 import { installFilePreviewSearch } from "./mc-file-preview-search";
 import { installFilePreviewLinks } from "./mc-file-preview-links";
+import { revealFileLine } from "./mc-file-reveal-line";
 import { installFileSearchContrast } from "./mc-file-search-contrast";
 import { session, shell, WebContentsView, type BrowserWindow } from "electron";
 import { join } from "node:path";
@@ -92,6 +93,12 @@ export type PluginViewOpenRequest = {
    * repeats the last subject, because the view may no longer be showing it.
    */
   force?: boolean;
+  /**
+   * A 1-based line in `location` (a chat `path:line` reference). The location
+   * contract stays the path alone; for the bundled file manager the host moves
+   * to the line itself once the file is showing.
+   */
+  line?: number;
 };
 
 export type { PluginViewBounds };
@@ -249,6 +256,7 @@ export class PluginViewHost {
     if (existing) {
       existing.usedAt = ++this.clock;
       this.deliverLocation(existing, location, request.force === true);
+      this.revealLine(existing, location, request.line);
       return;
     }
     const view = this.createView(request);
@@ -274,7 +282,24 @@ export class PluginViewHost {
       entry.loaded = true;
     });
     this.load(entry);
+    this.revealLine(entry, location, request.line);
     this.evictBeyondLimit();
+  }
+
+  /**
+   * Move the bundled file manager to a line of the file it was just asked to
+   * show. A document still loading (new, or restarted to carry the location in
+   * its URL) is reached once it finishes; the script itself waits for the file.
+   */
+  private revealLine(entry: LiveView, location: string | null, line: number | undefined): void {
+    if (entry.pluginId !== "pi.file-manager" || !location || !line) return;
+    const wc = entry.view.webContents;
+    if (wc.isDestroyed()) return;
+    if (entry.loaded) {
+      revealFileLine(wc, location, line);
+      return;
+    }
+    wc.once("did-finish-load", () => revealFileLine(wc, location, line));
   }
 
   /**

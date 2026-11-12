@@ -272,7 +272,7 @@ jobs:
       - name: Run File Manager theme E2E
         run: xvfb-run --auto-servernum pnpm test:e2e:file-manager-theme
       - name: File manager Markdown split, scroll and search user paths
-        run: xvfb-run --auto-servernum sh -c 'pnpm test:e2e:file-manager-split && pnpm test:e2e:file-manager-scroll && pnpm test:e2e:file-manager-search'
+        run: xvfb-run --auto-servernum sh -c 'pnpm test:e2e:file-manager-split && pnpm test:e2e:file-manager-scroll && pnpm test:e2e:file-manager-search && pnpm test:e2e:file-manager-reveal-line'
 
       - name: Work panel agent and terminal shortcuts
         run: xvfb-run --auto-servernum pnpm test:e2e:work-panel-agent

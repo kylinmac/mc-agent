@@ -28,6 +28,7 @@ export function PluginViewTab({
   blocked = false,
   sessionId,
   location,
+  line,
   tabId,
 }: {
   pluginId: string;
@@ -37,12 +38,16 @@ export function PluginViewTab({
   blocked?: boolean;
   sessionId?: string;
   location?: string;
+  /** A 1-based line in `location`, sent with an explicit open only. */
+  line?: number;
   tabId?: string;
 }) {
   const { t } = useTranslation();
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const locationRef = useRef(location);
   locationRef.current = location;
+  const lineRef = useRef(line);
+  lineRef.current = line;
   const viewLocation = pluginId === "pi.browser" && viewId === "browser" ? undefined : location;
   const [failed, setFailed] = useState(false);
   // Bumps on every explicit open of this tab (a chat file link, even for the
@@ -95,7 +100,7 @@ export function PluginViewTab({
         sessionId,
         location: locationRef.current,
         tabId,
-        ...(explicit ? { force: true } : {}),
+        ...(explicit ? { force: true, ...(lineRef.current ? { line: lineRef.current } : {}) } : {}),
       }).then(
         () => {
           if (current) setFailed(false);

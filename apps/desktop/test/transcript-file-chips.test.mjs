@@ -76,8 +76,10 @@ test("a file chip is routed by where the reference resolved, never optimisticall
   assert.doesNotMatch(hook, /const pluginViews = useAppStore\(\(s\) => s\.pluginViews\)/);
   assert.match(hook, /const hasPosition = line !== undefined \|\| column !== undefined/);
   assert.match(hook, /!hasPosition[\s\S]*?isHtmlFilePath/);
-  assert.match(hook, /!hasPosition[\s\S]*?ensureFileManagerView/);
-  assert.match(hook, /fileManagerPluginTab\(resolved\.path\)/);
+  // Every project file reference, with or without a line, opens in the file
+  // manager; the line travels beside the path.
+  assert.match(hook, /if \(!current\.workspace\?\.remote && resolved\.inProject\) \{\s*if \(await ensureFileManagerView/);
+  assert.match(hook, /fileManagerPluginTab\(resolved\.path, line\)/);
   assert.match(filesTab, /data-line=\{i \+ 1\}/);
   assert.match(filesTab, /const body = viewerBodyRef\.current;/);
   assert.match(filesTab, /if \(!file \|\| selectedLine == null\) return/);
