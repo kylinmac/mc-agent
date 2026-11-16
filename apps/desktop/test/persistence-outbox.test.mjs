@@ -566,6 +566,62 @@ test("startup deduplicates entries already persisted in dead-letter after a mid-
   assert.deepEqual(dead.map((entry) => entry.key), ["message:s1:mid-crash"]);
 });
 
+test("startup retains newer outbox snapshot whose key matches a quarantined older snapshot (#150)", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "pi-outbox-newer-snap-"));
+  const logs = [];
+  const deadDup = {
+    key: "message:s1:dup",
+    sessionId: "s1",
+    message: { id: "dup", content: "old failing snapshot" },
+  };
+  const newerItem = {
+    key: "message:s1:m1",
+    sessionId: "s1",
+    message: { id: "m1", content: "final snapshot" },
+    turnId: "t2",
+  };
+  await writeFile(
+    join(dir, "session-message-outbox.json"),
+    JSON.stringify([deadDup, newerItem]),
+    "utf8",
+  );
+  await writeFile(
+    join(dir, DEAD_LETTER_FILE),
+    JSON.stringify([
+      { ...deadDup, quarantinedAt: "2026-11-16T00:00:00Z", reason: "host error" },
+      {
+        key: "message:s1:m1",
+        sessionId: "s1",
+        message: { id: "m1", content: "partial failed snapshot" },
+        turnId: "t1",
+        quarantinedAt: "2026-11-16T00:00:00Z",
+        reason: "host error",
+      },
+    ]),
+    "utf8",
+  );
+  const flushed = [];
+  const host = mockHost(async (_method, params) => {
+    flushed.push(params.message);
+  });
+  const reopened = new PersistenceOutbox(dir, (level, message, data) => {
+    logs.push({ level, message, data });
+  });
+  await reopened.flush(() => host);
+  assert.equal(reopened.size(), 0);
+  assert.deepEqual(flushed, [{ id: "m1", content: "final snapshot" }]);
+  assert.ok(
+    logs.some(
+      (row) =>
+        row.level === "warn" &&
+        row.message === "session persistence outbox dropped quarantined duplicate on load" &&
+        row.data?.key === "message:s1:dup" &&
+        row.data?.sessionId === "s1" &&
+        !("message" in (row.data ?? {})),
+    ),
+  );
+});
+
 test("#144 outbox write-amplification baseline for N=50 and N=200 2KB entries", async () => {
   const results = [];
   for (const n of [50, 200]) {

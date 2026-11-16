@@ -300,9 +300,23 @@ export class PersistenceOutbox {
     await this.loadEntries();
     await this.loadDeadLetters();
     if (this.deadLetters.length > 0 && this.entries.length > 0) {
-      const quarantinedKeys = new Set(this.deadLetters.map((item) => item.key));
-      const filtered = this.entries.filter((entry) => !quarantinedKeys.has(entry.key));
-      if (filtered.length !== this.entries.length) {
+      const deadByKey = new Map(this.deadLetters.map((item) => [item.key, item] as const));
+      const dropped: MessageAppend[] = [];
+      const filtered = this.entries.filter((entry) => {
+        const dead = deadByKey.get(entry.key);
+        if (dead && sameAppendSnapshot(entry, dead)) {
+          dropped.push(entry);
+          return false;
+        }
+        return true;
+      });
+      if (dropped.length > 0) {
+        for (const entry of dropped) {
+          this.logger("warn", "session persistence outbox dropped quarantined duplicate on load", {
+            key: entry.key,
+            sessionId: entry.sessionId,
+          });
+        }
         this.entries = filtered;
         try {
           await this.persist();
@@ -391,6 +405,16 @@ export class PersistenceOutbox {
     this.persistChain = write.catch(() => undefined);
     await write;
   }
+}
+
+function sameAppendSnapshot(left: MessageAppend, right: MessageAppend): boolean {
+  return (
+    left.key === right.key &&
+    left.sessionId === right.sessionId &&
+    left.turnId === right.turnId &&
+    JSON.stringify(left.message) === JSON.stringify(right.message) &&
+    JSON.stringify(left.usage) === JSON.stringify(right.usage)
+  );
 }
 
 function isDuplicateMessageIdError(error: unknown): boolean {

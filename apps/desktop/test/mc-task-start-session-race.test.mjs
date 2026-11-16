@@ -155,22 +155,25 @@ test("startProjectTaskRun never binds or sends to another session when creation 
           return true;
         },
       };
-      await startProjectTaskRun({
-        groupId: "g1",
-        task: baseTask,
-        listing: null,
-        startFolder: "/proj/a",
-        projectTasksApi: {
-          preflight: async () => ({ blocking: [], drafts: [], resources: [] }),
-          startRun: async (_g, _id, _rev, sessionId) => {
-            calls.push(["startRun", sessionId]);
-            return { task: { ...baseTask, runs: [{ id: "r1", sessionId }] } };
+      await assert.rejects(
+        startProjectTaskRun({
+          groupId: "g1",
+          task: baseTask,
+          listing: null,
+          startFolder: "/proj/a",
+          projectTasksApi: {
+            preflight: async () => ({ blocking: [], drafts: [], resources: [] }),
+            startRun: async (_g, _id, _rev, sessionId) => {
+              calls.push(["startRun", sessionId]);
+              return { task: { ...baseTask, runs: [{ id: "r1", sessionId }] } };
+            },
+            abandonRun: async (_g, _id, runId) => calls.push(["abandonRun", runId]),
           },
-          abandonRun: async (_g, _id, runId) => calls.push(["abandonRun", runId]),
-        },
-        getStore: () => storeState,
-        t: tFn,
-      });
+          getStore: () => storeState,
+          t: tFn,
+        }),
+        /mcProject\.taskNoSession/,
+      );
       assert.deepEqual(calls, [], `${scenario}: superseded creation must produce zero side effects`);
     }
 

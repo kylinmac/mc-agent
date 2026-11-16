@@ -239,3 +239,64 @@ test("persistent delivery failure stops at maxAttempts and dispose cancels pendi
   await new Promise((resolve) => setTimeout(resolve, 60));
   assert.equal(disposedAttempts, 1);
 });
+
+test("overlapping batch timer during slow delivery serializes flush instead of running concurrently (#152)", async () => {
+  let tasks = [];
+  let inFlight = 0;
+  let maxInFlight = 0;
+  const delivered = [];
+  let releaseFirst;
+  let markFirstStarted;
+  const firstStarted = new Promise((resolve) => {
+    markFirstStarted = resolve;
+  });
+  const firstGate = new Promise((resolve) => {
+    releaseFirst = resolve;
+  });
+
+  const wake = createBackgroundWake({
+    listTasks: async () => tasks,
+    output: async () => ({ stdout: "", stderr: "" }),
+    activeTurn: () => undefined,
+    steer: async () => ({ accepted: false }),
+    prompt: async (_sessionId, content) => {
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      try {
+        if (delivered.length === 0) {
+          delivered.push("first:" + content);
+          markFirstStarted();
+          await firstGate;
+        } else {
+          delivered.push("next:" + content);
+        }
+      } finally {
+        inFlight -= 1;
+      }
+    },
+    queue: async () => {},
+    log: () => {},
+    delayMs: 10,
+  });
+
+  tasks = [task("t1", "running"), task("t2", "running")];
+  await wake.changed();
+  tasks = [task("t1", "exited", { exitCode: 0 }), task("t2", "running")];
+  await wake.changed();
+
+  const firstFlush = wake.flush();
+  await firstStarted;
+
+  tasks = [task("t1", "exited", { exitCode: 0 }), task("t2", "exited", { exitCode: 0 })];
+  await wake.changed();
+  await new Promise((resolve) => setTimeout(resolve, 35));
+  assert.equal(delivered.length, 1, "second flush must wait until in-flight delivery finishes");
+
+  releaseFirst();
+  await firstFlush;
+  assert.equal(maxInFlight, 1);
+  assert.equal(delivered.length, 2);
+  assert.ok(delivered[0].includes("backgroundId t1"));
+  assert.ok(delivered[1].includes("backgroundId t2"));
+  wake.dispose();
+});

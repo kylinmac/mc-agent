@@ -59,7 +59,7 @@ export async function startProjectTaskRun(params: {
     throw new Error(t("mcProject.taskResourcesBlocked", { names: names.join("、") }));
   }
   const sessionId = await getStore().newSession({ projectPath: startFolder, fresh: true });
-  if (!sessionId) return;
+  if (!sessionId) throw new Error(t("mcProject.taskNoSession"));
   let started: Awaited<ReturnType<typeof api.projectTasks.startRun>>;
   try {
     started = await projectTasksApi.startRun(groupId, task.id, task.revision, sessionId, startFolder);
