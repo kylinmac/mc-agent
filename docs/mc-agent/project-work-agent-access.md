@@ -32,6 +32,21 @@
 
 工作台任务页每 5 秒刷新，Agent 写入的任务无需额外事件即可显示；资料页在打开或刷新时读取。
 
+## Token 开销校准（#104 / R29 离线实测）
+
+`packages/agent-runtime/src/mc-project-work-tools.test.ts` 使用真实 `DesktopAgentRuntime` 与脚本模型执行离线实测（按 `ceil(chars / 4)` 估算）：
+
+| 测量项 | 实测字符数 | 估算 Token | 说明 |
+| --- | --- | --- | --- |
+| 未激活按需目录行（2 行） | `277` | 约 `70` | 未激活时 `request.tools` 不含 `ProjectTasks` 与 `ProjectResources` schema |
+| `ProjectTasks` 完整声明 | `2,125` | 约 `532` | `toToolDeclaration` JSON 序列化长度 |
+| `ProjectResources` 完整声明 | `1,921` | 约 `481` | `toToolDeclaration` JSON 序列化长度 |
+| 两项完整声明合计 | `4,046` | 约 `1,012` | `ToolSearch("ProjectTasks")` 因描述互相引用两项同时激活，`request.tools` JSON 实测增加 `4,140` 字符 |
+| 三步典型流：1) `list`（10 条） | `842` | 约 `211` | 参数 + 安全提示前缀 + 10 条紧凑任务 JSON |
+| 三步典型流：2) `get`（1 条） | `364` | 约 `91` | 参数 + 安全提示前缀 + 单条任务详情 JSON |
+| 三步典型流：3) `update`（1 条） | `262` | 约 `66` | 参数 + 安全提示前缀 + 更新回执 JSON |
+| 三步典型工作流累计载荷 | `1,468` | 约 `367` | 不含固定基础系统提示词；真实付费模型长会话按需命中率未实测 |
+
 ## 未实施
 
 任务启动与会话绑定、创作素材库、用量与额度查询、模板维护（#104 后续候选）。

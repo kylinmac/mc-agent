@@ -9,6 +9,20 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.76",
+    date: "2026-11-16",
+    improvements: [
+      "Automatic context compaction now reuses the conversation cache prefix when generating summaries on supported models, reducing repeated input token charges and falling back automatically when unsupported.",
+    ],
+    fixes: [
+      "Starting a task from the project workbench always creates a dedicated new conversation instead of binding to an idle one, and cleans up the empty conversation if startup fails.",
+      "Completed background commands now retry waking the main conversation when it is busy, preventing completion notices from being silently dropped.",
+      "Clicking Stop immediately terminates a running stop hook, and switching models or thinking levels cancels any in-progress background summary right away.",
+      "Approving a plan or goal now resets the repeated tool-call counter from the planning phase so execution is not stopped prematurely.",
+      "Fixed duplicate entries when registering the same project file across categories, potential message loss when quarantining failed persistence entries, and token counts being redacted in session logs.",
+    ],
+  },
+  {
     version: "1.0.75",
     date: "2026-11-16",
     improvements: [

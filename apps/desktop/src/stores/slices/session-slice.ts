@@ -659,7 +659,10 @@ export function createSessionSlice({
         options && "projectPath" in options ? undefined
           : remoteProjectForSession(activeSession)
       );
-      if (remoteProject) return openRemoteProjectSession({ get, set, runtime }, remoteProject);
+      if (remoteProject) {
+        await openRemoteProjectSession({ get, set, runtime }, remoteProject);
+        return get().activeSessionId ?? null;
+      }
       if (!(options && "projectPath" in options) && isRemoteSession(activeSession ?? (
         get().activeSessionId?.startsWith("remote:") ? { id: get().activeSessionId! } : undefined
       ))) throw new Error(i18n.t("remote:REMOTE_PROJECT_REQUIRED"));
@@ -668,15 +671,18 @@ export function createSessionSlice({
           ? options.projectPath ?? null
           : get().workspace?.path ?? null;
       const isolated = options?.isolated === true;
+      const fresh = options?.fresh === true;
       const scopeKey = `${runtime.newSessionScopeKey(requestedProjectPath)}${isolated ? "\u0000isolated" : ""}`;
-      const pending = runtime.pendingNewSessionRequests.get(scopeKey);
-      if (pending) {
-        await pending;
-        return;
+      if (!fresh) {
+        const pending = runtime.pendingNewSessionRequests.get(scopeKey);
+        if (pending) {
+          await pending;
+          return get().activeSessionId ?? null;
+        }
       }
 
       const intent = runtime.beginNavigationIntent();
-      const request = (async () => {
+      const request = (async (): Promise<string | null> => {
         if (
           requestedProjectPath &&
           !sessionMatchesProject(
@@ -687,12 +693,12 @@ export function createSessionSlice({
           const workspace = await get().activateProject(requestedProjectPath, {
             navigationIntent: intent,
           });
-          if (!runtime.navigationIntentIsCurrent(intent)) return;
+          if (!runtime.navigationIntentIsCurrent(intent)) return null;
           if (!workspace) throw new Error(i18n.t("errors.workspaceActivationFailed"));
         }
         if (requestedProjectPath === null && get().workspace) {
           await get().clearProject({ navigationIntent: intent });
-          if (!runtime.navigationIntentIsCurrent(intent)) return;
+          if (!runtime.navigationIntentIsCurrent(intent)) return null;
         }
 
         const latest = runtime.latestSessionInScope(
@@ -701,6 +707,7 @@ export function createSessionSlice({
           get().sessionMeta,
         );
         if (
+          !fresh &&
           latest &&
           sessionIsReusableEmpty(latest, {
             isolated,
@@ -709,23 +716,27 @@ export function createSessionSlice({
             submitted: runtime.submittedComposerDrafts.has(latest.id),
           })
         ) {
-          if (get().activeSessionId === latest.id && get().page === "chat") return;
+          if (get().activeSessionId === latest.id && get().page === "chat") return latest.id;
           await get().selectSession(latest.id, { navigationIntent: intent });
-          return;
+          return runtime.navigationIntentIsCurrent(intent) ? latest.id : null;
         }
 
-        await persistSessionAndSelect({
+        return await persistSessionAndSelect({
           intent,
           projectPath: requestedProjectPath,
           draftConfiguration: null,
           ...(isolated ? { isolated: true } : {}),
         });
       })();
-      runtime.pendingNewSessionRequests.set(scopeKey, request);
+      const tracked = request.then(() => undefined);
+      if (!fresh) {
+        runtime.pendingNewSessionRequests.set(scopeKey, tracked);
+      }
       try {
-        await request;
+        const [sessionId] = await Promise.all([request, tracked]);
+        return sessionId;
       } finally {
-        if (runtime.pendingNewSessionRequests.get(scopeKey) === request) {
+        if (!fresh && runtime.pendingNewSessionRequests.get(scopeKey) === tracked) {
           runtime.pendingNewSessionRequests.delete(scopeKey);
         }
       }

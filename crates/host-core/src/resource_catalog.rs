@@ -286,7 +286,7 @@ pub fn set_status(
 /// Register a file inside one of the project's workspaces by adding a link
 /// to the category's `INDEX.md`; the file itself is not copied.
 pub fn register_file(
-    _db: &Database,
+    db: &Database,
     group: &ProjectGroupRecord,
     path: &str,
     category: &str,
@@ -308,18 +308,55 @@ pub fn register_file(
             "file is not inside a workspace of this project: {path}"
         ));
     }
+    let category = clean_category(category)?;
+    let listing = list(db, group)?;
+    if let Some(existing) = listing.items.iter().find(|item| {
+        item.category != category
+            && item
+                .path
+                .as_deref()
+                .and_then(|candidate| fs::canonicalize(candidate).ok())
+                .as_deref()
+                == Some(canonical.as_path())
+    }) {
+        return Ok(existing.key.clone());
+    }
     let title = clean_title(title).unwrap_or_else(|| {
         canonical
             .file_name()
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_default()
     });
-    resource_index::add(
-        resources,
-        &clean_category(category)?,
-        &title,
-        &IndexTarget::Path(canonical),
-    )
+    resource_index::add(resources, &category, &title, &IndexTarget::Path(canonical))
+}
+
+/// Find a resource in a deduplicated listing by exact key, or by resolving an
+/// indexed alias key to the same canonical file or URL.
+pub fn find_listed<'a>(
+    listing: &'a ResourceListing,
+    db: &Database,
+    group: &ProjectGroupRecord,
+    key: &str,
+) -> Option<&'a ResourceItem> {
+    if let Some(item) = listing.items.iter().find(|item| item.key == key) {
+        return Some(item);
+    }
+    match locate(db, group, key).ok()? {
+        ResourceTarget::Path(path) => {
+            let wanted = fs::canonicalize(path).ok()?;
+            listing.items.iter().find(|item| {
+                item.path
+                    .as_deref()
+                    .and_then(|candidate| fs::canonicalize(candidate).ok())
+                    .as_deref()
+                    == Some(wanted.as_path())
+            })
+        }
+        ResourceTarget::Url(url) => listing
+            .items
+            .iter()
+            .find(|item| item.url.as_deref() == Some(url.as_str())),
+    }
 }
 
 pub fn register_url(
@@ -932,5 +969,52 @@ mod tests {
         crate::mc_creative::set_storage(&f.db, &f.group, &f.web.to_string_lossy()).unwrap();
         assert!(keys(&list(&f.db, &f.group).unwrap())
             .contains(&"folder:creative/角色/a.png".to_string()));
+    }
+
+    #[test]
+    fn cross_category_register_file_returns_the_existing_key() {
+        let f = fixture();
+        let path = f.web.join("README.md");
+        let first =
+            register_file(&f.db, &f.group, &path.to_string_lossy(), "reference", None).unwrap();
+        let second = register_file(
+            &f.db,
+            &f.group,
+            &path.to_string_lossy(),
+            "requirements",
+            Some("Duplicate"),
+        )
+        .unwrap();
+        assert_eq!(second, first);
+        assert!(
+            !f.resources.join("requirements/INDEX.md").exists(),
+            "no duplicate cross-category index entry should be written"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlink_category_directory_rejects_register_file_and_url() {
+        use std::os::unix::fs::symlink;
+
+        let f = fixture();
+        let outside = f._dir.path().join("outside");
+        fs::create_dir_all(&outside).unwrap();
+        fs::write(outside.join("INDEX.md"), "untouched").unwrap();
+        symlink(&outside, f.resources.join("prototype")).unwrap();
+
+        assert!(register_file(
+            &f.db,
+            &f.group,
+            &f.web.join("README.md").to_string_lossy(),
+            "prototype",
+            None
+        )
+        .is_err());
+        assert!(register_url(&f.db, &f.group, "https://example.com/p", "prototype", None).is_err());
+        assert_eq!(
+            fs::read_to_string(outside.join("INDEX.md")).unwrap(),
+            "untouched"
+        );
     }
 }

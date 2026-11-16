@@ -104,3 +104,138 @@ test("the notice clips long commands and output from the right ends", () => {
   assert.match(text, /…z+END/);
   assert.ok(text.length < 3_000);
 });
+
+test("prompt failure falling back to queue delivers once without retrying", async () => {
+  let tasks = [];
+  const calls = [];
+  const wake = createBackgroundWake({
+    listTasks: async () => tasks,
+    output: async () => ({ stdout: "ok", stderr: "" }),
+    activeTurn: () => undefined,
+    steer: async () => ({ accepted: false }),
+    prompt: async () => {
+      calls.push("prompt");
+      throw new Error("host busy");
+    },
+    queue: async () => {
+      calls.push("queue");
+    },
+    log: () => {},
+    delayMs: 60_000,
+    retryDelayMs: 10,
+  });
+  tasks = [task("a", "running")];
+  await wake.changed();
+  tasks = [task("a", "exited", { exitCode: 0 })];
+  await wake.changed();
+  await wake.flush();
+  assert.deepEqual(calls, ["prompt", "queue"]);
+  await wake.changed();
+  await wake.flush();
+  assert.deepEqual(calls, ["prompt", "queue"]);
+  wake.dispose();
+});
+
+test("both prompt and queue failing schedules bounded retry and preserves rate-limit budget", async () => {
+  let tasks = [];
+  let failDeliveries = true;
+  const delivered = [];
+  const wake = createBackgroundWake({
+    listTasks: async () => tasks,
+    output: async () => ({ stdout: "ok", stderr: "" }),
+    activeTurn: () => undefined,
+    steer: async () => ({ accepted: false }),
+    prompt: async (_sessionId, content) => {
+      if (failDeliveries) throw new Error("host down");
+      delivered.push(content);
+    },
+    queue: async () => {
+      if (failDeliveries) throw new Error("queue down");
+    },
+    log: () => {},
+    delayMs: 60_000,
+    retryDelayMs: 15,
+  });
+  tasks = [task("a", "running")];
+  await wake.changed();
+  tasks = [task("a", "exited", { exitCode: 0 })];
+  await wake.changed();
+  await wake.flush();
+  assert.equal(delivered.length, 0);
+
+  failDeliveries = false;
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  assert.equal(delivered.length, 1, "retry timer delivers after transient double failure");
+  await wake.changed();
+  await wake.flush();
+  assert.equal(delivered.length, 1, "already delivered task does not duplicate");
+
+  // Failed delivery must not have consumed any of the 5-wake rate-limit quota.
+  for (let i = 0; i < 4; i += 1) {
+    tasks = [...tasks, task(`extra-${i}`, "exited", { exitCode: 0 })];
+    await wake.changed();
+    await wake.flush();
+  }
+  assert.equal(delivered.length, 5);
+  wake.dispose();
+});
+
+test("persistent delivery failure stops at maxAttempts and dispose cancels pending retry timer", async () => {
+  let tasks = [];
+  let attempts = 0;
+  const logs = [];
+  const wake = createBackgroundWake({
+    listTasks: async () => tasks,
+    output: async () => ({ stdout: "", stderr: "" }),
+    activeTurn: () => undefined,
+    steer: async () => ({ accepted: false }),
+    prompt: async () => {
+      attempts += 1;
+      throw new Error("offline");
+    },
+    queue: async () => {
+      throw new Error("offline");
+    },
+    log: (msg) => logs.push(msg),
+    delayMs: 60_000,
+    retryDelayMs: 10,
+    maxAttempts: 3,
+  });
+  tasks = [task("a", "running")];
+  await wake.changed();
+  tasks = [task("a", "exited", { exitCode: 1 })];
+  await wake.changed();
+  await wake.flush();
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  assert.equal(attempts, 3);
+  assert.ok(logs.some((msg) => msg.includes("reached max retries (3)")));
+  wake.dispose();
+
+  // Verify dispose() cancels an active retry timer before it fires.
+  let disposedAttempts = 0;
+  const wake2 = createBackgroundWake({
+    listTasks: async () => tasks,
+    output: async () => ({ stdout: "", stderr: "" }),
+    activeTurn: () => undefined,
+    steer: async () => ({ accepted: false }),
+    prompt: async () => {
+      disposedAttempts += 1;
+      throw new Error("offline");
+    },
+    queue: async () => {
+      throw new Error("offline");
+    },
+    log: () => {},
+    delayMs: 60_000,
+    retryDelayMs: 30,
+  });
+  tasks = [task("b", "running")];
+  await wake2.changed();
+  tasks = [task("b", "failed")];
+  await wake2.changed();
+  await wake2.flush();
+  assert.equal(disposedAttempts, 1);
+  wake2.dispose();
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  assert.equal(disposedAttempts, 1);
+});

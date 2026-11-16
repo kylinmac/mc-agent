@@ -78,13 +78,16 @@ export function parseResponseRecord(line) {
   }
   if (!record || typeof record !== "object" || record.event !== RESPONSE_EVENT) return undefined;
   const data = record.data && typeof record.data === "object" ? record.data : {};
-  if (typeof data.inputTokens !== "number") return undefined;
+  const rawInput = typeof data.input === "number" ? data.input : data.inputTokens;
+  if (typeof rawInput !== "number" || !Number.isFinite(rawInput)) return undefined;
+  const rawCacheRead = typeof data.cacheRead === "number" ? data.cacheRead : data.cacheReadTokens;
+  const rawCacheWrite = typeof data.cacheWrite === "number" ? data.cacheWrite : data.cacheWriteTokens;
   return {
     api: typeof data.api === "string" && data.api ? data.api : "unknown",
-    input: finite(data.inputTokens),
-    cacheReported: typeof data.cacheReadTokens === "number",
-    cacheRead: finite(data.cacheReadTokens),
-    cacheWrite: finite(data.cacheWriteTokens),
+    input: finite(rawInput),
+    cacheReported: typeof rawCacheRead === "number" && Number.isFinite(rawCacheRead),
+    cacheRead: finite(rawCacheRead),
+    cacheWrite: finite(rawCacheWrite),
   };
 }
 

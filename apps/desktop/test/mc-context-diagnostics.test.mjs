@@ -1,18 +1,50 @@
 import assert from "node:assert/strict";
-import { register } from "node:module";
 import test from "node:test";
-register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
-const { contextDiagnosticData } = await import("../electron/main/runtime/mc-context-diagnostics.ts");
-test("context diagnostics keep only bounded structure and opaque fingerprints", () => {
-  const hash = "a".repeat(24);
-  assert.deepEqual(contextDiagnosticData({
-    ok: false, historyCount: 100, missingCount: 2, missingToolCallCount: 1, estimatedTokens: Infinity,
-    checkpointKey: hash, boundaryKey: "/private/path", content: "secret", thinking: "secret",
-    missingKeys: ["secret", ...Array(10).fill(hash)], roleCounts: { user: 2, secret: 50 },
-    exclusions: { system: 1, secret: 1 }, fallback: true,
-  }), { historyCount: 100, missingCount: 2, missingToolCallCount: 1, ok: false, fallback: true,
-    checkpointKey: hash, missingKeys: Array(5).fill(hash), roleCounts: { user: 2 }, exclusions: { system: 1 } });
-});
-test("malformed diagnostics do not log nested free text", () => {
-  assert.deepEqual(contextDiagnosticData({ roleCounts: { user: "private" }, exclusions: "secret", restoreId: "secret", requestCount: -1 }), { roleCounts: {} });
+import { redactValue } from "../electron/main/logger.ts";
+import { responseEndDiagnosticData } from "../electron/main/runtime/mc-context-diagnostics.ts";
+import { parseResponseRecord } from "../../../scripts/mc-compaction-cache-report.mjs";
+
+test("B-056: responseEndDiagnosticData avoids logger token redaction while preserving missing buckets", () => {
+  const raw = {
+    reason: "stop",
+    modelId: "gpt-6.1-sol",
+    api: "openai-codex-responses",
+    inputTokens: 1200,
+    outputTokens: 80,
+    reasoningTokens: 40,
+    cacheReadTokens: 24000,
+    durationMs: 950,
+  };
+  const shaped = responseEndDiagnosticData(raw);
+  const redacted = redactValue(shaped);
+  assert.deepEqual(redacted, {
+    reason: "stop",
+    modelId: "gpt-6.1-sol",
+    api: "openai-codex-responses",
+    durationMs: 950,
+    input: 1200,
+    output: 80,
+    reasoning: 40,
+    cacheRead: 24000,
+  });
+  assert.equal("cacheWrite" in redacted, false);
+
+  const line = JSON.stringify({
+    ts: "2026-11-16T08:00:00.000Z",
+    level: "info",
+    channel: "app",
+    category: "session",
+    event: "session.response.end",
+    message: "model response ended",
+    sessionId: "s1",
+    requestId: "r1",
+    data: redacted,
+  });
+  assert.deepEqual(parseResponseRecord(line), {
+    api: "openai-codex-responses",
+    input: 1200,
+    cacheReported: true,
+    cacheRead: 24000,
+    cacheWrite: 0,
+  });
 });

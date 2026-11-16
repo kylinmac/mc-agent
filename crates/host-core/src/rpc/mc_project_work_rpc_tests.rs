@@ -284,4 +284,14 @@ async fn resources_list_get_register_and_goal() {
         .await
         .unwrap();
     assert_eq!(goal["goal"], "");
+
+    // Re-registering the same file in another category returns the existing listed key.
+    let dup = call(
+        &f,
+        &f.caller,
+        json!({"tool":"resources","action":"register","path":"docs/research.md","category":"requirements"}),
+    )
+    .await
+    .unwrap();
+    assert_eq!(dup["key"], key);
 }

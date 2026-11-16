@@ -122,3 +122,16 @@ test("ordinary responses: only the request-side numbers are read, and a missing 
   assert.match(table, /\| other-api \|.*\| unknown \|/);
   assert.equal(table.includes(SECRET), false);
 });
+
+test("ordinary responses: reads unredacted log keys and ignores legacy ***REDACTED*** strings", () => {
+  const unredacted = parseResponseRecord(response(
+    { api: "openai-codex-responses", reason: "stop", modelId: "gpt-6.1-sol", input: 1200, cacheRead: 24000, output: 80 },
+  ));
+  assert.deepEqual(unredacted, {
+    api: "openai-codex-responses", input: 1200, cacheReported: true, cacheRead: 24000, cacheWrite: 0,
+  });
+  const redacted = parseResponseRecord(response(
+    { api: "openai-codex-responses", inputTokens: "***REDACTED***", cacheReadTokens: "***REDACTED***" },
+  ));
+  assert.equal(redacted, undefined);
+});

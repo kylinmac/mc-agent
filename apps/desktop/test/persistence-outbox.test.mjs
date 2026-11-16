@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -501,4 +501,113 @@ test("a restarted host retries the paused head without waiting out the backoff (
   await outbox.flush(() => restarted);
   assert.equal(outbox.size(), 0, "a fresh host generation drains the paused head at once");
   assert.equal(calls.length, paused + 1);
+});
+
+test("quarantine keeps the outbox entry intact when writing the dead-letter file fails", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "pi-outbox-dlq-fail-"));
+  const now = { value: 0 };
+  const logs = [];
+  const outbox = new PersistenceOutbox(
+    dir,
+    (level, message, data) => logs.push({ level, message, data }),
+    { now: () => now.value },
+  );
+  const host = mockHost(async () => {
+    throw new Error("unclassified host error");
+  });
+  await outbox.enqueue(
+    { key: "message:s1:keep-on-fail", sessionId: "s1", message: { id: "keep-on-fail" } },
+    () => host,
+  );
+  await settle();
+  // Block writing the dead-letter temp file so quarantine's dead-letter persist throws EISDIR.
+  const dlqTmp = join(dir, `${DEAD_LETTER_FILE}.tmp`);
+  await mkdir(dlqTmp);
+
+  // Trigger up to 5 attempts; quarantine must abort cleanly without removing the head.
+  const remaining = await drain(outbox, host, now, 6);
+  assert.equal(remaining, 1, "head remains in outbox when dead-letter persist fails");
+  const persisted = JSON.parse(await readFile(join(dir, "session-message-outbox.json"), "utf8"));
+  assert.deepEqual(persisted.map((entry) => entry.key), ["message:s1:keep-on-fail"]);
+  assert.ok(
+    logs.some((row) => row.message === "session persistence outbox dead letter write failed"),
+  );
+
+  // Remove the fault and verify a restarted instance recovers the entry and drains to dead-letter.
+  await rm(dlqTmp, { recursive: true, force: true });
+  const reopened = new PersistenceOutbox(dir, silent, { now: () => now.value });
+  await reopened.flush(() => host);
+  await settle();
+  assert.equal(reopened.size(), 1);
+  assert.equal(await drain(reopened, host, now, 6), 0);
+  const dead = JSON.parse(await readFile(join(dir, DEAD_LETTER_FILE), "utf8"));
+  assert.deepEqual(dead.map((entry) => entry.key), ["message:s1:keep-on-fail"]);
+});
+
+test("startup deduplicates entries already persisted in dead-letter after a mid-quarantine exit", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "pi-outbox-crash-dedupe-"));
+  const item = { key: "message:s1:mid-crash", sessionId: "s1", message: { id: "mid-crash" } };
+  await writeFile(join(dir, "session-message-outbox.json"), JSON.stringify([item]), "utf8");
+  await writeFile(
+    join(dir, DEAD_LETTER_FILE),
+    JSON.stringify([{ ...item, quarantinedAt: "2026-11-16T00:00:00Z", reason: "host error" }]),
+    "utf8",
+  );
+  const replayed = [];
+  const host = mockHost(async (_method, params) => {
+    replayed.push(params.message.id);
+  });
+  const reopened = new PersistenceOutbox(dir, silent);
+  await reopened.flush(() => host);
+  assert.equal(reopened.size(), 0);
+  assert.deepEqual(replayed, []);
+  assert.deepEqual(JSON.parse(await readFile(join(dir, "session-message-outbox.json"), "utf8")), []);
+  const dead = JSON.parse(await readFile(join(dir, DEAD_LETTER_FILE), "utf8"));
+  assert.deepEqual(dead.map((entry) => entry.key), ["message:s1:mid-crash"]);
+});
+
+test("#144 outbox write-amplification baseline for N=50 and N=200 2KB entries", async () => {
+  const results = [];
+  for (const n of [50, 200]) {
+    const dir = await mkdtemp(join(tmpdir(), `pi-outbox-bench-${n}-`));
+    try {
+      const outbox = new PersistenceOutbox(dir, silent);
+      const body = "x".repeat(2048);
+      let delivered = 0;
+      const host = mockHost(async () => {
+        delivered += 1;
+      });
+
+      const t0 = performance.now();
+      for (let i = 0; i < n; i += 1) {
+        await outbox.enqueue(
+          {
+            key: `message:s-bench:${i}`,
+            sessionId: "s-bench",
+            message: { id: `m-${i}`, role: "user", content: body },
+          },
+          () => null,
+        );
+      }
+      const enqueueMs = Number((performance.now() - t0).toFixed(2));
+      const peakBytes = Buffer.byteLength(
+        await readFile(join(dir, "session-message-outbox.json"), "utf8"),
+        "utf8",
+      );
+      assert.equal(outbox.size(), n);
+
+      const t1 = performance.now();
+      await outbox.flush(() => host);
+      const drainMs = Number((performance.now() - t1).toFixed(2));
+      const totalMs = Number((enqueueMs + drainMs).toFixed(2));
+
+      assert.equal(outbox.size(), 0);
+      assert.equal(delivered, n);
+      assert.ok(drainMs < 2000, `expected ${n}-entry drain < 2000ms, got ${drainMs}ms`);
+      results.push({ n, enqueueMs, drainMs, totalMs, peakBytes });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+  console.info("[OUTBOX-BENCH]", JSON.stringify(results));
 });

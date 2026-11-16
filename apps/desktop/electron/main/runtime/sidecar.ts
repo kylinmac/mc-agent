@@ -1,5 +1,5 @@
 import { createPanelTools } from "../work-panel-agent/tools";
-import { contextDiagnosticData } from "./mc-context-diagnostics";
+import { contextDiagnosticData, responseEndDiagnosticData } from "./mc-context-diagnostics";
 import { fastModeEnabled, type AppSettings } from "@pi-desktop/shared";
 import {
   IPC,
@@ -317,7 +317,10 @@ export function createSidecarRuntime({
             requestId: diagnostic.requestId,
             event: entry.event,
             data: diagnostic.kind === "context_restore" || diagnostic.kind === "context_request"
-              ? contextDiagnosticData(diagnostic.data) : diagnostic.data,
+              ? contextDiagnosticData(diagnostic.data)
+              : diagnostic.kind === "response_end"
+                ? responseEndDiagnosticData(diagnostic.data)
+                : diagnostic.data,
           },
         );
       }

@@ -11,6 +11,7 @@ import { buildProjectHistoryTool, PROJECT_HISTORY_TOOL_NAME } from "./mc-project
 import { buildProjectResourcesTool, buildProjectTasksTool, PROJECT_RESOURCES_TOOL_NAME, PROJECT_TASKS_TOOL_NAME } from "./mc-project-work-tools.js";
 import { contextIdKey, contextRequestShape, verifiedContextRestore } from "./mc-context-integrity.js";
 import { compactionBoundaryId, restorableCompaction } from "./mc-compaction-boundary.js";
+import { CACHE_SHARED_SUMMARY_APIS, type CompactionCachePrefix } from "./mc-compaction-cache-prefix.js";
 import { RUNTIME_CORE_RULES, RUNTIME_DELEGATION_RULES, RUNTIME_EDITING_RULES } from "./builtin-system-prompt.js";
 import {
   MAX_MUTATION_RECOVERY_FAILURES, BASH_PATCH_FAILURE_KEY,
@@ -90,6 +91,7 @@ import {
   isContextOverflow,
   getCurrentTools,
   getToolStateChanges,
+  normalizeContext,
   toToolDeclaration,
   Type,
   type Api,
@@ -1996,6 +1998,8 @@ export class DesktopAgentRuntime {
   private resumablePromptStale = false;
   /** Set by `abort` / `dispose` so a finishing delegate cannot restart the parent. */
   private runCancelled = false;
+  /** Cancels an active user hook child process on `abort` / `dispose` (mc-agent RT-1). */
+  private activeUserHookAbort?: AbortController;
   /**
    * Permission scope of the delegate currently executing one tool call,
    * keyed by tool call id (ADR 0089). The host reads it on `tools.execute` and
@@ -2864,8 +2868,24 @@ export class DesktopAgentRuntime {
     input: { toolName?: string; toolInput?: unknown; toolResult?: unknown; lastReply?: string },
   ): Promise<string | undefined> {
     const cwd = this.workspaceRoot ?? this.projectPath;
-    if (!this.userHooks.length || this.remoteWorkspace || !cwd) return undefined;
-    return runUserHooks(this.userHooks, { event, sessionId: this.sessionId, cwd, ...input });
+    if (!this.userHooks.length || this.remoteWorkspace || !cwd || this.disposed || this.runCancelled) {
+      return undefined;
+    }
+    const hookAbort = new AbortController();
+    this.activeUserHookAbort = hookAbort;
+    try {
+      return await runUserHooks(this.userHooks, {
+        event,
+        sessionId: this.sessionId,
+        cwd,
+        signal: hookAbort.signal,
+        ...input,
+      });
+    } finally {
+      if (this.activeUserHookAbort === hookAbort) {
+        this.activeUserHookAbort = undefined;
+      }
+    }
   }
 
   /**
@@ -3197,6 +3217,9 @@ export class DesktopAgentRuntime {
     this.thinkingLevel = clampThinkingLevel(this.provider, this.thinkingLevel);
     this.agent.state.model = model;
     this.agent.state.thinkingLevel = agentThinkingLevel(this.thinkingLevel);
+    if (this.preparedSummary && this.preparedSummary.modelKey !== this.summaryModelKey()) {
+      this.discardPreparedSummary("model_changed");
+    }
   }
 
   async activateTrustedExtensionAgent(agentKey: string, modelId: string): Promise<boolean> {
@@ -3292,6 +3315,9 @@ export class DesktopAgentRuntime {
       getThinkingLevel: () => agentThinkingLevel(runtime.thinkingLevel),
       setThinkingLevel: (level) => {
         runtime.thinkingLevel = clampThinkingLevel(runtime.provider, level as ThinkingLevel);
+        if (runtime.preparedSummary && runtime.preparedSummary.modelKey !== runtime.summaryModelKey()) {
+          runtime.discardPreparedSummary("model_changed");
+        }
       },
       isIdle: () => !runtime.agent.state.isStreaming,
       abort: () => {
@@ -8294,9 +8320,39 @@ export class DesktopAgentRuntime {
     return false;
   }
 
+  private snapshotCacheSharedPrefix(): CompactionCachePrefix | undefined {
+    if (!CACHE_SHARED_SUMMARY_APIS.has(this.model.api)) return undefined;
+    const tools = this.declaredTools();
+    let agentMessages = this.dropDuplicateToolCalls(this.agent.state.messages);
+    const changes = getToolStateChanges(getCurrentTools(agentMessages), tools.map(toToolDeclaration));
+    if (changes.toolsAdded.length || changes.toolsRemoved.length) {
+      agentMessages = [...agentMessages, { role: "system", content: "", ...changes, timestamp: Date.now() }];
+    }
+    if (this.trackToolActivation && this.declarationPolicy) {
+      agentMessages = syncToolActivation(agentMessages, toolActivationSection(
+        this.declarationPolicy.key, this.activeDeferredToolNames,
+      ));
+    }
+    const messages = alignRetainedReasoningIdentity(
+      convertToLlm(agentMessages),
+      this.reasoningReplayIdentity(),
+    );
+    const usesTranscriptSystem = messages.some((m) => m.role === "system");
+    const baseContext: Context = usesTranscriptSystem
+      ? { messages }
+      : {
+          systemPrompt: this.agentSystemPromptContent(),
+          messages,
+          tools: tools.map(toToolDeclaration),
+        };
+    const requestContext = requestTranscript(this.model, normalizeContext(baseContext));
+    return { sessionId: this.sessionId, context: { messages: requestContext.messages } };
+  }
+
   private async generateCompaction(
     preparation: ShapedPreparation,
     signal: AbortSignal,
+    cachePrefix?: CompactionCachePrefix,
   ): Promise<Awaited<ReturnType<typeof compact>>> {
     const usageTurnId = this.turnId;
     const requestId = randomUUID();
@@ -8364,6 +8420,7 @@ export class DesktopAgentRuntime {
           progress("retrying", attempt + 1, delayMs);
         } },
         signal,
+        cachePrefix,
       );
       if (!result.ok) {
         this.emitCompactionFailureDiagnostic(
@@ -8529,8 +8586,12 @@ export class DesktopAgentRuntime {
 
     let result: Awaited<ReturnType<typeof compact>>;
     try {
+      const cachePrefix =
+        summaryInput === preparation.value && !preparation.value.isSplitTurn
+          ? this.snapshotCacheSharedPrefix()
+          : undefined;
       result = summaryInput
-        ? await this.generateCompaction(summaryInput, signal)
+        ? await this.generateCompaction(summaryInput, signal, cachePrefix)
         : await this.generateChunkedCompaction(
             preparation.value,
             chunks!,
@@ -8891,6 +8952,17 @@ export class DesktopAgentRuntime {
       });
       return "none";
     };
+    const basisCheck = () =>
+      preparedSummaryDiscardReason(prepared, {
+        hasMessage: (id) => this.fullEntries.some((entry) => entry.id === id),
+        ...(this.activeCompaction ? { activeCheckpointId: this.activeCompaction.id } : {}),
+        modelKey: this.summaryModelKey(),
+      });
+    const preInvalid = basisCheck();
+    if (preInvalid) {
+      prepared.abort.abort();
+      return discard(preInvalid);
+    }
     // Still generating: wait for it rather than start a second request. Stop
     // cancels it through the same handle an inline compaction uses.
     this.compactionAbort = prepared.abort;
@@ -8905,11 +8977,7 @@ export class DesktopAgentRuntime {
       return "stopped";
     }
     if (!build.ok) return discard("build_failed");
-    const invalid = preparedSummaryDiscardReason(prepared, {
-      hasMessage: (id) => this.fullEntries.some((entry) => entry.id === id),
-      ...(this.activeCompaction ? { activeCheckpointId: this.activeCompaction.id } : {}),
-      modelKey: this.summaryModelKey(),
-    });
+    const invalid = basisCheck();
     if (invalid) return discard(invalid);
 
     const boundaryIndex = this.fullEntries.findIndex((entry) => entry.id === prepared.boundaryId);
@@ -9776,6 +9844,9 @@ export class DesktopAgentRuntime {
     this.pendingUserMessageId = undefined;
     this.gracefulStopRequested = false;
     this.runCancelled = false;
+    this.turnSubagentUsage = undefined;
+    this.repeatedToolCalls.delete("parent");
+    this.pendingRepeatedCallTermination = undefined;
     this.resetRunRecoveryState();
     this.turnEpoch += 1;
     this.abortDelegationsFromPreviousTurns();
@@ -10164,6 +10235,7 @@ export class DesktopAgentRuntime {
     this.acceptingSteering = false;
     this.gracefulStopRequested = false;
     this.runCancelled = true;
+    this.activeUserHookAbort?.abort();
     this.steeringWaitAbort?.abort();
     this.extensionRunner?.cancelPending();
     this.resolvePendingAskTools();
@@ -10416,6 +10488,7 @@ export class DesktopAgentRuntime {
     this.discardPreparedSummary("disposed");
     this.acceptingSteering = false;
     this.runCancelled = true;
+    this.activeUserHookAbort?.abort();
     this.steeringWaitAbort?.abort();
     this.resolvePendingAskTools();
     this.abortRunningDelegations();

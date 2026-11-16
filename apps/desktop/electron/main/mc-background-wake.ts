@@ -34,6 +34,10 @@ export type BackgroundWakeDeps = {
   now?: () => number;
   /** Lets the tests flush without waiting. */
   delayMs?: number;
+  /** Initial backoff delay when both primary and fallback deliveries fail. */
+  retryDelayMs?: number;
+  /** Maximum total delivery attempts per ended task before dropping. */
+  maxAttempts?: number;
 };
 
 /** Output carried in a notice, from the end. */
@@ -41,6 +45,9 @@ const TAIL_CHARS = 2_000;
 const COMMAND_CHARS = 200;
 /** Ends that land close together go out as one notice. */
 const BATCH_DELAY_MS = 1_500;
+const DEFAULT_RETRY_DELAY_MS = 2_000;
+const MAX_RETRY_DELAY_MS = 60_000;
+const DEFAULT_MAX_ATTEMPTS = 3;
 /** A command that keeps failing at once must not keep starting turns. */
 const MAX_WAKES_PER_WINDOW = 5;
 const WAKE_WINDOW_MS = 10 * 60_000;
@@ -74,29 +81,31 @@ export function backgroundNotice(ended: Array<{ task: WakeTask; tail: string }>)
 
 export function createBackgroundWake(deps: BackgroundWakeDeps) {
   const now = deps.now ?? Date.now;
+  const maxAttempts = Math.max(1, deps.maxAttempts ?? DEFAULT_MAX_ATTEMPTS);
+  const baseRetryDelayMs = Math.max(0, deps.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS);
   const known = new Map<string, WakeTask["state"]>();
-  const pending = new Map<string, WakeTask[]>();
+  type PendingItem = { task: WakeTask; attempts: number };
+  const pending = new Map<string, Map<string, PendingItem>>();
   const wakes = new Map<string, number[]>();
   let primed = false;
+  let disposed = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let retryTimer: ReturnType<typeof setTimeout> | undefined;
   let scanning: Promise<void> | undefined;
   let rescan = false;
 
-  const allowed = (sessionId: string): boolean => {
+  const canWake = (sessionId: string): boolean => {
     const recent = (wakes.get(sessionId) ?? []).filter((at) => now() - at < WAKE_WINDOW_MS);
-    if (recent.length >= MAX_WAKES_PER_WINDOW) {
-      wakes.set(sessionId, recent);
-      return false;
-    }
+    wakes.set(sessionId, recent);
+    return recent.length < MAX_WAKES_PER_WINDOW;
+  };
+
+  const recordWake = (sessionId: string): void => {
+    const recent = (wakes.get(sessionId) ?? []).filter((at) => now() - at < WAKE_WINDOW_MS);
     wakes.set(sessionId, [...recent, now()]);
-    return true;
   };
 
   const deliver = async (sessionId: string, tasks: WakeTask[]) => {
-    if (!allowed(sessionId)) {
-      deps.log(`background wake skipped for ${sessionId}: too many in a short time`);
-      return;
-    }
     const ended = await Promise.all(tasks.map(async (task) => ({
       task,
       tail: combined(await deps.output(task.id).catch(() => ({}))),
@@ -113,19 +122,69 @@ export function createBackgroundWake(deps: BackgroundWakeDeps) {
     await deps.prompt(sessionId, content).catch(() => deps.queue(sessionId, content));
   };
 
+  const scheduleRetry = (attempt: number) => {
+    if (disposed || timer || retryTimer || pending.size === 0) return;
+    const delay = Math.min(baseRetryDelayMs * 2 ** Math.max(0, attempt - 1), MAX_RETRY_DELAY_MS);
+    retryTimer = setTimeout(() => {
+      retryTimer = undefined;
+      void flush();
+    }, delay);
+    retryTimer.unref?.();
+  };
+
   const flush = async () => {
     if (timer) clearTimeout(timer);
     timer = undefined;
+    if (retryTimer) clearTimeout(retryTimer);
+    retryTimer = undefined;
+    if (disposed) return;
     const batches = [...pending.entries()];
     pending.clear();
-    for (const [sessionId, tasks] of batches) {
-      await deliver(sessionId, tasks).catch((error) => deps.log("background wake delivery failed", error));
+    let minRetryAttempt: number | undefined;
+    for (const [sessionId, taskMap] of batches) {
+      if (disposed) return;
+      if (!canWake(sessionId)) {
+        deps.log(`background wake skipped for ${sessionId}: too many in a short time`);
+        continue;
+      }
+      const items = [...taskMap.values()];
+      try {
+        await deliver(sessionId, items.map((item) => item.task));
+        recordWake(sessionId);
+      } catch (error) {
+        deps.log("background wake delivery failed", error);
+        if (disposed) return;
+        for (const item of items) {
+          const nextAttempts = item.attempts + 1;
+          if (nextAttempts >= maxAttempts) {
+            deps.log(`background wake dropped for ${item.task.id}: reached max retries (${maxAttempts})`);
+            continue;
+          }
+          let sessionPending = pending.get(sessionId);
+          if (!sessionPending) {
+            sessionPending = new Map();
+            pending.set(sessionId, sessionPending);
+          }
+          if (!sessionPending.has(item.task.id)) {
+            sessionPending.set(item.task.id, { task: item.task, attempts: nextAttempts });
+          }
+          minRetryAttempt = minRetryAttempt === undefined
+            ? nextAttempts
+            : Math.min(minRetryAttempt, nextAttempts);
+        }
+      }
+    }
+    if (minRetryAttempt !== undefined) {
+      scheduleRetry(minRetryAttempt);
     }
   };
 
   const scan = async () => {
+    if (disposed) return;
     const tasks = await deps.listTasks();
+    if (disposed) return;
     const ids = new Set<string>();
+    let added = false;
     for (const task of tasks) {
       ids.add(task.id);
       const before = known.get(task.id);
@@ -135,12 +194,20 @@ export function createBackgroundWake(deps: BackgroundWakeDeps) {
       if (!primed) continue;
       const endedOnItsOwn = task.state === "exited" || task.state === "failed";
       if (endedOnItsOwn && before !== task.state && (before === "running" || before === undefined)) {
-        pending.set(task.sessionId, [...(pending.get(task.sessionId) ?? []), task]);
+        let sessionPending = pending.get(task.sessionId);
+        if (!sessionPending) {
+          sessionPending = new Map();
+          pending.set(task.sessionId, sessionPending);
+        }
+        sessionPending.set(task.id, { task, attempts: 0 });
+        added = true;
       }
     }
     for (const id of known.keys()) if (!ids.has(id)) known.delete(id);
     primed = true;
-    if (pending.size && !timer) {
+    if (added && pending.size && !timer) {
+      if (retryTimer) clearTimeout(retryTimer);
+      retryTimer = undefined;
       timer = setTimeout(() => void flush(), deps.delayMs ?? BATCH_DELAY_MS);
       timer.unref?.();
     }
@@ -148,6 +215,7 @@ export function createBackgroundWake(deps: BackgroundWakeDeps) {
 
   /** Call on every `backgroundTasks.changed`; overlapping calls fold into one rescan. */
   const changed = (): Promise<void> => {
+    if (disposed) return Promise.resolve();
     if (scanning) {
       rescan = true;
       return scanning;
@@ -156,7 +224,7 @@ export function createBackgroundWake(deps: BackgroundWakeDeps) {
       do {
         rescan = false;
         await scan().catch((error) => deps.log("background wake scan failed", error));
-      } while (rescan);
+      } while (rescan && !disposed);
     })().finally(() => {
       scanning = undefined;
     });
@@ -168,8 +236,11 @@ export function createBackgroundWake(deps: BackgroundWakeDeps) {
     /** For tests: deliver what is waiting now. */
     flush,
     dispose() {
+      disposed = true;
       if (timer) clearTimeout(timer);
       timer = undefined;
+      if (retryTimer) clearTimeout(retryTimer);
+      retryTimer = undefined;
       pending.clear();
     },
   };
