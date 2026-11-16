@@ -9,6 +9,20 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.77",
+    date: "2026-11-16",
+    improvements: [
+      "On ChatGPT Codex and official OpenAI, DeepSeek, and xAI endpoints, automatic context compaction reuses the conversation cache prefix to reduce repeated input token charges, falling back automatically when unsupported.",
+    ],
+    fixes: [
+      "Starting a task from the project workbench always creates a dedicated new conversation, shows an error if session creation is interrupted, and cleans up empty conversations when startup fails.",
+      "Completed background commands retry waking a busy main conversation with backoff and serialize overlapping wake deliveries so notices are neither dropped nor sent concurrently.",
+      "Clicking Stop immediately terminates a running stop hook, and switching models or thinking levels cancels any in-progress background summary right away.",
+      "Approving a plan or goal now resets the repeated tool-call counter from the planning phase so execution is not stopped prematurely.",
+      "Fixed duplicate entries when registering the same project file across categories, unsafe index links breaking the whole resource list, dead-letter deduplication dropping newer message snapshots, and token counts being redacted in session logs.",
+    ],
+  },
+  {
     version: "1.0.76",
     date: "2026-11-16",
     improvements: [
