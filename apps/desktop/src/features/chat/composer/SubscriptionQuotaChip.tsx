@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import type { TFunction } from "i18next";
-import { subscriptionQuotaWindowKind, type SubscriptionQuota, type SubscriptionQuotaWindow } from "@pi-desktop/shared";
+import { subscriptionQuotaWindowKind, type SubscriptionQuotaWindow } from "@pi-desktop/shared";
 import { Tooltip } from "../../../components/ui";
-import { api } from "../../../lib/api";
+import { readSubscriptionQuota, refreshSubscriptionQuota, subscribeSubscriptionQuota } from "./subscription-quota-store";
 
 /*
   mc-agent: the remaining quota of the conversation's subscription account,
@@ -14,8 +14,6 @@ import { api } from "../../../lib/api";
 
 /** Below this share left a window is drawn as a warning. */
 const LOW_PERCENT = 20;
-/** Reread while open, so reset times and shares do not go stale. */
-const REFRESH_MS = 5 * 60_000;
 
 export function quotaWindowLabel(t: TFunction, window: SubscriptionQuotaWindow): string {
   const { kind, count } = subscriptionQuotaWindowKind(window.seconds);
@@ -38,29 +36,21 @@ function resetLabel(t: TFunction, resetsAt: number | undefined): string {
 export function SubscriptionQuotaChip({ t, providerId, runActive }: {
   t: TFunction; providerId?: string; runActive: boolean;
 }) {
-  const [quota, setQuota] = useState<SubscriptionQuota | null>(null);
-  const request = useRef(0);
+  const subscribe = useCallback((listener: () => void) => providerId
+    ? subscribeSubscriptionQuota(providerId, listener) : () => {}, [providerId]);
+  const quota = useSyncExternalStore(subscribe, () => readSubscriptionQuota(providerId), () => null);
 
   useEffect(() => {
-    if (!providerId) { setQuota(null); return; }
-    // A finished reply is when quota moves; while a reply runs, keep what is shown.
-    if (runActive) return;
-    const ticket = ++request.current;
-    const load = () => {
-      void api.subscriptionQuota(providerId).then(
-        ({ quota: next }) => { if (ticket === request.current) setQuota(next); },
-        () => { if (ticket === request.current) setQuota(null); },
-      );
-    };
-    load();
-    const timer = setInterval(load, REFRESH_MS);
-    return () => clearInterval(timer);
+    if (providerId && !runActive) void refreshSubscriptionQuota(providerId);
   }, [providerId, runActive]);
 
   if (!quota || quota.windows.length === 0) return null;
   const low = quota.windows.some((window) => window.remainingPercent < LOW_PERCENT);
   const lines = [
     t("mcProject.quotaTitle"),
+    ...(quota.stale ? [t("mcProject.quotaStale"), t("mcProject.quotaUpdatedAt", {
+      time: new Date(quota.fetchedAt).toLocaleString(),
+    })] : []),
     ...quota.windows.map((window) => {
       const reset = resetLabel(t, window.resetsAt);
       return `${quotaWindowLabel(t, window)} · ${t("mcProject.quotaRemaining", { percent: Math.round(window.remainingPercent) })}${reset ? ` · ${reset}` : ""}`;
@@ -75,6 +65,7 @@ export function SubscriptionQuotaChip({ t, providerId, runActive }: {
             <span className="mc-quota-window-value">{Math.round(window.remainingPercent)}%</span>
           </span>
         ))}
+        {quota.stale ? <span aria-hidden="true">*</span> : null}
       </span>
     </Tooltip>
   );

@@ -13,6 +13,8 @@ import { readSystemMessage } from "./system-transcript-journal.js";
  */
 
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AssistantMessage, ToolCall } from "@earendil-works/pi-ai";
+import { usageToPi } from "./agent-messages.js";
 import {
   createBranchSummaryMessage,
   createCompactionSummaryMessage,
@@ -108,9 +110,40 @@ export function buildSessionContext(
 ): {
   messages: AgentMessage[];
 } {
-  return {
-    messages: buildContextEntries(pathEntries).flatMap((entry) =>
-      sessionEntryToContextMessages(entry, identity),
-    ),
-  };
+  const contextEntries = buildContextEntries(pathEntries);
+  const messages = contextEntries.flatMap((entry) => sessionEntryToContextMessages(entry, identity));
+  if (contextEntries[0]?.type !== "compaction") return { messages };
+
+  // A checkpoint can split a tool batch: restore only the calls whose results survived.
+  const sources = new Map<string, { assistant: AssistantMessage; call: ToolCall }>();
+  for (const entry of pathEntries.slice(0, pathEntries.indexOf(contextEntries[0]))) {
+    const candidates = entry.type === "message" ? [entry.message]
+      : entry.type === "compaction" ? entry.retainedTail : [];
+    for (const message of candidates) {
+      if (message.role !== "assistant" || !isContextMessage(message)) continue;
+      for (const block of message.content) {
+        if (block.type === "toolCall") sources.set(block.id, { assistant: message, call: block });
+      }
+    }
+  }
+  const calls = new Set<string>();
+  const paired: AgentMessage[] = [];
+  for (const message of messages) {
+    if (message.role === "assistant") {
+      for (const block of message.content) if (block.type === "toolCall") calls.add(block.id);
+    } else if (message.role === "toolResult" && !calls.has(message.toolCallId)) {
+      const source = sources.get(message.toolCallId);
+      if (source) {
+        calls.add(source.call.id);
+        paired.push({ ...source.assistant,
+          content: [
+            ...(identity?.requiresCompletionsReasoningReplay
+              ? source.assistant.content.filter((block) => block.type === "thinking") : []),
+            source.call,
+          ], stopReason: "toolUse", usage: usageToPi(undefined) });
+      }
+    }
+    paired.push(message);
+  }
+  return { messages: paired };
 }

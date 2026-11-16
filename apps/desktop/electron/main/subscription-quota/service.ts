@@ -203,11 +203,14 @@ export class SubscriptionQuotaService {
           if (response.ok) {
             const windows = reader.parse(await response.json());
             if (windows.length > 0) value = { source: reader.source, windows, fetchedAt: this.now() };
+          } else if (response.status !== 401 && response.status !== 403) {
+            throw new Error("quota refresh failed");
           }
         }
       }
     } catch {
-      value = null;
+      const previous = this.cache.get(providerId)?.value;
+      value = previous ? { ...previous, stale: true } : null;
     }
     this.cache.set(providerId, { at: this.now(), ttl, value });
     return value;

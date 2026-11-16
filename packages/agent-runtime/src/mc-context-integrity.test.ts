@@ -12,6 +12,15 @@ const checkpoint: ContextCompactionRecord = { id: "private-checkpoint", throughM
 const messages = entries.map((e) => e.message);
 
 describe("restore integrity", () => {
+  it("rejects an unpaired tool result even when every expected row survived", () => {
+    const tool: UiMessage = { ...row("tool", "tool"), toolCallId: "private-call", toolName: "Read" };
+    const entry: MessageEntry = { type: "message", id: "tool", seq: 0, parentId: null, timestamp: 1,
+      message: { role: "toolResult", toolCallId: "private-call", toolName: "Read",
+        content: [{ type: "text", text: "private result" }], isError: false, timestamp: 1 } };
+    const check = inspectContextRestore({ history: [tool], entries: [entry], messages: [entry.message] });
+    expect(check).toMatchObject({ ok: false, missingCount: 0, missingToolCallCount: 1 });
+    expect(JSON.stringify(check)).not.toContain("private");
+  });
   it("rejects a boundary present in raw history but filtered from the restored entries", () => {
     const filtered = entries.slice(1);
     const raw = [{ ...history[0], content: "" }, ...history.slice(1)];

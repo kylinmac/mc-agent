@@ -3858,6 +3858,16 @@
     "zh-CN": "订阅剩余额度",
     "zh-TW": "訂閱剩餘額度"
   },
+  "quotaStale": {
+    "en": "Refresh failed; showing the last known quota.",
+    "zh-CN": "刷新失败，当前显示上次读取的额度。",
+    "zh-TW": "重新整理失敗，目前顯示上次讀取的額度。"
+  },
+  "quotaUpdatedAt": {
+    "en": "Last updated {{time}}",
+    "zh-CN": "上次更新 {{time}}",
+    "zh-TW": "上次更新 {{time}}"
+  },
   "quotaRemaining": {
     "en": "{{percent}}% left",
     "zh-CN": "剩余 {{percent}}%",

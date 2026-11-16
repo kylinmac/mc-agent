@@ -5,8 +5,7 @@ import {
   createCompactionSummaryMessage,
 } from "./pi-runtime-messages.js";
 import {
-  buildContextEntries,
-  sessionEntryToContextMessages,
+  buildSessionContext,
 } from "./session-context.js";
 import type {
   CompactionPreparation,
@@ -221,9 +220,7 @@ export function prepareCompaction(
     if (cutPoint.isSplitTurn) {
       for (const message of turnPrefixMessages) collectMessageFileOperations(message, fileOps);
     }
-    const contextMessages = buildContextEntries(pathEntries).flatMap((entry) =>
-      sessionEntryToContextMessages(entry),
-    );
+    const contextMessages = buildSessionContext(pathEntries).messages;
     return {
       ok: true,
       value: {

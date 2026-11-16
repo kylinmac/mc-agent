@@ -22,6 +22,45 @@ const valid = checkpoint("valid", "old");
 const broken = checkpoint("broken", "system");
 
 describe("compaction replay boundaries", () => {
+  it("keeps a late tool result paired when its restored carrier is before the checkpoint", async () => {
+    const tool = (id: string): UiMessage => ({ ...row(id, "tool", `result ${id}`),
+      toolCallId: id, toolName: "Read", toolArgs: { path: `${id}.ts` }, toolResult: `result ${id}` });
+    const history = [old, row("carrier", "assistant", "reading files"), tool("early"), tool("late"), result];
+    const requests: Message[][] = [];
+    const runtime = new DesktopAgentRuntime({
+      sessionId: "offline", mode: "agent", thinkingLevel: "off", history,
+      compaction: checkpoint("split-tool-batch", "early"),
+      provider: { id: "offline", name: "Offline", modelId: "offline", apiKey: "", authKind: "none",
+        supportsReasoning: false, supportedThinkingLevels: ["off"], baseUrl: "https://fixture.invalid/v1" },
+      commandShell: { id: "bash", label: "Bash", dialect: "posix", available: true, isDefault: true },
+      host: { call: async <T>() => undefined as T }, onEvent: () => {},
+    });
+    const internal = runtime as unknown as { models: { streamSimple: (_model: unknown, context: { messages: Message[] }) => ReturnType<typeof createAssistantMessageEventStream> } };
+    internal.models = { streamSimple: (_model, context) => {
+      requests.push(structuredClone(context.messages));
+      const stream = createAssistantMessageEventStream();
+      const message: AssistantMessage = { role: "assistant", content: [{ type: "text", text: "Offline answer" }],
+        api: "openai-completions", provider: "offline", model: "offline", stopReason: "stop", timestamp: 10,
+        usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } };
+      stream.push({ type: "done", reason: "stop", message }); stream.end(); return stream;
+    } };
+    try {
+      await runtime.prompt("continue", "next", "turn");
+      expect(requests).toHaveLength(1);
+      const pending = new Set<string>();
+      for (const message of requests[0]) {
+        if (message.role === "assistant") {
+          for (const block of message.content) if (block.type === "toolCall") pending.add(block.id);
+        } else if (message.role === "toolResult") {
+          expect(pending.delete(message.toolCallId), `missing call for ${message.toolCallId}`).toBe(true);
+        }
+      }
+      expect(pending.size).toBe(0);
+      expect(JSON.stringify(requests[0])).toContain("result late");
+      expect(JSON.stringify(requests[0])).not.toContain("result early");
+    } finally { await runtime.dispose(); }
+  });
   it("keeps orphaned system rows at their persisted position across repeated restores", () => {
     const history = [old, system, result];
     expect(orderSystemRows(history)).toEqual(history);

@@ -67,6 +67,44 @@ function compaction(
 }
 
 describe("buildSessionContext", () => {
+  it.each([false, true])("restores a split tool batch without replaying compacted results (retained=%s)", (retained) => {
+    const carrier = assistant("calls", "compacted text", 1);
+    if (carrier.message.role !== "assistant") throw new Error("expected assistant");
+    carrier.message.content.push(
+      { type: "toolCall", id: "early", name: "Read", arguments: { path: "early.ts" } },
+      { type: "toolCall", id: "late", name: "Read", arguments: { path: "late.ts" } },
+    );
+    const result = (id: string, seq: number): MessageEntry => ({ type: "message", id, seq,
+      parentId: "calls", timestamp: seq, message: { role: "toolResult", toolCallId: id, toolName: "Read",
+        content: [{ type: "text", text: `result ${id}` }], isError: false, timestamp: seq } });
+    const late = result("late", 4);
+    const entries = [user("old", "old request", 0), carrier, result("early", 2),
+      compaction("checkpoint", 3, retained ? [late.message] : []), ...(retained ? [] : [late])];
+    const original = structuredClone(entries);
+    const { messages } = buildSessionContext(entries);
+    expect(messages).toMatchObject([
+      { role: "compactionSummary" },
+      { role: "assistant", content: [{ type: "toolCall", id: "late", name: "Read", arguments: { path: "late.ts" } }] },
+      { role: "toolResult", toolCallId: "late" },
+    ]);
+    expect(messages[2]).toBe(late.message);
+    expect(JSON.stringify(messages)).not.toMatch(/compacted text|early/);
+    expect(entries).toEqual(original);
+    expect(buildSessionContext(entries).messages).toEqual(messages);
+  });
+
+  it("does not duplicate a call already present in the retained tail", () => {
+    const carrier = assistant("call", "", 0);
+    if (carrier.message.role !== "assistant") throw new Error("expected assistant");
+    carrier.message.content = [{ type: "toolCall", id: "read", name: "Read", arguments: {} }];
+    const result: AgentMessage = { role: "toolResult", toolCallId: "read", toolName: "Read",
+      content: [{ type: "text", text: "kept" }], isError: false, timestamp: 1 };
+    const messages = buildSessionContext([carrier, compaction("checkpoint", 2, [carrier.message, result])]).messages;
+    expect(messages).toHaveLength(3);
+    expect(messages[1]).toBe(carrier.message);
+    expect(messages[2]).toBe(result);
+  });
+
   it("passes message entries through and drops failed assistants", () => {
     const messages = buildSessionContext([
       user("u1", "hello", 0),

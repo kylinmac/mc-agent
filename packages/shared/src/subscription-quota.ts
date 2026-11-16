@@ -18,6 +18,8 @@ export type SubscriptionQuota = {
   source: string;
   windows: SubscriptionQuotaWindow[];
   fetchedAt: number;
+  /** Refresh failed; windows still describe the last successful read. */
+  stale?: boolean;
 };
 
 const HOUR = 3600;
