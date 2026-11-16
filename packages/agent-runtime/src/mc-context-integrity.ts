@@ -58,13 +58,23 @@ export function inspectContextRestore(input: {
   const reordered = missing.length === 0 && (actual.length !== expected.length || expected.some((id, index) => actual[index] !== id));
   const boundaryMissing = input.checkpoint !== undefined && (boundary < 0 ||
     !input.entries.some((entry) => entry.id === input.checkpoint?.throughMessageId));
+  const calls = new Set<string>();
+  let missingToolCallCount = 0;
+  for (const message of input.messages) {
+    if (message.role === "assistant") {
+      for (const block of message.content) if (block.type === "toolCall") calls.add(block.id);
+    } else if (message.role === "toolResult" && !calls.has(message.toolCallId)) {
+      missingToolCallCount++;
+    }
+  }
   return {
-    ok: !boundaryMissing && missing.length === 0 && !reordered,
+    ok: !boundaryMissing && missing.length === 0 && !reordered && missingToolCallCount === 0,
     historyCount: input.history.length,
     expectedCount: expected.length,
     restoredCount: input.messages.length,
     matchedCount: actual.length,
     missingCount: missing.length,
+    missingToolCallCount,
     missingKeys: missing.slice(0, 5).map((id) => contextIdKey(id)),
     reordered,
     boundaryMissing,

@@ -3778,6 +3778,8 @@ sklm: {
     permSettingsPath_microphone: "系統設定 → 隱私權與安全性 → 麥克風",
     sessionInfoRemaining: "剩餘 {{percent}}%",
     quotaTitle: "訂閱剩餘額度",
+    quotaStale: "重新整理失敗，目前顯示上次讀取的額度。",
+    quotaUpdatedAt: "上次更新 {{time}}",
     quotaRemaining: "剩餘 {{percent}}%",
     quotaResets: "{{time}} 重置",
     quotaWindowHours: "{{count}}h",

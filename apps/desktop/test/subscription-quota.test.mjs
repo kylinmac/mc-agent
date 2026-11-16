@@ -185,8 +185,37 @@ test("answers are cached per provider, empty ones included, and failures never t
   assert.equal(calls.length, 1, "a fresh answer is reused");
   now += 3 * 60_000;
   body = "fail";
-  assert.equal(await service.read("p1"), null);
+  assert.deepEqual(await service.read("p1"), { ...first, stale: true });
   assert.equal(calls.length, 2);
+  now += 3 * 60_000;
+  body = { rate_limit: { primary_window: { used_percent: 60, limit_window_seconds: 18000 } } };
+  const recovered = await service.read("p1");
+  assert.equal(recovered.windows[0].remainingPercent, 40);
+  assert.equal(recovered.stale, undefined);
   assert.equal(await service.read("missing"), null);
-  assert.equal(calls.length, 2, "a provider with no reader is never fetched");
+  assert.equal(calls.length, 3, "a provider with no reader is never fetched");
+});
+
+test("temporary HTTP failures retain stale data but unauthorized and empty answers clear it", async () => {
+  let now = 0;
+  let status = 200;
+  let body = { rate_limit: { primary_window: { used_percent: 10, limit_window_seconds: 18000 } } };
+  let requests = 0;
+  const service = new SubscriptionQuotaService({
+    provider: async (id) => provider({ id, authKind: "oauth", vendorKey: "openai-codex" }),
+    secret: async () => null, resolveAuth: async () => ({ apiKey: "access" }),
+    copilotGithubToken: async () => undefined, now: () => now,
+    fetch: async () => { requests++; return { ok: status === 200, status, json: async () => body }; },
+  });
+  const [first, concurrent] = await Promise.all([service.read("p1"), service.read("p1")]);
+  assert.equal(requests, 1);
+  assert.deepEqual(first, concurrent);
+  now += 3 * 60_000; status = 503;
+  assert.deepEqual(await service.read("p1"), { ...first, stale: true });
+  now += 3 * 60_000; status = 401;
+  assert.equal(await service.read("p1"), null);
+  now += 3 * 60_000; status = 200;
+  assert.equal((await service.read("p1")).stale, undefined);
+  now += 3 * 60_000; body = {};
+  assert.equal(await service.read("p1"), null);
 });

@@ -3794,6 +3794,8 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
     permSettingsPath_microphone: "System Settings → Privacy & Security → Microphone",
     sessionInfoRemaining: "{{percent}}% left",
     quotaTitle: "Subscription quota left",
+    quotaStale: "Refresh failed; showing the last known quota.",
+    quotaUpdatedAt: "Last updated {{time}}",
     quotaRemaining: "{{percent}}% left",
     quotaResets: "resets {{time}}",
     quotaWindowHours: "{{count}}h",

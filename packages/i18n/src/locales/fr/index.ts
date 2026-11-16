@@ -3751,6 +3751,8 @@ sklm: {
     permSettingsPath_microphone: "System Settings → Privacy & Security → Microphone",
     sessionInfoRemaining: "{{percent}}% left",
     quotaTitle: "Subscription quota left",
+    quotaStale: "Refresh failed; showing the last known quota.",
+    quotaUpdatedAt: "Last updated {{time}}",
     quotaRemaining: "{{percent}}% left",
     quotaResets: "resets {{time}}",
     quotaWindowHours: "{{count}}h",

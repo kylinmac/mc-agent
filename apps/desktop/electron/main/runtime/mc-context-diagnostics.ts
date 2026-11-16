@@ -2,7 +2,7 @@
 export function contextDiagnosticData(data: object): Record<string, unknown> {
   const input = data as Record<string, unknown>;
   const out: Record<string, unknown> = {};
-  for (const key of ["historyCount", "expectedCount", "restoredCount", "matchedCount", "missingCount", "attempt", "requestCount", "estimatedTokens"]) {
+  for (const key of ["historyCount", "expectedCount", "restoredCount", "matchedCount", "missingCount", "missingToolCallCount", "attempt", "requestCount", "estimatedTokens"]) {
     const value = input[key];
     if (typeof value === "number" && Number.isFinite(value) && value >= 0) out[key] = value;
   }
