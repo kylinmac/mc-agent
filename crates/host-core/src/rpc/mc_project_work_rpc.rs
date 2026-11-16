@@ -184,7 +184,7 @@ fn list_tasks(
         let count = counts.get(&key).and_then(Value::as_u64).unwrap_or(0);
         counts.insert(key, json!(count + 1));
     }
-    let statuses = resource_statuses(db, group);
+    let listing = resource_catalog::list(db, group).ok();
     let matching: Vec<&ProjectTask> = all
         .iter()
         .filter(|task| keep(task.status))
@@ -202,7 +202,7 @@ fn list_tasks(
         .take(limit)
         .map(|task| {
             let mut row = json!({ "id": short_id(all, &task.id), "title": task.title, "status": task.status });
-            if let Some(note) = attention(task, &statuses) {
+            if let Some(note) = attention(task, db, group, listing.as_ref()) {
                 row["note"] = json!(note);
             }
             row
@@ -216,13 +216,23 @@ fn list_tasks(
 }
 
 /// One short reason a task needs attention, if any.
-fn attention(task: &ProjectTask, statuses: &[(String, ResourceStatus)]) -> Option<String> {
+fn attention(
+    task: &ProjectTask,
+    db: &Database,
+    group: &ProjectGroupRecord,
+    listing: Option<&resource_catalog::ResourceListing>,
+) -> Option<String> {
     let blocking = task
         .resources
         .iter()
         .filter(|key| {
-            !statuses.iter().any(|(k, status)| {
-                k == *key && !matches!(status, ResourceStatus::Changed | ResourceStatus::Missing)
+            !listing.is_some_and(|l| {
+                resource_catalog::find_listed(l, db, group, key).is_some_and(|item| {
+                    !matches!(
+                        item.status,
+                        ResourceStatus::Changed | ResourceStatus::Missing
+                    )
+                })
             })
         })
         .count();
@@ -246,15 +256,18 @@ fn task_detail(
     task: &ProjectTask,
     full: bool,
 ) -> Result<Value, JsonRpcError> {
-    let items = resource_catalog::list(db, group)
-        .map(|l| l.items)
-        .unwrap_or_default();
+    let listing = resource_catalog::list(db, group).ok();
     let resources: Vec<Value> = task
         .resources
         .iter()
-        .map(|key| match items.iter().find(|item| &item.key == key) {
-            Some(item) => json!({ "key": key, "title": item.title, "status": item.status }),
-            None => json!({ "key": key, "status": ResourceStatus::Missing }),
+        .map(|key| {
+            match listing
+                .as_ref()
+                .and_then(|l| resource_catalog::find_listed(l, db, group, key))
+            {
+                Some(item) => json!({ "key": key, "title": item.title, "status": item.status }),
+                None => json!({ "key": key, "status": ResourceStatus::Missing }),
+            }
         })
         .collect();
     let mut out = json!({
@@ -335,18 +348,6 @@ fn find_task<'a>(
     }
 }
 
-fn resource_statuses(db: &Database, group: &ProjectGroupRecord) -> Vec<(String, ResourceStatus)> {
-    resource_catalog::list(db, group)
-        .map(|listing| {
-            listing
-                .items
-                .into_iter()
-                .map(|item| (item.key, item.status))
-                .collect()
-        })
-        .unwrap_or_default()
-}
-
 // ------------------------------------------------------------ resources
 
 fn resources(
@@ -415,7 +416,7 @@ fn resources(
                 .filter(|k| !k.is_empty())
                 .ok_or_else(|| invalid("key required"))?;
             let listing = resource_catalog::list(db, group).map_err(refused)?;
-            let item = listing.items.iter().find(|item| item.key == key);
+            let item = resource_catalog::find_listed(&listing, db, group, key);
             let mut out = json!({ "key": key });
             match item {
                 Some(item) => {
@@ -434,7 +435,7 @@ fn resources(
                 Ok(ResourceTarget::Path(path)) => out["path"] = json!(path),
                 Ok(ResourceTarget::Url(url)) => out["url"] = json!(url),
                 Err(error) if item.is_none() => {
-                    return Err(rpc_err(1007, format!("{error:#}"), "NOT_FOUND"))
+                    return Err(rpc_err(1007, format!("{error:#}"), "NOT_FOUND"));
                 }
                 Err(_) => {}
             }

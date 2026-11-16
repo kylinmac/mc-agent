@@ -15,6 +15,102 @@ const STATUS_KEYS: Record<ProjectTaskStatus, string> = {
   cancelled: "mcProject.taskCancelled",
 };
 
+export type TaskBoardTranslator = (key: string, options?: Record<string, unknown>) => string;
+
+/**
+ * Start a project task run in a dedicated session returned by `newSession`.
+ * If navigation superseded session creation (`null`), abort before touching any
+ * active session in the same folder.
+ */
+export async function startProjectTaskRun(params: {
+  groupId: string;
+  task: ProjectTask;
+  listing: ResourceListing | null;
+  startFolder: string;
+  projectTasksApi?: Pick<typeof api.projectTasks, "preflight" | "startRun" | "abandonRun">;
+  getStore?: () => Pick<
+    ReturnType<typeof useAppStore.getState>,
+    | "newSession"
+    | "deleteSession"
+    | "renameSession"
+    | "setPage"
+    | "sendPrompt"
+    | "activeSessionId"
+    | "runningSessions"
+    | "messages"
+    | "retainedTranscripts"
+  >;
+  t: TaskBoardTranslator;
+}): Promise<void> {
+  const {
+    groupId,
+    task,
+    listing,
+    startFolder,
+    projectTasksApi = api.projectTasks,
+    getStore = useAppStore.getState,
+    t,
+  } = params;
+  const check = await projectTasksApi.preflight(groupId, task.id);
+  if (check.blocking.length > 0) {
+    const names = check.resources
+      .filter((resource) => check.blocking.includes(resource.key))
+      .map((resource) => resource.title);
+    throw new Error(t("mcProject.taskResourcesBlocked", { names: names.join("、") }));
+  }
+  const sessionId = await getStore().newSession({ projectPath: startFolder, fresh: true });
+  if (!sessionId) return;
+  let started: Awaited<ReturnType<typeof api.projectTasks.startRun>>;
+  try {
+    started = await projectTasksApi.startRun(groupId, task.id, task.revision, sessionId, startFolder);
+  } catch (error) {
+    const current = getStore();
+    const messageCount =
+      current.activeSessionId === sessionId
+        ? current.messages.length
+        : (current.retainedTranscripts[sessionId]?.length ?? 0);
+    if (!current.runningSessions[sessionId] && messageCount === 0) {
+      await current.deleteSession(sessionId).catch(() => undefined);
+    }
+    throw error;
+  }
+  const runId = started.task.runs.at(-1)?.id;
+  try {
+    // mc-agent (bugs.md B-011): the session is named after the task, not
+    // after the first line of the (English) task prompt; later runs get
+    // their number.
+    const runs = started.task.runs.length;
+    await getStore()
+      .renameSession(sessionId, runs > 1 ? t("mcProject.taskRunTitle", { title: task.title, n: runs }) : task.title)
+      .catch(() => undefined);
+    const lastRejection = [...task.reviews].reverse().find((review) => review.verdict === "rejected");
+    const prompt = taskPrompt({
+      title: task.title,
+      goal: task.goal,
+      acceptance: task.acceptance,
+      resources: check.resources.map((resource) => {
+        const item = listing?.items.find((candidate) => candidate.key === resource.key);
+        return { title: resource.title, path: item?.path, url: item?.url, status: resource.status };
+      }),
+      previousRejection: task.status === "todo" ? lastRejection?.note : undefined,
+    });
+    const latest = getStore();
+    if (latest.activeSessionId === sessionId) {
+      latest.setPage("chat");
+    }
+    const accepted = await latest.sendPrompt(prompt, undefined, sessionId);
+    if (!accepted) throw new Error(t("mcProject.taskNotSent"));
+  } catch (error) {
+    // The run is recorded but its first message never went out: settle
+    // it now instead of leaving the task in progress.
+    if (runId) {
+      const reason = error instanceof Error ? error.message : String(error);
+      await projectTasksApi.abandonRun(groupId, task.id, runId, reason).catch(() => undefined);
+    }
+    throw error;
+  }
+}
+
 /*
   R6–R9 task board. Starting a task checks its resources, creates a session in
   the chosen start folder, records the run, then sends the task as the first
@@ -90,53 +186,15 @@ export function TaskBoard({
     });
 
   const start = (task: ProjectTask) =>
-    act(async () => {
-      const check = await api.projectTasks.preflight(groupId, task.id);
-      if (check.blocking.length > 0) {
-        const names = check.resources
-          .filter((resource) => check.blocking.includes(resource.key))
-          .map((resource) => resource.title);
-        throw new Error(t("mcProject.taskResourcesBlocked", { names: names.join("、") }));
-      }
-      const store = useAppStore.getState();
-      await store.newSession({ projectPath: startFolder });
-      const sessionId = useAppStore.getState().activeSessionId;
-      if (!sessionId) throw new Error(t("mcProject.taskNoSession"));
-      const started = await api.projectTasks.startRun(groupId, task.id, task.revision, sessionId, startFolder);
-      const runId = started.task.runs.at(-1)?.id;
-      try {
-        // mc-agent (bugs.md B-011): the session is named after the task, not
-        // after the first line of the (English) task prompt; later runs get
-        // their number.
-        const runs = started.task.runs.length;
-        await useAppStore
-          .getState()
-          .renameSession(sessionId, runs > 1 ? t("mcProject.taskRunTitle", { title: task.title, n: runs }) : task.title)
-          .catch(() => undefined);
-        const lastRejection = [...task.reviews].reverse().find((review) => review.verdict === "rejected");
-        const prompt = taskPrompt({
-          title: task.title,
-          goal: task.goal,
-          acceptance: task.acceptance,
-          resources: check.resources.map((resource) => {
-            const item = listing?.items.find((candidate) => candidate.key === resource.key);
-            return { title: resource.title, path: item?.path, url: item?.url, status: resource.status };
-          }),
-          previousRejection: task.status === "todo" ? lastRejection?.note : undefined,
-        });
-        store.setPage("chat");
-        const accepted = await useAppStore.getState().sendPrompt(prompt, undefined, sessionId);
-        if (!accepted) throw new Error(t("mcProject.taskNotSent"));
-      } catch (error) {
-        // The run is recorded but its first message never went out: settle
-        // it now instead of leaving the task in progress.
-        if (runId) {
-          const reason = error instanceof Error ? error.message : String(error);
-          await api.projectTasks.abandonRun(groupId, task.id, runId, reason).catch(() => undefined);
-        }
-        throw error;
-      }
-    });
+    act(() =>
+      startProjectTaskRun({
+        groupId,
+        task,
+        listing,
+        startFolder,
+        t: (key, options) => t(key, options),
+      }),
+    );
 
   const openSession = async (sessionId: string) => {
     try {

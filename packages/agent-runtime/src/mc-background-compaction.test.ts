@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEEPSEEK_MODELS } from "@earendil-works/pi-ai/providers/deepseek.models";
 import type { AgentEventEnvelope, UiMessage } from "@pi-desktop/shared";
 import { modelConfigFromPi } from "./model-capabilities.js";
+import { CACHE_SHARED_SUMMARY_MARKER } from "./mc-compaction-cache-prefix.js";
 import {
   BACKGROUND_SUMMARY_TRIGGER_RATIO,
   keepsRetainedUserMessage,
@@ -93,7 +94,11 @@ async function scriptedModel(holdSummary = false) {
       res.writeHead(200, { "content-type": "text/event-stream" });
       res.end(`data: ${JSON.stringify({ choices: [{ index: 0, delta, finish_reason: finish }] })}\n\ndata: [DONE]\n\n`);
     };
-    if (!body.tools || body.tools.length === 0) {
+    const isSummary =
+      !body.tools ||
+      body.tools.length === 0 ||
+      JSON.stringify(body.messages).includes(CACHE_SHARED_SUMMARY_MARKER);
+    if (isSummary) {
       summaries.push(body);
       if (holdSummary) await held;
       if (res.destroyed) return;

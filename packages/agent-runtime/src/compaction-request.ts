@@ -13,12 +13,13 @@
 
 import { accountModelResult, nativeCostStatus, requestUsageIdentity, type UsageObserver } from "./request-usage.js";
 import { requestThinkingLevel } from "./thinking-level.js";
-import type {
-  Api,
-  Context,
-  Model,
-  Models,
-  ModelsSimpleStreamOptions,
+import {
+  getCurrentTools,
+  type Api,
+  type Context,
+  type Model,
+  type Models,
+  type ModelsSimpleStreamOptions,
 } from "@earendil-works/pi-ai";
 import { clampOpenAIPromptCacheKey } from "@earendil-works/pi-ai/api/openai-prompt-cache";
 import {
@@ -51,11 +52,13 @@ export type CompactionAttemptMeasure = {
   output: number;
   cacheRead: number;
   cacheWrite: number;
+  cacheShared?: boolean;
 };
 
 export function measureCompactionAttempt(
   result: { stopReason: string; usage?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number; totalTokens?: number } },
   durationMs: number,
+  cacheShared?: boolean,
 ): CompactionAttemptMeasure {
   const usage = result.usage;
   const count = (value: number | undefined) => (typeof value === "number" && Number.isFinite(value) ? value : 0);
@@ -68,6 +71,7 @@ export function measureCompactionAttempt(
     output: count(usage?.output),
     cacheRead: count(usage?.cacheRead),
     cacheWrite: count(usage?.cacheWrite),
+    ...(cacheShared !== undefined ? { cacheShared } : {}),
   };
 }
 
@@ -193,13 +197,13 @@ export function withCompactionRequestHeaders(
           model: requestModel,
           payload: keyed ?? base,
           messages: context.messages,
-          tools: (context as Context & { tools?: readonly unknown[] }).tools,
+          tools: (context as Context & { tools?: readonly unknown[] }).tools ?? getCurrentTools(context.messages),
         }));
         return keyed === base ? replacement : keyed;
       };
     }
     const result = await completeCompactionStream(models, model, context, requestOptions, onStage);
-    onAttempt?.(measureCompactionAttempt(result, Date.now() - started));
+    onAttempt?.(measureCompactionAttempt(result, Date.now() - started, options?.cacheRetention !== "none"));
     return onUsage ? accountModelResult(result, identity, onUsage) : result;
   };
   return new Proxy(models, {

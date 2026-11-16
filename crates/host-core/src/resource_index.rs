@@ -16,12 +16,15 @@
 //! links are kept untouched when entries are added or removed.
 
 use std::fs;
+use std::io::{ErrorKind, Write};
 use std::path::{Component, Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use anyhow::{anyhow, Context, Result};
 
 pub const INDEX_FILE: &str = "INDEX.md";
 const NEW_INDEX: &str = "# Index\n\n";
+static NEXT_TEMP_ID: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IndexTarget {
@@ -67,8 +70,8 @@ pub fn add(
     title: &str,
     target: &IndexTarget,
 ) -> Result<String> {
-    let folder = category_folder(resource_root, category)?;
-    fs::create_dir_all(&folder)?;
+    let folder = verified_category_folder(resource_root, category, true)?
+        .ok_or_else(|| anyhow!("resource category directory could not be prepared"))?;
     let raw = match target {
         IndexTarget::Url(url) => url.clone(),
         IndexTarget::Path(path) => relative_path(&folder, path)
@@ -91,7 +94,7 @@ pub fn add(
     let file = folder.join(INDEX_FILE);
     let mut text = match fs::read_to_string(&file) {
         Ok(text) => text,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => NEW_INDEX.to_string(),
+        Err(error) if error.kind() == ErrorKind::NotFound => NEW_INDEX.to_string(),
         Err(error) => return Err(error).context("read INDEX.md"),
     };
     if !text.is_empty() && !text.ends_with('\n') {
@@ -105,7 +108,10 @@ pub fn add(
 /// Remove the line behind `key`. The linked file is never touched.
 pub fn remove(resource_root: &Path, key_to_remove: &str) -> Result<()> {
     let (category, raw) = split_key(key_to_remove)?;
-    let file = category_folder(resource_root, category)?.join(INDEX_FILE);
+    let Some(folder) = verified_category_folder(resource_root, category, false)? else {
+        return Err(anyhow!("resource not found: {key_to_remove}"));
+    };
+    let file = folder.join(INDEX_FILE);
     let text = fs::read_to_string(&file).context("read INDEX.md")?;
     let mut removed = false;
     let kept: Vec<&str> = text
@@ -141,10 +147,12 @@ fn split_key(key: &str) -> Result<(&str, &str)> {
 }
 
 fn read_index(resource_root: &Path, category: &str) -> Result<Vec<IndexEntry>> {
-    let folder = category_folder(resource_root, category)?;
+    let Some(folder) = verified_category_folder(resource_root, category, false)? else {
+        return Ok(Vec::new());
+    };
     let text = match fs::read_to_string(folder.join(INDEX_FILE)) {
         Ok(text) => text,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(Vec::new()),
         Err(error) => return Err(error).context("read INDEX.md"),
     };
     let mut entries = Vec::new();
@@ -186,14 +194,73 @@ fn parse_line(line: &str) -> Option<(&str, &str)> {
     (!target.is_empty()).then_some((title.trim(), target))
 }
 
-fn category_folder(resource_root: &Path, category: &str) -> Result<PathBuf> {
-    if category.is_empty() {
-        return Ok(resource_root.to_path_buf());
-    }
-    if category.contains(['/', '\\']) || category.starts_with('.') {
+fn verified_category_folder(
+    resource_root: &Path,
+    category: &str,
+    create: bool,
+) -> Result<Option<PathBuf>> {
+    if !category.is_empty() && (category.contains(['/', '\\']) || category.starts_with('.')) {
         return Err(anyhow!("invalid resource category: {category}"));
     }
-    Ok(resource_root.join(category))
+    match fs::symlink_metadata(resource_root) {
+        Ok(meta) if meta.file_type().is_symlink() => {
+            return Err(anyhow!("resource root cannot be a symlink"));
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == ErrorKind::NotFound => {
+            if !create {
+                return Ok(None);
+            }
+            fs::create_dir_all(resource_root)?;
+        }
+        Err(error) => return Err(error).context("inspect resource root"),
+    }
+    let canon_root = fs::canonicalize(resource_root).context("canonicalize resource root")?;
+    let folder = if category.is_empty() {
+        resource_root.to_path_buf()
+    } else {
+        resource_root.join(category)
+    };
+    if !category.is_empty() {
+        match fs::symlink_metadata(&folder) {
+            Ok(meta) if meta.file_type().is_symlink() => {
+                return Err(anyhow!("resource category cannot be a symlink: {category}"));
+            }
+            Ok(meta) if !meta.is_dir() => {
+                return Err(anyhow!("resource category is not a directory: {category}"));
+            }
+            Ok(_) => {}
+            Err(error) if error.kind() == ErrorKind::NotFound => {
+                if !create {
+                    return Ok(None);
+                }
+                fs::create_dir_all(&folder)?;
+            }
+            Err(error) => return Err(error).context("inspect resource category"),
+        }
+        if fs::symlink_metadata(&folder)?.file_type().is_symlink() {
+            return Err(anyhow!("resource category cannot be a symlink: {category}"));
+        }
+        let canon_folder = fs::canonicalize(&folder).context("canonicalize resource category")?;
+        if !canon_folder.starts_with(&canon_root) {
+            return Err(anyhow!(
+                "resource category escapes resource root: {category}"
+            ));
+        }
+    }
+    let index_file = folder.join(INDEX_FILE);
+    match fs::symlink_metadata(&index_file) {
+        Ok(meta) if meta.file_type().is_symlink() => {
+            return Err(anyhow!("INDEX.md cannot be a symlink"));
+        }
+        Ok(meta) if !meta.is_file() => {
+            return Err(anyhow!("INDEX.md is not a regular file"));
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == ErrorKind::NotFound => {}
+        Err(error) => return Err(error).context("inspect INDEX.md"),
+    }
+    Ok(Some(folder))
 }
 
 fn display_category(category: &str) -> &str {
@@ -240,8 +307,28 @@ fn relative_path(from: &Path, to: &Path) -> Option<String> {
 }
 
 fn write_atomically(file: &Path, text: &str) -> Result<()> {
-    let temp = file.with_extension(format!("md.{}.tmp", std::process::id()));
-    fs::write(&temp, text)?;
+    match fs::symlink_metadata(file) {
+        Ok(meta) if meta.file_type().is_symlink() => {
+            return Err(anyhow!("INDEX.md cannot be a symlink"));
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == ErrorKind::NotFound => {}
+        Err(error) => return Err(error).context("inspect INDEX.md"),
+    }
+    let seq = NEXT_TEMP_ID.fetch_add(1, Ordering::Relaxed);
+    let temp = file.with_extension(format!("md.{}.{}.tmp", std::process::id(), seq));
+    let write_result = (|| -> Result<()> {
+        let mut handle = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temp)?;
+        handle.write_all(text.as_bytes())?;
+        Ok(())
+    })();
+    if let Err(error) = write_result {
+        let _ = fs::remove_file(&temp);
+        return Err(error).context("write temporary INDEX.md");
+    }
     if let Err(error) = fs::rename(&temp, file) {
         let _ = fs::remove_file(&temp);
         return Err(error).context("replace INDEX.md");
@@ -338,5 +425,48 @@ mod tests {
         )
         .is_err());
         assert!(split_key("folder:a").is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlink_category_and_index_escapes_are_rejected() {
+        use std::os::unix::fs::symlink;
+
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("resources");
+        let outside = dir.path().join("outside");
+        let doc = dir.path().join("code/doc.md");
+        fs::create_dir_all(&root).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+        fs::create_dir_all(doc.parent().unwrap()).unwrap();
+        fs::write(&doc, "hello").unwrap();
+        fs::write(outside.join("INDEX.md"), "untouched").unwrap();
+
+        symlink(&outside, root.join("reference")).unwrap();
+        assert!(add(&root, "reference", "Doc", &IndexTarget::Path(doc.clone())).is_err());
+        assert!(add(
+            &root,
+            "reference",
+            "Board",
+            &IndexTarget::Url("https://example.com/board".into())
+        )
+        .is_err());
+        assert!(remove(&root, "index:reference/https://example.com/board").is_err());
+        assert!(read_index(&root, "reference").is_err());
+        assert_eq!(
+            fs::read_to_string(outside.join("INDEX.md")).unwrap(),
+            "untouched"
+        );
+
+        let root2 = dir.path().join("resources2");
+        fs::create_dir_all(root2.join("reference")).unwrap();
+        symlink(outside.join("INDEX.md"), root2.join("reference/INDEX.md")).unwrap();
+        assert!(add(&root2, "reference", "Doc", &IndexTarget::Path(doc)).is_err());
+        assert!(remove(&root2, "index:reference/anything").is_err());
+        assert!(read_index(&root2, "reference").is_err());
+        assert_eq!(
+            fs::read_to_string(outside.join("INDEX.md")).unwrap(),
+            "untouched"
+        );
     }
 }

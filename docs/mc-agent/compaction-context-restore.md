@@ -1,6 +1,6 @@
 # 压缩后的上下文恢复（R21）
 
-2026-10-30 起草并按评审修订，同日用户确认为 **R21**（原 X-COMPACT-01～03 依次为 R21.1～R21.3）。R21.1 已合入 main（#60，验收 V60）；R21.2 与 R21.3 的测量部分已在开发分支实现（V61、V62），缓存复用试验待测量数据后决定。实现记录见末尾各节。确认不代表真实模型测试或发布。
+2026-10-30 起草并按评审修订，同日用户确认为 **R21**（原 X-COMPACT-01～03 依次为 R21.1～R21.3）。R21.1 已合入 main（#60，验收 V60）；R21.2 与 R21.3（含对话形缓存复用摘要与自动退回）已在开发分支实现并完成离线验证（V61、V62），真实服务商上的实测缓存命中率待发版后复核。实现记录见末尾各节。确认不代表真实模型测试或发布。
 
 ## 基线与证据
 
@@ -251,6 +251,31 @@ R21.3 的状态因此从“待测量数据”变为“基线已得，建议已�
 判读方法：新版本运行一段时间后再跑脚本。若普通请求的缓存读占比明显大于零而摘要请求仍为零，说明摘要确实没有复用缓存，值得做对话形摘要请求的试验；若普通请求也是 unknown 或零，说明该接口不上报或本来就没有缓存，试验没有意义。
 
 状态：记录与脚本已实现；**对话形摘要请求本身没有实现**，等新数据。
+
+### 2026-11-16 实测对标与对话形摘要落地（#122 / #148）
+
+**安装版只读实测**（`~/.mc-agent` `v1.0.75`，经用户授权只读统计）：
+
+| 来源 | 范围与样本 | 输入 tokens（未命中） | 缓存读 tokens | 缓存读占比 | 输出 tokens / 耗时 | 结论 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `app/session.log` (`session.compaction.summary`) | `openai-codex-responses`：31 次压缩 / 32 次尝试（29 次上报用量，0 次截断） | `2,185,530`（均约 `75.4k`） | `0` | `0.0%` | 输出 `166,294`；耗时 `p50 = 148.8s`、`p90 = 207.2s`、`max = 231.9s` | 独立序列化摘要零命中 |
+| `app/session.log` (`session.response.end`) | 1,263 条（842 条含用量字段） | `"***REDACTED***"` | `"***REDACTED***"` | unknown | 数值被脱敏 | 记为 [B-056](bugs.md) 并修复 |
+| `sessions/*.jsonl` 去重助手 `meta.usage`（只读数值与 `modelId`） | `openai-codex-responses`：`3,176` 条（`3,069` 条带缓存读数；`gpt-6-astra` `2,735` 条、`gpt-6.1-sol` `441` 条） | `13,660,295` | `268,738,176` | **95.2%**（`gpt-6-astra` `95.4%`、`gpt-6.1-sol` `93.2%`） | 输出 `1,647,848` | 普通对话缓存命中极高 |
+| `sessions/*.jsonl`（其他模型对照组） | `grok-4.7` 668 条、`deepseek-flash` 6 条、`grok-4.6` 25 条、`openai-completions` 8 条 | — | — | 依次为 **90.8%**、**85.0%**、**79.2%**、**72.5%** | — | 同样存在高缓存复用意义 |
+
+**外部实现核对**（只读核对本机归档，源码确认）：
+
+- `codex-v/分析成果/claude-code/bundle/main-bundle.beautified.js`：Claude Code 2.1.114 的 `wD7` / `tengu_compact_cache_prefix` 默认开启，复用 `systemPrompt + tools + messages` 前缀并在末尾追加纯文本交接指令，遇到工具调用、空输出或格式异常自动退回独立摘要（`tengu_compact_cache_sharing_fallback`）。
+- `codex-v/分析成果/codex-agent-loop/upstream-src/codex-rs/core/src/compact.rs`、`codex-v/分析成果/codex-agent-loop/upstream-src/codex-rs/core/src/compact_remote_v2_attempt.rs`：Codex `rust-v0.159.2` 的本地与远端压缩均复用原对话前序上下文与规则前缀。
+
+**源码实现与边界**（[mc-compaction-cache-prefix.ts](../../packages/agent-runtime/src/mc-compaction-cache-prefix.ts)、[compaction-request.ts](../../packages/agent-runtime/src/compaction-request.ts)、[pi-runtime-compaction-summary.ts](../../packages/agent-runtime/src/pi-runtime-compaction-summary.ts)、[runtime.ts](../../packages/agent-runtime/src/runtime.ts)）：
+
+- 仅对完整非分割回合压缩（`!isSplitTurn`）且适配器属于 `openai-codex-responses`、`openai-responses`、`openai-completions` 时启用前缀共享：`runtime.ts` 通过 `snapshotCacheSharedPrefix` 快照当前轮次的 `system + tools + messages`，末尾追加带有 `CRITICAL: Respond with TEXT ONLY. Do NOT call any tools.` 标记的交接指令。
+- 复用原有 `sessionId` 且不传 `cacheRetention: "none"`，使 Responses 适配器发出 `prompt_cache_key` 与 `session-id` / `session_id` 粘性路由头；`openai-codex-responses` 显式走 `transport: "sse"`，避免后台预生成或摘要请求与主回合 WebSocket 长连接互相抢占。
+- **预检与自动退回**：若上下文存在未配对工具调用（`hasUnansweredToolCalls`）或前缀估算加上 `maxTokens` 超出 `model.contextWindow`，预检直接跳过对话形请求并走原有独立摘要。对话形请求若返回工具调用（绝不执行）、空文本、`length` 截断或非取消／非认证配额错误，累加已发生用量并自动退回一次独立摘要；若期间发生 `Stop` 取消或认证／配额错误则立即终止，不再发起退回请求。`session.compaction.summary` 新增 `cacheShared: boolean` 字段区分两类尝试。
+- **B-056 与 `#123` 收口**：[mc-context-diagnostics.ts](../../apps/desktop/electron/main/runtime/mc-context-diagnostics.ts) 与 [sidecar.ts](../../apps/desktop/electron/main/runtime/sidecar.ts) 在写入 `session.response.end` 日志前将 `*Tokens` 映射为 `input / output / reasoning / cacheRead / cacheWrite`，在不放宽 `logger.ts` `/token/i` 密钥脱敏规则的前提下恢复普通请求缓存读数记录，[mc-compaction-cache-report.mjs](../../scripts/mc-compaction-cache-report.mjs) 兼容读取新旧数值字段。`#123` 经用户确认保持已完成回合 `retainedTail: []` 行为不变，不改代码直接关闭。
+
+**未验证**：新版本发布前未使用真实付费模型验证对话形摘要在真实服务商上的 `cacheRead` 命中率、费用变化与耗时，需待安装版运行后用 `node scripts/mc-compaction-cache-report.mjs <日志目录>` 复核。
 
 ## R21 恢复边界修复（2026-11-02；P8；V60）
 

@@ -211,7 +211,9 @@ export class PersistenceOutbox {
           // An error the outbox cannot classify as permanent or as a
           // duplicate recurs on every retry. Quarantine the head instead of
           // blocking the whole application queue behind it forever (#1560).
-          await this.quarantine(current, attempts, error);
+          if (!(await this.quarantine(current, attempts, error, currentHost))) {
+            return;
+          }
           continue;
         }
       }
@@ -231,18 +233,52 @@ export class PersistenceOutbox {
     return attempts;
   }
 
-  /** Move a head the host keeps refusing into the dead-letter file. */
-  private async quarantine(entry: MessageAppend, attempts: number, error: unknown): Promise<void> {
-    this.deadLetters.push({
+  /**
+   * Move a head the host keeps refusing into the dead-letter file.
+   * Persists the dead-letter record before removing the head from `entries`
+   * so a write failure or mid-quarantine crash never loses the append.
+   */
+  private async quarantine(
+    entry: MessageAppend,
+    attempts: number,
+    error: unknown,
+    host: HostProcess,
+  ): Promise<boolean> {
+    const previousDeadLetters = [...this.deadLetters];
+    const quarantined: QuarantinedAppend = {
       ...entry,
       quarantinedAt: new Date(this.now()).toISOString(),
       reason: String(error),
-    });
+    };
+    const existingIndex = this.deadLetters.findIndex((item) => item.key === entry.key);
+    if (existingIndex >= 0) this.deadLetters[existingIndex] = quarantined;
+    else this.deadLetters.push(quarantined);
+    const dropped: Array<QuarantinedAppend | undefined> = [];
     while (this.deadLetters.length > this.maxDeadLetters) {
-      const dropped = this.deadLetters.shift();
+      dropped.push(this.deadLetters.shift());
+    }
+    try {
+      await this.persistDeadLetters();
+    } catch (persistError) {
+      this.deadLetters = previousDeadLetters;
+      this.logger("error", "session persistence outbox dead letter write failed", {
+        key: entry.key,
+        sessionId: entry.sessionId,
+        file: this.deadLetterPath,
+        data: String(persistError),
+      });
+      this.headRetry = {
+        entry,
+        attempts,
+        nextAttemptAt: this.now() + MAX_RETRY_BACKOFF_MS,
+        host,
+      };
+      return false;
+    }
+    for (const item of dropped) {
       this.logger("warn", "session persistence outbox dead letter discarded", {
-        key: dropped?.key,
-        sessionId: dropped?.sessionId,
+        key: item?.key,
+        sessionId: item?.sessionId,
         max: this.maxDeadLetters,
         file: this.deadLetterPath,
       });
@@ -257,12 +293,24 @@ export class PersistenceOutbox {
     if (this.entries[0] === entry) this.entries.shift();
     this.headRetry = null;
     await this.persist();
-    await this.persistDeadLetters();
+    return true;
   }
 
   private async load(): Promise<void> {
     await this.loadEntries();
     await this.loadDeadLetters();
+    if (this.deadLetters.length > 0 && this.entries.length > 0) {
+      const quarantinedKeys = new Set(this.deadLetters.map((item) => item.key));
+      const filtered = this.entries.filter((entry) => !quarantinedKeys.has(entry.key));
+      if (filtered.length !== this.entries.length) {
+        this.entries = filtered;
+        try {
+          await this.persist();
+        } catch (error) {
+          this.logger("warn", "session persistence outbox deduplication persist failed", String(error));
+        }
+      }
+    }
   }
 
   private async loadEntries(): Promise<void> {

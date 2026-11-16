@@ -231,6 +231,8 @@ V50 补充（2026-11-03）：控制器测试覆盖重启时发现更新版本先
 
 检查每次摘要尝试记录耗时、结束原因、输入／输出／缓存读写计数，用量缺失标为未知；日志不含正文和路径。缓存复用试验不在本次验收内，依据安装版日志中的测量结果另行决定。
 
+2026-11-16（[#122](https://github.com/kylinmac/mc-agent/issues/122) / [#148](https://github.com/kylinmac/mc-agent/issues/148)）：完成 `~/.mc-agent` 只读对照（`openai-codex-responses` 普通对话缓存读占比 `95.2%` vs 压缩 `0.0%`），修复 [B-056](bugs.md)（`mc-context-diagnostics.test.mjs`、`mc-compaction-cache-report.test.mjs` 共 7 项通过），并实现对话形前缀复用摘要与自动退回（`mc-compaction-cache-prefix.test.ts` 4 项、`compaction-request.test.ts` 17 项、`pi-runtime-compaction-summary.test.ts` 19 项、`mc-background-compaction.test.ts` 11 项通过）。真实服务商上的实际 `cacheRead` 命中率与耗时收益待发版后在安装版复核。
+
 ## V63 标签右键菜单（R22.1；P8）
 
 检查目标为右键点击的标签而非当前会话；重命名、置顶复用原能力；页面标签不出现会话操作；首尾移动与空关闭范围禁用；关闭其他／右侧／全部后焦点和分栏一致，后台任务与会话记录保留。
@@ -341,6 +343,8 @@ V75 本机验证：25 项更新入口、安装脚本与真实 1.0.51 ZIP 用例�
 
 host-core 用例验证：任务列表分页与计数、短 ID、详情截断与 `full`、创建及只改指定字段的回执、过期 revision 拒绝、无验收／取消／启动／资料状态动作、其他项目和未绑定会话拒绝；资料列表筛选、相对路径登记、工作区外文件拒绝、链接登记、详情路径、项目目标。Runtime 用例验证会话绑定与伪造字段丢弃、计划／目标模式拒绝写入、三种模式均为按需工具、声明体积上限；sidecar 用例验证未启动会话不转发；子代理不继承。2026-11-08：上述用例通过，host-core 任务／资料／项目历史相关 22 项、agent-runtime 运行时与固定声明相关 443 项通过。未用安装版、未调用真实模型，未测量真实请求 token。
 
+2026-11-16（[#148](https://github.com/kylinmac/mc-agent/issues/148)）：补充 `mc-project-work-tools.test.ts` 离线校准按需目录行（`277` 字符／约 `70` tokens）、完整声明（`4,046` 字符／约 `1,012` tokens）与 `list → get → update` 三步载荷（`1,468` 字符／约 `367` tokens）；`host-core` 补充跨分类重复登记幂等、`find_listed` 别名一致性与符号链接分类拒绝测试。安装版与真实模型未实测。
+
 ## V85 Markdown 分栏同步滚动（R11.18；P8）
 
 2026-11-10：隔离 Electron 验证双向定位、长段落中部、含空行的嵌套列表、引用、表格行、代码行、顶部底部、滚动停止后稳定性、编辑后重新定位、窗口尺寸变化及退出再进入分栏，通过。分栏草稿／保存／文件切换、预览查找、链接和明暗主题回归通过；内置插件契约与哈希 11 项、插件 TypeScript／Markdown 渲染检查／构建、Desktop 类型与静态检查、文档检查通过。源码补丁在上游基线干净应用并逐文件比对一致。段落内部按高度插值，不保证逐字像素对齐；未操作安装版、未调用模型，未测超大文件的滚动性能。
@@ -355,9 +359,13 @@ V85 云端补充：PR #114 的 CI `42827535202` 全部通过，含 Linux Electro
 
 自动测试（`packages/agent-runtime/src/mc-tool-result-pruning.test.ts`）：低于触发线不清理；从最旧开始清到目标并跳过不可重跑的工具；最新结果不清理；释放过少跳过、清理后再次规划无动作且投影幂等；占位内容；用量扣减只对当前用量锚点之后清掉的结果生效。真实 runtime 加脚本模型：连续 7 次大输出命令，早期输出被清理、最新输出完整、全程未触发摘要压缩、诊断只含计数。未验证：真实模型在占位下是否会按需重读；真实服务商的提示词缓存命中变化；安装版用量读数；压缩关闭时不清理只有源码确认，没有单独用例。
 
+2026-11-16（[#148](https://github.com/kylinmac/mc-agent/issues/148)）：补充 `mc-quality-baseline-gaps.test.ts`（Q01 压缩关闭时不清理旧工具结果）与 `mc-quality-context-handoff.test.ts`（Q02 清理 → 预摘要 → 插话 → 安装 → 重启 → `ContextHistory` 回查、Q04 跨清理／安装／重启的用量锚点一致性）通过。真实模型与安装版未实测。
+
 ## V88 重复工具调用空转检测（R32；P8）
 
 自动测试（`packages/agent-runtime/src/mc-repeated-tool-calls.test.ts`）：第 3 次提醒、第 5 次停止；不同调用、不同参数、不同结果均重置；参数键顺序无关；等待类工具不计数并打断其他连续计数。真实 runtime 加脚本模型：相同 Read 连续 5 次后不再发第 6 个请求，第 4 个请求里带提醒，错误可继续且 `agent_end` 只出现一次；结果持续变化时 7 次调用不受影响；新提问重新计数。i18n 文案测试通过。未验证：子代理路径只有源码确认，没有端到端用例；真实模型看到提醒后的行为；界面上错误提示与“继续”的实际呈现。
+
+2026-11-16（[#148](https://github.com/kylinmac/mc-agent/issues/148)）：补充 `mc-quality-recovery-subagent.test.ts`（Q05 真实 `SubagentRun` 子代理第 3 次提醒、第 5 次 `REPEATED_TOOL_CALL_LIMIT` 独立终止且兄弟子代理正常收敛；Q06 流式断流重试不重置重复计数）与 `mc-quality-stop-hooks.test.ts`（Q12 批准 Plan／Goal 执行轮次重置父级重复计数）通过。真实模型与安装版界面未实测。
 
 ## V89 标签溢出入口、设置页限宽与有代价选项说明（R11.19；P8）
 
@@ -366,6 +374,8 @@ V85 云端补充：PR #114 的 CI `42827535202` 全部通过，含 Linux Electro
 ## V90 后台预生成压缩摘要（R33；P8）
 
 自动测试（`packages/agent-runtime/src/mc-background-compaction.test.ts`）：启动区间、开关与占用；三种作废原因；保留用户消息与过期用量锚点的判断。真实 runtime 加脚本模型：提前准备并在到线时安装，摘要请求只有一次，之后的步骤保持原文且用户原话保留；开关关闭时到线前没有任何摘要请求，结果与原有压缩一致；到线时摘要仍在生成则等待且不发第二个请求；等待中 Stop 结束本轮、不安装、不再请求；销毁运行时取消准备中的摘要。未验证：真实模型与服务商（含并发请求是否更易限流）；带服务商用量时安装后的用量读数只有函数级用例；界面上压缩标记的位置；安装版里开关的实际呈现；丢弃率只能靠真实使用的日志统计。
+
+2026-11-16（[#148](https://github.com/kylinmac/mc-agent/issues/148)）：补充 `mc-quality-context-handoff.test.ts`（Q02 端到端移交、Q03 模型／思考档位或压缩边界变化立即作废在途预摘要且不挂起、Q04 带服务商用量的锚点一致性）通过。真实模型、限流影响与安装版未实测。
 
 ## V91 标签按项目合并与原生拖动区域（R11.20；P8）
 
@@ -376,3 +386,22 @@ V85 云端补充：PR #114 的 CI `42827535202` 全部通过，含 Linux Electro
 ## V92 同账号共享订阅额度（R11.21；P8）
 
 2026-11-16：服务与共享状态 14 项、隔离 Electron 用户路径 1 项通过。同账号两个会话只读取一次、复用快照；运行中首次读取；刷新失败保留并标注、恢复后移除标记；账号切换不串值且晚到响应隔离；清空账号与无额度隐藏；卸载最后一个订阅者停止轮询。真实订阅接口、安装版未测。行为边界见[订阅剩余额度](subscription-quota.md)。
+
+## V93 可靠性收口与质量基线集成验证（#148）
+
+源码与离线自动测试通过；`#122` 已基于 `~/.mc-agent` 只读基线完成 `B-056` 修复与 R21.3 对话形缓存摘要离线验证，`#123` 经用户确认保持现行 `retainedTail: []` 语义关闭。真实付费模型（含 R21.3 真实服务商缓存命中率）与安装版尚未实测。
+
+| 编号 | 覆盖对象 | 对应测试文件 | 当前状态 |
+| --- | --- | --- | --- |
+| B-048 | 任务启动禁用空会话复用、失败清理与切页竞态 | `apps/desktop/test/mc-task-start-session-race.test.mjs`、`mc-task-session-title.test.mjs` | 已修（源码与自动测试，安装版未实测） |
+| B-049 | Outbox 死信先落盘后出队与启动去重 | `apps/desktop/test/persistence-outbox.test.mjs` | 已修（源码与自动测试，安装版未实测） |
+| B-050 | 资料分类目录／`INDEX.md` 符号链接越界与原子写硬化 | `crates/host-core/src/resource_index.rs` | 已修（源码与 Rust 单测，安装版未实测） |
+| B-051 | 后台唤醒失败指数退避重试与成功后再记冷却 | `apps/desktop/test/mc-background-wake.test.mjs` | 已修（源码与自动测试，安装版未实测） |
+| B-052 | 跨分类重复登记幂等与 `find_listed` 别名一致性 | `crates/host-core/src/resource_catalog.rs`、`project_tasks.rs`、`rpc/mc_project_work_rpc_tests.rs` | 已修（源码与 Rust 单测，安装版未实测） |
+| B-056 | `session.response.end` 字段改名避开 `/token/i` 脱敏与报告脚本兼容 | `apps/desktop/test/mc-context-diagnostics.test.mjs`、`scripts/mc-compaction-cache-report.test.mjs` | 已修（源码与 7 项测试通过；安装版待发版后验证） |
+| R21.3（#122） | 对话形前缀缓存摘要（SSE / 粘性 `session-id` / 预检 / 自动退回独立摘要） | `packages/agent-runtime/src/mc-compaction-cache-prefix.test.ts`、`compaction-request.test.ts`、`pi-runtime-compaction-summary.test.ts`、`mc-background-compaction.test.ts` | 离线测试通过（51 项）；真实服务商命中率待发版后实测 |
+| Q01 | 关闭自动压缩时跳过旧工具结果清理 | `packages/agent-runtime/src/mc-quality-baseline-gaps.test.ts` | 离线集成测试通过；真实模型未实测 |
+| Q02–Q04 | R31→R33→插话→重启→`ContextHistory`；B-054 预摘要作废不挂起；用量锚点一致 | `packages/agent-runtime/src/mc-quality-context-handoff.test.ts` | 离线集成测试通过；真实模型未实测 |
+| Q05–Q08 | 真实 `SubagentRun` 重复工具隔离终止与收敛；流式断流保持计数；`Write` 不重放；`abort()` 后晚到工具零请求 | `packages/agent-runtime/src/mc-quality-recovery-subagent.test.ts` | 离线集成测试通过；真实模型未实测 |
+| Q09–Q12 | `Stop` 钩子闭环与 `MAX_STOP_CONTINUATIONS` 上限；B-053 `abort()` 立即停钩子；B-055 Plan／Goal 批准执行重置重复计数 | `packages/agent-runtime/src/mc-quality-stop-hooks.test.ts` | 离线集成测试通过；真实模型未实测 |
+| Q13 | 项目任务状态机流转与预检／修订约束 | `crates/host-core/src/project_tasks.rs` | 既有用例与 B-052 新增预检用例通过；安装版未实测 |

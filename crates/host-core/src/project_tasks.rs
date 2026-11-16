@@ -450,7 +450,7 @@ fn resource_preflight(
         drafts: Vec::new(),
     };
     for key in keys {
-        let item = listing.items.iter().find(|item| &item.key == key);
+        let item = resource_catalog::find_listed(&listing, db, group, key);
         let (title, status) = match item {
             Some(item) => (item.title.clone(), item.status),
             None => (key.clone(), ResourceStatus::Missing),
@@ -911,5 +911,72 @@ mod tests {
             &f.web
         )
         .is_err());
+    }
+
+    #[test]
+    fn duplicate_and_alias_resource_keys_resolve_consistently_in_preflight() {
+        let f = fixture();
+        let readme = Path::new(&f.web).join("README.md");
+        fs::write(&readme, "v1").unwrap();
+
+        // 1. Cross-category register_file returns the stable existing key.
+        let key1 = resource_catalog::register_file(
+            &f.db,
+            &f.group,
+            &readme.to_string_lossy(),
+            "reference",
+            None,
+        )
+        .unwrap();
+        let key2 = resource_catalog::register_file(
+            &f.db,
+            &f.group,
+            &readme.to_string_lossy(),
+            "requirements",
+            None,
+        )
+        .unwrap();
+        assert_eq!(key1, key2);
+        let task_reg = create(&f.db, &f.group, input(&[&key2])).unwrap();
+        assert!(preflight(&f.db, &f.group, &task_reg.id)
+            .unwrap()
+            .blocking
+            .is_empty());
+
+        // 2. Legacy cross-category INDEX.md duplicates (plus symlink alias) keep preflight working.
+        #[cfg(unix)]
+        let alias = {
+            let alias = Path::new(&f.web).join("README-alias.md");
+            std::os::unix::fs::symlink(&readme, &alias).unwrap();
+            alias
+        };
+        #[cfg(not(unix))]
+        let alias = readme.clone();
+
+        let hidden_key = crate::resource_index::add(
+            Path::new(&f.resources),
+            "prototype",
+            "Alias README",
+            &crate::resource_index::IndexTarget::Path(alias),
+        )
+        .unwrap();
+        // Confirming key1 causes list() to keep key1 and hide hidden_key.
+        resource_catalog::set_status(&f.db, &f.group, &key1, ResourceStatus::Confirmed).unwrap();
+        let listed = resource_catalog::list(&f.db, &f.group).unwrap();
+        assert!(listed.items.iter().all(|item| item.key != hidden_key));
+
+        let legacy_task = create(&f.db, &f.group, input(&[&hidden_key])).unwrap();
+        let ok_check = preflight(&f.db, &f.group, &legacy_task.id).unwrap();
+        assert!(ok_check.blocking.is_empty());
+        assert_eq!(ok_check.resources[0].status, ResourceStatus::Confirmed);
+        assert_eq!(
+            ok_check.resources[0].sha256.as_deref().map(str::len),
+            Some(64)
+        );
+
+        fs::write(&readme, "v2").unwrap();
+        let changed_check = preflight(&f.db, &f.group, &legacy_task.id).unwrap();
+        assert_eq!(changed_check.blocking, [hidden_key.clone()]);
+        assert_eq!(changed_check.resources[0].status, ResourceStatus::Changed);
     }
 }
