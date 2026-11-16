@@ -789,6 +789,17 @@
     "pt-BR": "Fechar todas as abas",
     "tr": "Tüm sekmeleri kapat"
   },
+  "sessionTabCloseGroup": {
+    "en": "Close group tabs",
+    "zh-CN": "关闭该组标签",
+    "zh-TW": "關閉該組標籤",
+    "de": "Gruppen-Tabs schließen",
+    "es": "Cerrar pestañas del grupo",
+    "fr": "Fermer les onglets du groupe",
+    "ko": "그룹 탭 닫기",
+    "pt-BR": "Fechar abas do grupo",
+    "tr": "Grup sekmelerini kapat"
+  },
   "sessionTabMoveLeft": {
     "en": "Move tab left",
     "zh-CN": "向左移动标签",
@@ -810,6 +821,28 @@
     "ko": "탭을 오른쪽으로 이동",
     "pt-BR": "Mover aba para a direita",
     "tr": "Sekmeyi sağa taşı"
+  },
+  "sessionTabGroupMoveLeft": {
+    "en": "Move group left",
+    "zh-CN": "向左移动该组",
+    "zh-TW": "向左移動該組",
+    "de": "Gruppe nach links verschieben",
+    "es": "Mover grupo a la izquierda",
+    "fr": "Déplacer le groupe à gauche",
+    "ko": "그룹을 왼쪽으로 이동",
+    "pt-BR": "Mover grupo para a esquerda",
+    "tr": "Grubu sola taşı"
+  },
+  "sessionTabGroupMoveRight": {
+    "en": "Move group right",
+    "zh-CN": "向右移动该组",
+    "zh-TW": "向右移動該組",
+    "de": "Gruppe nach rechts verschieben",
+    "es": "Mover grupo a la derecha",
+    "fr": "Déplacer le groupe à droite",
+    "ko": "그룹을 오른쪽으로 이동",
+    "pt-BR": "Mover grupo para a direita",
+    "tr": "Grubu sağa taşı"
   },
   "appRailHome": {
     "en": "Conversations",

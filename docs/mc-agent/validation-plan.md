@@ -405,3 +405,7 @@ V85 云端补充：PR #114 的 CI `42827535202` 全部通过，含 Linux Electro
 | Q05–Q08 | 真实 `SubagentRun` 重复工具隔离终止与收敛；流式断流保持计数；`Write` 不重放；`abort()` 后晚到工具零请求 | `packages/agent-runtime/src/mc-quality-recovery-subagent.test.ts` | 离线集成测试通过；真实模型未实测 |
 | Q09–Q12 | `Stop` 钩子闭环与 `MAX_STOP_CONTINUATIONS` 上限；B-053 `abort()` 立即停钩子；B-055 Plan／Goal 批准执行重置重复计数 | `packages/agent-runtime/src/mc-quality-stop-hooks.test.ts` | 离线集成测试通过；真实模型未实测 |
 | Q13 | 项目任务状态机流转与预检／修订约束 | `crates/host-core/src/project_tasks.rs` | 既有用例与 B-052 新增预检用例通过；安装版未实测 |
+
+## V94 项目标签组拖拽、滚轮横向滑动与右键关闭全组（R11.22；P8）
+
+2026-11-16：单测（`apps/desktop/test/session-tabs.test.mjs` 12 项与 `apps/desktop/test/session-tab-groups.test.mjs` 3 项，共 15 项）通过：验证 `closeTabs` 邻近聚焦、无激活关闭与全关，`tabWheelScrollDelta` 像素／行／页纵向滚轮转换及触控板横向／`ctrlKey` 缩放透传，`moveGroupedTab` 整组重排（含交错打开归拢与跨独立页面标签移动）；i18n 9 语言同步与 `32` 项测试、`@pi-desktop/desktop` 类型检查、全仓 `pnpm lint`（Biome + 样式令牌）、`scripts/check-architecture.mjs` 及 `apps/desktop/test/mc-chat-usability.test.mjs` 回归通过。隔离 Electron E2E（`node scripts/e2e-session-tabs.mjs`，使用生产组件与样式、临时配置和模拟 IPC）通过：项目组拖拽跨邻近组并保持内部顺序且松手不误弹列表、不触发分栏落点；右键项目组打开上下文菜单并隐藏原生视图，执行“关闭该组标签”移除整组标签、保留运行中任务、焦点切往相邻存活标签并恢复原生视图；纵向滚轮触发 `.mc-session-tabs-viewport` 左右滚动、触控板横向手势透传、后台会话元数据刷新保持当前手动滚动位置。未验证：物理鼠标滚轮硬件阻尼与实机窗口、Windows 与 macOS 安装版。

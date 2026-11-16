@@ -9,6 +9,15 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.78",
+    date: "2026-11-16",
+    improvements: [
+      "Grouped project tabs in the title bar can now be dragged horizontally or moved with Alt+Arrow keys to reorder entire project groups while keeping internal session order intact.",
+      "When grouped project tabs overflow horizontally, vertical mouse wheel scrolling now scrolls the tab strip left and right while preserving scroll position across background session refreshes.",
+      "Added a right-click context menu on grouped project tabs with Close group tabs, Close other tabs, Close tabs to the right, Close all tabs, and group move actions without deleting conversations or stopping running tasks.",
+    ],
+  },
+  {
     version: "1.0.77",
     date: "2026-11-16",
     improvements: [

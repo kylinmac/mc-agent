@@ -62,6 +62,24 @@ export function closeTab(
 
 export type TabCloseScope = "others" | "right" | "all";
 
+/** Close a batch of tabs while keeping surviving focus on a neighbour. */
+export function closeTabs(
+  tabs: readonly string[],
+  ids: Iterable<string>,
+  activeId: string | null,
+): { tabs: string[]; next: string | null; closedActive: boolean } {
+  const closing = new Set(ids);
+  const rest = tabs.filter((tab) => !closing.has(tab));
+  if (rest.length === tabs.length) return { tabs: [...tabs], next: null, closedActive: false };
+  const activeIndex = activeId !== null ? tabs.indexOf(activeId) : -1;
+  if (activeIndex < 0 || !closing.has(activeId as string)) {
+    return { tabs: rest, next: null, closedActive: false };
+  }
+  const rightNext = tabs.slice(activeIndex + 1).find((tab) => !closing.has(tab));
+  const leftNext = [...tabs.slice(0, activeIndex)].reverse().find((tab) => !closing.has(tab));
+  return { tabs: rest, next: rightNext ?? leftNext ?? null, closedActive: true };
+}
+
 /** Batch close is one state transition; it never deletes or stops sessions. */
 export function closeTabGroup(tabs: readonly string[], id: string, activeId: string | null, scope: TabCloseScope) {
   const index = tabs.indexOf(id);
@@ -135,4 +153,21 @@ export function saveTabs(tabs: readonly string[]): void {
  */
 export function tabStripOverflows(scrollWidth: number, clientWidth: number): boolean {
   return scrollWidth - clientWidth > 1;
+}
+
+/**
+ * Convert vertical mouse wheel deltas into horizontal tab-strip scrolling while
+ * leaving trackpad horizontal gestures (`|deltaX| >= |deltaY|`) and zoom (`ctrlKey`) alone.
+ */
+export function tabWheelScrollDelta(
+  deltaX: number,
+  deltaY: number,
+  deltaMode: number,
+  pageWidth: number,
+  ctrlKey = false,
+): number | null {
+  if (ctrlKey || deltaY === 0 || Math.abs(deltaY) <= Math.abs(deltaX)) return null;
+  const scale = deltaMode === 1 ? 16 : deltaMode === 2 ? Math.max(0, pageWidth) : 1;
+  const delta = deltaY * scale;
+  return delta === 0 ? null : delta;
 }

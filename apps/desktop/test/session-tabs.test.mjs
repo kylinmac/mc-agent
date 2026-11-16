@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { loadStyles } from "./helpers/styles.mjs";
-import { MAX_TABS, closeTab, closeTabGroup, moveTab, openTab, pruneTabs, tabDropTarget } from "../src/features/session-tabs/tab-list.ts";
+import { MAX_TABS, closeTab, closeTabs, closeTabGroup, moveTab, openTab, pruneTabs, tabDropTarget, tabWheelScrollDelta } from "../src/features/session-tabs/tab-list.ts";
 
 test("only the visible tab strip excludes native window dragging", async () => {
   const css = await loadStyles();
@@ -104,4 +104,24 @@ test("the strip reports overflow only past a one-pixel tolerance", async () => {
   assert.equal(tabStripOverflows(801, 800), false);
   assert.equal(tabStripOverflows(802, 800), true);
   assert.equal(tabStripOverflows(0, 0), false);
+});
+
+test("closing a set of tabs picks the nearest surviving neighbour", () => {
+  assert.deepEqual(closeTabs(["a", "b", "c", "d"], ["a", "b"], "a"), { tabs: ["c", "d"], next: "c", closedActive: true });
+  assert.deepEqual(closeTabs(["a", "b", "c", "d"], ["c", "d"], "d"), { tabs: ["a", "b"], next: "b", closedActive: true });
+  assert.deepEqual(closeTabs(["a", "b", "c"], ["a", "b", "c"], "b"), { tabs: [], next: null, closedActive: true });
+  assert.deepEqual(closeTabs(["a", "b", "c"], ["a", "b"], "c"), { tabs: ["c"], next: null, closedActive: false });
+  assert.deepEqual(closeTabs(["a", "b"], ["a", "b"], "missing"), { tabs: [], next: null, closedActive: false });
+  assert.deepEqual(closeTabs(["a", "b"], ["missing"], "a"), { tabs: ["a", "b"], next: null, closedActive: false });
+});
+
+test("vertical wheel deltas map to horizontal scrolling while leaving horizontal gestures and zoom alone", () => {
+  assert.equal(tabWheelScrollDelta(0, 120, 0, 500), 120);
+  assert.equal(tabWheelScrollDelta(-2, -120, 0, 500), -120);
+  assert.equal(tabWheelScrollDelta(0, 3, 1, 500), 48);
+  assert.equal(tabWheelScrollDelta(0, 1, 2, 500), 500);
+  assert.equal(tabWheelScrollDelta(40, 20, 0, 500), null);
+  assert.equal(tabWheelScrollDelta(20, 20, 0, 500), null);
+  assert.equal(tabWheelScrollDelta(0, 0, 0, 500), null);
+  assert.equal(tabWheelScrollDelta(0, 120, 0, 500, true), null);
 });

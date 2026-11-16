@@ -13,6 +13,15 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.78",
+    date: "2026-11-16",
+    improvements: [
+      "顶部标签按项目合并后支持横向拖拽或使用 Alt+方向键整组调整顺序，组内会话顺序保持不变，展开恢复为单标签后顺序一致。",
+      "项目标签组超出标题栏宽度时，可用鼠标滚轮上下滚动直接左右滑动标签栏，且后台会话刷新不会把当前滚动位置拉回。",
+      "右键点击项目标签组新增菜单，支持“关闭该组标签”“关闭其他标签”“关闭右侧标签”“关闭全部标签”及整组左右移动；关闭只移除标签，保留会话记录与运行中任务。",
+    ],
+  },
+  {
     version: "1.0.77",
     date: "2026-11-16",
     improvements: [
