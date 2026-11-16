@@ -9,6 +9,17 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.75",
+    date: "2026-11-16",
+    improvements: [
+      "Conversations using the same account now share subscription quota. Switching conversations shows cached quota immediately, and quota can load while a reply is running.",
+    ],
+    fixes: [
+      "Fixed long conversations getting stuck on missing tool call errors after compaction, without rewriting chat history.",
+      "Temporary quota refresh failures now keep the last value with a marker. Hover to see the refresh warning and last update time.",
+    ],
+  },
+  {
     version: "1.0.74",
     date: "2026-11-11",
     fixes: [

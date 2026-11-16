@@ -13,6 +13,17 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.75",
+    date: "2026-11-16",
+    improvements: [
+      "同一账号的对话共享订阅额度，切换对话立即显示已有数据，正在生成回复时也能读取额度。",
+    ],
+    fixes: [
+      "修复部分长对话压缩后持续提示工具调用缺失、无法继续发送消息的问题，保留原始聊天记录。",
+      "额度刷新暂时失败时保留上次数字并加上标记，悬停可查看刷新失败说明和上次更新时间。",
+    ],
+  },
+  {
     version: "1.0.74",
     date: "2026-11-11",
     fixes: [
