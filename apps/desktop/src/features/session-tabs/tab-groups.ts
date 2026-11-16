@@ -46,3 +46,40 @@ export function groupProjectTabs(
   }
   return result;
 }
+
+export function groupedEntryId(entry: GroupedTab): string {
+  return entry.kind === "project" ? `group:${entry.id}` : `tab:${entry.key}`;
+}
+
+export function groupedEntryKeys(entry: GroupedTab): readonly string[] {
+  return entry.kind === "project" ? entry.keys : [entry.key];
+}
+
+/** Move a single tab or an entire project group before/after another strip item, keeping internal tab order. */
+export function moveGroupedTab(
+  tabs: readonly string[],
+  entries: readonly GroupedTab[],
+  sourceId: string,
+  targetId: string,
+  after: boolean,
+): string[] {
+  if (sourceId === targetId) return [...tabs];
+  const sourceIndex = entries.findIndex((entry) => groupedEntryId(entry) === sourceId);
+  if (sourceIndex < 0) return [...tabs];
+  const remaining = entries.filter((_, index) => index !== sourceIndex);
+  const targetIndex = remaining.findIndex((entry) => groupedEntryId(entry) === targetId);
+  if (targetIndex < 0) return [...tabs];
+  const insertSlot = targetIndex + (after ? 1 : 0);
+  if (insertSlot === sourceIndex) return [...tabs];
+
+  const sourceKeys = [...groupedEntryKeys(entries[sourceIndex])];
+  const moving = new Set(sourceKeys);
+  const rest = tabs.filter((tab) => !moving.has(tab));
+  if (insertSlot >= remaining.length) return [...rest, ...sourceKeys];
+
+  const anchorKey = groupedEntryKeys(remaining[insertSlot])[0];
+  const anchorPos = anchorKey ? rest.indexOf(anchorKey) : -1;
+  const insertAt = anchorPos < 0 ? rest.length : anchorPos;
+  rest.splice(insertAt, 0, ...sourceKeys);
+  return rest;
+}

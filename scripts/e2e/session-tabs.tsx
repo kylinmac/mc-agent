@@ -90,6 +90,33 @@ window.tabProbe = async (stage) => {
     check(!nativeVisible, "closing hover preserves another overlay owner");
     window.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true})); await settle();
     check(nativeVisible, "last overlay restores native view");
+    const alpha = document.querySelector('[data-project-tab="project:alpha"]');
+    const beta = document.querySelector('[data-project-tab="path:/beta"]');
+    const aRect = alpha.getBoundingClientRect();
+    const bRect = beta.getBoundingClientRect();
+    alpha.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 1, clientX: aRect.left + aRect.width / 2, clientY: aRect.top + aRect.height / 2 }));
+    alpha.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerId: 1, clientX: bRect.right - 2, clientY: bRect.top + bRect.height / 2 }));
+    await settle();
+    check(alpha.classList.contains("is-dragging"), "dragged project tab marks itself dragging");
+    check(beta.classList.contains("is-drop-after"), "target project tab marks drop position");
+    check(!useSplitView.getState().dropHint, "dragging a group never activates split drop hint");
+    alpha.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: 1, clientX: bRect.right - 2, clientY: bRect.top + bRect.height / 2 }));
+    alpha.click();
+    await settle();
+    check(!document.querySelector(".mc-tab-list-menu"), "releasing a dragged group does not open dropdown");
+    check([...document.querySelectorAll("[data-project-tab]")].map((el) => el.dataset.projectTab).join(",") === "path:/beta,project:alpha,ungrouped", "project group reorders past neighbour");
+    useAppStore.setState({ activeSessionId: "s16", runningSessions: { s0: true, s16: true } }); await settle();
+    document.querySelector('[data-project-tab="ungrouped"]').dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 240, clientY: 20 }));
+    await settle();
+    check(Boolean(document.querySelector('[data-context-menu-item="close-group"]')) && !nativeVisible, "group context menu offers close-group and blocks native view");
+    await click('[data-context-menu-item="close-group"]');
+    check(!document.querySelector('[data-project-tab="ungrouped"]'), "closing group removes project pill");
+    check(!saved().includes("s16") && !saved().includes("s17"), "closing group removes all member tabs");
+    check(useAppStore.getState().runningSessions.s16 === true, "closing group keeps running tasks");
+    check(useAppStore.getState().page === "creative", "closing active group focuses surviving neighbour");
+    check(nativeVisible, "closing group restores native view");
+    await click('[data-project-tab="project:alpha"]');
+    await click('[data-menu-tab="s1"] .mc-tab-menu-select');
   } else if (stage === "wide") {
     check(document.querySelectorAll("[data-project-tab]").length === 0, "wide layout restores individual tabs");
     check(document.querySelectorAll("[data-tab-key]").length === saved().length, "all tabs remain");
@@ -97,6 +124,23 @@ window.tabProbe = async (stage) => {
     useAppStore.setState({sessions: sessions.map((s,i)=>({...s,projectPath:`/project-${i}`}))}); await settle();
     const strip=document.querySelector(".mc-session-tabs"); strip.scrollLeft=strip.scrollWidth; await settle();
     check(strip.scrollLeft>0,"many projects really scroll");
+    const viewport = document.querySelector(".mc-session-tabs-viewport");
+    strip.scrollLeft = 0; await settle();
+    const wheelRight = new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaX: 0, deltaY: 160, deltaMode: 0 });
+    viewport.dispatchEvent(wheelRight); await settle();
+    check(wheelRight.defaultPrevented && strip.scrollLeft > 0, "vertical mouse wheel scrolls overflowing group tabs horizontally");
+    const scrolledLeft = strip.scrollLeft;
+    useAppStore.setState((state) => ({
+      sessions: state.sessions.map((item) => ({ ...item, updatedAt: "2026-11-16T12:00:00Z" })),
+    }));
+    await settle();
+    check(strip.scrollLeft === scrolledLeft, "background session updates preserve manual wheel scroll");
+    const wheelLeft = new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaX: 0, deltaY: -scrolledLeft, deltaMode: 0 });
+    viewport.dispatchEvent(wheelLeft); await settle();
+    check(strip.scrollLeft === 0, "upward wheel scrolls group tabs back to start");
+    const trackpadWheel = new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaX: 80, deltaY: 10, deltaMode: 0 });
+    viewport.dispatchEvent(trackpadWheel);
+    check(!trackpadWheel.defaultPrevented, "horizontal trackpad gesture passes through natively");
     check(getComputedStyle(strip).webkitAppRegion === "no-drag", "visible viewport excludes native drag");
     check([...strip.querySelectorAll("*")].every(el=>getComputedStyle(el).webkitAppRegion === "none"), "no child exclusions escape clipping");
     check(getComputedStyle(document.querySelector(".sidebar-header")).webkitAppRegion === "drag", "sidebar caption remains draggable");

@@ -6,7 +6,14 @@ import { IconChevronDown, IconClose, IconPalette, IconPlus } from "../../compone
 import { NotificationCenter } from "../../components/NotificationCenter";
 import { Button } from "../../components/ui";
 import { useProjectFolderIndex } from "../project-sidebar/useProjectFolderIndex";
-import { groupProjectTabs } from "./tab-groups";
+import {
+  groupProjectTabs,
+  groupedEntryId,
+  groupedEntryKeys,
+  moveGroupedTab,
+  type GroupedTab,
+  type ProjectTabGroup,
+} from "./tab-groups";
 import { TabListMenu } from "./TabListMenu";
 import { useBlockingOverlay } from "../../lib/blocking-overlay";
 import type { SessionSummary } from "@pi-desktop/shared";
@@ -18,6 +25,7 @@ import { closeSplitColumn, openSessionRight } from "../split-view/split-actions"
 import {
   activeTabKey,
   closeTab,
+  closeTabs,
   closeTabGroup,
   type TabCloseScope,
   loadTabs,
@@ -29,6 +37,7 @@ import {
   tabPage,
   type PageTab,
   tabStripOverflows,
+  tabWheelScrollDelta,
 } from "./tab-list";
 
 /* One tab list for every title bar (chat and route pages share it). */
@@ -95,8 +104,9 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
   const menuAnchorRef = useRef<HTMLButtonElement | null>(null);
   const [menuId, setMenuId] = useState<string | null>(null);
   const [grouped, setGrouped] = useState(false);
-  const drag = useRef<{ pointerId: number; key: string; startX: number; armed: boolean } | null>(null);
+  const drag = useRef<{ pointerId: number; stripId: string; sessionKey: string | null; startX: number; armed: boolean } | null>(null);
   const suppressClick = useRef(false);
+  const suppressTimerRef = useRef<number | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [drop, setDrop] = useState<{ key: string; after: boolean } | null>(null);
   const splitColumns = useSplitView((s) => s.columns);
@@ -104,6 +114,32 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
   const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
   useBlockingOverlay(contextMenu !== null);
   const [overflowing, setOverflowing] = useState(false);
+
+  const byId = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
+  const openProjectPaths = useAppStore((s) => s.openProjectPaths);
+  const { index: folders } = useProjectFolderIndex(`${openProjectPaths.join("\n")}|${sessions.length}`);
+  const groups = useMemo(() => groupProjectTabs(tabs, byId, folders, t("mcProject.sessionTabsUngrouped")),
+    [tabs, byId, folders, t]);
+  const entries = grouped ? groups : tabs.map((key) => ({ kind: "tab" as const, key }));
+  const groupSignature = useMemo(
+    () => groups.map((group) => (group.kind === "project" ? `${group.id}:${group.keys.join(",")}` : `tab:${group.key}`)).join("|"),
+    [groups],
+  );
+  const buildEntries = (currentTabs: readonly string[]): GroupedTab[] =>
+    grouped
+      ? groupProjectTabs(currentTabs, byId, folders, t("mcProject.sessionTabsUngrouped"))
+      : currentTabs.map((key) => ({ kind: "tab" as const, key }));
+
+  const consumeSuppressedClick = () => {
+    if (!suppressClick.current) return false;
+    suppressClick.current = false;
+    if (suppressTimerRef.current !== null) {
+      window.clearTimeout(suppressTimerRef.current);
+      suppressTimerRef.current = null;
+    }
+    return true;
+  };
+
   /*
     The conversation to put on the left when the one on screen opens to the
     right: the last other conversation visited, else the nearest tab.
@@ -126,59 +162,89 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
     (splitColumns.length > 0 || key !== activeSessionId || companionOf(key) !== undefined);
   const openRight = (key: string) => openSessionRight(key, companionOf(key));
 
-  const onTabPointerDown = (event: PointerEvent<HTMLDivElement>, key: string) => {
-    if (event.button !== 0 || (event.target as Element).closest("button")) return;
-    drag.current = { pointerId: event.pointerId, key, startX: event.clientX, armed: false };
-    event.currentTarget.setPointerCapture(event.pointerId);
+  const reorderStripItem = (sourceId: string, targetId: string, after: boolean) =>
+    setTabs((current) => moveGroupedTab(current, buildEntries(current), sourceId, targetId, after));
+
+  const onStripPointerDown = (event: PointerEvent<HTMLElement>, stripId: string, sessionKey: string | null) => {
+    const innerButton = (event.target as Element).closest("button");
+    if (event.button !== 0 || (innerButton && innerButton !== event.currentTarget)) return;
+    consumeSuppressedClick();
+    drag.current = { pointerId: event.pointerId, stripId, sessionKey, startX: event.clientX, armed: false };
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch {}
   };
-  const onTabPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+  const onStripPointerMove = (event: PointerEvent<HTMLElement>) => {
     const current = drag.current;
     if (!current || current.pointerId !== event.pointerId) return;
     if (!current.armed) {
       if (Math.abs(event.clientX - current.startX) < DRAG_THRESHOLD) return;
       current.armed = true;
-      setDragging(current.key);
+      setMenuId(null);
+      closeContextMenu();
+      setDragging(current.stripId);
     }
-    if (canOpenRight(current.key) && overConversation(event.clientX, event.clientY, stripRef.current)) {
+    if (current.sessionKey && canOpenRight(current.sessionKey) && overConversation(event.clientX, event.clientY, stripRef.current)) {
       setSplitDropHint(true);
       setDrop(null);
       return;
     }
     setSplitDropHint(false);
-    const rects = [...(stripRef.current?.querySelectorAll<HTMLElement>("[data-tab-key]") ?? [])]
-      .filter((element) => element.dataset.tabKey !== current.key)
+    const rects = [...(stripRef.current?.querySelectorAll<HTMLElement>("[data-strip-item]") ?? [])]
+      .filter((element) => element.dataset.stripItem !== current.stripId)
       .map((element) => {
         const rect = element.getBoundingClientRect();
-        return { key: element.dataset.tabKey ?? "", left: rect.left, right: rect.right };
+        return { key: element.dataset.stripItem ?? "", left: rect.left, right: rect.right };
       });
     setDrop(tabDropTarget(event.clientX, rects));
   };
-  const onTabPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+  const onStripPointerEnd = (event: PointerEvent<HTMLElement>, commit: boolean) => {
     const current = drag.current;
     if (!current || current.pointerId !== event.pointerId) return;
     drag.current = null;
-    if (current.armed) {
-      // The click that follows a drag must not also switch tabs.
+    if (commit && current.armed) {
+      // The click that follows a drag must not switch tabs or open a group menu.
       suppressClick.current = true;
-      if (splitHint) openRight(current.key);
-      else if (drop) setTabs((tabs) => moveTab(tabs, current.key, drop.key, drop.after));
+      if (suppressTimerRef.current !== null) window.clearTimeout(suppressTimerRef.current);
+      suppressTimerRef.current = window.setTimeout(() => {
+        suppressClick.current = false;
+        suppressTimerRef.current = null;
+      }, 0);
+      if (splitHint && current.sessionKey) openRight(current.sessionKey);
+      else if (drop) reorderStripItem(current.stripId, drop.key, drop.after);
     }
     setSplitDropHint(false);
     setDragging(null);
     setDrop(null);
   };
 
-  const byId = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
-  const openProjectPaths = useAppStore((s) => s.openProjectPaths);
-  const { index: folders } = useProjectFolderIndex(`${openProjectPaths.join("\n")}|${sessions.length}`);
-  const groups = useMemo(() => groupProjectTabs(tabs, byId, folders, t("mcProject.sessionTabsUngrouped")),
-    [tabs, byId, folders, t]);
-  const entries = grouped ? groups : tabs.map((key) => ({ kind: "tab" as const, key }));
   const menuGroup = groups.find((entry) => entry.kind === "project" && entry.id === menuId);
   const menuKeys = menuId === "all" ? tabs : menuGroup?.kind === "project" ? menuGroup.keys : [];
 
+  useEffect(() => () => {
+    if (suppressTimerRef.current !== null) window.clearTimeout(suppressTimerRef.current);
+  }, []);
   useEffect(() => { setMenuId(null); }, [grouped]);
   useEffect(() => { if (menuKeys.length === 0) setMenuId(null); }, [menuKeys.length]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    const strip = stripRef.current;
+    if (!viewport || !strip) return;
+    const onWheel = (event: WheelEvent) => {
+      if (!tabStripOverflows(strip.scrollWidth, strip.clientWidth)) return;
+      const delta = tabWheelScrollDelta(
+        event.deltaX,
+        event.deltaY,
+        event.deltaMode,
+        strip.clientWidth,
+        event.ctrlKey,
+      );
+      if (delta === null) return;
+      strip.scrollLeft += delta;
+      event.preventDefault();
+    };
+    viewport.addEventListener("wheel", onWheel, { passive: false });
+    return () => viewport.removeEventListener("wheel", onWheel);
+  }, []);
 
   // What is on screen always has a tab.
   useEffect(() => {
@@ -196,16 +262,39 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
     });
   }, [sessions, activeSessionId, setTabs]);
 
-  // What is on screen should also be on screen in the strip.
+  // What is on screen should also be on screen in the strip, without yanking manual horizontal scroll during background refreshes or other-group drags.
   const activeKeyRef = useRef(activeKey);
   activeKeyRef.current = activeKey;
+  const groupedRef = useRef(grouped);
+  groupedRef.current = grouped;
+  const lastRevealRef = useRef<{
+    activeKey: string | null;
+    grouped: boolean;
+    hasActiveElement: boolean;
+    viewportWidth: number | null;
+  }>({ activeKey: null, grouped: false, hasActiveElement: false, viewportWidth: null });
   const revealActiveTab = () => {
     const key = activeKeyRef.current;
-    if (!key) return;
-    const tab = [...(stripRef.current?.querySelectorAll<HTMLElement>("[data-tab-key]") ?? [])]
-      .find((element) => element.dataset.tabKey === key)
-      ?? stripRef.current?.querySelector<HTMLElement>('[data-active-group="true"]');
-    tab?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    const width = viewportRef.current?.clientWidth ?? null;
+    const tab = key
+      ? ([...(stripRef.current?.querySelectorAll<HTMLElement>("[data-tab-key]") ?? [])]
+          .find((element) => element.dataset.tabKey === key)
+          ?? stripRef.current?.querySelector<HTMLElement>('[data-active-group="true"]')
+          ?? null)
+      : null;
+    const prev = lastRevealRef.current;
+    const shouldReveal =
+      prev.viewportWidth !== width
+      || prev.activeKey !== key
+      || prev.grouped !== groupedRef.current
+      || (key !== null && !prev.hasActiveElement && tab !== null);
+    lastRevealRef.current = {
+      activeKey: key,
+      grouped: groupedRef.current,
+      hasActiveElement: tab !== null,
+      viewportWidth: width,
+    };
+    if (shouldReveal) tab?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
   };
 
   // Measure the ungrouped minimum, not the grouped content, to avoid oscillating.
@@ -227,9 +316,9 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
     observer.observe(viewport);
     observer.observe(strip);
     return () => observer.disconnect();
-  }, [tabs, grouped, groups]);
+  }, [tabs, grouped, groupSignature]);
 
-  useEffect(revealActiveTab, [activeKey, tabs, grouped, groups]);
+  useEffect(revealActiveTab, [activeKey, grouped, groupSignature]);
 
   const pageTitle: Record<PageTab, string> = {
     creative: t("mcProject.creativeTitle"),
@@ -261,10 +350,10 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
     else onNewTask();
   };
 
-  const closeGroup = (key: string, scope: TabCloseScope) => {
-    const store = useAppStore.getState();
-    const current = useTabStore.getState().tabs;
-    const result = closeTabGroup(current, key, activeTabKey(store.page, store.activeSessionId), scope);
+  const applyBatchClose = (
+    result: { tabs: string[]; next: string | null; closedActive: boolean },
+    current: readonly string[],
+  ) => {
     const removed = new Set(current.filter((tab) => !result.tabs.includes(tab)));
     const columns = useSplitView.getState().columns.filter((id) => !removed.has(id));
     setSplitColumns(columns.length < 2 ? [] : columns);
@@ -275,14 +364,52 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
     else onNewTask();
   };
 
+  const closeGroup = (key: string, scope: TabCloseScope) => {
+    const store = useAppStore.getState();
+    const current = useTabStore.getState().tabs;
+    applyBatchClose(closeTabGroup(current, key, activeTabKey(store.page, store.activeSessionId), scope), current);
+  };
+
+  const closeMany = (ids: Iterable<string>) => {
+    const store = useAppStore.getState();
+    const current = useTabStore.getState().tabs;
+    applyBatchClose(closeTabs(current, ids, activeTabKey(store.page, store.activeSessionId)), current);
+  };
+
   const move = (key: string, direction: number) => setTabs((current) => {
     const neighbour = current[current.indexOf(key) + direction];
     return neighbour ? moveTab(current, key, neighbour, direction > 0) : current;
   });
 
+  const moveEntry = (stripId: string, direction: -1 | 1) => setTabs((current) => {
+    const currentEntries = buildEntries(current);
+    const index = currentEntries.findIndex((entry) => groupedEntryId(entry) === stripId);
+    const neighbour = index >= 0 ? currentEntries[index + direction] : undefined;
+    return neighbour
+      ? moveGroupedTab(current, currentEntries, stripId, groupedEntryId(neighbour), direction > 0)
+      : current;
+  });
+
   const openList = (event: MouseEvent<HTMLButtonElement>, id: string) => {
     menuAnchorRef.current = event.currentTarget;
     setMenuId((current) => current === id ? null : id);
+  };
+
+  const openProjectGroupMenu = (event: MouseEvent<HTMLElement>, entry: ProjectTabGroup, entryIndex: number) => {
+    setMenuId(null);
+    const stripId = groupedEntryId(entry);
+    const groupKeySet = new Set(entry.keys);
+    openContextMenu(event, {
+      label: entry.title,
+      items: [
+        { id: "move-group-left", label: t("mcProject.sessionTabGroupMoveLeft"), disabled: entryIndex === 0, onSelect: () => moveEntry(stripId, -1) },
+        { id: "move-group-right", label: t("mcProject.sessionTabGroupMoveRight"), disabled: entryIndex === entries.length - 1, onSelect: () => moveEntry(stripId, 1) },
+        { id: "close-group", label: t("mcProject.sessionTabCloseGroup"), separatorBefore: true, onSelect: () => closeMany(entry.keys) },
+        { id: "close-others", label: t("mcProject.sessionTabCloseOthers"), disabled: tabs.length <= entry.keys.length, onSelect: () => closeMany(tabs.filter((tab) => !groupKeySet.has(tab))) },
+        { id: "close-right", label: t("mcProject.sessionTabCloseRight"), disabled: entryIndex === entries.length - 1, onSelect: () => closeMany(entries.slice(entryIndex + 1).flatMap((item) => [...groupedEntryKeys(item)])) },
+        { id: "close-all", label: t("mcProject.sessionTabCloseAll"), onSelect: () => closeMany(tabs) },
+      ],
+    });
   };
 
   const openTabMenu = (event: MouseEvent<HTMLElement>, key: string) => {
@@ -330,15 +457,37 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
     <div className="mc-titlebar-tabs">
       <div ref={viewportRef} className="mc-session-tabs-viewport">
         <div ref={stripRef} className="mc-session-tabs" role={grouped ? "toolbar" : "tablist"} aria-label={t("mcProject.sessionTabsLabel")}>
-          {entries.map((entry) => {
+          {entries.map((entry, entryIndex) => {
+            const stripId = groupedEntryId(entry);
             if (entry.kind === "project") {
               const active = activeKey !== null && entry.keys.includes(activeKey);
               return <Button key={entry.id} variant="ghost"
-                className={`mc-session-tab mc-project-tab${active ? " active" : ""}`}
-                data-project-tab={entry.id} data-active-group={active}
+                className={[
+                  "mc-session-tab mc-project-tab",
+                  active && "active",
+                  dragging === stripId && "is-dragging",
+                  drop?.key === stripId && (drop.after ? "is-drop-after" : "is-drop-before"),
+                ].filter(Boolean).join(" ")}
+                data-project-tab={entry.id} data-strip-item={stripId} data-active-group={active}
                 aria-haspopup="dialog" aria-expanded={menuId === entry.id}
+                aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight"
                 aria-label={t("mcProject.sessionTabsProject", { title: entry.title, count: entry.keys.length })}
-                title={entry.title} onClick={(event) => openList(event, entry.id)}>
+                title={entry.title}
+                onPointerDown={(event) => onStripPointerDown(event, stripId, null)}
+                onPointerMove={onStripPointerMove}
+                onPointerUp={(event) => onStripPointerEnd(event, true)}
+                onPointerCancel={(event) => onStripPointerEnd(event, false)}
+                onClick={(event) => {
+                  if (consumeSuppressedClick()) return;
+                  openList(event, entry.id);
+                }}
+                onContextMenu={(event) => openProjectGroupMenu(event, entry, entryIndex)}
+                onKeyDown={(event) => {
+                  if (event.altKey && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+                    event.preventDefault();
+                    moveEntry(stripId, event.key === "ArrowLeft" ? -1 : 1);
+                  }
+                }}>
                 <span className={`mc-session-tab-dot${entry.keys.some((key) => runningSessions[key]) ? " running" : ""}`} aria-hidden />
                 <span className="mc-session-tab-title">{entry.title}</span>
                 <span className="mc-project-tab-count">{entry.keys.length}</span>
@@ -357,25 +506,23 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
                 aria-selected={active}
                 aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight"
                 data-tab-key={key}
+                data-strip-item={stripId}
                 className={[
                   "mc-session-tab",
                   active && "active",
                   splitColumns.includes(key) && "in-split",
-                  dragging === key && "is-dragging",
-                  drop?.key === key && (drop.after ? "is-drop-after" : "is-drop-before"),
+                  dragging === stripId && "is-dragging",
+                  drop?.key === stripId && (drop.after ? "is-drop-after" : "is-drop-before"),
                 ]
                   .filter(Boolean)
                   .join(" ")}
                 title={title}
-                onPointerDown={(event) => onTabPointerDown(event, key)}
-                onPointerMove={onTabPointerMove}
-                onPointerUp={onTabPointerUp}
-                onPointerCancel={onTabPointerUp}
+                onPointerDown={(event) => onStripPointerDown(event, stripId, target ? null : key)}
+                onPointerMove={onStripPointerMove}
+                onPointerUp={(event) => onStripPointerEnd(event, true)}
+                onPointerCancel={(event) => onStripPointerEnd(event, false)}
                 onClick={() => {
-                  if (suppressClick.current) {
-                    suppressClick.current = false;
-                    return;
-                  }
+                  if (consumeSuppressedClick()) return;
                   if (!active) show(key);
                 }}
                 onAuxClick={(event) => {
@@ -390,9 +537,7 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
                   }
                   if (event.altKey && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
                     event.preventDefault();
-                    const index = tabs.indexOf(key);
-                    const neighbour = tabs[index + (event.key === "ArrowLeft" ? -1 : 1)];
-                    if (neighbour) setTabs((current) => moveTab(current, key, neighbour, event.key === "ArrowRight"));
+                    moveEntry(stripId, event.key === "ArrowLeft" ? -1 : 1);
                   }
                 }}
               >

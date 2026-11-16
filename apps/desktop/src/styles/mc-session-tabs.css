@@ -207,6 +207,10 @@
   white-space: nowrap;
 }
 
+.mc-project-tab:active:not(:disabled) {
+  transform: none;
+}
+
 .mc-project-tab-count {
   color: var(--ds-text-muted);
   font-size: var(--text-xs);
