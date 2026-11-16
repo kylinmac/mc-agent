@@ -12,6 +12,29 @@ export const CACHE_SHARED_SUMMARY_APIS: ReadonlySet<string> = new Set([
   "openai-completions",
 ]);
 
+/**
+ * First-party hosts verified to apply automatic server-side prompt prefix caching
+ * without per-write surcharges (#151). Third-party `openai-completions` relays
+ * default to standalone serialized summarization to avoid double input charges.
+ */
+export const AUTOMATIC_PREFIX_CACHE_HOSTS: ReadonlySet<string> = new Set([
+  "api.openai.com",
+  "api.deepseek.com",
+  "api.x.ai",
+]);
+
+export function supportsCacheSharedCompaction(model: Pick<Model<Api>, "api" | "baseUrl">): boolean {
+  if (model.api === "openai-codex-responses") return true;
+  if (model.api !== "openai-responses" && model.api !== "openai-completions") return false;
+  if (!model.baseUrl) return false;
+  try {
+    const host = new URL(model.baseUrl.trim()).host.toLowerCase();
+    return AUTOMATIC_PREFIX_CACHE_HOSTS.has(host);
+  } catch {
+    return false;
+  }
+}
+
 export const CACHE_SHARED_SUMMARY_MARKER = "CRITICAL: Respond with TEXT ONLY. Do NOT call any tools.";
 
 export type CompactionCachePrefix = {
@@ -50,7 +73,7 @@ export function buildCacheSharedSummaryContext(input: {
   maxTokens: number;
   summaryInstruction: string;
 }): Context | undefined {
-  if (!CACHE_SHARED_SUMMARY_APIS.has(input.model.api)) return undefined;
+  if (!supportsCacheSharedCompaction(input.model)) return undefined;
   if (!input.prefix.context.messages.some((m) => m.role === "user" || m.role === "assistant")) {
     return undefined;
   }

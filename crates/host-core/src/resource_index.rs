@@ -45,7 +45,29 @@ pub struct IndexEntry {
 
 /// Every entry of the root index and of each first-level category index.
 pub fn read_all(resource_root: &Path) -> Result<Vec<IndexEntry>> {
-    let mut entries = read_index(resource_root, "")?;
+    match fs::symlink_metadata(resource_root) {
+        Ok(meta) if meta.file_type().is_symlink() || !meta.is_dir() => {
+            tracing::warn!(
+                path = %resource_root.display(),
+                "skipping unsafe resource root in index listing"
+            );
+            return Ok(Vec::new());
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(error).context("inspect resource root"),
+    }
+    let mut entries = match read_index(resource_root, "") {
+        Ok(root_entries) => root_entries,
+        Err(error) => {
+            tracing::warn!(
+                path = %resource_root.display(),
+                %error,
+                "skipping unsafe root resource index"
+            );
+            Vec::new()
+        }
+    };
     let mut categories = Vec::new();
     for entry in fs::read_dir(resource_root)? {
         let entry = entry?;
@@ -56,7 +78,17 @@ pub fn read_all(resource_root: &Path) -> Result<Vec<IndexEntry>> {
     }
     categories.sort();
     for category in categories {
-        entries.extend(read_index(resource_root, &category)?);
+        match read_index(resource_root, &category) {
+            Ok(category_entries) => entries.extend(category_entries),
+            Err(error) => {
+                tracing::warn!(
+                    path = %resource_root.display(),
+                    category = %category,
+                    %error,
+                    "skipping unsafe category resource index"
+                );
+            }
+        }
     }
     Ok(entries)
 }
@@ -468,5 +500,34 @@ mod tests {
             fs::read_to_string(outside.join("INDEX.md")).unwrap(),
             "untouched"
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn read_all_skips_unsafe_symlinks_without_failing_valid_categories() {
+        use std::os::unix::fs::symlink;
+
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("resources");
+        let outside = dir.path().join("outside");
+        let doc = dir.path().join("code/doc.md");
+        fs::create_dir_all(root.join("valid")).unwrap();
+        fs::create_dir_all(root.join("bad")).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+        fs::create_dir_all(doc.parent().unwrap()).unwrap();
+        fs::write(&doc, "hello").unwrap();
+        fs::write(outside.join("INDEX.md"), "- [Secret](<./doc.md>)\n").unwrap();
+
+        let valid_key = add(&root, "valid", "Doc", &IndexTarget::Path(doc.clone())).unwrap();
+        symlink(outside.join("INDEX.md"), root.join("bad/INDEX.md")).unwrap();
+
+        let entries = read_all(&root).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].key, valid_key);
+
+        let symlink_root = dir.path().join("symlink_resources");
+        symlink(&outside, &symlink_root).unwrap();
+        assert!(read_all(&symlink_root).unwrap().is_empty());
+        assert!(add(&symlink_root, "valid", "Doc", &IndexTarget::Path(doc)).is_err());
     }
 }

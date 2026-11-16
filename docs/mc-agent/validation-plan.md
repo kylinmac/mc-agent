@@ -231,7 +231,7 @@ V50 补充（2026-11-03）：控制器测试覆盖重启时发现更新版本先
 
 检查每次摘要尝试记录耗时、结束原因、输入／输出／缓存读写计数，用量缺失标为未知；日志不含正文和路径。缓存复用试验不在本次验收内，依据安装版日志中的测量结果另行决定。
 
-2026-11-16（[#122](https://github.com/kylinmac/mc-agent/issues/122) / [#148](https://github.com/kylinmac/mc-agent/issues/148)）：完成 `~/.mc-agent` 只读对照（`openai-codex-responses` 普通对话缓存读占比 `95.2%` vs 压缩 `0.0%`），修复 [B-056](bugs.md)（`mc-context-diagnostics.test.mjs`、`mc-compaction-cache-report.test.mjs` 共 7 项通过），并实现对话形前缀复用摘要与自动退回（`mc-compaction-cache-prefix.test.ts` 4 项、`compaction-request.test.ts` 17 项、`pi-runtime-compaction-summary.test.ts` 19 项、`mc-background-compaction.test.ts` 11 项通过）。真实服务商上的实际 `cacheRead` 命中率与耗时收益待发版后在安装版复核。
+2026-11-16（[#122](https://github.com/kylinmac/mc-agent/issues/122) / [#148](https://github.com/kylinmac/mc-agent/issues/148) / [#149](https://github.com/kylinmac/mc-agent/issues/149) / [#151](https://github.com/kylinmac/mc-agent/issues/151)）：完成 `~/.mc-agent` 只读对照（`openai-codex-responses` 普通对话缓存读占比 `95.2%` vs 压缩 `0.0%`），修复 [B-056](bugs.md)（`mc-context-diagnostics.test.mjs`、`mc-compaction-cache-report.test.mjs` 共 7 项通过），并实现对话形前缀复用摘要与自动退回（#151 收敛至 Codex 及 OpenAI/DeepSeek/xAI 官方主机，共享路径单次尝试且不再重复拼接历史摘要；#149 同步判断保持 `runtime.test.ts` 原有时序；相关测试通过）。真实服务商上的实际 `cacheRead` 命中率与耗时收益待发版后在安装版复核。
 
 ## V63 标签右键菜单（R22.1；P8）
 
@@ -393,13 +393,13 @@ V85 云端补充：PR #114 的 CI `42827535202` 全部通过，含 Linux Electro
 
 | 编号 | 覆盖对象 | 对应测试文件 | 当前状态 |
 | --- | --- | --- | --- |
-| B-048 | 任务启动禁用空会话复用、失败清理与切页竞态 | `apps/desktop/test/mc-task-start-session-race.test.mjs`、`mc-task-session-title.test.mjs` | 已修（源码与自动测试，安装版未实测） |
-| B-049 | Outbox 死信先落盘后出队与启动去重 | `apps/desktop/test/persistence-outbox.test.mjs` | 已修（源码与自动测试，安装版未实测） |
-| B-050 | 资料分类目录／`INDEX.md` 符号链接越界与原子写硬化 | `crates/host-core/src/resource_index.rs` | 已修（源码与 Rust 单测，安装版未实测） |
-| B-051 | 后台唤醒失败指数退避重试与成功后再记冷却 | `apps/desktop/test/mc-background-wake.test.mjs` | 已修（源码与自动测试，安装版未实测） |
-| B-052 | 跨分类重复登记幂等与 `find_listed` 别名一致性 | `crates/host-core/src/resource_catalog.rs`、`project_tasks.rs`、`rpc/mc_project_work_rpc_tests.rs` | 已修（源码与 Rust 单测，安装版未实测） |
+| B-048 | 任务启动禁用空会话复用、`null` 提示、失败清理与切页竞态 | `apps/desktop/test/mc-task-start-session-race.test.mjs`、`mc-task-session-title.test.mjs` | 已修（源码与自动测试，安装版未实测） |
+| B-049 | Outbox 死信先落盘后出队与快照内容一致去重 | `apps/desktop/test/persistence-outbox.test.mjs` | 已修（源码与自动测试，安装版未实测） |
+| B-050 | 资料分类目录／`INDEX.md` 符号链接越界、`read_all` 跳过告警与原子写 | `crates/host-core/src/resource_index.rs` | 已修（源码与 Rust 单测，安装版未实测） |
+| B-051 | 后台唤醒失败指数退避重试、成功后再记冷却与 `flush` 串行 | `apps/desktop/test/mc-background-wake.test.mjs` | 已修（源码与自动测试，安装版未实测） |
+| B-052 | 跨分类重复登记幂等与 `find_listed` 别名一致性 | `crates/host-core/src/resource_catalog.rs`、`resource_catalog_tests.rs`、`project_tasks.rs`、`rpc/mc_project_work_rpc_tests.rs` | 已修（源码与 Rust 单测，安装版未实测） |
 | B-056 | `session.response.end` 字段改名避开 `/token/i` 脱敏与报告脚本兼容 | `apps/desktop/test/mc-context-diagnostics.test.mjs`、`scripts/mc-compaction-cache-report.test.mjs` | 已修（源码与 7 项测试通过；安装版待发版后验证） |
-| R21.3（#122） | 对话形前缀缓存摘要（SSE / 粘性 `session-id` / 预检 / 自动退回独立摘要） | `packages/agent-runtime/src/mc-compaction-cache-prefix.test.ts`、`compaction-request.test.ts`、`pi-runtime-compaction-summary.test.ts`、`mc-background-compaction.test.ts` | 离线测试通过（51 项）；真实服务商命中率待发版后实测 |
+| R21.3（#122/#149/#151） | 对话形前缀缓存摘要（白名单主机 / SSE / 粘性 `session-id` / 同步快速路径 / 单次尝试自动退回） | `packages/agent-runtime/src/mc-compaction-cache-prefix.test.ts`、`runtime.test.ts`、`compaction-request.test.ts`、`pi-runtime-compaction-summary.test.ts`、`mc-background-compaction.test.ts` | 离线测试通过；真实服务商命中率待发版后实测 |
 | Q01 | 关闭自动压缩时跳过旧工具结果清理 | `packages/agent-runtime/src/mc-quality-baseline-gaps.test.ts` | 离线集成测试通过；真实模型未实测 |
 | Q02–Q04 | R31→R33→插话→重启→`ContextHistory`；B-054 预摘要作废不挂起；用量锚点一致 | `packages/agent-runtime/src/mc-quality-context-handoff.test.ts` | 离线集成测试通过；真实模型未实测 |
 | Q05–Q08 | 真实 `SubagentRun` 重复工具隔离终止与收敛；流式断流保持计数；`Write` 不重放；`abort()` 后晚到工具零请求 | `packages/agent-runtime/src/mc-quality-recovery-subagent.test.ts` | 离线集成测试通过；真实模型未实测 |

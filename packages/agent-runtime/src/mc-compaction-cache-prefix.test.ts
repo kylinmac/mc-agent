@@ -11,6 +11,7 @@ import { modelConfigFromPi } from "./model-capabilities.js";
 import {
   buildCacheSharedSummaryContext,
   CACHE_SHARED_SUMMARY_MARKER,
+  supportsCacheSharedCompaction,
 } from "./mc-compaction-cache-prefix.js";
 import { buildProviderModel } from "./provider-binding.js";
 import {
@@ -59,13 +60,17 @@ function codexProvider(contextWindow = 64_000, maxTokens = 4_096): RuntimeProvid
   };
 }
 
-function completionsProvider(contextWindow = 64_000, maxTokens = 4_096): RuntimeProviderConfig {
+function completionsProvider(
+  contextWindow = 64_000,
+  maxTokens = 4_096,
+  baseUrl = "https://api.deepseek.com/v1",
+): RuntimeProviderConfig {
   const model = Object.values(DEEPSEEK_MODELS).find((item) => item.id === "deepseek-flash")!;
   return {
     id: "r21-completions",
     name: "Flash",
     modelId: model.id,
-    baseUrl: "http://provider.invalid/v1",
+    baseUrl,
     apiKey: "fixture",
     apiStyle: "chat_completions",
     supportsReasoning: false,
@@ -424,5 +429,122 @@ describe("R21.3 / #122: cache-sharing compaction summary with automatic fallback
       summaryInstruction: "summarize",
     });
     expect(oversized).toBeUndefined();
+  });
+
+  it("skips cache-shared summary on non-whitelisted openai-completions hosts and deduplicates prior summaries (#151)", async () => {
+    expect(supportsCacheSharedCompaction({ api: "openai-codex-responses", baseUrl: "http://codex.invalid" })).toBe(true);
+    expect(supportsCacheSharedCompaction({ api: "openai-responses", baseUrl: "https://api.openai.com/v1" })).toBe(true);
+    expect(supportsCacheSharedCompaction({ api: "openai-completions", baseUrl: "https://api.deepseek.com/v1" })).toBe(true);
+    expect(supportsCacheSharedCompaction({ api: "openai-completions", baseUrl: "https://api.x.ai/v1" })).toBe(true);
+    expect(supportsCacheSharedCompaction({ api: "openai-completions", baseUrl: "https://openrouter.ai/api/v1" })).toBe(false);
+    expect(supportsCacheSharedCompaction({ api: "openai-completions", baseUrl: "http://provider.invalid/v1" })).toBe(false);
+    expect(supportsCacheSharedCompaction({ api: "openai-completions", baseUrl: "https://api.openai.com.evil.test/v1" })).toBe(false);
+    expect(supportsCacheSharedCompaction({ api: "openai-completions", baseUrl: "https://api.openai.com:8443/v1" })).toBe(false);
+
+    const dir = makeTempDir("mc-r213-openrouter-");
+    const diagnostics: AgentRuntimeDiagnostic[] = [];
+    const summaryRequests: Array<Record<string, unknown>> = [];
+    let step = 0;
+
+    vi.stubGlobal("fetch", async (_url: unknown, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      const messages = (body.messages ?? []) as Array<{ role: string; content?: unknown }>;
+      const systemText = JSON.stringify(messages.find((m) => m.role === "system") ?? "");
+      if (systemText.includes("context summarization assistant") || !Array.isArray(body.tools) || body.tools.length === 0) {
+        summaryRequests.push(body);
+        return chatSse({ role: "assistant", content: "OPENROUTER-STANDALONE-SUMMARY" }, "stop");
+      }
+      if (JSON.stringify(messages).includes("OPENROUTER-STANDALONE-SUMMARY")) {
+        return chatSse({ role: "assistant", content: "Done after standalone." }, "stop");
+      }
+      step += 1;
+      return chatSse({
+        role: "assistant",
+        tool_calls: [{ index: 0, id: `or_${step}`, type: "function", function: { name: "Bash", arguments: JSON.stringify({ command: `step-${step}` }) } }],
+      }, "tool_calls");
+    });
+
+    const runtime = new DesktopAgentRuntime({
+      sessionId: `or-${randomUUID()}`,
+      mode: "agent",
+      projectPath: dir,
+      provider: completionsProvider(64_000, 4_096, "https://openrouter.ai/api/v1"),
+      thinkingLevel: "off",
+      commandShell,
+      host: {
+        call: async <T>(method: string, params?: unknown): Promise<T> => {
+          if (method === "session.appendCompaction") return { ok: true } as T;
+          if (method === "tools.execute") {
+            const cmd = (params as { args: { command: string } }).args.command;
+            return { ok: true, content: `ok-${cmd}\n`.padEnd(20_000, "r") } as T;
+          }
+          return undefined as T;
+        },
+      },
+      onEvent: () => {},
+      onDiagnostic: (d) => diagnostics.push(d),
+    });
+
+    try {
+      await runtime.prompt("summarize on openrouter");
+    } finally {
+      await runtime.dispose();
+    }
+
+    expect(summaryRequests).toHaveLength(1);
+    expect(summaryRequests[0]!.tools).toBeUndefined();
+    expect(diagnostics.filter((d) => d.kind === "compaction_summary").map((d) => d.data.cacheShared)).toEqual([false]);
+  });
+
+  it("omits duplicate <previous-summary> block when cache-shared prefix already includes it (#151)", async () => {
+    const dir = makeTempDir("mc-r213-dup-prev-");
+    const capturedSharedBodies: string[] = [];
+    const priorSummary = "UNIQUE-PRIOR-CHECKPOINT-MARKER-9482";
+    const prov = completionsProvider();
+    const model = buildProviderModel(prov);
+
+    vi.stubGlobal("fetch", async (_url: unknown, init?: RequestInit) => {
+      const rawBody = String(init?.body ?? "{}");
+      capturedSharedBodies.push(rawBody);
+      return chatSse({ role: "assistant", content: "CONSOLIDATED-SUMMARY" }, "stop");
+    });
+
+    const { compact } = await import("./pi-runtime-compaction-summary.js");
+    const { createProviderModels } = await import("./provider-binding.js");
+    const result = await compact(
+      {
+        messagesToSummarize: [{ role: "user", content: [{ type: "text", text: "follow-up" }], timestamp: 2 }],
+        retainedTail: [],
+        tokensBefore: 12_000,
+        previousSummary: priorSummary,
+        fileOps: { read: new Set(), written: new Set(), edited: new Set() },
+        isSplitTurn: false,
+        turnPrefixMessages: [],
+        settings: { enabled: true, reserveTokens: 4_000, keepRecentTokens: 1_000 },
+      },
+      createProviderModels(prov, model),
+      model,
+      undefined,
+      "off",
+      undefined,
+      undefined,
+      undefined,
+      {
+        sessionId: "dup-check",
+        context: {
+          systemPrompt: "sys",
+          messages: [
+            { role: "user", content: [{ type: "text", text: `Compacted context:\n${priorSummary}` }], timestamp: 1 },
+          ],
+        },
+      },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(capturedSharedBodies).toHaveLength(1);
+    const occurrences = capturedSharedBodies[0]!.split(priorSummary).length - 1;
+    expect(occurrences).toBe(1);
+    expect(capturedSharedBodies[0]).not.toContain("</previous-summary>");
+    expect(capturedSharedBodies[0]).toContain("An earlier checkpoint summary is already present");
   });
 });

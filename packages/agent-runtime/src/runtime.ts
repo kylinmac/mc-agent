@@ -11,7 +11,7 @@ import { buildProjectHistoryTool, PROJECT_HISTORY_TOOL_NAME } from "./mc-project
 import { buildProjectResourcesTool, buildProjectTasksTool, PROJECT_RESOURCES_TOOL_NAME, PROJECT_TASKS_TOOL_NAME } from "./mc-project-work-tools.js";
 import { contextIdKey, contextRequestShape, verifiedContextRestore } from "./mc-context-integrity.js";
 import { compactionBoundaryId, restorableCompaction } from "./mc-compaction-boundary.js";
-import { CACHE_SHARED_SUMMARY_APIS, type CompactionCachePrefix } from "./mc-compaction-cache-prefix.js";
+import { supportsCacheSharedCompaction, type CompactionCachePrefix } from "./mc-compaction-cache-prefix.js";
 import { RUNTIME_CORE_RULES, RUNTIME_DELEGATION_RULES, RUNTIME_EDITING_RULES } from "./builtin-system-prompt.js";
 import {
   MAX_MUTATION_RECOVERY_FAILURES, BASH_PATCH_FAILURE_KEY,
@@ -8321,7 +8321,7 @@ export class DesktopAgentRuntime {
   }
 
   private snapshotCacheSharedPrefix(): CompactionCachePrefix | undefined {
-    if (!CACHE_SHARED_SUMMARY_APIS.has(this.model.api)) return undefined;
+    if (!supportsCacheSharedCompaction(this.model)) return undefined;
     const tools = this.declaredTools();
     let agentMessages = this.dropDuplicateToolCalls(this.agent.state.messages);
     const changes = getToolStateChanges(getCurrentTools(agentMessages), tools.map(toToolDeclaration));

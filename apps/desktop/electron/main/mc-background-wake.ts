@@ -91,6 +91,8 @@ export function createBackgroundWake(deps: BackgroundWakeDeps) {
   let disposed = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
+  let flushing: Promise<void> | undefined;
+  let flushAgain = false;
   let scanning: Promise<void> | undefined;
   let rescan = false;
 
@@ -132,51 +134,64 @@ export function createBackgroundWake(deps: BackgroundWakeDeps) {
     retryTimer.unref?.();
   };
 
-  const flush = async () => {
-    if (timer) clearTimeout(timer);
-    timer = undefined;
-    if (retryTimer) clearTimeout(retryTimer);
-    retryTimer = undefined;
-    if (disposed) return;
-    const batches = [...pending.entries()];
-    pending.clear();
-    let minRetryAttempt: number | undefined;
-    for (const [sessionId, taskMap] of batches) {
-      if (disposed) return;
-      if (!canWake(sessionId)) {
-        deps.log(`background wake skipped for ${sessionId}: too many in a short time`);
-        continue;
-      }
-      const items = [...taskMap.values()];
-      try {
-        await deliver(sessionId, items.map((item) => item.task));
-        recordWake(sessionId);
-      } catch (error) {
-        deps.log("background wake delivery failed", error);
+  const flush = (): Promise<void> => {
+    if (flushing) {
+      flushAgain = true;
+      return flushing;
+    }
+    flushing = (async () => {
+      let minRetryAttempt: number | undefined;
+      do {
+        minRetryAttempt = undefined;
+        flushAgain = false;
+        if (timer) clearTimeout(timer);
+        timer = undefined;
+        if (retryTimer) clearTimeout(retryTimer);
+        retryTimer = undefined;
         if (disposed) return;
-        for (const item of items) {
-          const nextAttempts = item.attempts + 1;
-          if (nextAttempts >= maxAttempts) {
-            deps.log(`background wake dropped for ${item.task.id}: reached max retries (${maxAttempts})`);
+        const batches = [...pending.entries()];
+        pending.clear();
+        for (const [sessionId, taskMap] of batches) {
+          if (disposed) return;
+          if (!canWake(sessionId)) {
+            deps.log(`background wake skipped for ${sessionId}: too many in a short time`);
             continue;
           }
-          let sessionPending = pending.get(sessionId);
-          if (!sessionPending) {
-            sessionPending = new Map();
-            pending.set(sessionId, sessionPending);
+          const items = [...taskMap.values()];
+          try {
+            await deliver(sessionId, items.map((item) => item.task));
+            recordWake(sessionId);
+          } catch (error) {
+            deps.log("background wake delivery failed", error);
+            if (disposed) return;
+            for (const item of items) {
+              const nextAttempts = item.attempts + 1;
+              if (nextAttempts >= maxAttempts) {
+                deps.log(`background wake dropped for ${item.task.id}: reached max retries (${maxAttempts})`);
+                continue;
+              }
+              let sessionPending = pending.get(sessionId);
+              if (!sessionPending) {
+                sessionPending = new Map();
+                pending.set(sessionId, sessionPending);
+              }
+              if (!sessionPending.has(item.task.id)) {
+                sessionPending.set(item.task.id, { task: item.task, attempts: nextAttempts });
+              }
+              minRetryAttempt = minRetryAttempt === undefined
+                ? nextAttempts
+                : Math.min(minRetryAttempt, nextAttempts);
+            }
           }
-          if (!sessionPending.has(item.task.id)) {
-            sessionPending.set(item.task.id, { task: item.task, attempts: nextAttempts });
-          }
-          minRetryAttempt = minRetryAttempt === undefined
-            ? nextAttempts
-            : Math.min(minRetryAttempt, nextAttempts);
         }
+      } while (flushAgain && !disposed);
+      if (minRetryAttempt !== undefined && pending.size > 0) {
+        scheduleRetry(minRetryAttempt);
       }
-    }
-    if (minRetryAttempt !== undefined) {
-      scheduleRetry(minRetryAttempt);
-    }
+    })().finally(() => {
+      flushing = undefined;
+    });
+    return flushing;
   };
 
   const scan = async () => {
