@@ -13,7 +13,7 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
-    version: "1.0.80",
+    version: "1.0.81",
     date: "2026-11-17",
     improvements: [
       "缩小客户端安装包与本地进程体积：开启 Rust 发布符号裁剪与 Thin LTO，压缩 Electron 主进程及预加载脚本，并在打包时剔除非当前平台与架构的原生二进制及编译头文件。",

@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { shouldPollBackgroundShells } from "../src/features/work-tools/background-poll-policy.ts";
 
 const require = createRequire(import.meta.url);
-const { normalizeArch, pruneUnpackedNativeModules } = require("../../../scripts/mc-prune-pack.cjs");
+const { normalizeArch, pruneUnpackedNativeModules } = require("../build/mc-prune-pack.cjs");
 
 function touch(root, rel) {
   const full = join(root, rel);
@@ -101,7 +102,7 @@ test("afterPack native pruner refuses to delete files if target binary is missin
   }
 });
 
-test("release slimming config and startup decoupling invariants stay wired", () => {
+test("release slimming config and startup decoupling invariants stay wired", async () => {
   const cargo = readFileSync(new URL("../../../Cargo.toml", import.meta.url), "utf8");
   assert.match(cargo, /\[profile\.release\][\s\S]*strip = true/);
   assert.match(cargo, /lto = "thin"/);
@@ -112,8 +113,25 @@ test("release slimming config and startup decoupling invariants stay wired", () 
   assert.equal((vite.match(/minify:\s*"esbuild"/g) ?? []).length, 3);
 
   const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-  assert.equal(pkg.build.afterPack, "../../scripts/mc-prune-pack.cjs");
+  assert.equal(pkg.build.afterPack, "./build/mc-prune-pack.cjs");
   assert.ok(pkg.build.files.includes("!**/node_modules/koffi/vendor/**"));
+
+  const desktopDir = dirname(fileURLToPath(new URL("../package.json", import.meta.url)));
+  const repoRoot = dirname(fileURLToPath(new URL("../../../package.json", import.meta.url)));
+  const desktopRequire = createRequire(join(desktopDir, "package.json"));
+  const { resolveFunction } = desktopRequire("app-builder-lib/out/util/resolve");
+  const prevCwd = process.cwd();
+  process.chdir(desktopDir);
+  try {
+    assert.equal(typeof (await resolveFunction(undefined, pkg.build.afterPack, "afterPack", desktopDir)), "function");
+    assert.equal(typeof (await resolveFunction(undefined, pkg.build.afterPack, "afterPack", repoRoot)), "function");
+    await assert.rejects(
+      () => resolveFunction(undefined, "../../scripts/mc-prune-pack.cjs", "afterPack", desktopDir),
+      /resolves outside the workspace root/,
+    );
+  } finally {
+    process.chdir(prevCwd);
+  }
 
   const agentHook = readFileSync(new URL("../src/features/work-tools/use-work-panel-agent.ts", import.meta.url), "utf8");
   assert.doesNotMatch(agentHook, /^import\s+.*from\s+["']\.\/TerminalTab["']/m);

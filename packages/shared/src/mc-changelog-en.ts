@@ -9,7 +9,7 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
-    version: "1.0.80",
+    version: "1.0.81",
     date: "2026-11-17",
     improvements: [
       "Reduced desktop installer and binary sizes by enabling Rust release symbol stripping and Thin LTO, minifying the Electron main and preload bundles, and pruning foreign-platform native binaries and C/C++ build headers during packaging.",

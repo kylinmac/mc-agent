@@ -111,7 +111,7 @@
       "!**/node_modules/koffi/vendor/**",
       "!**/node_modules/koffi/**/*.{h,hh,inc,c,cc,cpp}"
     ],
-    "afterPack": "../../scripts/mc-prune-pack.cjs",
+    "afterPack": "./build/mc-prune-pack.cjs",
     "electronLanguages": [
       "en-US",
       "zh-CN",
