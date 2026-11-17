@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { create } from "zustand";
 import { api, type ImportCandidate, type ImportSource } from "../../lib/api";
+import {
+  closeProjectImportDialog,
+  openProjectImportDialog,
+  useProjectImportDialog,
+} from "./import-dialog-state";
+
+export { openProjectImportDialog, useProjectImportDialog };
 import { useBlockingOverlay } from "../../lib/blocking-overlay";
 import { saveSidebarPreferences, projectWorkspaceFromPath } from "../../lib/sidebar-preferences";
 import { normalizeProjectPath } from "../../lib/sidebar-session-groups";
@@ -34,14 +40,8 @@ import {
   sources are only read.
 */
 
-export const useProjectImportDialog = create<{ open: boolean }>(() => ({ open: false }));
-
-export function openProjectImportDialog(): void {
-  useProjectImportDialog.setState({ open: true });
-}
-
 function closeDialog(): void {
-  useProjectImportDialog.setState({ open: false });
+  closeProjectImportDialog();
 }
 
 /** Imported projects join the sidebar's open projects, without switching to them. */

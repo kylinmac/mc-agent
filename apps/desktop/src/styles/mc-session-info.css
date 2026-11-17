@@ -95,6 +95,7 @@
   background: var(--ds-bg-primary);
   color: var(--ds-text-muted);
   font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
   transition: background var(--motion-duration-fast) var(--motion-ease-out),
     color var(--motion-duration-fast) var(--motion-ease-out);
 }
@@ -317,6 +318,11 @@
 .mc-session-info-muted {
   color: var(--ds-text-muted);
   font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.mc-session-info-percent {
+  font-variant-numeric: tabular-nums;
 }
 
 .mc-session-info-percent.is-mid {

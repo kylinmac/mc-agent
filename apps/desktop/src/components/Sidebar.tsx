@@ -108,7 +108,7 @@ import {
 import { useArmedDelete } from "../hooks/use-armed-delete";
 import { ProjectDeleteDialog } from "./ProjectDeleteDialog";
 import { SessionRenameDialog } from "./SessionRenameDialog";
-import { openProjectImportDialog } from "../features/project-import/ProjectImportDialog";
+import { openProjectImportDialog } from "../features/project-import/import-dialog-state";
 import {
   IconArchive,
   IconArchiveRestore,

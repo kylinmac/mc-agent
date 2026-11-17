@@ -21,6 +21,7 @@
   color: #fff;
   font-size: var(--text-3xs);
   font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
   line-height: var(--leading-none);
   display: inline-flex;
   align-items: center;

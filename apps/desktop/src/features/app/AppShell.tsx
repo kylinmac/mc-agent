@@ -23,10 +23,7 @@ import {
   IconPanelOpen,
 } from "../../components/icons";
 import { LifecycleConfirmationDialog } from "../../components/LifecycleConfirmationDialog";
-import { ProjectCreateDialog } from "../../components/ProjectCreateDialog";
-import { ProjectImportDialog } from "../project-import/ProjectImportDialog";
-import { McWhatsNew } from "./McWhatsNew";
-import { SearchDialog } from "../../components/SearchDialog";
+import { useProjectImportDialog } from "../project-import/import-dialog-state";
 import { Sidebar } from "../../components/Sidebar";
 import { StartupRecovery } from "../../components/StartupRecovery";
 import { ToastHost } from "../../components/Toast";
@@ -74,6 +71,26 @@ const ChatSurface = lazy(() =>
 const loadWorkPanel = () => import("../../components/workpanel/WorkPanel");
 const WorkPanel = lazy(() =>
   loadWorkPanel().then((module) => ({ default: module.WorkPanel })),
+);
+const SearchDialog = lazy(() =>
+  import("../../components/SearchDialog").then((module) => ({
+    default: module.SearchDialog,
+  })),
+);
+const ProjectCreateDialog = lazy(() =>
+  import("../../components/ProjectCreateDialog").then((module) => ({
+    default: module.ProjectCreateDialog,
+  })),
+);
+const ProjectImportDialog = lazy(() =>
+  import("../project-import/ProjectImportDialog").then((module) => ({
+    default: module.ProjectImportDialog,
+  })),
+);
+const McWhatsNew = lazy(() =>
+  import("./McWhatsNew").then((module) => ({
+    default: module.McWhatsNew,
+  })),
 );
 
 export function AppShell() {
@@ -134,6 +151,8 @@ export function AppShell() {
   const windowHeight = useWindowHeight();
   const placement = useAppStore((state) => resolveWorkPanelPlacement(state.settings?.workPanelPlacement));
   const stackChatWidth = useAppStore((state) => resolveWorkPanelStackChatWidth(state.settings?.workPanelStackChatWidth));
+  const createProjectDialogOpen = useAppStore((state) => state.createProjectDialogOpen);
+  const projectImportOpen = useProjectImportDialog((state) => state.open);
   const [narrowWindow, setNarrowWindow] = useState(false);
   useLayoutEffect(() => {
     setNarrowWindow((stacked) =>
@@ -416,7 +435,11 @@ export function AppShell() {
             </TooltipButton>
           </div>
         </PortalVisibilityProvider>
-        <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
+        {searchOpen ? (
+          <Suspense fallback={null}>
+            <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
+          </Suspense>
+        ) : null}
         <ToastHost anchorElement={page === "settings" ? null : toastAnchor} />
         <LiveVoiceStatusHost />
         <PluginRendererHost />
@@ -447,12 +470,24 @@ export function AppShell() {
       {(ready && !showSplash) || startupPhase !== "starting" ? (
         <WindowControls />
       ) : null}
-      <ProjectCreateDialog />
+      {createProjectDialogOpen ? (
+        <Suspense fallback={null}>
+          <ProjectCreateDialog />
+        </Suspense>
+      ) : null}
       {/* mc-agent (MC-ADR-0009): import projects from other agents. */}
-      <ProjectImportDialog />
+      {projectImportOpen ? (
+        <Suspense fallback={null}>
+          <ProjectImportDialog />
+        </Suspense>
+      ) : null}
       <LifecycleConfirmationDialog />
       {/* mc-agent (MC-ADR-0017): what changed, once after an update. */}
-      {ready && !showSplash ? <McWhatsNew /> : null}
+      {ready && !showSplash ? (
+        <Suspense fallback={null}>
+          <McWhatsNew />
+        </Suspense>
+      ) : null}
       {splash}
       {startupRecovery}
     </div>

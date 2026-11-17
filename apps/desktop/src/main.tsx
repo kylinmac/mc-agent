@@ -6,7 +6,7 @@ import { flattenCatalog } from "@pi-desktop/i18n/locale-info";
 import { en } from "@pi-desktop/i18n/locales/en";
 import { remoteEn, remoteZh } from "./locales/remote";
 import { MAC_TRAFFIC_LIGHT_EDGE_DIP } from "@pi-desktop/shared";
-import App from "./App";
+const App = React.lazy(() => import("./App"));
 import { ErrorBoundary, RoutePending } from "./features/app/chrome";
 import { initLanguageSync } from "./lib/app-language";
 import { installScrollbarReveal } from "./lib/scrollbar-reveal";

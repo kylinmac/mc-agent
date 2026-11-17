@@ -413,3 +413,11 @@ V85 云端补充：PR #114 的 CI `42827535202` 全部通过，含 Linux Electro
 ## V95 macOS 电脑操作增强（R12.1；P9）
 
 2026-11-17：`cargo test -p mc-computer --locked` 32 项通过（含内存 24-bit BMP 点阵图像调用原生 `Vision.framework` 识别 `"SAFE 2048"` 及像素坐标、`menu_title_matches` 大小写与省略号匹配、`verify_shot_bounds` 缺失／位移截图拦截、`prune_sessions` 过期淘汰、`Menu bar:` 渲染、`ocr`/`background`/`press_menu` 12 工具契约）；`cargo fmt -p mc-computer --check` 与 `cargo clippy -p mc-computer --all-targets --locked -- -D warnings` 通过；`node scripts/build-mc-computer.mjs` 编译出的二进制通过 stdio 握手并返回全部 12 个工具；`cargo test -p host-core --locked plugins::manifest`（4/4）与桌面 `mc-mcp-tool-risk` / `mc-macos-permissions` / `tool-display`（15/15）回归通过。未验证：实机第三方桌面应用上 `CGEventPostToPid` 后台点击／键入兼容性、Electron 实机窗口 `AXManualAccessibility` 遍历、Windows E2E 实机与安装版（Windows 仅更新了后端签名与测试脚本断言，未在本机 Windows 上实测）。
+
+## V96 打包瘦身与运行期性能基线（R34；P8、P12）
+
+2026-11-17：`build:host-release` 与 `electron-builder --dir`（`mac-arm64`）实测：`pi-desktop-host-core` 由 `19M` 降至 `11M`、`mc-computer` 由 `2.4M` 降至 `711K`；`out/main` 由 `14M` 降至 `8.6M`、`out/preload` 由 `64K` 降至 `44K`、渲染首屏主入口由 `1.5M` 降至 `768K`（`TerminalTab` `328K`、`App` `332K` 与弹窗均拆出为异步 chunk，入口与 `App` chunk 不含 `xterm`）；`afterPack`（`scripts/mc-prune-pack.cjs`）在 `darwin/arm64` 剔除异构原生文件（`pvrecorder: 4, node-pty: 3`），`app.asar.unpacked` 由 `10.5M` 降至 `892K`、`app.asar` 由 `33M` 降至 `27M`、`Contents/Resources` 由 `86M` 降至 `65M`、`mc-agent.app` 由 `322M` 降至 `303M`。桌面相关单测（`mc-pack-perf.test.mjs`、`session-info.test.mjs`、`mc-background-wake.test.mjs`、`mc-terminal.test.mjs`、`mc-sign-mac-bundle.test.mjs`、`sidebar-settings-return.test.mjs`）、`cargo fmt --check`、`cargo test -p mc-computer --locked`（32/32）、`cargo clippy -p mc-computer --all-targets --locked -- -D warnings`、`cargo clippy -p host-core --all-targets --locked`、`cargo test -p host-core --locked plugins::manifest`（4/4）均通过。未验证：Windows / Linux 实机打包体积、`host-core` 全量单测及真实运行态流式／空闲 CPU 与 IPC 采样。
+
+## V97 标签栏可读性、滚动渐隐与界面视觉细节（R11.23；P8）
+
+2026-11-17：`apps/desktop/test/session-tabs.test.mjs`（含 `tabScrollFadeEdges` 与 `.mc-project-tab` `flex: 0 0 auto` / `.fade-left` / `.fade-right` CSS 断言）与 `session-tab-groups.test.mjs` 通过；`pnpm --filter @pi-desktop/desktop lint`（样式令牌）通过；隔离 Electron E2E `node scripts/e2e-session-tabs.mjs`（`narrow`/`wide`/`many-projects`）通过。未验证：实机安装版桌面窗口下分组标签中键关闭、滚动边缘渐隐遮罩、焦点描边及 `tabular-nums` 等宽数字的真实视觉呈现。

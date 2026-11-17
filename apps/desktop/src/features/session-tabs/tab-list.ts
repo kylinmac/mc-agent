@@ -156,6 +156,22 @@ export function tabStripOverflows(scrollWidth: number, clientWidth: number): boo
 }
 
 /**
+ * Whether the tab viewport has scrolled content clipped at the left or right
+ * edge, using the same one-pixel tolerance as `tabStripOverflows`.
+ */
+export function tabScrollFadeEdges(
+  scrollLeft: number,
+  clientWidth: number,
+  scrollWidth: number,
+): { left: boolean; right: boolean } {
+  if (!tabStripOverflows(scrollWidth, clientWidth)) return { left: false, right: false };
+  return {
+    left: scrollLeft > 1,
+    right: scrollLeft + clientWidth < scrollWidth - 1,
+  };
+}
+
+/**
  * Convert vertical mouse wheel deltas into horizontal tab-strip scrolling while
  * leaving trackpad horizontal gestures (`|deltaX| >= |deltaY|`) and zoom (`ctrlKey`) alone.
  */
