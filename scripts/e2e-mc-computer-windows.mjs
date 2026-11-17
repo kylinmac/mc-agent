@@ -47,7 +47,7 @@ async function wait(check, label) {
 let fixture;
 try {
   assert.equal((await rpc("initialize")).serverInfo.name, "mc-computer");
-  assert.equal((await rpc("tools/list")).tools.length, 11);
+  assert.equal((await rpc("tools/list")).tools.length, 12);
   await call("permissions");
   const fixtureExe = join(temp, "ComputerUseFixture.exe");
   const compiler = join(process.env.SystemRoot ?? "C:/Windows", "Microsoft.NET/Framework64/v4.0.30319/csc.exe");
@@ -120,6 +120,7 @@ try {
   await writeFile(`${stateFile}.move`, "");
   await wait(async () => (await state())?.left !== original, "move fixture");
   assert.match(text(await call("click", { app, x, y }, true)), /moved or resized/);
+  assert.match(text(await call("press_menu", { app, menu: ["File", "Exit"] }, true)), /macOS only/i);
   await writeFile(`${stateFile}.close`, "");
   await new Promise(resolve => fixture.once("exit", resolve));
   await call("press_key", { app, key: "a" }, true);

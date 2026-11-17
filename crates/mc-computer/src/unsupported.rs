@@ -27,22 +27,26 @@ impl Backend for Unsupported {
     fn screenshot(&mut self, _app: &str) -> Result<Screenshot> {
         not_yet()
     }
+    fn ocr(&mut self, _app: &str) -> Result<(u32, u32, Vec<crate::backend::OcrLine>)> {
+        not_yet()
+    }
     fn click(
         &mut self,
         _app: &str,
         _target: Target,
         _button: MouseButton,
         _count: u32,
+        _background: bool,
     ) -> Result<()> {
         not_yet()
     }
     fn drag(&mut self, _app: &str, _from: Point, _to: Point) -> Result<()> {
         not_yet()
     }
-    fn type_text(&mut self, _app: &str, _text: &str) -> Result<()> {
+    fn type_text(&mut self, _app: &str, _text: &str, _background: bool) -> Result<()> {
         not_yet()
     }
-    fn press_key(&mut self, _app: &str, _chord: &KeyChord) -> Result<()> {
+    fn press_key(&mut self, _app: &str, _chord: &KeyChord, _background: bool) -> Result<()> {
         not_yet()
     }
     fn scroll(
@@ -51,6 +55,7 @@ impl Backend for Unsupported {
         _target: Option<Target>,
         _direction: Direction,
         _pages: f64,
+        _background: bool,
     ) -> Result<()> {
         not_yet()
     }
@@ -58,6 +63,9 @@ impl Backend for Unsupported {
         not_yet()
     }
     fn perform_action(&mut self, _app: &str, _element: usize, _action: &str) -> Result<()> {
+        not_yet()
+    }
+    fn press_menu(&mut self, _app: &str, _menu: &[String]) -> Result<()> {
         not_yet()
     }
 }

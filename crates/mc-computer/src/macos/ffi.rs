@@ -46,6 +46,8 @@ pub const kCGMouseButtonLeft: u32 = 0;
 pub const kCGMouseButtonRight: u32 = 1;
 // CGEventTapLocation
 pub const kCGHIDEventTap: u32 = 0;
+// CGEventSourceStateID
+pub const kCGEventSourceStateHIDSystemState: i32 = 1;
 // CGEventField
 pub const kCGMouseEventClickState: u32 = 1;
 // CGScrollEventUnit
@@ -118,10 +120,18 @@ extern "C" {
         wheel3: i32,
     ) -> CGEventRef;
     pub fn CGEventSetFlags(event: CGEventRef, flags: u64);
+    pub fn CGEventSetLocation(event: CGEventRef, location: CGPoint);
     pub fn CGEventSetIntegerValueField(event: CGEventRef, field: u32, value: i64);
     pub fn CGEventPost(tap: u32, event: CGEventRef);
+    pub fn CGEventPostToPid(pid: i32, event: CGEventRef);
+    pub fn CGEventSourceFlagsState(state_id: i32) -> u64;
     pub fn CGWindowListCopyWindowInfo(option: u32, relative_to: u32) -> CFArrayRef;
     pub fn CGPreflightScreenCaptureAccess() -> bool;
     pub fn CGSessionCopyCurrentDictionary() -> CFDictionaryRef;
     pub fn CGRequestScreenCaptureAccess() -> bool;
+}
+
+#[link(name = "Carbon", kind = "framework")]
+extern "C" {
+    pub fn IsSecureEventInputEnabled() -> u8;
 }

@@ -8,34 +8,69 @@ use anyhow::{anyhow, Result};
 use super::ffi::*;
 use crate::keys::{Key, KeyChord, Modifiers, Named};
 
-fn post(event: CGEventRef) -> Result<()> {
+#[derive(Debug, Clone, Copy)]
+pub enum TargetSink {
+    Foreground,
+    Background(i32),
+}
+
+pub fn require_released_modifiers() -> Result<()> {
+    // SAFETY: reads the combined physical HID modifier flag state.
+    let active = unsafe { CGEventSourceFlagsState(kCGEventSourceStateHIDSystemState) };
+    let mask = kCGEventFlagMaskShift
+        | kCGEventFlagMaskControl
+        | kCGEventFlagMaskAlternate
+        | kCGEventFlagMaskCommand;
+    if active & mask != 0 {
+        return Err(anyhow!(
+            "A modifier key is held on the keyboard. Release it before automated foreground input."
+        ));
+    }
+    Ok(())
+}
+
+fn post(event: CGEventRef, sink: TargetSink) -> Result<()> {
     if event.is_null() {
         return Err(anyhow!("the system refused to create an input event"));
     }
-    // SAFETY: a fresh +1 event; posted, then released.
+    // SAFETY: a fresh +1 event; posted to HID tap or target process, then released.
     unsafe {
-        CGEventPost(kCGHIDEventTap, event);
+        match sink {
+            TargetSink::Foreground => CGEventPost(kCGHIDEventTap, event),
+            TargetSink::Background(pid) => CGEventPostToPid(pid, event),
+        }
         core_foundation_sys::base::CFRelease(event as _);
     }
     Ok(())
 }
 
-fn mouse(kind: u32, at: CGPoint, button: u32, clicks: i64) -> Result<()> {
+fn mouse(kind: u32, at: CGPoint, button: u32, clicks: i64, sink: TargetSink) -> Result<()> {
     // SAFETY: plain constructor; null source is allowed.
     let event = unsafe { CGEventCreateMouseEvent(std::ptr::null(), kind, at, button) };
-    if !event.is_null() && clicks > 0 {
+    if !event.is_null() {
         // SAFETY: live event.
-        unsafe { CGEventSetIntegerValueField(event, kCGMouseEventClickState, clicks) };
+        unsafe {
+            CGEventSetLocation(event, at);
+            if clicks > 0 {
+                CGEventSetIntegerValueField(event, kCGMouseEventClickState, clicks);
+            }
+        }
     }
-    post(event)
+    post(event, sink)
 }
 
 pub fn move_to(at: CGPoint) -> Result<()> {
-    mouse(kCGEventMouseMoved, at, kCGMouseButtonLeft, 0)
+    mouse(
+        kCGEventMouseMoved,
+        at,
+        kCGMouseButtonLeft,
+        0,
+        TargetSink::Foreground,
+    )
 }
 
 /// `count` clicks at a point (2 = double click), left or right.
-pub fn click(at: CGPoint, right: bool, count: u32) -> Result<()> {
+pub fn click(at: CGPoint, right: bool, count: u32, sink: TargetSink) -> Result<()> {
     let (down, up, button) = if right {
         (
             kCGEventRightMouseDown,
@@ -49,21 +84,31 @@ pub fn click(at: CGPoint, right: bool, count: u32) -> Result<()> {
             kCGMouseButtonLeft,
         )
     };
-    move_to(at)?;
-    sleep(Duration::from_millis(30));
+    if matches!(sink, TargetSink::Foreground) {
+        require_released_modifiers()?;
+        move_to(at)?;
+        sleep(Duration::from_millis(30));
+    }
     for n in 1..=count.max(1) as i64 {
-        mouse(down, at, button, n)?;
+        mouse(down, at, button, n, sink)?;
         sleep(Duration::from_millis(15));
-        mouse(up, at, button, n)?;
+        mouse(up, at, button, n, sink)?;
         sleep(Duration::from_millis(40));
     }
     Ok(())
 }
 
 pub fn drag(from: CGPoint, to: CGPoint) -> Result<()> {
+    require_released_modifiers()?;
     move_to(from)?;
     sleep(Duration::from_millis(30));
-    mouse(kCGEventLeftMouseDown, from, kCGMouseButtonLeft, 1)?;
+    mouse(
+        kCGEventLeftMouseDown,
+        from,
+        kCGMouseButtonLeft,
+        1,
+        TargetSink::Foreground,
+    )?;
     const STEPS: usize = 16;
     for step in 1..=STEPS {
         let t = step as f64 / STEPS as f64;
@@ -72,16 +117,31 @@ pub fn drag(from: CGPoint, to: CGPoint) -> Result<()> {
             y: from.y + (to.y - from.y) * t,
         };
         sleep(Duration::from_millis(12));
-        mouse(kCGEventLeftMouseDragged, at, kCGMouseButtonLeft, 1)?;
+        mouse(
+            kCGEventLeftMouseDragged,
+            at,
+            kCGMouseButtonLeft,
+            1,
+            TargetSink::Foreground,
+        )?;
     }
     sleep(Duration::from_millis(30));
-    mouse(kCGEventLeftMouseUp, to, kCGMouseButtonLeft, 1)
+    mouse(
+        kCGEventLeftMouseUp,
+        to,
+        kCGMouseButtonLeft,
+        1,
+        TargetSink::Foreground,
+    )
 }
 
 /// Scroll at a point: `lines` vertical (positive is up), `columns` horizontal (positive is left).
-pub fn scroll(at: CGPoint, lines: i32, columns: i32) -> Result<()> {
-    move_to(at)?;
-    sleep(Duration::from_millis(30));
+pub fn scroll(at: CGPoint, lines: i32, columns: i32, sink: TargetSink) -> Result<()> {
+    if matches!(sink, TargetSink::Foreground) {
+        require_released_modifiers()?;
+        move_to(at)?;
+        sleep(Duration::from_millis(30));
+    }
     // Several small events scroll more smoothly than one large one.
     let steps = lines
         .unsigned_abs()
@@ -108,7 +168,11 @@ pub fn scroll(at: CGPoint, lines: i32, columns: i32) -> Result<()> {
                 0,
             )
         };
-        post(event)?;
+        if !event.is_null() {
+            // SAFETY: attaches cursor location so background targets route scroll to this point.
+            unsafe { CGEventSetLocation(event, at) };
+        }
+        post(event, sink)?;
         sleep(Duration::from_millis(10));
     }
     Ok(())
@@ -233,31 +297,41 @@ fn shifted(c: char) -> bool {
     "!@#$%^&*()_+{}|:\"<>?~".contains(c)
 }
 
-fn key_event(code: u16, down: bool, flags_mask: u64) -> Result<()> {
+fn key_event(code: u16, down: bool, flags_mask: u64, sink: TargetSink) -> Result<()> {
     // SAFETY: plain constructor.
     let event = unsafe { CGEventCreateKeyboardEvent(std::ptr::null(), code, down) };
     if !event.is_null() {
         // SAFETY: live event. Always set, so stale physical modifiers do not leak in.
         unsafe { CGEventSetFlags(event, flags_mask) };
     }
-    post(event)
+    post(event, sink)
 }
 
-pub fn press(chord: &KeyChord) -> Result<()> {
+fn press_inner(chord: &KeyChord, sink: TargetSink) -> Result<()> {
     let code = keycode(&chord.key).ok_or_else(|| anyhow!("this key has no key code on macOS"))?;
     let mut modifiers = chord.modifiers;
     if let Key::Char(c) = chord.key {
         modifiers.shift |= shifted(c);
     }
     let mask = flags(&modifiers);
-    key_event(code, true, mask)?;
+    key_event(code, true, mask, sink)?;
     sleep(Duration::from_millis(20));
-    key_event(code, false, mask)
+    key_event(code, false, mask, sink)
+}
+
+pub fn press(chord: &KeyChord, sink: TargetSink) -> Result<()> {
+    if matches!(sink, TargetSink::Foreground) {
+        require_released_modifiers()?;
+    }
+    press_inner(chord, sink)
 }
 
 /// Type text as key events carrying the characters themselves, so any
 /// script works whatever the keyboard layout. `\n` presses Return, `\t` Tab.
-pub fn type_text(text: &str) -> Result<()> {
+pub fn type_text(text: &str, sink: TargetSink) -> Result<()> {
+    if matches!(sink, TargetSink::Foreground) {
+        require_released_modifiers()?;
+    }
     let mut chunk: Vec<u16> = Vec::new();
     let flush = |chunk: &mut Vec<u16>| -> Result<()> {
         for piece in chunk.chunks(16) {
@@ -270,7 +344,7 @@ pub fn type_text(text: &str) -> Result<()> {
                         CGEventKeyboardSetUnicodeString(event, piece.len(), piece.as_ptr());
                     }
                 }
-                post(event)?;
+                post(event, sink)?;
             }
             sleep(Duration::from_millis(8));
         }
@@ -282,18 +356,24 @@ pub fn type_text(text: &str) -> Result<()> {
             '\n' | '\r' => {
                 flush(&mut chunk)?;
                 if c == '\n' {
-                    press(&KeyChord {
-                        modifiers: Modifiers::default(),
-                        key: Key::Named(Named::Return),
-                    })?;
+                    press_inner(
+                        &KeyChord {
+                            modifiers: Modifiers::default(),
+                            key: Key::Named(Named::Return),
+                        },
+                        sink,
+                    )?;
                 }
             }
             '\t' => {
                 flush(&mut chunk)?;
-                press(&KeyChord {
-                    modifiers: Modifiers::default(),
-                    key: Key::Named(Named::Tab),
-                })?;
+                press_inner(
+                    &KeyChord {
+                        modifiers: Modifiers::default(),
+                        key: Key::Named(Named::Tab),
+                    },
+                    sink,
+                )?;
             }
             _ => {
                 let mut units = [0u16; 2];

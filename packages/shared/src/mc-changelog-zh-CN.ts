@@ -13,6 +13,18 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.79",
+    date: "2026-11-17",
+    features: [
+      "macOS 桌面控制新增本地 Vision 文字识别：调用 get_app_state 等工具传入 ocr: true 时，可按阅读顺序返回识别文本与对应屏幕坐标，用于定位无辅助功能标签的界面文字。",
+      "新增 macOS 顶部菜单栏读取与 press_menu 工具：桌面状态摘要列出顶级菜单项，Agent 可按路径（如 [\"File\", \"Save\"]）直接触发菜单命令，并在点击、输入、按键和滚动时通过 background: true 后台向目标应用投递事件而不抢占前台焦点。",
+    ],
+    improvements: [
+      "打开或检查 macOS 上的 Electron 与 Chromium 应用时自动开启 AXManualAccessibility，解决未激活无障碍属性前窗口元素树为空的问题。",
+      "为 macOS 桌面控制补齐密码框屏蔽与防误触护栏：拦截 AXSecureTextField、安全键盘输入模式及不可用控件的自动输入，在前台物理修饰键未松开时拒绝发送组合键，并校验窗口实时位置与 15 分钟会话超时。",
+    ],
+  },
+  {
     version: "1.0.78",
     date: "2026-11-16",
     improvements: [

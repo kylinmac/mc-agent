@@ -53,3 +53,13 @@
 - 每次操作检查窗口身份、交互桌面、目标完整性；焦点不属于目标或坐标落在别的窗口则拒绝。密码值隐藏，密码框输入拒绝。不提权、不绕过安全桌面、不调整 UAC。
 - 构建脚本支持 `.exe` 并复制到插件目录；Windows 发布流程验证 helper 存在且可运行。插件默认关闭、读取工具低风险、动作工具需审批的规则不变。
 - 验证使用自建 Windows 窗口和真实 MCP，不碰安装版实例、不调用付费模型。覆盖范围和未验证项见 [V49](../validation-plan.md) 与[电脑操作方案](../computer-use.md)。
+
+## 修订（2026-11-17）：macOS 增强与安全对齐（R12.1）
+
+参考 `macos-computer-use-kit` 与 `open-computer-use` 优化 macOS 后端，全部通过 macOS 系统框架 FFI 在 `crates/mc-computer` 内本地完成，不引入 Python/Node 运行时或新第三方 crate：
+
+1. **后台无感输入（`background: true`）**：`click`、`type_text`、`press_key`、`scroll` 及 `run` 增加可选布尔参数 `background`（默认 `false`）。macOS 后台模式下优先 `AX` 原语与 `AXFocused`，坐标点击／滚轮／键入走 `CGEventPostToPid` 与 `CGEventSetLocation`（不触发全局 `CGEventPost` 光标移动，不强制置顶窗口）。`drag` 与 Windows 暂不支持后台模式，调用时明确报错；部分强焦点控件仍以默认前台模式作为兼容路径。
+2. **端侧 OCR（`ocr: true`）**：macOS `ocr` 模块直接链接 `Vision.framework`（`VNImageRequestHandler` + `VNRecognizeTextRequest`，语言列表含简繁中文与英文），在 `get_app_state` 等 `state_output` 中按需输出带窗口左上角像素坐标的文本行。因挂在已有的 `get_app_state` 之上，保持低风险免审批并免去回传整张位图的视觉 token。
+3. **菜单栏感知与 `press_menu`**：`AppState.menu_bar` 返回 macOS `AXMenuBar` 顶层标题；新增第 12 个工具 `press_menu`（及 `run` 步骤）经 `AXUIElement` 逐层触发指定路径菜单项，仍归入默认中风险动作工具走审批。
+4. **Electron 语义树解锁**：对每个新连接的 `pid` 设置 `AXManualAccessibility = true`（不设置 `AXEnhancedUserInterface`，以免破坏系统分屏工具），若首次仅返回极少节点则短等 `150ms` 重读一次。
+5. **安全与坐标对齐**：链接 `Carbon.framework` 的 `IsSecureEventInputEnabled` 并在 `AX` 层识别 `AXSecureTextField`，阻止对密码框的设值、点击、动作与键入；前台全局输入前检查 `CGEventSourceFlagsState(kCGEventSourceStateHIDSystemState)` 确保物理修饰键未按下；坐标操作前强制存在有效截图／OCR 且核对窗口 `Frame` 未移动／缩放；`MacBackend.sessions` 对齐 Windows，加入 15 分钟 TTL、进程存活校验与 32 会话上限淘汰。

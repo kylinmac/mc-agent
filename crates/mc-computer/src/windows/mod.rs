@@ -205,6 +205,7 @@ impl Backend for WindowsBackend {
         let result = AppState {
             app: window.app.clone(),
             window_title: Some(window.title.clone()),
+            menu_bar: vec![],
             elements: elements.clone(),
             notes,
         };
@@ -237,7 +238,17 @@ impl Backend for WindowsBackend {
         Ok(shot)
     }
 
-    fn click(&mut self, app: &str, target: Target, button: MouseButton, count: u32) -> Result<()> {
+    fn click(
+        &mut self,
+        app: &str,
+        target: Target,
+        button: MouseButton,
+        count: u32,
+        background: bool,
+    ) -> Result<()> {
+        if background {
+            bail!("Background input mode is supported on macOS only; omit background on Windows");
+        }
         let session = self.session(app)?;
         self.point(session, target)?;
         self.activate(session)?;
@@ -254,14 +265,20 @@ impl Backend for WindowsBackend {
             self.point(session, Target::Point(to))?,
         )
     }
-    fn type_text(&mut self, app: &str, text: &str) -> Result<()> {
+    fn type_text(&mut self, app: &str, text: &str, background: bool) -> Result<()> {
+        if background {
+            bail!("Background input mode is supported on macOS only; omit background on Windows");
+        }
         let session = self.session(app)?;
         self.activate(session)?;
         input::text(&session.window, text, || {
             self.automation()?.check_focus(session.window.app.pid)
         })
     }
-    fn press_key(&mut self, app: &str, chord: &KeyChord) -> Result<()> {
+    fn press_key(&mut self, app: &str, chord: &KeyChord, background: bool) -> Result<()> {
+        if background {
+            bail!("Background input mode is supported on macOS only; omit background on Windows");
+        }
         let session = self.session(app)?;
         self.activate(session)?;
         self.automation()?.check_focus(session.window.app.pid)?;
@@ -273,7 +290,11 @@ impl Backend for WindowsBackend {
         target: Option<Target>,
         direction: Direction,
         pages: f64,
+        background: bool,
     ) -> Result<()> {
+        if background {
+            bail!("Background input mode is supported on macOS only; omit background on Windows");
+        }
         let session = self.session(app)?;
         self.activate(session)?;
         let point = if let Some(target) = target {

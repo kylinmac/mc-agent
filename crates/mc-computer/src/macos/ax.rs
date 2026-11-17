@@ -170,6 +170,47 @@ pub fn set_frontmost(app: CFTypeRef) -> Result<()> {
     )
 }
 
+/// Ask Chromium/Electron apps to expose their full semantic AX tree without
+/// triggering window-manager side effects from `AXEnhancedUserInterface`.
+pub fn enable_manual_accessibility(app: CFTypeRef) -> bool {
+    let key = cf::string("AXManualAccessibility");
+    // SAFETY: live application AX element; kCFBooleanTrue is a static CFBoolean.
+    unsafe {
+        AXUIElementSetAttributeValue(app, key.raw() as CFStringRef, kCFBooleanTrue as CFTypeRef)
+            == kAXErrorSuccess
+    }
+}
+
+pub fn focused_element(app: CFTypeRef) -> Option<Cf> {
+    attribute(app, "AXFocusedUIElement")
+}
+
+pub fn set_focused(element: CFTypeRef) -> Result<()> {
+    let key = cf::string("AXFocused");
+    // SAFETY: live AX element; kCFBooleanTrue is a static CFBoolean.
+    check(
+        unsafe {
+            AXUIElementSetAttributeValue(
+                element,
+                key.raw() as CFStringRef,
+                kCFBooleanTrue as CFTypeRef,
+            )
+        },
+        "focus element",
+    )
+}
+
+pub fn is_enabled(element: CFTypeRef) -> bool {
+    attribute(element, "AXEnabled")
+        .and_then(|value| cf::to_bool(value.raw()))
+        .unwrap_or(true)
+}
+
+pub fn is_secure_element(element: CFTypeRef) -> bool {
+    text(element, "AXRole").as_deref() == Some("AXSecureTextField")
+        || text(element, "AXSubrole").as_deref() == Some("AXSecureTextField")
+}
+
 /// The window to show: focused, else main, else the first one.
 pub fn front_window(app: CFTypeRef) -> Option<Cf> {
     attribute(app, "AXFocusedWindow")
@@ -311,26 +352,31 @@ fn describe(element: CFTypeRef, depth: usize, attrs: &Attrs) -> (Element, Vec<Cf
             .map(|list| cf::array_items(list.raw()))
             .unwrap_or_default()
     };
-    let settable_role =
-        SETTABLE_ROLES.contains(&role.as_str()) || subrole.as_deref() == Some("AXSearchField");
+    let secure = role == "AXSecureTextField" || subrole.as_deref() == Some("AXSecureTextField");
+    let settable_role = !secure
+        && (SETTABLE_ROLES.contains(&role.as_str()) || subrole.as_deref() == Some("AXSearchField"));
     let element_out = Element {
         depth,
         title: text(2),
-        // Secure fields report bullets; never echo their contents.
-        value: if role == "AXSecureTextField" || subrole.as_deref() == Some("AXSecureTextField") {
+        // Secure fields report bullets and expose no automated edits or actions.
+        value: if secure {
             value.map(|_| "••••".into())
         } else {
             value
         },
-        description: text(4).or_else(|| text(5)),
-        placeholder: text(6),
+        description: if secure {
+            Some("Password field (contents hidden; user input only)".into())
+        } else {
+            text(4).or_else(|| text(5))
+        },
+        placeholder: if secure { None } else { text(6) },
         url: text(11),
         enabled: boolean(7).unwrap_or(true),
         focused: boolean(8).unwrap_or(false),
         selected: boolean(9).unwrap_or(false),
         expanded: boolean(10),
         settable: settable_role && settable(element, attrs),
-        actions: if NO_ACTION_ROLES.contains(&role.as_str()) {
+        actions: if secure || NO_ACTION_ROLES.contains(&role.as_str()) {
             Vec::new()
         } else {
             actions(element)
