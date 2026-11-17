@@ -436,6 +436,18 @@ P8；V91：标签放不下时，按可用宽度自动合并成项目标签；变
 
 P8；V92：以已配置的账号（providerId）共享额度快照、并发读取和刷新调度；切换同账号会话立即显示已有值，运行中的会话也可首次读取。网络或服务端暂时失败保留上次结果并明确标注；无额度、账号失效或不支持的服务不显示。不同账号的数据和晚到响应隔离；无订阅者时停止轮询。主进程继续按服务限频，密钥不进入渲染进程。
 
+## R12.1 macOS 电脑操作增强：后台投递、端侧 OCR、菜单栏与安全对齐（2026-11-17 已确认）
+
+P9；V95：在保持纯 Rust 原生、完全本地零联网和现有插件审批模型的前提下，参考开源方案优化 macOS 后端（[方案](computer-use.md)、[MC-ADR-0014](adr/mc-0014-computer-use.md)），并与 Windows 后端的安全检查对齐：
+
+| 项 | 约定 |
+| --- | --- |
+| 后台无感输入 | 动作工具及 `run` 支持可选 `background: true`，在 macOS 通过 `AX` 动作与 `CGEventPostToPid` 直接向目标进程投递点击、输入、按键与滚轮，不切前台窗口、不移动物理光标；默认 `false` 保持既有前台兼容，Windows 或 `drag` 请求后台模式时返回明确提示 |
+| 原生端侧 OCR | `get_app_state` 与动作附带状态支持可选 `ocr: true`，在 macOS 调用 `Vision.framework` 识别窗口文字并输出带像素中心坐标的文本清单（支持中英文），不强制开启 `screenshot: true` 即可点击自绘／Canvas 文本区域；Windows 暂不支持并返回提示 |
+| 菜单栏读取与触发 | macOS `get_app_state` 附上应用顶层菜单栏目录；新增 `press_menu` 工具（及 `run` 步骤 `"press_menu"`）按路径触发菜单项，不依赖窗口外屏幕坐标，仍走动作类审批 |
+| Electron 语义树解锁 | 首次访问 macOS 应用时设置 `AXManualAccessibility = true`（不改 `AXEnhancedUserInterface`），使 Electron / Chromium 应用无需全局旁白即可暴露内部控件树 |
+| 安全与坐标有效期对齐 | macOS 拦截对 `AXSecureTextField` 的点击／设值／动作及安全输入模式（`IsSecureEventInputEnabled`）下的键入，前台全局输入前检查物理修饰键释放，按坐标操作强制校验已有截图及窗口尺寸位置未变；Windows 与 macOS 会话缓存均设 15 分钟过期及 32 个上限 |
+
 ## R11.22 项目标签组拖拽、滚轮滑动与右键批量关闭（2026-11-16 已确认）
 
 P8；V94：标题栏标签在按项目合并模式下，为项目标签组补齐拖拽重排、滚轮横向滑动与右键批量关闭：

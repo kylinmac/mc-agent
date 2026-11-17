@@ -1,17 +1,18 @@
 # 电脑操作方案（Computer Use）
 
-**状态：** macOS 已有实现；Windows 后端于 2026-10-22 实现并通过独立测试窗口验证，安装版验收未完成；见 [MC-ADR-0014](adr/mc-0014-computer-use.md)
-**需求：** R12
+**状态：** macOS 已实现并在 2026-11-17 按 R12.1 增强后台投递、端侧 OCR、菜单栏与安全对齐；Windows 后端于 2026-10-22 实现并通过独立测试窗口验证，安装版验收未完成；见 [MC-ADR-0014](adr/mc-0014-computer-use.md)
+**需求：** R12、R12.1
 
 ## 目标
 
-让 Agent 像人一样操作本机桌面应用：看界面（元素树 + 截图），点、拖、输入、按键、滚动、设值。参考 Codex 的 Computer Use（分析资料在仓库上一层 `分析成果/codex-desktop/computer-use/`），自己实现，完全本地运行。
+让 Agent 像人一样操作本机桌面应用：看界面（元素树 + 端侧 OCR + 截图），点、拖、输入、按键、滚动、设值、触发菜单栏。参考 Codex 的 Computer Use 以及 `macos-computer-use-kit` / `open-computer-use` 的可借鉴设计（`AXManualAccessibility`、`CGEventPostToPid`、Apple Vision OCR、`press_menu`），纯 Rust 自己实现，完全本地运行。
 
 ## 范围
 
 - **已实现：** macOS 和 Windows 通过同一个内置插件提供，可在扩展页启用 / 停用，默认关闭。
-- **Windows：** UI Automation + SendInput + GDI 前台窗口可见区域截图；与 macOS 共用 11 个工具和审批通道。2026-10-22 用户确认实现，对应 R12 / P9 / V49。
-- **不做：** 后台观察 / 记忆（Codex 的 Skysight）、锁屏接管、虚拟光标动画、按应用的操作手册、远程开关和遥测。
+- **macOS 增强（R12.1）：** 顶层菜单栏摘要与 `press_menu`、`ocr: true`（系统 `Vision.framework` 文本与像素坐标）、可选 `background: true`（`AX` + `CGEventPostToPid` 后台投递，不抢焦点与光标）、Electron/Chromium 自动开启 `AXManualAccessibility`、安全输入（`AXSecureTextField` / `IsSecureEventInputEnabled`）拦截、物理修饰键冲突保护、截图坐标过期校验与会话缓存淘汰。
+- **Windows：** UI Automation + SendInput + GDI 前台窗口可见区域截图；与 macOS 共用 12 个工具契约和审批通道。2026-10-22 用户确认实现，对应 R12 / P9 / V49。
+- **不做：** 后台观察 / 记忆（Codex 的 Skysight）、锁屏接管（Locked Use）、虚拟光标动画、按应用的操作手册、远程开关和遥测。
 
 ## 与 Codex 的对应
 
@@ -35,15 +36,16 @@
 |---|---|
 | `permissions` | macOS 查看辅助功能、录屏权限并可请求；Windows 检查可交互桌面，不弹 macOS 授权页 |
 | `list_apps` | 有窗口的运行中应用：名称、路径、pid、是否在前台；Windows 名称是可执行文件名 |
-| `get_app_state` | 某应用前台窗口的元素树；首次全树，之后只给变化；`full` 要全树，`screenshot` 加截图；应用未运行时先启动 |
-| `click` | 按元素编号或截图坐标点击；左 / 右键，单 / 双击 |
-| `drag` | 从一个坐标拖到另一个坐标 |
-| `type_text` | 按键方式输入文字（`\n` 为回车） |
-| `press_key` | 按键或组合键，如 `Return`、`cmd+c`、`shift+Tab` |
-| `scroll` | 在元素或坐标处滚动，方向 + 页数 |
-| `set_value` | 直接设置元素的值（输入框），不触发回车 |
-| `perform_action` | 执行元素列出的 Secondary Actions，如 `Raise`、`Expand`、`Increment` |
-| `run` | 同一应用里按顺序做多步（上面七种动作加 `wait`），最后返回一次变化；某步失败就停 |
+| `get_app_state` | 某应用前台窗口的元素树（macOS 附带顶层菜单栏）；首次全树，之后只给变化；`full` 要全树，`screenshot` 加截图，`ocr` 附加端侧文字识别及坐标（仅 macOS）；应用未运行时先启动 |
+| `click` | 按元素编号或截图／OCR 坐标点击；左 / 右键，单 / 双击；macOS 支持 `background: true` 后台投递 |
+| `drag` | 从一个坐标拖到另一个坐标（仅前台模式） |
+| `type_text` | 按键方式输入文字（`\n` 为回车）；macOS 支持 `background: true`，密码框与安全输入状态下拒绝 |
+| `press_key` | 按键或组合键，如 `Return`、`cmd+c`、`shift+Tab`；macOS 支持 `background: true` |
+| `scroll` | 在元素或坐标处滚动，方向 + 页数；macOS 支持 `background: true` |
+| `set_value` | 直接设置元素的值（输入框），不触发回车；密码框与禁用控件拒绝 |
+| `perform_action` | 执行元素列出的 Secondary Actions，如 `Raise`、`Expand`、`Increment`；密码框与禁用控件拒绝 |
+| `press_menu` | macOS 按路径触发顶部菜单栏项目（如 `["File", "Save"]`），不依赖屏幕坐标；Windows 返回不支持提示 |
+| `run` | 同一应用里按顺序做多步（上面八种动作加 `wait`），可选顶层或单步 `background: true`，最后返回一次变化；某步失败就停 |
 
 动作和 `run` 执行后：至少等 0.3 秒，再每 0.25 秒读一次，两次一致（且没有忙碌指示）就返回，最多等 5 秒。返回的是相对上次的变化，不带截图。
 
@@ -72,7 +74,7 @@ crates/mc-computer/
   src/mcp.rs             MCP stdio（initialize / tools/list / tools/call）
   src/tools.rs           工具定义与参数解析，与平台无关
   src/backend.rs         Backend 接口与数据类型
-  src/macos/             macOS 实现（AX、CGEvent、截图、按键表）
+  src/macos/             macOS 实现（AX、menu、Vision OCR、CGEvent 前/后台、截图、按键表）
   src/windows/           Windows 实现（mod 编排、native 窗口与权限、uia 元素、input 输入、capture 截图）
 ```
 

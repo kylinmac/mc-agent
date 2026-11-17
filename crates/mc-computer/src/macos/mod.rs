@@ -5,14 +5,16 @@ mod ax;
 mod cf;
 mod ffi;
 mod input;
+mod menu;
+mod ocr;
 mod windows;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::process::Command;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use core_foundation_sys::base::{kCFAllocatorDefault, CFTypeRef};
 use core_foundation_sys::dictionary::{
     kCFTypeDictionaryKeyCallBacks, kCFTypeDictionaryValueCallBacks, CFDictionaryCreate,
@@ -23,14 +25,16 @@ use self::ax::Frame;
 use self::cf::Cf;
 use self::ffi::*;
 use crate::backend::{
-    AppInfo, AppState, Backend, CheckedBy, Direction, MouseButton, PermissionCheck, PermissionItem,
-    PermissionRequest, Permissions, Point, Screenshot, Target,
+    AppInfo, AppState, Backend, CheckedBy, Direction, MouseButton, OcrLine, PermissionCheck,
+    PermissionItem, PermissionRequest, Permissions, Point, Screenshot, Target,
 };
 use crate::keys::KeyChord;
 
 /// Lines scrolled per "page".
 const LINES_PER_PAGE: f64 = 8.0;
 const LAUNCH_TIMEOUT: Duration = Duration::from_secs(8);
+const SESSION_TTL: Duration = Duration::from_secs(900);
+const MAX_SESSIONS: usize = 32;
 
 const ACCESSIBILITY_GUIDE: &str = "Accessibility is off: open System Settings → Privacy & Security → Accessibility and turn on mc-agent (a development build shows as mc-agent Dev), then try again. mc-agent → Settings → System permissions opens the right page.";
 const SCREEN_GUIDE: &str = "Screen Recording is off, so there is no screenshot: open System Settings → Privacy & Security → Screen & System Audio Recording and turn on mc-agent (mc-agent Dev for a development build). The element tree still works.";
@@ -69,20 +73,88 @@ struct Session {
     window: Option<Frame>,
     /// The window server's id for it, for screenshots.
     window_id: Option<u32>,
-    /// Pixel size of the screenshot the model saw, if any.
-    shot: Option<(u32, u32)>,
+    /// Window bounds at capture time and pixel size of the last screenshot/OCR.
+    shot: Option<(Frame, (u32, u32))>,
+    read_at: Instant,
 }
 
 pub struct MacBackend {
     sessions: HashMap<i32, Session>,
+    unlocked_pids: HashSet<i32>,
 }
 
 impl MacBackend {
     pub fn new() -> Self {
         Self {
             sessions: HashMap::new(),
+            unlocked_pids: HashSet::new(),
         }
     }
+}
+
+fn process_alive(pid: i32) -> bool {
+    if pid <= 0 {
+        return false;
+    }
+    // SAFETY: `kill(pid, 0)` probes process existence without sending a signal.
+    if unsafe { libc::kill(pid, 0) } == 0 {
+        return true;
+    }
+    std::io::Error::last_os_error().raw_os_error() != Some(libc::ESRCH)
+}
+
+fn same_frame(a: &Frame, b: &Frame) -> bool {
+    (a.x - b.x).abs() <= 1.5
+        && (a.y - b.y).abs() <= 1.5
+        && (a.width - b.width).abs() <= 1.5
+        && (a.height - b.height).abs() <= 1.5
+}
+
+fn verify_shot_bounds(
+    shot: Option<(Frame, (u32, u32))>,
+    live_window: Option<&Frame>,
+) -> Result<(Frame, (u32, u32))> {
+    let (captured, size) = shot.ok_or_else(|| {
+        anyhow!("Request a screenshot (screenshot: true) or ocr: true before using x/y coordinates")
+    })?;
+    let live = live_window
+        .ok_or_else(|| anyhow!("The target window is no longer on screen; read a fresh state."))?;
+    if !same_frame(&captured, live) {
+        bail!("Window moved or resized since the screenshot; request a fresh screenshot or ocr: true.");
+    }
+    Ok((*live, size))
+}
+
+fn require_safe_element(handle: CFTypeRef) -> Result<()> {
+    if ax::is_secure_element(handle) {
+        bail!("Password fields require the user; automated actions are refused.");
+    }
+    if !ax::is_enabled(handle) {
+        bail!("The element is disabled.");
+    }
+    Ok(())
+}
+
+fn require_no_secure_input(app_pid: i32) -> Result<()> {
+    // SAFETY: plain Carbon query across active HID session.
+    if unsafe { IsSecureEventInputEnabled() } != 0 {
+        bail!("Secure input is active (password field or security prompt); automated keyboard input is refused.");
+    }
+    if let Some(app_el) = ax::application(app_pid) {
+        if let Some(focused) = ax::focused_element(app_el.raw()) {
+            if ax::is_secure_element(focused.raw()) {
+                bail!("Focused field is a password field; automated keyboard input is refused.");
+            }
+        }
+    }
+    Ok(())
+}
+
+fn focusable_input_role(handle: CFTypeRef) -> bool {
+    matches!(
+        ax::text(handle, "AXRole").as_deref(),
+        Some("AXTextField" | "AXTextArea" | "AXComboBox" | "AXSearchField")
+    )
 }
 
 fn accessibility_trusted(prompt: bool) -> bool {
@@ -270,24 +342,46 @@ fn activate(app: &RunningApp) {
     }
 }
 
-/// Screenshot pixels (or window points when no screenshot was taken) to screen points.
-fn to_screen(session: &Session, point: Point) -> Result<CGPoint> {
-    let window = session
-        .window
-        .ok_or_else(|| anyhow!("the window's position is unknown; take a new state"))?;
-    let (sx, sy) = match session.shot {
+fn scale_point(window: &Frame, shot: Option<(u32, u32)>, point: Point) -> CGPoint {
+    let (sx, sy) = match shot {
         Some((width, height)) if width > 0 && height > 0 => {
             (window.width / width as f64, window.height / height as f64)
         }
         _ => (1.0, 1.0),
     };
-    Ok(CGPoint {
+    CGPoint {
         x: window.x + point.x * sx,
         y: window.y + point.y * sy,
-    })
+    }
+}
+
+fn collect_roots(app_el: CFTypeRef, window: Cf) -> Vec<Cf> {
+    let mut roots = vec![window];
+    roots.extend(
+        ax::children(app_el)
+            .into_iter()
+            .filter(|child| ax::text(child.raw(), "AXRole").as_deref() == Some("AXMenu")),
+    );
+    roots
 }
 
 impl MacBackend {
+    fn prune_sessions(&mut self, incoming_pid: i32) {
+        self.sessions
+            .retain(|&pid, session| session.read_at.elapsed() < SESSION_TTL && process_alive(pid));
+        self.unlocked_pids.retain(|&pid| process_alive(pid));
+        if !self.sessions.contains_key(&incoming_pid) && self.sessions.len() >= MAX_SESSIONS {
+            if let Some(oldest) = self
+                .sessions
+                .iter()
+                .min_by_key(|(_, session)| session.read_at)
+                .map(|(&pid, _)| pid)
+            {
+                self.sessions.remove(&oldest);
+            }
+        }
+    }
+
     fn session(&self, app: &RunningApp) -> Result<&Session> {
         self.sessions
             .get(&app.pid)
@@ -305,20 +399,44 @@ impl MacBackend {
         })
     }
 
+    fn live_window_frame(&self, pid: i32, session: &Session) -> Option<Frame> {
+        let live = windows::on_screen();
+        if let Some(id) = session.window_id {
+            if let Some(found) = live.iter().find(|w| w.pid == pid && w.id == id) {
+                return Some(found.bounds);
+            }
+        }
+        let reference = session.shot.map(|(frame, _)| frame).or(session.window);
+        windows::matching(&live, pid, reference).map(|w| w.bounds)
+    }
+
+    fn checked_point(&self, app: &RunningApp, point: Point) -> Result<CGPoint> {
+        let session = self.session(app)?;
+        let live = self.live_window_frame(app.pid, session);
+        let (bounds, size) = verify_shot_bounds(session.shot, live.as_ref())?;
+        Ok(scale_point(&bounds, Some(size), point))
+    }
+
     fn point_of(&self, app: &RunningApp, target: Target) -> Result<CGPoint> {
         match target {
-            Target::Point(point) => to_screen(self.session(app)?, point),
-            Target::Element(index) => ax::frame(self.handle(app, index)?)
-                .filter(|frame| frame.width > 0.0 && frame.height > 0.0)
-                .map(|frame| frame.center())
-                .ok_or_else(|| anyhow!("element {index} has no position on screen")),
+            Target::Point(point) => self.checked_point(app, point),
+            Target::Element(index) => {
+                let handle = self.handle(app, index)?;
+                require_safe_element(handle)?;
+                ax::frame(handle)
+                    .filter(|frame| frame.width > 0.0 && frame.height > 0.0)
+                    .map(|frame| frame.center())
+                    .ok_or_else(|| anyhow!("element {index} has no position on screen"))
+            }
         }
     }
 
-    fn prepare(&self, app: &str) -> Result<RunningApp> {
+    fn prepare(&self, app: &str, background: bool) -> Result<RunningApp> {
         require_accessibility()?;
         let app = resolve(app)?;
-        activate(&app);
+        if !background {
+            activate(&app);
+        }
         Ok(app)
     }
 }
@@ -389,8 +507,13 @@ impl Backend for MacBackend {
     fn app_state(&mut self, app: &str) -> Result<AppState> {
         require_accessibility()?;
         let app = resolve(app)?;
+        self.prune_sessions(app.pid);
         let element = ax::application(app.pid)
             .ok_or_else(|| anyhow!("cannot reach {} through accessibility", app.name))?;
+        let first_unlock = self.unlocked_pids.insert(app.pid);
+        if first_unlock {
+            ax::enable_manual_accessibility(element.raw());
+        }
         let mut window = ax::front_window(element.raw());
         if window.is_none() {
             activate(&app);
@@ -398,6 +521,7 @@ impl Backend for MacBackend {
             window = ax::front_window(element.raw());
         }
         let mut notes = Vec::new();
+        let menu_bar = menu::top_bar_titles(element.raw());
         let info = AppInfo {
             name: app.name.clone(),
             pid: app.pid as i64,
@@ -410,6 +534,7 @@ impl Backend for MacBackend {
             return Ok(AppState {
                 app: info,
                 window_title: None,
+                menu_bar,
                 elements: vec![],
                 notes,
             });
@@ -424,16 +549,19 @@ impl Backend for MacBackend {
                 "macOS is not showing this app's windows to accessibility right now (the screen may be locked or asleep). Ask the user to check the screen, then try again."
             }));
         }
-        let title = ax::text(window.raw(), "AXTitle");
-        let ax_frame = ax::frame(window.raw());
-        // An open context menu belongs to the app, not the window.
-        let mut roots = vec![window];
-        roots.extend(
-            ax::children(element.raw())
-                .into_iter()
-                .filter(|child| ax::text(child.raw(), "AXRole").as_deref() == Some("AXMenu")),
-        );
-        let (elements, handles, truncated) = ax::walk(roots);
+        let mut title = ax::text(window.raw(), "AXTitle");
+        let mut ax_frame = ax::frame(window.raw());
+        let (mut elements, mut handles, mut truncated) =
+            ax::walk(collect_roots(element.raw(), window));
+        // Newly unlocked Chromium/Electron apps may populate their renderer AX tree asynchronously.
+        if first_unlock && elements.len() <= 5 {
+            sleep(Duration::from_millis(150));
+            if let Some(refreshed) = ax::front_window(element.raw()) {
+                title = ax::text(refreshed.raw(), "AXTitle");
+                ax_frame = ax::frame(refreshed.raw());
+                (elements, handles, truncated) = ax::walk(collect_roots(element.raw(), refreshed));
+            }
+        }
         let cg_window = windows::matching(&windows::on_screen(), app.pid, ax_frame);
         if truncated {
             notes.push(format!(
@@ -441,20 +569,27 @@ impl Backend for MacBackend {
                 ax::MAX_ELEMENTS
             ));
         }
-        let previous_shot = self.sessions.get(&app.pid).and_then(|session| session.shot);
+        let bounds = cg_window.as_ref().map(|window| window.bounds).or(ax_frame);
+        let previous_shot = self
+            .sessions
+            .get(&app.pid)
+            .and_then(|session| session.shot)
+            .filter(|(old_bounds, _)| bounds.is_some_and(|now| same_frame(&now, old_bounds)));
         self.sessions.insert(
             app.pid,
             Session {
                 handles,
-                window: cg_window.as_ref().map(|window| window.bounds).or(ax_frame),
+                window: bounds,
                 window_id: cg_window.map(|window| window.id),
-                // Coordinates keep meaning pixels of the last screenshot.
+                // Coordinates keep meaning pixels of the last screenshot while the window stays in place.
                 shot: previous_shot,
+                read_at: Instant::now(),
             },
         );
         Ok(AppState {
             app: info,
             window_title: title,
+            menu_bar,
             elements,
             notes,
         })
@@ -469,21 +604,46 @@ impl Backend for MacBackend {
             return Err(anyhow!(LOCKED));
         }
         let app = resolve(app)?;
-        let id = self
-            .session(&app)?
-            .window_id
-            .ok_or_else(|| anyhow!("the window is not on screen"))?;
+        let (id, bounds) = {
+            let session = self.session(&app)?;
+            let id = session
+                .window_id
+                .ok_or_else(|| anyhow!("the window is not on screen"))?;
+            let bounds = self
+                .live_window_frame(app.pid, session)
+                .or(session.window)
+                .ok_or_else(|| anyhow!("the window's position is unknown; take a new state"))?;
+            (id, bounds)
+        };
         let shot = windows::capture(id)?;
         if let Some(session) = self.sessions.get_mut(&app.pid) {
-            session.shot = Some((shot.width, shot.height));
+            session.window = Some(bounds);
+            session.shot = Some((bounds, (shot.width, shot.height)));
         }
         Ok(shot)
     }
 
-    fn click(&mut self, app: &str, target: Target, button: MouseButton, count: u32) -> Result<()> {
-        let app = self.prepare(app)?;
+    fn ocr(&mut self, app: &str) -> Result<(u32, u32, Vec<OcrLine>)> {
+        let shot = self.screenshot(app)?;
+        let lines = ocr::recognize(&shot.data, shot.width, shot.height)?;
+        Ok((shot.width, shot.height, lines))
+    }
+
+    fn click(
+        &mut self,
+        app: &str,
+        target: Target,
+        button: MouseButton,
+        count: u32,
+        background: bool,
+    ) -> Result<()> {
+        let app = self.prepare(app, background)?;
         if let Target::Element(index) = target {
             let handle = self.handle(&app, index)?;
+            require_safe_element(handle)?;
+            if background && button == MouseButton::Left && focusable_input_role(handle) {
+                let _ = ax::set_focused(handle);
+            }
             let actions = ax::actions(handle);
             // An element's own action works even when it is covered or off screen.
             let action = match (button, count) {
@@ -500,23 +660,41 @@ impl Backend for MacBackend {
             }
         }
         let at = self.point_of(&app, target)?;
-        input::click(at, button == MouseButton::Right, count)
+        let sink = if background {
+            input::TargetSink::Background(app.pid)
+        } else {
+            input::TargetSink::Foreground
+        };
+        input::click(at, button == MouseButton::Right, count, sink)
     }
 
     fn drag(&mut self, app: &str, from: Point, to: Point) -> Result<()> {
-        let app = self.prepare(app)?;
-        let session = self.session(&app)?;
-        input::drag(to_screen(session, from)?, to_screen(session, to)?)
+        let app = self.prepare(app, false)?;
+        let start = self.checked_point(&app, from)?;
+        let end = self.checked_point(&app, to)?;
+        input::drag(start, end)
     }
 
-    fn type_text(&mut self, app: &str, text: &str) -> Result<()> {
-        self.prepare(app)?;
-        input::type_text(text)
+    fn type_text(&mut self, app: &str, text: &str, background: bool) -> Result<()> {
+        let app = self.prepare(app, background)?;
+        require_no_secure_input(app.pid)?;
+        let sink = if background {
+            input::TargetSink::Background(app.pid)
+        } else {
+            input::TargetSink::Foreground
+        };
+        input::type_text(text, sink)
     }
 
-    fn press_key(&mut self, app: &str, chord: &KeyChord) -> Result<()> {
-        self.prepare(app)?;
-        input::press(chord)
+    fn press_key(&mut self, app: &str, chord: &KeyChord, background: bool) -> Result<()> {
+        let app = self.prepare(app, background)?;
+        require_no_secure_input(app.pid)?;
+        let sink = if background {
+            input::TargetSink::Background(app.pid)
+        } else {
+            input::TargetSink::Foreground
+        };
+        input::press(chord, sink)
     }
 
     fn scroll(
@@ -525,8 +703,9 @@ impl Backend for MacBackend {
         target: Option<Target>,
         direction: Direction,
         pages: f64,
+        background: bool,
     ) -> Result<()> {
-        let app = self.prepare(app)?;
+        let app = self.prepare(app, background)?;
         let at = match target {
             Some(target) => self.point_of(&app, target)?,
             None => self
@@ -542,19 +721,27 @@ impl Backend for MacBackend {
             Direction::Left => (0, amount),
             Direction::Right => (0, -amount),
         };
-        input::scroll(at, lines, columns)
+        let sink = if background {
+            input::TargetSink::Background(app.pid)
+        } else {
+            input::TargetSink::Foreground
+        };
+        input::scroll(at, lines, columns, sink)
     }
 
     fn set_value(&mut self, app: &str, element: usize, value: &str) -> Result<()> {
         require_accessibility()?;
         let app = resolve(app)?;
-        ax::set_string(self.handle(&app, element)?, "AXValue", value)
+        let handle = self.handle(&app, element)?;
+        require_safe_element(handle)?;
+        ax::set_string(handle, "AXValue", value)
     }
 
     fn perform_action(&mut self, app: &str, element: usize, action: &str) -> Result<()> {
         require_accessibility()?;
         let app = resolve(app)?;
         let handle = self.handle(&app, element)?;
+        require_safe_element(handle)?;
         let available = ax::actions(handle);
         // The state lists `Raise` for `AXRaise`, and an app's own action by its name.
         let wanted = action.trim();
@@ -574,6 +761,14 @@ impl Backend for MacBackend {
                     .join(", ")
             )),
         }
+    }
+
+    fn press_menu(&mut self, app: &str, path: &[String]) -> Result<()> {
+        require_accessibility()?;
+        let app = resolve(app)?;
+        let element = ax::application(app.pid)
+            .ok_or_else(|| anyhow!("cannot reach {} through accessibility", app.name))?;
+        menu::press_menu_path(element.raw(), path)
     }
 }
 
@@ -610,28 +805,66 @@ mod tests {
 
     #[test]
     fn screenshot_pixels_scale_to_screen_points() {
-        let session = Session {
-            handles: vec![],
-            window_id: None,
-            window: Some(Frame {
-                x: 100.0,
-                y: 50.0,
-                width: 800.0,
-                height: 600.0,
-            }),
-            shot: Some((1600, 1200)),
+        let bounds = Frame {
+            x: 100.0,
+            y: 50.0,
+            width: 800.0,
+            height: 600.0,
         };
         assert_eq!(
-            to_screen(&session, Point { x: 400.0, y: 300.0 }).unwrap(),
+            scale_point(&bounds, Some((1600, 1200)), Point { x: 400.0, y: 300.0 }),
             CGPoint { x: 300.0, y: 200.0 }
         );
-        let unscaled = Session {
-            shot: None,
-            ..session
-        };
         assert_eq!(
-            to_screen(&unscaled, Point { x: 10.0, y: 10.0 }).unwrap(),
+            scale_point(&bounds, None, Point { x: 10.0, y: 10.0 }),
             CGPoint { x: 110.0, y: 60.0 }
         );
+    }
+
+    #[test]
+    fn stale_or_missing_screenshots_are_rejected() {
+        let bounds = Frame {
+            x: 100.0,
+            y: 50.0,
+            width: 800.0,
+            height: 600.0,
+        };
+        assert!(verify_shot_bounds(None, Some(&bounds)).is_err());
+        let moved = Frame { x: 140.0, ..bounds };
+        let err = verify_shot_bounds(Some((bounds, (800, 600))), Some(&moved))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("moved or resized"));
+        let tiny_jitter = Frame { x: 101.0, ..bounds };
+        assert!(verify_shot_bounds(Some((bounds, (800, 600))), Some(&tiny_jitter)).is_ok());
+    }
+
+    #[test]
+    fn prune_sessions_evicts_expired_and_caps_total() {
+        let mut backend = MacBackend::new();
+        let pid = std::process::id() as i32;
+        backend.sessions.insert(
+            -999,
+            Session {
+                handles: vec![],
+                window: None,
+                window_id: None,
+                shot: None,
+                read_at: Instant::now() - SESSION_TTL - Duration::from_secs(1),
+            },
+        );
+        backend.sessions.insert(
+            pid,
+            Session {
+                handles: vec![],
+                window: None,
+                window_id: None,
+                shot: None,
+                read_at: Instant::now(),
+            },
+        );
+        backend.prune_sessions(pid);
+        assert!(!backend.sessions.contains_key(&-999));
+        assert!(backend.sessions.contains_key(&pid));
     }
 }

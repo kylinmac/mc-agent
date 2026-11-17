@@ -118,10 +118,21 @@ pub struct Screenshot {
     pub height: u32,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct OcrLine {
+    pub text: String,
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
 #[derive(Debug, Clone)]
 pub struct AppState {
     pub app: AppInfo,
     pub window_title: Option<String>,
+    /// Top-level menu bar titles when available (macOS).
+    pub menu_bar: Vec<String>,
     /// Depth-first; an element's index is its position here.
     pub elements: Vec<Element>,
     /// Things the model should know (missing permission, no window…).
@@ -165,19 +176,38 @@ pub trait Backend {
     /// A picture of the window of the app's latest state; its pixels become
     /// the coordinate space for point targets.
     fn screenshot(&mut self, app: &str) -> Result<Screenshot>;
-    fn click(&mut self, app: &str, target: Target, button: MouseButton, count: u32) -> Result<()>;
+    /// On-device text recognition of the window, returning `(width, height, lines)`.
+    fn ocr(&mut self, _app: &str) -> Result<(u32, u32, Vec<OcrLine>)> {
+        anyhow::bail!(
+            "On-device OCR is currently supported on macOS only; request screenshot: true instead"
+        )
+    }
+    fn click(
+        &mut self,
+        app: &str,
+        target: Target,
+        button: MouseButton,
+        count: u32,
+        background: bool,
+    ) -> Result<()>;
     fn drag(&mut self, app: &str, from: Point, to: Point) -> Result<()>;
-    fn type_text(&mut self, app: &str, text: &str) -> Result<()>;
-    fn press_key(&mut self, app: &str, chord: &KeyChord) -> Result<()>;
+    fn type_text(&mut self, app: &str, text: &str, background: bool) -> Result<()>;
+    fn press_key(&mut self, app: &str, chord: &KeyChord, background: bool) -> Result<()>;
     fn scroll(
         &mut self,
         app: &str,
         target: Option<Target>,
         direction: Direction,
         pages: f64,
+        background: bool,
     ) -> Result<()>;
     fn set_value(&mut self, app: &str, element: usize, value: &str) -> Result<()>;
     fn perform_action(&mut self, app: &str, element: usize, action: &str) -> Result<()>;
+    fn press_menu(&mut self, _app: &str, _menu: &[String]) -> Result<()> {
+        anyhow::bail!(
+            "Menu bar traversal is supported on macOS only; click menu elements or use keyboard shortcuts instead"
+        )
+    }
     /// Wait; a backend under test records it instead.
     fn sleep(&mut self, millis: u64) {
         std::thread::sleep(std::time::Duration::from_millis(millis));

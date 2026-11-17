@@ -114,7 +114,7 @@ mod tests {
         assert_eq!(replies[0]["result"]["protocolVersion"], "2025-06-18");
         assert_eq!(replies[0]["result"]["serverInfo"]["name"], "mc-computer");
         assert_eq!(replies[1]["id"], 2);
-        assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 11);
+        assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 12);
         assert_eq!(replies[2]["result"], json!({}));
     }
 

@@ -251,6 +251,9 @@ fn tail(state: &AppState, lines: &[Line], out: &mut String) {
 /// The whole tree.
 pub fn full_text(state: &AppState, lines: &[Line]) -> String {
     let mut out = window_header(state);
+    if !state.menu_bar.is_empty() {
+        out.push_str(&format!("\nMenu bar: {}", state.menu_bar.join(" | ")));
+    }
     for (id, line) in lines.iter().enumerate() {
         out.push('\n');
         out.push_str(&numbered("", id, line));
@@ -438,6 +441,7 @@ mod tests {
                 frontmost: true,
             },
             window_title: Some("Calculator".into()),
+            menu_bar: vec![],
             elements,
             notes: vec![],
         }
@@ -512,12 +516,13 @@ mod tests {
     fn the_full_tree_is_tab_indented_with_a_focus_line() {
         let mut field = element(1, "AXTextField", None);
         field.focused = true;
-        let mut state = state(vec![element(0, "AXWindow", Some("Calculator")), field]);
-        state.notes.push("partial".into());
-        let text = full_text(&state, &lines(&state));
+        let mut s = state(vec![element(0, "AXWindow", Some("Calculator")), field]);
+        s.menu_bar = vec!["Calculator".into(), "Edit".into()];
+        s.notes.push("partial".into());
+        let text = full_text(&s, &lines(&s));
         assert_eq!(
             text,
-            "Window: \"Calculator\", App: Calculator.\n0 window Calculator\n\t1 text field\nThe focused UI element is 1 text field\nNote: partial"
+            "Window: \"Calculator\", App: Calculator.\nMenu bar: Calculator | Edit\n0 window Calculator\n\t1 text field\nThe focused UI element is 1 text field\nNote: partial"
         );
     }
 

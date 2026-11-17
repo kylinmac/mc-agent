@@ -78,8 +78,25 @@ fn app_param() -> Value {
 fn state_params() -> Value {
     json!({
         "screenshot": { "type": "boolean", "description": "Also return a screenshot of the window. Default false; ask only when the element tree is not enough (canvas, images, layout)." },
+        "ocr": { "type": "boolean", "description": "macOS: run on-device Vision OCR on the window and return recognized text with (x, y) coordinates ready for click/scroll, even without screenshot: true. Default false." },
         "full": { "type": "boolean", "description": "Return the whole element tree instead of only what changed since the previous state. Default false." }
     })
+}
+
+fn background_param() -> Value {
+    json!({
+        "background": {
+            "type": "boolean",
+            "description": "macOS: send the action directly to the app in the background (AX action / CGEventPostToPid) without bringing it to the front or moving the mouse cursor. Default false; unsupported by drag and Windows."
+        }
+    })
+}
+
+fn supports_background(name: &str) -> bool {
+    matches!(
+        name,
+        "click" | "drag" | "type_text" | "press_key" | "scroll"
+    )
 }
 
 fn target_params() -> Value {
@@ -135,6 +152,15 @@ fn action_properties(name: &str) -> serde_json::Map<String, Value> {
             "element_index": { "type": "integer", "minimum": 0 },
             "action": { "type": "string", "minLength": 1, "maxLength": 128 }
         })]),
+        "press_menu" => merge(&[json!({
+            "menu": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 8,
+                "items": { "type": "string", "minLength": 1, "maxLength": 128 },
+                "description": "Menu bar path from top-level menu item to target item, e.g. [\"File\", \"Save\"] or [\"文件\", \"新建窗口\"]."
+            }
+        })]),
         _ => serde_json::Map::new(),
     }
 }
@@ -147,11 +173,12 @@ fn action_required(name: &str) -> Vec<&'static str> {
         "scroll" => vec!["direction"],
         "set_value" => vec!["element_index", "value"],
         "perform_action" => vec!["element_index", "action"],
+        "press_menu" => vec!["menu"],
         _ => vec![],
     }
 }
 
-const ACTIONS: [(&str, &str); 7] = [
+const ACTIONS: [(&str, &str); 8] = [
     ("click", "Click an element (element_index) or a point (x, y in the latest screenshot). Left or right button; click_count 2 double-clicks."),
     ("drag", "Press at (from_x, from_y) and release at (to_x, to_y), screenshot pixels."),
     ("type_text", "Type text into the app's focused element. \\n presses Return. Focus the field first (click it), or use set_value."),
@@ -159,6 +186,7 @@ const ACTIONS: [(&str, &str); 7] = [
     ("scroll", "Scroll at an element or point (or the window's centre) by pages."),
     ("set_value", "Set an element's value directly (a text field, switch or slider marked settable), replacing what is there. Does not press Return."),
     ("perform_action", "Run one of the element's Secondary Actions as its state line lists them (e.g. Raise, Expand, Increment, Pick)."),
+    ("press_menu", "macOS: trigger an item in the app's top menu bar by path, e.g. [\"File\", \"Save\"] or [\"文件\", \"新建窗口\"]."),
 ];
 
 /// Tool definitions for `tools/list`.
@@ -196,6 +224,9 @@ pub fn definitions() -> Vec<Value> {
     for (name, description) in ACTIONS {
         let mut properties = action_properties(name);
         properties.insert("app".into(), app_param());
+        if supports_background(name) {
+            properties.extend(merge(&[background_param()]));
+        }
         properties.extend(merge(&[
             state_params(),
             json!({ "return_state": { "type": "boolean", "description": "Return what changed in the app after the action. Default true." } }),
@@ -212,9 +243,10 @@ pub fn definitions() -> Vec<Value> {
     for (name, _) in ACTIONS {
         step_properties.extend(action_properties(name));
     }
+    step_properties.extend(merge(&[background_param()]));
     step_properties.insert(
         "do".into(),
-        json!({ "type": "string", "enum": ["click", "drag", "type_text", "press_key", "scroll", "set_value", "perform_action", "wait"] }),
+        json!({ "type": "string", "enum": ["click", "drag", "type_text", "press_key", "scroll", "set_value", "perform_action", "press_menu", "wait"] }),
     );
     step_properties.insert(
         "ms".into(),
@@ -235,6 +267,7 @@ pub fn definitions() -> Vec<Value> {
                         "items": { "type": "object", "properties": step_properties, "required": ["do"], "additionalProperties": false }
                     }
                 }),
+                background_param(),
                 state_params(),
             ]),
             "required": ["app", "steps"],
@@ -314,7 +347,13 @@ fn permission_request(args: &Value) -> Result<PermissionRequest> {
 }
 
 /// One action; returns what was done, in a few words.
-fn act(backend: &mut dyn Backend, app: &str, name: &str, args: &Value) -> Result<String> {
+fn act(
+    backend: &mut dyn Backend,
+    app: &str,
+    name: &str,
+    args: &Value,
+    background: bool,
+) -> Result<String> {
     match name {
         "click" => {
             let target = target(args)?.ok_or_else(|| anyhow!("give element_index, or x and y"))?;
@@ -328,10 +367,15 @@ fn act(backend: &mut dyn Backend, app: &str, name: &str, args: &Value) -> Result
                 .and_then(Value::as_u64)
                 .unwrap_or(1)
                 .clamp(1, 3) as u32;
-            backend.click(app, target, button, count)?;
+            backend.click(app, target, button, count, background)?;
             Ok("Clicked.".into())
         }
         "drag" => {
+            if background {
+                return Err(anyhow!(
+                    "drag requires foreground mode (omit background or set background: false)"
+                ));
+            }
             let from = Point {
                 x: required_number(args, "from_x")?,
                 y: required_number(args, "from_y")?,
@@ -349,12 +393,12 @@ fn act(backend: &mut dyn Backend, app: &str, name: &str, args: &Value) -> Result
                 .and_then(Value::as_str)
                 .filter(|text| !text.is_empty())
                 .ok_or_else(|| anyhow!("`text` is required"))?;
-            backend.type_text(app, text)?;
+            backend.type_text(app, text, background)?;
             Ok("Typed.".into())
         }
         "press_key" => {
             let chord = parse_chord(&string(args, "key")?)?;
-            backend.press_key(app, &chord)?;
+            backend.press_key(app, &chord, background)?;
             Ok("Pressed.".into())
         }
         "scroll" => {
@@ -366,7 +410,7 @@ fn act(backend: &mut dyn Backend, app: &str, name: &str, args: &Value) -> Result
                 other => return Err(anyhow!("unknown direction \"{other}\"")),
             };
             let pages = number(args, "pages").unwrap_or(1.0).clamp(0.1, 20.0);
-            backend.scroll(app, target(args)?, direction, pages)?;
+            backend.scroll(app, target(args)?, direction, pages, background)?;
             Ok("Scrolled.".into())
         }
         "set_value" => {
@@ -383,6 +427,25 @@ fn act(backend: &mut dyn Backend, app: &str, name: &str, args: &Value) -> Result
             let action = string(args, "action")?;
             backend.perform_action(app, element, &action)?;
             Ok(format!("Performed {action}."))
+        }
+        "press_menu" => {
+            let items = args
+                .get("menu")
+                .and_then(Value::as_array)
+                .filter(|items| !items.is_empty())
+                .ok_or_else(|| anyhow!("`menu` must be a non-empty array of menu item names"))?;
+            let path: Vec<String> = items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::trim)
+                .filter(|item| !item.is_empty())
+                .map(str::to_string)
+                .collect();
+            if path.len() != items.len() {
+                return Err(anyhow!("every entry in `menu` must be a non-empty string"));
+            }
+            backend.press_menu(app, &path)?;
+            Ok(format!("Triggered menu {}.", path.join(" > ")))
         }
         "wait" => {
             let ms = args.get("ms").and_then(Value::as_u64).unwrap_or(500);
@@ -469,6 +532,29 @@ impl Tools {
         );
         let mut content = Vec::new();
         let mut image = None;
+        if flag(args, "ocr", false) {
+            match backend.ocr(app) {
+                Ok((width, height, lines)) => {
+                    if lines.is_empty() {
+                        text.push_str(&format!(
+                            "\nOCR: no text recognized in {width}×{height} px window capture."
+                        ));
+                    } else {
+                        text.push_str(&format!(
+                            "\nOCR ({} regions in {width}×{height} px window capture; (x, y) are centre coordinates):",
+                            lines.len()
+                        ));
+                        for (i, item) in lines.iter().enumerate() {
+                            let cx = item.x + item.width / 2;
+                            let cy = item.y + item.height / 2;
+                            let clean = item.text.replace('\n', " ").trim().to_string();
+                            text.push_str(&format!("\n\t[ocr {i}] ({cx}, {cy}) \"{clean}\""));
+                        }
+                    }
+                }
+                Err(error) => text.push_str(&format!("\nNo OCR: {error:#}")),
+            }
+        }
         if flag(args, "screenshot", false) {
             match backend.screenshot(app) {
                 Ok(shot) => {
@@ -510,13 +596,18 @@ impl Tools {
         if steps.len() > MAX_STEPS {
             return Err(anyhow!("at most {MAX_STEPS} steps per run"));
         }
+        let default_background = flag(args, "background", false);
         let mut failure = None;
         for (number, step) in steps.iter().enumerate() {
             if number > 0 {
                 backend.sleep(STEP_GAP_MS);
             }
             let name = step.get("do").and_then(Value::as_str).unwrap_or("");
-            let result = act(backend, app, name, step);
+            let background = step
+                .get("background")
+                .and_then(Value::as_bool)
+                .unwrap_or(default_background);
+            let result = act(backend, app, name, step, background);
             if name != "wait" {
                 self.last_action = Some(Instant::now());
             }
@@ -560,7 +651,8 @@ impl Tools {
             }
             name if is_action(name) => {
                 let app = string(args, "app")?;
-                let done = act(backend, &app, name, args)?;
+                let background = flag(args, "background", false);
+                let done = act(backend, &app, name, args, background)?;
                 self.last_action = Some(Instant::now());
                 if flag(args, "return_state", true) {
                     self.state_output(backend, &app, args, Some(&done))
@@ -582,339 +674,5 @@ impl Tools {
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
-    use super::*;
-    use crate::backend::{AppInfo, CheckedBy, Element, Permissions, Screenshot};
-    use crate::keys::KeyChord;
-
-    /// Records calls; its window gains a line per action.
-    #[derive(Default)]
-    pub struct Fake {
-        pub calls: Vec<String>,
-        pub actions: usize,
-    }
-
-    impl Backend for Fake {
-        fn permissions(&mut self, request: &PermissionRequest) -> Result<Permissions> {
-            self.calls.push(format!(
-                "permissions {:?} {:?}",
-                request.request, request.open_settings
-            ));
-            Ok(Permissions {
-                accessibility: true,
-                screen_recording: false,
-                items: vec![],
-                checked_by: CheckedBy {
-                    pid: 1,
-                    executable: "mc-computer".into(),
-                },
-                guidance: vec!["grant it".into()],
-            })
-        }
-        fn list_apps(&mut self) -> Result<Vec<AppInfo>> {
-            Ok(vec![AppInfo {
-                name: "Notes".into(),
-                pid: 7,
-                path: None,
-                frontmost: true,
-            }])
-        }
-        fn app_state(&mut self, app: &str) -> Result<AppState> {
-            self.calls.push(format!("state {app}"));
-            let mut elements = vec![Element {
-                role: "AXWindow".into(),
-                title: Some("Untitled".into()),
-                enabled: true,
-                ..Default::default()
-            }];
-            for n in 0..30 {
-                elements.push(Element {
-                    depth: 1,
-                    role: "AXButton".into(),
-                    title: Some(format!("b{n}")),
-                    enabled: true,
-                    ..Default::default()
-                });
-            }
-            for n in 0..self.actions {
-                elements.push(Element {
-                    depth: 1,
-                    role: "AXStaticText".into(),
-                    value: Some(format!("line {n}")),
-                    enabled: true,
-                    ..Default::default()
-                });
-            }
-            Ok(AppState {
-                app: AppInfo {
-                    name: app.into(),
-                    pid: 7,
-                    path: None,
-                    frontmost: true,
-                },
-                window_title: Some("Untitled".into()),
-                elements,
-                notes: vec![],
-            })
-        }
-        fn screenshot(&mut self, app: &str) -> Result<Screenshot> {
-            self.calls.push(format!("shot {app}"));
-            Ok(Screenshot {
-                data: vec![1, 2, 3],
-                mime: "image/jpeg",
-                width: 10,
-                height: 20,
-            })
-        }
-        fn click(
-            &mut self,
-            app: &str,
-            target: Target,
-            button: MouseButton,
-            count: u32,
-        ) -> Result<()> {
-            self.actions += 1;
-            self.calls
-                .push(format!("click {app} {target:?} {button:?} {count}"));
-            Ok(())
-        }
-        fn drag(&mut self, app: &str, from: Point, to: Point) -> Result<()> {
-            self.calls.push(format!(
-                "drag {app} {},{} {},{}",
-                from.x, from.y, to.x, to.y
-            ));
-            Ok(())
-        }
-        fn type_text(&mut self, app: &str, text: &str) -> Result<()> {
-            self.actions += 1;
-            self.calls.push(format!("type {app} {text}"));
-            Ok(())
-        }
-        fn press_key(&mut self, app: &str, chord: &KeyChord) -> Result<()> {
-            self.actions += 1;
-            self.calls
-                .push(format!("key {app} {:?} {:?}", chord.modifiers, chord.key));
-            Ok(())
-        }
-        fn scroll(
-            &mut self,
-            app: &str,
-            target: Option<Target>,
-            direction: Direction,
-            pages: f64,
-        ) -> Result<()> {
-            self.calls
-                .push(format!("scroll {app} {target:?} {direction:?} {pages}"));
-            Ok(())
-        }
-        fn set_value(&mut self, app: &str, element: usize, value: &str) -> Result<()> {
-            self.calls.push(format!("set {app} {element} {value}"));
-            Ok(())
-        }
-        fn perform_action(&mut self, app: &str, element: usize, action: &str) -> Result<()> {
-            if action == "Boom" {
-                return Err(anyhow!("no such action"));
-            }
-            self.calls.push(format!("action {app} {element} {action}"));
-            Ok(())
-        }
-        fn sleep(&mut self, millis: u64) {
-            self.calls.push(format!("sleep {millis}"));
-        }
-    }
-
-    fn text(out: &ToolOutput) -> &str {
-        out.content[0]["text"].as_str().unwrap()
-    }
-
-    #[test]
-    fn every_definition_has_a_name_description_and_object_schema() {
-        let defs = definitions();
-        assert_eq!(defs.len(), 11);
-        for def in &defs {
-            assert!(def["name"].as_str().is_some_and(|name| !name.is_empty()));
-            assert!(def["description"]
-                .as_str()
-                .is_some_and(|text| text.len() > 20));
-            assert_eq!(def["inputSchema"]["type"], "object");
-        }
-    }
-
-    #[test]
-    fn the_first_state_is_the_whole_tree_then_only_changes() {
-        let mut tools = Tools::new();
-        let mut fake = Fake::default();
-        let out = tools.call(&mut fake, "get_app_state", &json!({ "app": "Notes" }));
-        assert!(!out.is_error);
-        assert_eq!(out.content.len(), 1, "no screenshot unless asked");
-        assert!(text(&out).starts_with("Window: \"Untitled\", App: Notes.\n0 window Untitled"));
-
-        let out = tools.call(&mut fake, "get_app_state", &json!({ "app": "Notes" }));
-        assert!(text(&out).starts_with("No changes in Window"));
-
-        let out = tools.call(
-            &mut fake,
-            "get_app_state",
-            &json!({ "app": "Notes", "full": true, "screenshot": true }),
-        );
-        assert!(text(&out).starts_with("Window:"));
-        assert!(text(&out).contains("Screenshot: 10×20 px"));
-        assert_eq!(out.content[1]["type"], "image");
-        assert_eq!(out.content[1]["data"], "AQID");
-        assert_eq!(out.content[1]["mimeType"], "image/jpeg");
-    }
-
-    #[test]
-    fn actions_wait_for_a_stable_ui_then_return_the_diff() {
-        let mut tools = Tools::new();
-        let mut fake = Fake::default();
-        tools.call(&mut fake, "get_app_state", &json!({ "app": "Notes" }));
-        fake.calls.clear();
-        let out = tools.call(
-            &mut fake,
-            "click",
-            &json!({ "app": "Notes", "element_index": 3, "click_count": 2 }),
-        );
-        assert!(!out.is_error);
-        assert_eq!(
-            text(&out),
-            "Clicked.\nChanges in Window: \"Untitled\", App: Notes since the previous state (32 elements; ~ changed, + added, others keep their IDs):\n+\t31 text line 0"
-        );
-        assert_eq!(fake.calls[0], "click Notes Element(3) Left 2");
-        assert!(fake.calls[1].starts_with("sleep "));
-        assert_eq!(
-            fake.calls
-                .iter()
-                .filter(|call| call.starts_with("state"))
-                .count(),
-            2,
-            "read until two reads agree"
-        );
-
-        let mut fake = Fake::default();
-        let out = tools.call(
-            &mut fake,
-            "press_key",
-            &json!({ "app": "Notes", "key": "cmd+s", "return_state": false }),
-        );
-        assert_eq!(out.content.len(), 1);
-        assert_eq!(text(&out), "Pressed.");
-        assert_eq!(fake.calls.len(), 1);
-    }
-
-    #[test]
-    fn run_does_every_step_then_reads_once() {
-        let mut tools = Tools::new();
-        let mut fake = Fake::default();
-        tools.call(&mut fake, "get_app_state", &json!({ "app": "Notes" }));
-        fake.calls.clear();
-        let out = tools.call(
-            &mut fake,
-            "run",
-            &json!({ "app": "Notes", "steps": [
-                { "do": "click", "element_index": 4 },
-                { "do": "type_text", "text": "12" },
-                { "do": "wait", "ms": 100 },
-                { "do": "press_key", "key": "Return" }
-            ] }),
-        );
-        assert!(!out.is_error, "{}", text(&out));
-        assert!(text(&out).starts_with("Ran 4 steps.\nChanges in"));
-        assert!(text(&out).contains("+\t33 text line 2"));
-        let acts: Vec<&String> = fake
-            .calls
-            .iter()
-            .filter(|call| !call.starts_with("sleep") && !call.starts_with("state"))
-            .collect();
-        assert_eq!(acts.len(), 3);
-        assert!(fake.calls.contains(&"sleep 100".to_string()));
-        assert!(fake.calls.last().unwrap().starts_with("state"));
-    }
-
-    #[test]
-    fn run_stops_at_a_failing_step_and_still_shows_the_state() {
-        let mut tools = Tools::new();
-        let mut fake = Fake::default();
-        let out = tools.call(
-            &mut fake,
-            "run",
-            &json!({ "app": "Notes", "steps": [
-                { "do": "click", "element_index": 1 },
-                { "do": "perform_action", "element_index": 2, "action": "Boom" },
-                { "do": "type_text", "text": "never" }
-            ] }),
-        );
-        assert!(out.is_error);
-        assert!(text(&out).starts_with("Step 2 (perform_action) failed: no such action."));
-        assert!(text(&out).contains("Window: \"Untitled\""));
-        assert!(!fake.calls.iter().any(|call| call.contains("never")));
-
-        let out = tools.call(
-            &mut fake,
-            "run",
-            &json!({ "app": "Notes", "steps": [{ "do": "fly" }] }),
-        );
-        assert!(text(&out).contains("unknown action \"fly\""));
-    }
-
-    #[test]
-    fn permissions_are_asked_one_at_a_time_and_the_old_form_still_works() {
-        let mut tools = Tools::new();
-        let mut fake = Fake::default();
-        let out = tools.call(&mut fake, "permissions", &json!({}));
-        assert!(text(&out).contains("\"checkedBy\""));
-        tools.call(
-            &mut fake,
-            "permissions",
-            &json!({ "request_item": "screenRecording", "open_settings": "screenRecording" }),
-        );
-        tools.call(&mut fake, "permissions", &json!({ "request": true }));
-        assert_eq!(
-            fake.calls,
-            vec![
-                "permissions [] None",
-                "permissions [ScreenRecording] Some(ScreenRecording)",
-                "permissions [Accessibility, ScreenRecording] None",
-            ]
-        );
-        let out = tools.call(
-            &mut fake,
-            "permissions",
-            &json!({ "request_item": "camera" }),
-        );
-        assert!(out.is_error);
-    }
-
-    #[test]
-    fn targets_prefer_elements_and_need_both_coordinates() {
-        assert_eq!(
-            target(&json!({ "element_index": 2, "x": 1, "y": 1 })).unwrap(),
-            Some(Target::Element(2))
-        );
-        assert_eq!(
-            target(&json!({ "x": 5.5, "y": 6 })).unwrap(),
-            Some(Target::Point(Point { x: 5.5, y: 6.0 }))
-        );
-        assert_eq!(target(&json!({})).unwrap(), None);
-        assert!(target(&json!({ "x": 5 })).is_err());
-        assert!(target(&json!({ "x": -1, "y": 2 })).is_err());
-    }
-
-    #[test]
-    fn bad_arguments_come_back_as_readable_errors() {
-        let mut tools = Tools::new();
-        let mut fake = Fake::default();
-        let out = tools.call(&mut fake, "click", &json!({ "app": "Notes" }));
-        assert!(out.is_error);
-        assert!(text(&out).contains("give element_index, or x and y"));
-        let out = tools.call(
-            &mut fake,
-            "press_key",
-            &json!({ "app": "Notes", "key": "cmd+banana" }),
-        );
-        assert!(out.is_error);
-        let out = tools.call(&mut fake, "nope", &json!({}));
-        assert!(out.is_error);
-        assert!(fake.calls.is_empty());
-    }
-}
+#[path = "tools_tests.rs"]
+pub(crate) mod tests;
