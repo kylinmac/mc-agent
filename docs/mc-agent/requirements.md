@@ -465,7 +465,7 @@ P8、P12；V96：保持 Electron 与上游合并边界（[MC-ADR-0002](adr/mc-00
 | 项 | 约定 |
 | --- | --- |
 | Rust 发布裁剪 | 根 `Cargo.toml` 为 `release` profile 启用 `strip = true`、`lto = "thin"`、`codegen-units = 1`、`panic = "abort"`（全仓无 `catch_unwind`）；`dev` 依赖保留 `line-tables-only` 调试表 |
-| Electron 压缩与异构原生剔除 | `apps/desktop/electron.vite.config.ts` 对 `main` 与 `preload` 同步启用 `esbuild` 压缩；打包过滤器与 `electron-builder` `afterPack`（`scripts/mc-prune-pack.cjs`）按目标平台和架构剔除 `@picovoice/pvrecorder-node`、`node-pty/prebuilds` 的非目标架构二进制及 `koffi` C/C++ 源码头文件（仅在目标产物存在时清理，在 macOS 代码签名 `afterSign` 之前执行） |
+| Electron 压缩与异构原生剔除 | `apps/desktop/electron.vite.config.ts` 对 `main` 与 `preload` 同步启用 `esbuild` 压缩；打包过滤器与 `electron-builder` `afterPack`（`apps/desktop/build/mc-prune-pack.cjs`）按目标平台和架构剔除 `@picovoice/pvrecorder-node`、`node-pty/prebuilds` 的非目标架构二进制及 `koffi` C/C++ 源码头文件（仅在目标产物存在时清理，在 macOS 代码签名 `afterSign` 之前执行） |
 | 渲染首屏拆包 | 断开主入口对 `@xterm/xterm` 与未打开对话框（搜索、建项目、导入项目、更新日志、会话信息详情弹窗）的静态导入；副窗口入口按需懒加载主壳 |
 | 运行期空转与重复 IPC 消除 | 折叠态 `SessionInfo` 不订阅非必要全量历史重算与后台命令轮询；`background-shells` 在无运行中后台命令且所有已订阅会话空闲时停止 2 秒定时轮询，回合启动或切回前台时立即恢复；`useProjectFolderIndex` 在多组件间共享缓存与单份 `focus` 监听 |
 
