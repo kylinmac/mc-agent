@@ -9,6 +9,18 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.79",
+    date: "2026-11-17",
+    features: [
+      "Added on-device macOS Vision OCR to Computer Use: passing ocr: true to get_app_state and state calls returns recognized text and screen coordinates in reading order for UI content missing accessibility labels.",
+      "Added macOS menu bar summary and press_menu tool: state output lists top-level menu items, agents can invoke menu commands by path such as [\"File\", \"Save\"], and click, type_text, press_key, and scroll accept background: true to target background apps without stealing foreground focus.",
+    ],
+    improvements: [
+      "Automatically enables AXManualAccessibility when attaching to Electron and Chromium apps on macOS so their accessibility element trees populate without manual accessibility activation.",
+      "Added password and safety guards to macOS Computer Use: blocks automation targeting AXSecureTextField, secure keyboard entry mode, or disabled controls, rejects foreground key presses while physical modifiers are held down, and validates live window bounds alongside 15-minute session expiration.",
+    ],
+  },
+  {
     version: "1.0.78",
     date: "2026-11-16",
     improvements: [
