@@ -1,68 +1,130 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectGroupRecord } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { normalizeProjectPath } from "../../lib/sidebar-session-groups";
 import { buildProjectFolderIndex, type ProjectFolderIndex } from "./project-merge";
 
+type FolderSnapshot = {
+  groups: ProjectGroupRecord[];
+  missingPaths: string[];
+  focusTick: number;
+};
+
+const EMPTY_INDEX: ProjectFolderIndex = new Map();
+const EMPTY_MISSING: ReadonlySet<string> = new Set();
+const MAX_CACHED_KEYS = 64;
+
+let snapshot: FolderSnapshot = { groups: [], missingPaths: [], focusTick: 0 };
+const fetchedKeys = new Set<string>();
+let groupReqSeq = 0;
+let groupAppliedSeq = 0;
+let missingReqSeq = 0;
+let missingAppliedSeq = 0;
+const listeners = new Set<() => void>();
+let listeningFocus = false;
+
+function notify(): void {
+  for (const listener of listeners) listener();
+}
+
+function onWindowFocus(): void {
+  snapshot = { ...snapshot, focusTick: snapshot.focusTick + 1 };
+  fetchedKeys.clear();
+  notify();
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  if (!listeningFocus && typeof window !== "undefined") {
+    window.addEventListener("focus", onWindowFocus);
+    listeningFocus = true;
+  }
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0 && listeningFocus && typeof window !== "undefined") {
+      window.removeEventListener("focus", onWindowFocus);
+      listeningFocus = false;
+    }
+  };
+}
+
+function getSnapshot(): FolderSnapshot {
+  return snapshot;
+}
+
+function requestRefresh(refreshKey: string, focusTick: number): void {
+  const effectiveKey = `${focusTick}:${refreshKey}`;
+  if (fetchedKeys.has(effectiveKey)) return;
+  if (fetchedKeys.size >= MAX_CACHED_KEYS) {
+    const oldest = fetchedKeys.values().next().value;
+    if (oldest !== undefined) fetchedKeys.delete(oldest);
+  }
+  fetchedKeys.add(effectiveKey);
+  const gSeq = ++groupReqSeq;
+  const mSeq = ++missingReqSeq;
+  void api
+    .listProjectGroups()
+    .then(({ groups: listed }) => {
+      if (gSeq >= groupAppliedSeq) {
+        groupAppliedSeq = gSeq;
+        snapshot = { ...snapshot, groups: listed };
+        notify();
+      }
+    })
+    .catch(() => {
+      // Keep the previous index; see below.
+    });
+  void api
+    .missingProjectFolders()
+    .then(({ folders }) => {
+      if (mSeq >= missingAppliedSeq) {
+        missingAppliedSeq = mSeq;
+        snapshot = { ...snapshot, missingPaths: folders };
+        notify();
+      }
+    })
+    .catch(() => {
+      // Without the check nothing is hidden.
+    });
+}
+
 /**
- * Project groups indexed by folder for the sidebar (mc-agent), plus the
- * recorded project folders that no longer exist. Reloaded when `refreshKey`
- * changes (open projects, sessions) and when the window regains focus; a
- * failed load keeps the previous data, so the sidebar falls back to
- * upstream's per-folder entries rather than breaking.
+ * Project groups indexed by folder for the sidebar and titlebar tabs (mc-agent),
+ * plus recorded project folders that no longer exist. Shared across callers so
+ * simultaneous mounts and window focus changes issue a single host query pair.
+ * Pass `null` when the caller does not currently render folder data.
  */
-export function useProjectFolderIndex(refreshKey: string): {
+export function useProjectFolderIndex(refreshKey: string | null): {
   index: ProjectFolderIndex;
   missing: ReadonlySet<string>;
 } {
   const { t } = useTranslation();
-  const [groups, setGroups] = useState<ProjectGroupRecord[]>([]);
-  const [missingPaths, setMissingPaths] = useState<string[]>([]);
-  const [focusTick, setFocusTick] = useState(0);
+  const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   useEffect(() => {
-    const onFocus = () => setFocusTick((value) => value + 1);
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, []);
-
-  useEffect(() => {
-    let canceled = false;
-    void api
-      .listProjectGroups()
-      .then(({ groups: listed }) => {
-        if (!canceled) setGroups(listed);
-      })
-      .catch(() => {
-        // Keep the previous index; see above.
-      });
-    void api
-      .missingProjectFolders()
-      .then(({ folders }) => {
-        if (!canceled) setMissingPaths(folders);
-      })
-      .catch(() => {
-        // Without the check nothing is hidden.
-      });
-    return () => {
-      canceled = true;
-    };
-  }, [refreshKey, focusTick]);
+    if (refreshKey === null) return;
+    requestRefresh(refreshKey, state.focusTick);
+  }, [refreshKey, state.focusTick]);
 
   const resourcesLabel = t("mcProject.sidebarResourcesTag");
   const index = useMemo(
-    () => buildProjectFolderIndex(groups, normalizeProjectPath, resourcesLabel),
-    [groups, resourcesLabel],
+    () =>
+      refreshKey === null
+        ? EMPTY_INDEX
+        : buildProjectFolderIndex(state.groups, normalizeProjectPath, resourcesLabel),
+    [refreshKey, state.groups, resourcesLabel],
   );
   const missing = useMemo(
     () =>
-      new Set(
-        missingPaths
-          .map((path) => normalizeProjectPath(path))
-          .filter((path): path is string => Boolean(path)),
-      ),
-    [missingPaths],
+      refreshKey === null
+        ? EMPTY_MISSING
+        : new Set(
+            state.missingPaths
+              .map((path) => normalizeProjectPath(path))
+              .filter((path): path is string => Boolean(path)),
+          ),
+    [refreshKey, state.missingPaths],
   );
   return { index, missing };
 }

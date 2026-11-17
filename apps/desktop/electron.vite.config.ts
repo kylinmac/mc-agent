@@ -58,6 +58,7 @@ export default defineConfig({
       "__dirname": "import.meta.dirname",
     },
     build: {
+      minify: "esbuild",
       rollupOptions: {
         // Bundle JS workspace packages into Main. Native voice modules must
         // resolve from packaged node_modules because their loaders locate
@@ -88,6 +89,7 @@ export default defineConfig({
     // The preload must be a fully bundled CJS file so it can run in a
     // sandboxed renderer without Node module resolution.
     build: {
+      minify: "esbuild",
       rollupOptions: {
         input: {
           index: resolve(__dirname, "electron/preload/index.ts"),

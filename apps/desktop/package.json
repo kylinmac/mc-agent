@@ -107,8 +107,11 @@
       "!**/node_modules/node-addon-api/tools/**",
       "!**/node_modules/node-addon-api/*.{c,gyp,gypi,h,js,json}",
       "!**/node_modules/node-addon-api/README.md",
-      "!**/node_modules/node-pty/{deps,scripts,src,typings,third_party}/**"
+      "!**/node_modules/node-pty/{deps,scripts,src,typings,third_party}/**",
+      "!**/node_modules/koffi/vendor/**",
+      "!**/node_modules/koffi/**/*.{h,hh,inc,c,cc,cpp}"
     ],
+    "afterPack": "../../scripts/mc-prune-pack.cjs",
     "electronLanguages": [
       "en-US",
       "zh-CN",

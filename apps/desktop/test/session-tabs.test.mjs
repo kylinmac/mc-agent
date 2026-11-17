@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { loadStyles } from "./helpers/styles.mjs";
-import { MAX_TABS, closeTab, closeTabs, closeTabGroup, moveTab, openTab, pruneTabs, tabDropTarget, tabWheelScrollDelta } from "../src/features/session-tabs/tab-list.ts";
+import { MAX_TABS, closeTab, closeTabs, closeTabGroup, moveTab, openTab, pruneTabs, tabDropTarget, tabScrollFadeEdges, tabStripOverflows, tabWheelScrollDelta } from "../src/features/session-tabs/tab-list.ts";
 
 test("only the visible tab strip excludes native window dragging", async () => {
   const css = await loadStyles();
@@ -124,4 +124,17 @@ test("vertical wheel deltas map to horizontal scrolling while leaving horizontal
   assert.equal(tabWheelScrollDelta(20, 20, 0, 500), null);
   assert.equal(tabWheelScrollDelta(0, 0, 0, 500), null);
   assert.equal(tabWheelScrollDelta(0, 120, 0, 500, true), null);
+});
+
+test("scroll edge fades match overflow direction and grouped project tabs stay unshrunk", async () => {
+  assert.deepEqual(tabScrollFadeEdges(0, 800, 801), { left: false, right: false });
+  assert.deepEqual(tabScrollFadeEdges(0, 500, 900), { left: false, right: true });
+  assert.deepEqual(tabScrollFadeEdges(120, 500, 900), { left: true, right: true });
+  assert.deepEqual(tabScrollFadeEdges(400, 500, 900), { left: true, right: false });
+
+  const css = await loadStyles();
+  assert.match(css.match(/\.mc-project-tab\s*\{[^}]*\}/)?.[0] ?? "", /flex:\s*0 0 auto;/);
+  assert.match(css, /\.mc-project-tab:focus-visible\s*\{[^}]*outline:\s*none;/);
+  assert.match(css, /\.mc-session-tabs-viewport\.fade-left[\s\S]*mask-image:/);
+  assert.match(css, /\.mc-session-tabs-viewport\.fade-right[\s\S]*mask-image:/);
 });

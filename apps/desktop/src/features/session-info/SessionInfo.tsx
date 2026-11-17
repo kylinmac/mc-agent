@@ -1,5 +1,5 @@
 import { useSessionContextBreakdown } from "../chat/context-usage/useSessionContextBreakdown";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { SessionCollaborationSummary, SessionContextBreakdown } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
@@ -11,10 +11,21 @@ import { toolWorkPanelTab } from "../../lib/work-panel-tabs";
 import { normalizeProjectPath } from "../../lib/sidebar-session-groups";
 import { isRemoteSession } from "../../lib/remote-session-safety";
 import type { SettingsTabId } from "../../lib/settings-search";
-import { CapabilityDialog, type CapabilityKind } from "./CapabilityDialog";
-import { ProjectMemoryDialog } from "../../components/ProjectMemoryDialog";
-import { ProjectInstructionsDialog } from "../../components/ProjectInstructionsDialog";
-import { SystemPromptDialog } from "./SystemPromptDialog";
+import type { CapabilityKind } from "./CapabilityDialog";
+const CapabilityDialog = lazy(() =>
+  import("./CapabilityDialog").then((module) => ({ default: module.CapabilityDialog })),
+);
+const ProjectMemoryDialog = lazy(() =>
+  import("../../components/ProjectMemoryDialog").then((module) => ({ default: module.ProjectMemoryDialog })),
+);
+const ProjectInstructionsDialog = lazy(() =>
+  import("../../components/ProjectInstructionsDialog").then((module) => ({
+    default: module.ProjectInstructionsDialog,
+  })),
+);
+const SystemPromptDialog = lazy(() =>
+  import("./SystemPromptDialog").then((module) => ({ default: module.SystemPromptDialog })),
+);
 import { formatElapsed, sessionSubagents } from "./session-subagents";
 import { focusBackgroundShell, useBackgroundShells } from "../work-tools/background-shells";
 import { backgroundTab } from "../work-tools/tool-tabs";
@@ -87,6 +98,7 @@ const OPEN_KEY = "mc.sessionInfoOpen";
 const BUTTON_GAP = 12 + 8 - 16;
 const OPEN_KEEP = 200;
 const EMPTY_MESSAGES: never[] = [];
+const EMPTY_PATHS: string[] = [];
 
 /** Whether the panel is open, per conversation; the last choice is the default for others. */
 function readOpenMap(): Record<string, boolean> {
@@ -132,32 +144,6 @@ export function SessionInfo({
   const sessionId = sessionProp ?? activeSessionId;
   const focused = sessionId === activeSessionId;
   const container = scope === "column" ? ".mc-split-chat" : ".main-pane";
-  const sessions = useAppStore((s) => s.sessions);
-  const activeWorkspace = useAppStore((s) => s.workspace);
-  const contextUsageDisplay = useAppStore((s) => s.settings?.contextUsageDisplay);
-  const messages = useAppStore((s) =>
-    s.activeSessionId === sessionId
-      ? s.messages
-      : ((sessionId ? s.retainedTranscripts[sessionId] : undefined) ?? EMPTY_MESSAGES),
-  );
-  const messageParents = useAppStore((s) => sessionId ? s.sessionHistory[sessionId]?.messageParents : undefined);
-  const isRunning = useAppStore((s) =>
-    s.activeSessionId === sessionId ? s.isRunning : Boolean(sessionId && s.runningSessions[sessionId]),
-  );
-  const compactions = useAppStore((s) => (sessionId ? s.sessionCompactions[sessionId] : undefined));
-  const openWorkPanelTab = useAppStore((s) => s.openWorkPanelTab);
-  const selectSession = useAppStore((s) => s.selectSession);
-  const openSubagentTab = useAppStore((s) => s.openSubagentTab);
-  const compactContext = useAppStore((s) => s.compactContext);
-  const session = sessions.find((candidate) => candidate.id === sessionId);
-  // The active workspace describes the active session, and any other in the
-  // same folder.
-  const workspace =
-    focused ||
-    (session?.projectPath &&
-      normalizeProjectPath(session.projectPath) === normalizeProjectPath(activeWorkspace?.path))
-      ? activeWorkspace
-      : null;
   const [openMap, setOpenMap] = useState(readOpenMap);
   const open = sessionId !== undefined && openMap[sessionId] !== undefined ? openMap[sessionId] : prefs.open;
   const setOpen = (value: boolean) => {
@@ -171,6 +157,48 @@ export function SessionInfo({
     }
     setPrefs((current) => ({ ...current, open: value }));
   };
+  const session = useAppStore((s) =>
+    open && sessionId ? s.sessions.find((candidate) => candidate.id === sessionId) : undefined,
+  );
+  const activeWorkspace = useAppStore((s) => (open ? s.workspace : null));
+  const openProjectPaths = useAppStore((s) => (open ? s.openProjectPaths : EMPTY_PATHS));
+  const sessionCount = useAppStore((s) => (open ? s.sessions.length : 0));
+  const contextUsageDisplay = useAppStore((s) => s.settings?.contextUsageDisplay);
+  const messages = useAppStore((s) =>
+    !open
+      ? EMPTY_MESSAGES
+      : s.activeSessionId === sessionId
+        ? s.messages
+        : ((sessionId ? s.retainedTranscripts[sessionId] : undefined) ?? EMPTY_MESSAGES),
+  );
+  const messageCount = useAppStore((s) =>
+    !open
+      ? 0
+      : s.activeSessionId === sessionId
+        ? s.messages.length
+        : sessionId
+          ? (s.retainedTranscripts[sessionId]?.length ?? 0)
+          : 0,
+  );
+  const messageParents = useAppStore((s) =>
+    open && sessionId ? s.sessionHistory[sessionId]?.messageParents : undefined,
+  );
+  const isRunning = useAppStore((s) =>
+    s.activeSessionId === sessionId ? s.isRunning : Boolean(sessionId && s.runningSessions[sessionId]),
+  );
+  const compactions = useAppStore((s) => (open && sessionId ? s.sessionCompactions[sessionId] : undefined));
+  const openWorkPanelTab = useAppStore((s) => s.openWorkPanelTab);
+  const selectSession = useAppStore((s) => s.selectSession);
+  const openSubagentTab = useAppStore((s) => s.openSubagentTab);
+  const compactContext = useAppStore((s) => s.compactContext);
+  // The active workspace describes the active session, and any other in the
+  // same folder.
+  const workspace =
+    focused ||
+    (session?.projectPath &&
+      normalizeProjectPath(session.projectPath) === normalizeProjectPath(activeWorkspace?.path))
+      ? activeWorkspace
+      : null;
   // Work on the active session's state: focus this conversation first.
   const withFocus = (action: () => void) => {
     if (!sessionId || focused) {
@@ -181,7 +209,7 @@ export function SessionInfo({
       if (useAppStore.getState().activeSessionId === sessionId) action();
     });
   };
-  const { index } = useProjectFolderIndex(open ? `info:${sessionId ?? ""}` : "closed");
+  const { index } = useProjectFolderIndex(open ? `${openProjectPaths.join("\n")}|${sessionCount}` : null);
   const mode = panelMode(paneWidth, prefs.width);
 
   const setPrefs = (update: (current: PanelPrefs) => PanelPrefs) =>
@@ -280,7 +308,7 @@ export function SessionInfo({
   );
   // The poller is shared with the work panel header, which follows the
   // active session too, so both always ask for the same list.
-  const shells = useBackgroundShells(sessionId);
+  const shells = useBackgroundShells(open ? sessionId : null);
   const anyRunning =
     subagents.some((item) => item.status === "running" || item.status === "creating") ||
     shells.some((shell) => shell.status === "running");
@@ -298,7 +326,6 @@ export function SessionInfo({
   // Refresh when the panel opens, the session changes, a message lands, or a
   // turn ends. A running turn is estimated too (mc-agent B-002): the list
   // should never wait for the turn to finish.
-  const messageCount = messages.length;
   useEffect(() => {
     if (!open || !sessionId) return;
     let canceled = false;
@@ -860,9 +887,13 @@ export function SessionInfo({
             );
           })}
       </aside>
-      {capabilityDialog}
-      {memoryDialog}
-      {promptOpen && sessionId ? <SystemPromptDialog sessionId={sessionId} onClose={() => setPromptOpen(false)} /> : null}
+      {capabilityDialog ? <Suspense fallback={null}>{capabilityDialog}</Suspense> : null}
+      {memoryDialog ? <Suspense fallback={null}>{memoryDialog}</Suspense> : null}
+      {promptOpen && sessionId ? (
+        <Suspense fallback={null}>
+          <SystemPromptDialog sessionId={sessionId} onClose={() => setPromptOpen(false)} />
+        </Suspense>
+      ) : null}
       {mode === "docked" ? (
         <div
           className="mc-session-info-resize"

@@ -55,6 +55,21 @@
   overflow: hidden;
 }
 
+.mc-session-tabs-viewport.fade-left:not(.fade-right) {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 18px);
+  mask-image: linear-gradient(to right, transparent, #000 18px);
+}
+
+.mc-session-tabs-viewport.fade-right:not(.fade-left) {
+  -webkit-mask-image: linear-gradient(to left, transparent, #000 18px);
+  mask-image: linear-gradient(to left, transparent, #000 18px);
+}
+
+.mc-session-tabs-viewport.fade-left.fade-right {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 18px, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 18px, #000 calc(100% - 18px), transparent);
+}
+
 .mc-session-tabs {
   --mc-tab-min-width: 96px;
   display: flex;
@@ -125,9 +140,12 @@
   background: var(--ds-text-primary);
 }
 
-.mc-session-tab:focus-visible {
-  outline: 2px solid var(--ds-accent);
-  outline-offset: -2px;
+.mc-session-tab:focus,
+.mc-session-tab:focus-visible,
+.mc-project-tab:focus,
+.mc-project-tab:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .mc-session-tab-dot {
@@ -200,6 +218,9 @@
 }
 
 .mc-project-tab {
+  flex: 0 0 auto;
+  min-width: 120px;
+  max-width: 220px;
   border: 0;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   font-size: var(--text-xs);
@@ -214,6 +235,7 @@
 .mc-project-tab-count {
   color: var(--ds-text-muted);
   font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
 }
 
 .mc-tab-list-menu {

@@ -95,6 +95,7 @@
   padding: 0 16px 12px;
   color: var(--ds-text-muted);
   font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
 }
 
 .mc-usage-table {
@@ -274,6 +275,7 @@
   fill: var(--ds-text-primary);
   font-size: var(--text-md);
   font-weight: var(--font-weight-strong);
+  font-variant-numeric: tabular-nums;
 }
 
 .mc-usage-donut-label {

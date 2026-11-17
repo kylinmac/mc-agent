@@ -36,6 +36,7 @@ import {
   tabDropTarget,
   tabPage,
   type PageTab,
+  tabScrollFadeEdges,
   tabStripOverflows,
   tabWheelScrollDelta,
 } from "./tab-list";
@@ -114,6 +115,10 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
   const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
   useBlockingOverlay(contextMenu !== null);
   const [overflowing, setOverflowing] = useState(false);
+  const [scrollEdges, setScrollEdges] = useState<{ left: boolean; right: boolean }>({
+    left: false,
+    right: false,
+  });
 
   const byId = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
   const openProjectPaths = useAppStore((s) => s.openProjectPaths);
@@ -302,6 +307,12 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
     const strip = stripRef.current;
     const viewport = viewportRef.current;
     if (!strip || !viewport) return;
+    const syncEdges = () => {
+      const next = tabScrollFadeEdges(strip.scrollLeft, strip.clientWidth, strip.scrollWidth);
+      setScrollEdges((current) =>
+        current.left === next.left && current.right === next.right ? current : next,
+      );
+    };
     const measure = () => {
       const style = getComputedStyle(strip);
       const minimum = Number.parseFloat(style.getPropertyValue("--mc-tab-min-width"));
@@ -309,13 +320,20 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
       setGrouped(tabStripOverflows(tabs.length * minimum + Math.max(0, tabs.length - 1) * gap, viewport.clientWidth));
       setOverflowing(tabStripOverflows(strip.scrollWidth, strip.clientWidth));
       revealActiveTab();
+      syncEdges();
     };
     measure();
-    if (typeof ResizeObserver === "undefined") return;
+    strip.addEventListener("scroll", syncEdges, { passive: true });
+    if (typeof ResizeObserver === "undefined") {
+      return () => strip.removeEventListener("scroll", syncEdges);
+    }
     const observer = new ResizeObserver(measure);
     observer.observe(viewport);
     observer.observe(strip);
-    return () => observer.disconnect();
+    return () => {
+      strip.removeEventListener("scroll", syncEdges);
+      observer.disconnect();
+    };
   }, [tabs, grouped, groupSignature]);
 
   useEffect(revealActiveTab, [activeKey, grouped, groupSignature]);
@@ -455,7 +473,16 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
 
   return (
     <div className="mc-titlebar-tabs">
-      <div ref={viewportRef} className="mc-session-tabs-viewport">
+      <div
+        ref={viewportRef}
+        className={[
+          "mc-session-tabs-viewport",
+          scrollEdges.left && "fade-left",
+          scrollEdges.right && "fade-right",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         <div ref={stripRef} className="mc-session-tabs" role={grouped ? "toolbar" : "tablist"} aria-label={t("mcProject.sessionTabsLabel")}>
           {entries.map((entry, entryIndex) => {
             const stripId = groupedEntryId(entry);
@@ -472,7 +499,7 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
                 aria-haspopup="dialog" aria-expanded={menuId === entry.id}
                 aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight"
                 aria-label={t("mcProject.sessionTabsProject", { title: entry.title, count: entry.keys.length })}
-                title={entry.title}
+                title={`${entry.title} (${entry.keys.length})`}
                 onPointerDown={(event) => onStripPointerDown(event, stripId, null)}
                 onPointerMove={onStripPointerMove}
                 onPointerUp={(event) => onStripPointerEnd(event, true)}
@@ -480,6 +507,12 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
                 onClick={(event) => {
                   if (consumeSuppressedClick()) return;
                   openList(event, entry.id);
+                }}
+                onAuxClick={(event) => {
+                  if (event.button !== 1) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  closeMany(entry.keys);
                 }}
                 onContextMenu={(event) => openProjectGroupMenu(event, entry, entryIndex)}
                 onKeyDown={(event) => {
@@ -526,7 +559,9 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
                   if (!active) show(key);
                 }}
                 onAuxClick={(event) => {
-                  if (event.button === 1) close(key, event);
+                  if (event.button !== 1) return;
+                  event.preventDefault();
+                  close(key, event);
                 }}
                 onContextMenu={(event) => openTabMenu(event, key)}
                 onKeyDown={(event) => {

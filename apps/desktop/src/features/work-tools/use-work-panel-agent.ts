@@ -5,7 +5,6 @@ import { currentWorkPanelContext } from "../../stores/slices/work-panel-slice";
 import { isRemoteSession } from "../../lib/remote-session-safety";
 import { buildSubagentTranscript } from "../../lib/subagent-transcript";
 import { transcriptViewMessages } from "../../lib/transcript-reading";
-import { readTerminalScreen, restartExitedTerminal } from "./TerminalTab";
 
 export function useWorkPanelAgent() {
   useEffect(() => {
@@ -31,8 +30,13 @@ export function useWorkPanelAgent() {
       else {
         const tab = snapshot.tabs.find(item => item.id === request.tabId);
         if (!tab) throw new Error("Panel closed or not owned by this session");
-        if (request.action === "screen" && tab.kind === "terminal") result = readTerminalScreen(tab.id);
-        else if (request.action === "restart" && tab.kind === "terminal") result = await restartExitedTerminal(tab.id, request.termId ?? "");
+        if (tab.kind === "terminal" && (request.action === "screen" || request.action === "restart")) {
+          const { readTerminalScreen, restartExitedTerminal } = await import("./TerminalTab");
+          result =
+            request.action === "screen"
+              ? readTerminalScreen(tab.id)
+              : await restartExitedTerminal(tab.id, request.termId ?? "");
+        }
         else if (request.action === "transcript" && tab.kind === "subagent") {
           const messages = transcriptViewMessages(state.activeSessionId === request.sessionId ? state.messages : [], state.transcriptViews[request.sessionId], state.sessionHistory[request.sessionId]?.messageParents);
           const transcript = buildSubagentTranscript(messages, tab.resource ?? "");
