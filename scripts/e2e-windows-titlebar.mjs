@@ -20,7 +20,8 @@ import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import { catalogs, flattenCatalog } from "@pi-desktop/i18n";
 import { WindowsTitlebarActions } from "../../apps/desktop/src/features/app-rail/WindowsTitlebarActions";
-import { AppRail } from "../../apps/desktop/src/features/app-rail/AppRail";
+import { SidebarFooter } from "../../apps/desktop/src/features/app-rail/SidebarFooter";
+import { CollapsedTitlebarActions } from "../../apps/desktop/src/features/app/chrome";
 import { SearchDialog } from "../../apps/desktop/src/components/SearchDialog";
 import { ConversationTopbar } from "../../apps/desktop/src/components/ConversationTopbar";
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";
@@ -36,10 +37,11 @@ function Surface() {
  const page = useAppStore(s => s.page);
  return <div className={"app-shell" + (collapsed ? " sidebar-collapsed" : "")} style={{"--ds-sidebar-width":"280px"}}>
   <div className="app-chat-shell">
-   <AppRail />
-   {!collapsed && <aside className="sidebar sidebar-surface"><div className="sidebar-header"><button className="brand">mc-agent</button></div><div className="sidebar-body">会话列表</div></aside>}
-   <main className="main-pane"><ConversationTopbar sidebarCollapsed={collapsed} workPanelOpen={false}
-    onToggleSidebar={() => setCollapsed(!collapsed)} onNewTask={() => {}} onOpenSearch={() => setOpen(true)} />
+   {!collapsed && <aside className="sidebar sidebar-surface"><div className="sidebar-header"><button className="brand">mc-agent</button></div><div className="sidebar-body">会话列表</div><SidebarFooter /></aside>}
+   <main className="main-pane">{page === "chat"
+    ? <ConversationTopbar sidebarCollapsed={collapsed} workPanelOpen={false}
+       onToggleSidebar={() => setCollapsed(!collapsed)} onNewTask={() => {}} onOpenSearch={() => setOpen(true)} />
+    : <div className="main-titlebar">{collapsed && <div className="main-titlebar-left no-drag"><CollapsedTitlebarActions onToggleSidebar={() => setCollapsed(false)} onNewTask={() => {}} sidebarToggleShortcut="Ctrl+B" /></div>}</div>}
     <p style={{marginTop:80}}>独立测试窗口 · 当前页面：{page}</p>
    </main>
    <WindowsTitlebarActions collapsed={collapsed} onToggleSidebar={() => setCollapsed(!collapsed)} onOpenSearch={() => setOpen(true)} />
@@ -52,8 +54,8 @@ const frame = () => new Promise(requestAnimationFrame);
 const check = (ok, message) => { if (!ok) throw new Error(message); };
 window.titlebarProbe = async () => {
  await frame(); await frame();
- check(document.querySelector('[data-nav="rail-home"]'), "Rail missing: " + document.body.innerHTML);
- check(document.querySelector('[data-nav="rail-home"]').getBoundingClientRect().width > 0, "Home must remain visible");
+ check(document.querySelector('[data-nav="rail-home"]'), "SidebarFooter home missing: " + document.body.innerHTML);
+ check(document.querySelector('[data-nav="rail-home"]').getBoundingClientRect().width > 0, "SidebarFooter home must remain visible when expanded");
  check(document.querySelector('.sidebar-header .brand').getBoundingClientRect().width === 0, "Brand must be hidden");
  const results=[];
  for (const collapsed of [false,true]) {
@@ -61,18 +63,25 @@ window.titlebarProbe = async () => {
   await frame(); await frame();
   const search=document.querySelector('.mc-windows-titlebar-actions [data-nav="search"]');
   const rect=search.getBoundingClientRect();
-  const header=document.querySelector(collapsed ? '.conversation-topbar' : '.sidebar-header');
-  check(header.getBoundingClientRect().left >= rect.right, "Native drag band overlaps Search: " + JSON.stringify({collapsed,header:header.getBoundingClientRect().toJSON(),search:rect.toJSON()}));
+  const header=document.querySelector(collapsed ? '.main-titlebar' : '.sidebar-header');
+  const gap = header.getBoundingClientRect().left - rect.right;
+  check(gap >= 3.5, "Native drag band overlaps or crowds Search: " + JSON.stringify({collapsed,gap,header:header.getBoundingClientRect().toJSON(),search:rect.toJSON()}));
   flushSync(() => search.click());
   await frame(); await frame();
   check(document.querySelector('.search-dialog'), "Search did not open");
   document.querySelector('.search-dialog input').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
   await frame(); await frame();
   check(!document.querySelector('.search-dialog'), "Escape did not close Search");
-  results.push({collapsed,searchOpened:true,dragClear:true});
+  results.push({collapsed,searchOpened:true,dragClear:true,gap});
  }
- flushSync(() => document.querySelector('[data-nav="rail-home"]').click());
- check(useAppStore.getState().page === 'chat', "Home did not return to chat");
+ const collapsedHome = document.querySelector('[data-nav="collapsed-home"]');
+ check(collapsedHome && collapsedHome.getBoundingClientRect().width > 0, "Collapsed titlebar home must be visible on non-chat pages");
+ flushSync(() => collapsedHome.click());
+ await frame(); await frame();
+ check(useAppStore.getState().page === 'chat', "Collapsed home did not return to chat");
+ const chatTopbar = document.querySelector('.conversation-topbar');
+ const searchRect = document.querySelector('.mc-windows-titlebar-actions [data-nav="search"]').getBoundingClientRect();
+ check(chatTopbar.getBoundingClientRect().left - searchRect.right >= 3.5, "Collapsed ConversationTopbar crowds Search");
  return results;
 };
 `;

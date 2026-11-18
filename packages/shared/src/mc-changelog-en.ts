@@ -9,6 +9,18 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.83",
+    date: "2026-11-18",
+    features: [
+      "Added a cross-project attention list at the top of the sidebar that surfaces sessions awaiting approval or answers, running in the background, or recently completed, clearing unread badges automatically once viewed.",
+      "Diff views in conversations and the review panel now let you add line-by-line review notes with the '+' button and send or queue them together in a single batch from above the composer or the review header.",
+    ],
+    improvements: [
+      "Consolidated the leftmost vertical app rail into a compact dock at the bottom of the sidebar, with a titlebar home button to return to chat when the sidebar is collapsed on Settings, Plugins, or Scheduled Tasks.",
+      "Retired the standalone Creative Studio page and titlebar tab while keeping in-chat image generation and subscription account image model settings.",
+    ],
+  },
+  {
     version: "1.0.82",
     date: "2026-11-18",
     fixes: [

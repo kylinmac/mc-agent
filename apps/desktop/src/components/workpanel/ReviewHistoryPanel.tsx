@@ -10,6 +10,7 @@ import { Button, Select } from "../ui";
 import { ReviewHistoryFile } from "./ReviewHistoryFile";
 import { ReviewTurnOption } from "./ReviewTurnOption";
 import { ReviewHistoryToolbar } from "./ReviewHistoryToolbar";
+import { ReviewBatchBar } from "../../features/review-annotations/ReviewAnnotationWidgets";
 
 type Selection = { turnId?: string; snapshotId?: string; focusSeq?: number };
 
@@ -78,6 +79,7 @@ export function ReviewHistoryPanel({ sessionId }: { sessionId: string }) {
       deletions={files.reduce((sum, file) => sum + file.deletions, 0)} context={context} onContext={value => {
         rememberReviewContextLines(value); setContext(value);
       }} wrap={wrap} onWrap={() => setWrap(value => !value)} />
+    <ReviewBatchBar sessionId={sessionId} />
     {history && <div className="review-history-selector">
       <span className="review-history-label">{t("panel.review.historyTitle")}</span>
       <Select className="review-select review-history-round-select" value={selectedId || result.turnId || ""} aria-label={t("panel.review.historyTitle")}

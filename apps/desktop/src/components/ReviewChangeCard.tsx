@@ -1,5 +1,5 @@
 import { useChatSessionCapability } from "../hooks/use-chat-session-capability";
-import { memo, useEffect, useId, useState } from "react";
+import { memo, useEffect, useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type {
   ReviewChange,
@@ -9,12 +9,21 @@ import type {
   ReviewContextResult,
 } from "@pi-desktop/shared";
 import { api } from "../lib/api";
+import { sessionAllows } from "../lib/remote-session-safety";
 import { numberedReviewHunks, reviewFilePathLabel, reviewLineNumber } from "../lib/review-history";
 import { reviewChangeFromMessage } from "../lib/workspace-review";
+import { useSlotSessionId } from "../plugins/renderer-slots/use-slots";
 import { useAppStore } from "../stores/app-store";
 import { useCopy } from "./Markdown";
 import { cx } from "./ui";
-import { IconCheck, IconChevronRight, IconCopy, IconSnapshot } from "./icons";
+import { IconCheck, IconChevronRight, IconCopy, IconPlus, IconSnapshot } from "./icons";
+import {
+  annotationLineKey,
+  resolveAnnotationRootIdentity,
+  useSessionDiffAnnotations,
+  type DiffAnnotation,
+} from "../features/review-annotations/review-annotations";
+import { DiffLineAnnotationSlot } from "../features/review-annotations/ReviewAnnotationWidgets";
 
 /* Git-status letters carry the status without relying on color alone; the
    localized word stays in the row's accessible name. */
@@ -37,16 +46,42 @@ export function reviewDiffText(change: Pick<ReviewChange, "hunks">): string {
     .join("\n");
 }
 
-export function ReviewChangeDetails({ message, compact = false, contextLines = 3, sessionId, onChanged, numbered = false, actions = true }: {
+export function ReviewChangeDetails({ message, compact = false, contextLines = 3, sessionId, annotationSessionId, root, onChanged, numbered = false, actions = true, annotatable = true }: {
   message: UiMessage; compact?: boolean; contextLines?: ReviewContextLines;
-  sessionId?: string; onChanged?: () => void; numbered?: boolean; actions?: boolean;
+  /** Passed ONLY by `ReviewHistoryPanel` to load expanded diff context from `host-core`. */
+  sessionId?: string;
+  /** Owning session for inline diff annotations when `sessionId` is omitted (e.g. `LegacyReviewTab`). */
+  annotationSessionId?: string;
+  root?: string; onChanged?: () => void; numbered?: boolean; actions?: boolean; annotatable?: boolean;
 }) {
   const { t } = useTranslation();
   const change = reviewChangeFromMessage(message);
   const localToolsAllowed = useChatSessionCapability("canUseLocalTools");
+  const slotSessionId = useSlotSessionId();
+  const activeSessionId = useAppStore((state) => state.activeSessionId);
   const rollback = useAppStore((state) => state.rollbackWorkspaceChange);
   const { copied, copy } = useCopy();
   const [rollingBack, setRollingBack] = useState(false);
+  const [editingLineKey, setEditingLineKey] = useState<string | null>(null);
+  const targetSessionId = annotationSessionId || sessionId || slotSessionId || activeSessionId;
+  const targetCanAnnotate = useAppStore((state) => {
+    const id = targetSessionId;
+    if (!id || id.startsWith("remote:")) return false;
+    const session = state.sessions.find((item) => item.id === id);
+    return sessionAllows(session, "canUseLocalTools") && sessionAllows(session, "canPrompt");
+  });
+  const canAnnotateCard = Boolean(annotatable && targetSessionId && targetCanAnnotate);
+  const sessionAnnotations = useSessionDiffAnnotations(canAnnotateCard ? targetSessionId : null);
+  const annotationsByLineKey = useMemo(() => {
+    if (!change || sessionAnnotations.length === 0) return null;
+    const map = new Map<string, DiffAnnotation>();
+    for (const item of sessionAnnotations) {
+      if (item.snapshotId === change.snapshotId) {
+        map.set(item.lineKey, item);
+      }
+    }
+    return map.size > 0 ? map : null;
+  }, [sessionAnnotations, change?.snapshotId]);
 
   const [expanded, setExpanded] = useState<{ key: string; result?: ReviewContextResult; error?: boolean } | null>(null);
   const contextKey = `${sessionId}:${change?.snapshotId}:${contextLines}`;
@@ -66,6 +101,8 @@ export function ReviewChangeDetails({ message, compact = false, contextLines = 3
     ? { ...change, hunks: contextResult.result.hunks, truncated: false } : change;
   const hunks = numberedReviewHunks(displayChange.hunks);
   const diffText = reviewDiffText(displayChange);
+  const resolvedRoot = root ?? change.root;
+  const rootIdentity = resolveAnnotationRootIdentity(resolvedRoot, message.parentToolCallId);
 
   const runRollback = async () => {
     if (!localToolsAllowed || !change.reversible || change.state === "rolledBack" || rollingBack) return;
@@ -93,18 +130,56 @@ export function ReviewChangeDetails({ message, compact = false, contextLines = 3
               <div className="diff-line hunk">
                 <span className="diff-line-text">{hunk.header}</span>
               </div>
-              {hunk.lines.map((line, lineIndex) => (
-                <div className={cx("diff-line", line.type)} key={lineIndex}>
-                  {numbered && <span className="review-line-number" data-side={line.type === "del" ? "old" : "new"}
-                    aria-label={reviewLineNumber(line) === null ? undefined : t(line.type === "del" ? "panel.review.oldLine" : "panel.review.newLine", { line: reviewLineNumber(line) })}>
-                    {reviewLineNumber(line)}
-                  </span>}
-                  {!numbered && <span className="diff-line-sign" aria-hidden>
-                    {line.type === "add" ? "+" : line.type === "del" ? "−" : " "}
-                  </span>}
-                  <span className="diff-line-text">{line.text}</span>
-                </div>
-              ))}
+              {hunk.lines.map((line, lineIndex) => {
+                const side = line.type === "del" ? "old" : "new";
+                const lineNum = reviewLineNumber(line);
+                const lKey = annotationLineKey(change.snapshotId, side, lineNum, hunkIndex, lineIndex);
+                const existingNote = annotationsByLineKey?.get(lKey);
+                const isEditingLine = editingLineKey === lKey;
+                return (
+                  <div className="mc-diff-line-wrap" key={lineIndex}>
+                    <div className={cx("diff-line", line.type)}>
+                      {numbered && <span className="review-line-number" data-side={side}
+                        aria-label={lineNum === null ? undefined : t(side === "old" ? "panel.review.oldLine" : "panel.review.newLine", { line: lineNum })}>
+                        {lineNum}
+                      </span>}
+                      {!numbered && <span className="diff-line-sign" aria-hidden>
+                        {line.type === "add" ? "+" : line.type === "del" ? "−" : " "}
+                      </span>}
+                      <span className="diff-line-text">{line.text}</span>
+                      {canAnnotateCard ? (
+                        <button
+                          type="button"
+                          className="mc-diff-annotate-btn"
+                          aria-label={t("mcProject.diffAnnotateAdd", { line: lineNum ?? lineIndex + 1 })}
+                          title={t("mcProject.diffAnnotateAdd", { line: lineNum ?? lineIndex + 1 })}
+                          onClick={() => setEditingLineKey((current) => (current === lKey ? null : lKey))}
+                        >
+                          <IconPlus size={11} aria-hidden />
+                        </button>
+                      ) : null}
+                    </div>
+                    {canAnnotateCard && targetSessionId && (isEditingLine || Boolean(existingNote)) ? (
+                      <DiffLineAnnotationSlot
+                        sessionId={targetSessionId}
+                        snapshotId={change.snapshotId}
+                        path={change.path}
+                        root={resolvedRoot}
+                        rootIdentity={rootIdentity}
+                        lineKey={lKey}
+                        side={side}
+                        lineNumber={lineNum}
+                        lineType={line.type}
+                        code={line.text}
+                        noteItem={existingNote}
+                        editing={isEditingLine}
+                        onStartEdit={() => setEditingLineKey(lKey)}
+                        onCloseEdit={() => setEditingLineKey(null)}
+                      />
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>
@@ -152,14 +227,20 @@ export function ReviewChangeDetails({ message, compact = false, contextLines = 3
 
 export const ReviewChangeCard = memo(function ReviewChangeCard({
   message,
+  annotationSessionId,
   compact = false,
   asToolRow = false,
+  annotatable = true,
   openRequest,
 }: {
   message: UiMessage;
+  /** Session owning annotations when rendered outside `SlotSessionProvider` (without triggering `workspaceReviewContext`). */
+  annotationSessionId?: string;
   compact?: boolean;
   /** The card is the tool-level row: one file header and its diff body. */
   asToolRow?: boolean;
+  /** Disable inline diff annotations on read-only surfaces such as subagent transcripts. */
+  annotatable?: boolean;
   /** Each new value expands the diff once; the user can collapse it again. */
   openRequest?: number;
 }) {
@@ -235,7 +316,12 @@ export const ReviewChangeCard = memo(function ReviewChangeCard({
       </button>
       {open ? (
         <div className="review-change-card-body" id={detailsId}>
-          <ReviewChangeDetails message={message} compact={compact} />
+          <ReviewChangeDetails
+            message={message}
+            annotationSessionId={annotationSessionId}
+            compact={compact}
+            annotatable={annotatable}
+          />
         </div>
       ) : null}
     </section>

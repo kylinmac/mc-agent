@@ -11,7 +11,11 @@ import { api } from "../../lib/api";
   the new version. A failed download turns it into a retry. It stays until
   the update is installed: there is no popup to dismiss it with.
 */
-export function UpdateRailButton() {
+export function UpdateRailButton({
+  tooltipSide,
+}: {
+  tooltipSide?: "right";
+} = {}) {
   const { t } = useTranslation();
   const update = useUpdateState();
   const version = update?.availableVersion;
@@ -34,7 +38,7 @@ export function UpdateRailButton() {
   return (
     <TooltipButton
       type="button"
-      tooltipSide="right"
+      tooltipSide={tooltipSide}
       className={cx("app-rail-update", `is-${status}`)}
       data-nav="update"
       tooltip={tooltip}

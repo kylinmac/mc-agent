@@ -158,6 +158,7 @@ function SubagentTranscriptSurface({ delegationId }: { delegationId: string }) {
                           key={row.message.id}
                           message={row.message}
                           asToolRow
+                          annotatable={false}
                         />
                       ) : (
                         <ToolRow key={row.message.id} message={row.message} />

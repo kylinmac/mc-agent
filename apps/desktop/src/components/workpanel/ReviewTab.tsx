@@ -6,6 +6,7 @@ import { reviewChangesFromMessages, summarizeReviewChanges } from "../../lib/wor
 import { useAppStore } from "../../stores/app-store";
 import { IconDiff } from "../icons";
 import { ReviewChangeCard } from "../ReviewChangeCard";
+import { ReviewBatchBar } from "../../features/review-annotations/ReviewAnnotationWidgets";
 import { WorkTabEmpty } from "./WorkTabEmpty";
 
 /* Module-level like the Files tab's request dedup: a remounted tab must not
@@ -30,6 +31,7 @@ export function ReviewTab() {
 
 function LegacyReviewTab() {
   const { t } = useTranslation();
+  const activeSessionId = useAppStore((state) => state.activeSessionId);
   const messages = useAppStore((state) => state.messages);
   const entries = useMemo(() => reviewChangesFromMessages(messages), [messages]);
   const summary = useMemo(() => summarizeReviewChanges(entries), [entries]);
@@ -78,11 +80,13 @@ function LegacyReviewTab() {
           <span className="diff-count-del">−{summary.deletions}</span>
         </span>
       </div>
+      <ReviewBatchBar sessionId={activeSessionId} />
       <div className="review-scroll" ref={scrollRef}>
         {entries.map((entry) => (
           <ReviewChangeCard
             key={entry.change.snapshotId}
             message={entry.message}
+            annotationSessionId={activeSessionId ?? undefined}
             compact
             openRequest={
               focus?.expand && focus.snapshotIds.has(entry.change.snapshotId)

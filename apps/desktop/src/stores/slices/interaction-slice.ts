@@ -66,12 +66,16 @@ export function createInteractionSlice({
 
     setPage: (page, opts) => {
       runtime.beginNavigationIntent();
+      const nextPage: AppState["page"] =
+        page === "scheduled" || page === "plugins" || page === "settings"
+          ? page
+          : "chat";
       const record = opts?.record !== false;
       set((state) => {
-        if (!record) return { page };
+        if (!record) return { page: nextPage };
         const entry = {
-          page,
-          sessionId: page === "chat" ? state.activeSessionId : undefined,
+          page: nextPage,
+          sessionId: nextPage === "chat" ? state.activeSessionId : undefined,
         };
         const stack = state.navStack.slice(0, state.navIndex + 1);
         const last = stack[stack.length - 1];
@@ -79,7 +83,7 @@ export function createInteractionSlice({
           last?.page === entry.page && last?.sessionId === entry.sessionId;
         const nextStack = same ? stack : [...stack, entry].slice(-50);
         return {
-          page,
+          page: nextPage,
           navStack: nextStack,
           navIndex: nextStack.length - 1,
         };

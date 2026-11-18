@@ -4795,5 +4795,105 @@
     "en": "Please handle the canvas comment attached here.",
     "zh-CN": "请处理附带的这条画布评论。",
     "zh-TW": "請處理附加的這則畫布評論。"
+  },
+  "attentionFeedTitle": {
+    "en": "Attention",
+    "zh-CN": "待处理与动态",
+    "zh-TW": "待處理與動態"
+  },
+  "attentionNeedsAction": {
+    "en": "Needs input",
+    "zh-CN": "待拍板",
+    "zh-TW": "待拍板"
+  },
+  "attentionRunning": {
+    "en": "Running",
+    "zh-CN": "运行中",
+    "zh-TW": "執行中"
+  },
+  "attentionCompleted": {
+    "en": "Just finished",
+    "zh-CN": "刚完成",
+    "zh-TW": "剛完成"
+  },
+  "attentionClearUnread": {
+    "en": "Mark read",
+    "zh-CN": "标为已读",
+    "zh-TW": "標為已讀"
+  },
+  "diffAnnotateAdd": {
+    "en": "Comment on line {{line}}",
+    "zh-CN": "在第 {{line}} 行添加批注",
+    "zh-TW": "在第 {{line}} 行新增批註"
+  },
+  "diffAnnotatePlaceholder": {
+    "en": "Describe what to change on this line… ({{shortcut}} to save)",
+    "zh-CN": "写下这行的修改意见…（{{shortcut}} 保存）",
+    "zh-TW": "寫下這行的修改意見…（{{shortcut}} 儲存）"
+  },
+  "diffAnnotateSave": {
+    "en": "Save note",
+    "zh-CN": "保存批注",
+    "zh-TW": "儲存批註"
+  },
+  "diffAnnotateCancel": {
+    "en": "Cancel",
+    "zh-CN": "取消",
+    "zh-TW": "取消"
+  },
+  "diffAnnotateEdit": {
+    "en": "Edit",
+    "zh-CN": "编辑",
+    "zh-TW": "編輯"
+  },
+  "diffAnnotateDelete": {
+    "en": "Remove",
+    "zh-CN": "删除",
+    "zh-TW": "刪除"
+  },
+  "diffAnnotateBatchCount": {
+    "en": "{{count}} review notes",
+    "zh-CN": "待发批注 {{count}} 条",
+    "zh-TW": "待發批註 {{count}} 則"
+  },
+  "diffAnnotateSendBatch": {
+    "en": "Send to agent",
+    "zh-CN": "汇总发给助手",
+    "zh-TW": "彙整發給助手"
+  },
+  "diffAnnotateQueueBatch": {
+    "en": "Queue for agent",
+    "zh-CN": "排队发给助手",
+    "zh-TW": "排隊發給助手"
+  },
+  "diffAnnotateClearAll": {
+    "en": "Clear",
+    "zh-CN": "清空",
+    "zh-TW": "清空"
+  },
+  "diffAnnotateSentToast": {
+    "en": "Sent {{count}} diff review notes to the conversation",
+    "zh-CN": "已将 {{count}} 条代码批注汇总发回对话",
+    "zh-TW": "已將 {{count}} 則程式碼批註彙整發回對話"
+  },
+  "diffAnnotatePromptIntro": {
+    "en": "Please address the following inline diff review comments:",
+    "zh-CN": "请按以下逐行代码审查批注一并修改：",
+    "zh-TW": "請按以下逐行程式碼審查批註一併修改："
+  },
+  "diffAnnotateAwaitPlan": {
+    "en": "Approve or reject the pending plan first",
+    "zh-CN": "请先审批当前计划",
+    "zh-TW": "請先審批目前計畫"
+  },
+  "attentionShowMore": {
+    "en": "Show {{count}} more",
+    "zh-CN": "展开其余 {{count}} 项",
+    "zh-TW": "展開其餘 {{count}} 項"
+  },
+  "attentionShowLess": {
+    "en": "Show less",
+    "zh-CN": "收起",
+    "zh-TW": "收起"
   }
 }

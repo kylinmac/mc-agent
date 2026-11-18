@@ -2,7 +2,8 @@ import { Component, type ErrorInfo, type ReactNode } from "react";
 import i18n from "i18next";
 import { useTranslation } from "react-i18next";
 import { TooltipButton } from "../../components/ui";
-import { IconNewSession, IconSidebar } from "../../components/icons";
+import { IconHome, IconNewSession, IconSidebar } from "../../components/icons";
+import { useAppStore } from "../../stores/app-store";
 
 export class ErrorBoundary extends Component<
   { children: ReactNode },
@@ -42,6 +43,8 @@ export function CollapsedTitlebarActions({
   sidebarToggleShortcut: string;
 }) {
   const { t } = useTranslation();
+  const page = useAppStore((s) => s.page);
+  const setPage = useAppStore((s) => s.setPage);
   const toggleLabel = t("nav.expandSidebar");
   return (
     <div className="titlebar-nav no-drag">
@@ -59,6 +62,17 @@ export function CollapsedTitlebarActions({
       >
         <IconSidebar size={15} />
       </TooltipButton>
+      {page !== "chat" ? (
+        <TooltipButton
+          className="title-nav-btn"
+          tooltip={t("mcProject.appRailHome")}
+          ariaLabel={t("mcProject.appRailHome")}
+          data-nav="collapsed-home"
+          onClick={() => setPage("chat")}
+        >
+          <IconHome size={15} />
+        </TooltipButton>
+      ) : null}
       <TooltipButton
         className="title-nav-btn"
         tooltip={t("nav.newTask")}

@@ -41,7 +41,7 @@ export function ReviewHistoryFile({ file, sessionId, context, focusSeq, focusSna
     <ContextMenu state={menu.contextMenu} onClose={menu.closeContextMenu} />
     {open && <div className="review-history-file-body" id={detailsId}>
       {file.entries.map(entry => <div className="review-history-record" key={entry.change.snapshotId} data-snapshot-id={entry.change.snapshotId}>
-        <ReviewChangeDetails message={entry.message} compact numbered actions={false} sessionId={sessionId} contextLines={context} />
+        <ReviewChangeDetails message={entry.message} compact numbered actions={false} sessionId={sessionId} root={file.root} contextLines={context} />
       </div>)}
       <ReviewFileActions file={file} sessionId={sessionId} context={context} disabled={disabled} onChanged={onChanged} />
     </div>}

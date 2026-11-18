@@ -50,20 +50,6 @@ export function ProjectWorkbench({
   const [listing, setListing] = useState<ResourceListing | null>(null);
   // Bumped by the template editor so the organize panel reloads templates.
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
-  // Creative use is its own mark, independent of having a resource folder.
-  const [creative, setCreative] = useState(false);
-  useEffect(() => {
-    let canceled = false;
-    void api.creative.call("creative.purposes").then(
-      ({ purposes }) => {
-        if (!canceled) setCreative(purposes[project.groupId] === "creative");
-      },
-      () => undefined,
-    );
-    return () => {
-      canceled = true;
-    };
-  }, [project.groupId]);
   const [startFolder, setStartFolder] = useState(() =>
     chooseStartFolder(project.roots, project.path, rememberedStartFolder(project.groupId)),
   );
@@ -188,14 +174,6 @@ export function ProjectWorkbench({
           onOpenResource={openResource}
           onError={onError}
         />
-      ) : null}
-      {creative ? (
-        <div className="mc-workbench-row">
-          <span className="mc-workbench-label">{t("mcProject.purposeLabel")}</span>
-          <span className="mc-workbench-tag is-creative" title={t("mcProject.purposeCreativeHint")}>
-            {t("mcProject.purposeCreative")}
-          </span>
-        </div>
       ) : null}
       <div className="mc-workbench-row">
         <span className="mc-workbench-label">{t("mcProject.resourcesTitle")}</span>

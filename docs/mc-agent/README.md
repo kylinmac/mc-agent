@@ -31,7 +31,7 @@
 | [压缩后的上下文恢复](compaction-context-restore.md) | R21：有界历史回查、小预算文件片段恢复、摘要请求测量（均已实现）；缓存复用试验待测量数据；V60–V62 |
 | [标签菜单与图片预览](requirements.md#r22-标签菜单与输入框图片预览2026-10-31-已确认) | R22：顶部标签常用操作、输入框直接预览图片；P8；V63–V64 |
 | [Fast 速度开关](requirements.md#r24-fast-速度开关2026-10-31-已确认) | R24：模型名称左侧闪电、按供应商和模型保存、兼容请求接线；P8；V67 |
-| [创作工作台方案](creative-studio.md) | 生图、生视频的入口、布局和分期（一期已实现） |
+| [创作工作台方案](creative-studio.md) | 历史方案（独立工作台界面已由 [MC-ADR-0029](adr/mc-0029-zen-shell-and-orca-loop.md) / R35 下线；普通对话 `GenerateImages`、订阅账号生图模型配置与 `mc_creative_*` 后端保留） |
 | [原型画布方案](prototype-canvas.md) | R18 原型画布：Agent 在会话工作面板里画 HTML 原型，人看、试交互、评论与 @Agent，视图上下文（A 档已实现）；B 档原型跳转与导出、C 档所见即所得编辑（待评审） |
 | [macOS 权限归属与授权体验](macos-permissions.md) | 权限调用进程、签名身份、分步授权、复检；2026-10-22 已实施，结果见第 9 节 |
 | [电脑操作方案](computer-use.md) | 内置 Computer Use 插件：macOS 与 Windows 后端、权限及验证边界 |
@@ -41,6 +41,7 @@
  | [问题记录](bugs.md) | 开发阶段缺陷，编号 B，不占用 R / X |
 | [MC-ADR-0005](adr/mc-0005-work-panel-terminal-and-tools.md) | 工作面板终端与工具栏 |
 | [MC-ADR-0006](adr/mc-0006-background-commands.md) | 后台命令与后台任务面板 |
+| [MC-ADR-0029](adr/mc-0029-zen-shell-and-orca-loop.md) | 极简两列外壳、创作工作台下线与并行审查闭环 |
 | [MC-ADR-0028](adr/mc-0028-background-compaction.md) | 后台预生成压缩摘要 |
 | [MC-ADR-0022](adr/mc-0022-forked-subagents.md) | 继承对话上下文的子代理（fork） |
 | [MC-ADR-0021](adr/mc-0021-user-hooks.md) | 用户钩子 |
@@ -54,11 +55,11 @@
 | [MC-ADR-0011](adr/mc-0011-usage-statistics.md) | 用量统计 |
 | [MC-ADR-0012](adr/mc-0012-releases-and-updates.md) | 发布到 GitHub Releases 与更新提醒 |
 | [MC-ADR-0017](adr/mc-0017-post-update-whats-new.md) | 更新后的“更新内容”与版本更新说明 |
-| [MC-ADR-0013](adr/mc-0013-creative-studio.md) | 创作工作台（一期：图片） |
+| [MC-ADR-0013](adr/mc-0013-creative-studio.md) | 创作工作台（一期：图片；独立界面已由 [MC-ADR-0029](adr/mc-0029-zen-shell-and-orca-loop.md) 下线，后端与生图能力保留） |
 | [MC-ADR-0024](adr/mc-0024-prototype-canvas.md) | 原型画布（A 档） |
 | [MC-ADR-0014](adr/mc-0014-computer-use.md) | 电脑操作（Computer Use）内置插件 |
 | [MC-ADR-0015](adr/mc-0015-macos-permissions.md) | macOS 系统权限页与授权归属 |
-| [MC-ADR-0004](adr/mc-0004-app-rail-and-title-tabs.md) | 左侧竖栏、顶部标签栏与设置标签 |
+| [MC-ADR-0004](adr/mc-0004-app-rail-and-title-tabs.md) | 左侧竖栏、顶部标签栏与设置标签（第 1–2 条已由 [MC-ADR-0029](adr/mc-0029-zen-shell-and-orca-loop.md) 修订为两列外壳与侧栏底部 `SidebarFooter`） |
 | [MC-ADR-0003](adr/mc-0003-equal-workspaces-and-project-home.md) | 多工作区平等与项目资料目录 |
 | [MC-ADR-0002](adr/mc-0002-fork-pi-desktop.md) | 当前 Fork 架构决定 |
 | [MC-ADR-0001](adr/mc-0001-chatgpt-architecture-pi-kernel.md) | 已被替代的历史方案 |

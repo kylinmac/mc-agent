@@ -31,10 +31,11 @@ test("the sidebar footer is an action bar, not a fabricated identity", () => {
   }
 });
 
-// mc-agent: the app-level destinations moved from the sidebar footer to the
-// app rail at the window's left edge (features/app-rail/AppRail.tsx).
-const railSource = await readFile(
-  new URL("../src/features/app-rail/AppRail.tsx", import.meta.url),
+// mc-agent (MC-ADR-0029): app-level destinations consolidated from the
+// standalone leftmost AppRail into SidebarFooter (`features/app-rail/SidebarFooter.tsx`),
+// and the Creative Studio entry is retired (R35).
+const footerSource = await readFile(
+  new URL("../src/features/app-rail/SidebarFooter.tsx", import.meta.url),
   "utf8",
 );
 const tabsSource = await readFile(
@@ -42,47 +43,42 @@ const tabsSource = await readFile(
   "utf8",
 );
 
-test("app rail exposes plugins, scheduled tasks and settings; notifications sit in the title bar", () => {
-  assert.doesNotMatch(sidebarSource, /className="footer-actions"/);
-  assert.match(railSource, /className="footer-actions app-rail-actions no-drag"/);
-  assert.match(railSource, /data-nav="settings"/);
-  assert.match(railSource, /data-nav="plugins"/);
-  const pluginsAction = railSource.match(
+test("sidebar footer dock exposes home, plugins, scheduled tasks and settings without creative; notifications sit in the title bar", () => {
+  assert.match(sidebarSource, /<SidebarFooter \/>/);
+  assert.match(footerSource, /className="mc-sidebar-footer no-drag"/);
+  assert.match(footerSource, /data-nav="settings"/);
+  assert.match(footerSource, /data-nav="plugins"/);
+  assert.doesNotMatch(footerSource, /data-nav="creative"/);
+  const pluginsAction = footerSource.match(
     /<TooltipButton[\s\S]*?data-nav="plugins"[\s\S]*?<\/TooltipButton>/,
   )?.[0] ?? "";
-  assert.match(pluginsAction, /<IconPlug size=\{16\} aria-hidden \/>/);
-  assert.doesNotMatch(railSource, /data-nav="theme"/);
-  assert.doesNotMatch(railSource, /<NotificationCenter/);
+  assert.match(pluginsAction, /<IconPlug size=\{15\} aria-hidden \/>/);
+  assert.doesNotMatch(footerSource, /data-nav="theme"/);
+  assert.doesNotMatch(footerSource, /<NotificationCenter/);
   assert.match(tabsSource, /<NotificationCenter \/>/);
-  // Logs live in Settings → About; the rail stays down to daily controls.
-  assert.doesNotMatch(railSource, /openLogs/);
-  // Every action is icon-only, so each needs a label for pointer and AT users.
-  const actions = railSource
+  assert.doesNotMatch(footerSource, /openLogs/);
+  const actions = footerSource
     .split("<TooltipButton")
     .filter((chunk) => /className=(?:"footer-action"|\{`footer-action )/.test(chunk));
-  // mc-agent: home, plugins, scheduled, creative and settings, plus the
-  // template for plugin views in the extension slot (MC-ADR-0005,
-  // docs/mc-agent/creative-studio.md).
-  assert.equal(actions.length, 6);
-  assert.match(railSource, /data-nav=\{`rail-view:\$\{view\.ref\}`\}/);
+  // home, plugins, scheduled, settings, plus plugin view slot template (5 total).
+  assert.equal(actions.length, 5);
+  assert.match(footerSource, /data-nav=\{`rail-view:\$\{view\.ref\}`\}/);
   for (const action of actions) {
     const attrs = action.slice(0, action.indexOf(">"));
     assert.match(attrs, /tooltip=/);
     assert.match(attrs, /ariaLabel=/);
   }
-  // All destinations report their active state to assistive tech; the
-  // Plugins button also reports the Back toggle a second activation performs.
-  const railAttributes = (marker) => {
-    const at = railSource.indexOf(marker);
+  const footerAttributes = (marker) => {
+    const at = footerSource.indexOf(marker);
     if (at < 0) return "";
-    return railSource.slice(
-      railSource.lastIndexOf("<TooltipButton", at),
-      railSource.indexOf("</TooltipButton>", at),
+    return footerSource.slice(
+      footerSource.lastIndexOf("<TooltipButton", at),
+      footerSource.indexOf("</TooltipButton>", at),
     );
   };
-  assert.match(railAttributes('data-nav="settings"'), /aria-pressed=\{page === "settings"\}/);
-  assert.match(railAttributes('data-nav="plugins"'), /aria-pressed=\{page === "plugins"\}/);
-  assert.match(railAttributes('data-nav="scheduled"'), /aria-pressed=\{page === "scheduled"\}/);
+  assert.match(footerAttributes('data-nav="settings"'), /aria-pressed=\{page === "settings"\}/);
+  assert.match(footerAttributes('data-nav="plugins"'), /aria-pressed=\{page === "plugins"\}/);
+  assert.match(footerAttributes('data-nav="scheduled"'), /aria-pressed=\{page === "scheduled"\}/);
 });
 
 test("footer sits on the sidebar content grid without a hairline", () => {

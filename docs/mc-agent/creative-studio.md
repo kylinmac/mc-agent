@@ -1,6 +1,6 @@
 # 创作工作台方案（生图，后续生视频）
 
-**状态：** 一期已实现，见 [MC-ADR-0013](adr/mc-0013-creative-studio.md)
+**状态：** 独立工作台界面已由 [MC-ADR-0029](adr/mc-0029-zen-shell-and-orca-loop.md)（R35）下线；普通对话 `GenerateImages`、设置页订阅账号生图模型配置及 `host-core` 的 `mc_creative_*` 表／RPC 继续保留（历史决策见 [MC-ADR-0013](adr/mc-0013-creative-studio.md)）
 **日期：** 2026-10-20
 
 ## 目标
