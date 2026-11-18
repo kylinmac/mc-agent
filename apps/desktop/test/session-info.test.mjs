@@ -11,7 +11,8 @@ import {
   PANEL_MAX_WIDTH,
   PANEL_MIN_WIDTH,
   reorderSections,
-  SECTION_IDS, conversationOffset, DOCK_GAP } from "../src/features/session-info/session-info-model.ts";
+  SECTION_IDS, conversationOffset, DOCK_GAP, hasSessionConversationStarted,
+  readOpenMap, readPrefs, subscribeSessionInfoOpen, toggleSessionInfoOpenForSession } from "../src/features/session-info/session-info-model.ts";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 const [card, shell, ipc] = await Promise.all([
@@ -119,4 +120,99 @@ test("before an estimate arrives every row is still listed, with unknown values"
   assert.ok(PENDING_BREAKDOWN_ROWS.every((row) => Number.isNaN(row.tokens) && Number.isNaN(row.percent)));
   assert.match(card, /messageCount, isRunning\]/);
   assert.doesNotMatch(card, /settledMessages/);
+});
+
+test("newly created empty sessions hide session info until a conversation starts", () => {
+  // Brand-new session before any message is sent: completely hidden.
+  assert.equal(
+    hasSessionConversationStarted({
+      sessionId: "new-empty",
+      isRunning: false,
+      hasTranscriptMessages: false,
+      transcriptLoaded: true,
+      summaryMessageCount: 0,
+    }),
+    false,
+  );
+  assert.equal(
+    hasSessionConversationStarted({
+      sessionId: null,
+      isRunning: false,
+      hasTranscriptMessages: false,
+      transcriptLoaded: false,
+    }),
+    false,
+  );
+  // Sending the first prompt (optimistic user row or running turn) reveals it immediately.
+  assert.equal(
+    hasSessionConversationStarted({
+      sessionId: "new-empty",
+      isRunning: true,
+      hasTranscriptMessages: false,
+      transcriptLoaded: true,
+      summaryMessageCount: 0,
+    }),
+    true,
+  );
+  assert.equal(
+    hasSessionConversationStarted({
+      sessionId: "new-empty",
+      isRunning: false,
+      hasTranscriptMessages: true,
+      transcriptLoaded: true,
+      summaryMessageCount: 0,
+    }),
+    true,
+  );
+  // Unhydrated split-column session with persisted messages stays visible; once hydrated
+  // and emptied (e.g. last message deleted), in-memory empty transcript wins.
+  assert.equal(
+    hasSessionConversationStarted({
+      sessionId: "existing-col",
+      isRunning: false,
+      hasTranscriptMessages: false,
+      transcriptLoaded: false,
+      summaryMessageCount: 4,
+    }),
+    true,
+  );
+  assert.equal(
+    hasSessionConversationStarted({
+      sessionId: "emptied",
+      isRunning: false,
+      hasTranscriptMessages: false,
+      transcriptLoaded: true,
+      summaryMessageCount: 2,
+    }),
+    false,
+  );
+});
+
+test("toggleSessionInfoOpenForSession flips per-session state, updates default prefs, and notifies subscribers", () => {
+  const prevStorage = globalThis.localStorage;
+  const store = new Map();
+  globalThis.localStorage = {
+    getItem: (key) => (store.has(key) ? store.get(key) : null),
+    setItem: (key, value) => store.set(key, String(value)),
+  };
+  let notifications = 0;
+  const unsubscribe = subscribeSessionInfoOpen(() => {
+    notifications += 1;
+  });
+  try {
+    assert.equal(readPrefs().open, false);
+    assert.equal(toggleSessionInfoOpenForSession("s-alpha"), true);
+    assert.equal(readOpenMap()["s-alpha"], true);
+    assert.equal(readPrefs().open, true);
+    assert.equal(notifications, 1);
+
+    assert.equal(toggleSessionInfoOpenForSession("s-alpha"), false);
+    assert.equal(readOpenMap()["s-alpha"], false);
+    assert.equal(readPrefs().open, false);
+    assert.equal(notifications, 2);
+  } finally {
+    unsubscribe();
+    if (prevStorage === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = prevStorage;
+  }
 });

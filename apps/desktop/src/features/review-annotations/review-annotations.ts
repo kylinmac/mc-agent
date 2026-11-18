@@ -6,6 +6,7 @@ import {
   isReviewFileViewed,
   pruneAnnotationsForExistingSessions,
   pruneSentAnnotations,
+  resolveDiffShiftRangeTarget,
   removeAnnotationItem,
   restoreSentAnnotations,
   reviewFileSignature,
@@ -13,6 +14,7 @@ import {
   upsertAnnotationItem,
   type BatchAnnotationSendResult,
   type DiffAnnotation,
+  type SentAnnotationSnapshot,
 } from "./review-annotations-model";
 
 export {
@@ -23,12 +25,14 @@ export {
   isReviewFileViewed,
   pruneAnnotationsForExistingSessions,
   pruneSentAnnotations,
+  resolveDiffShiftRangeTarget,
   resolveAnnotationRootIdentity,
   restoreSentAnnotations,
   reviewFileSignature,
   toggleReviewFileViewedMap,
   type BatchAnnotationSendResult,
   type DiffAnnotation,
+  type SentAnnotationSnapshot,
 } from "./review-annotations-model";
 
 const REVIEWED_STORAGE_KEY = "mc.reviewedFiles";
@@ -74,7 +78,7 @@ type ReviewAnnotationsState = {
   remove: (sessionId: string, id: string) => void;
   pruneSent: (
     sessionId: string,
-    sentBatch: readonly Pick<DiffAnnotation, "id" | "lineKey" | "note">[],
+    sentBatch: readonly SentAnnotationSnapshot[],
   ) => void;
   restoreSent: (sessionId: string, sentBatch: readonly DiffAnnotation[]) => void;
   pruneSessions: (existingSessionIds: ReadonlySet<string>) => void;

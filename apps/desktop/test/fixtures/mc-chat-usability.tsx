@@ -434,6 +434,25 @@ async function checkRound2ReviewAndAttentionEdgeCases() {
       host.querySelector(".mc-diff-annotation-line-pill")?.textContent === "L10–L11",
       "Shift+Click selects multi-line range L10–L11",
     );
+    // Reverse Shift+Click: click L11 first to anchor at bottom, then Shift+Click L10 upward -> still selects L10–L11!
+    flushSync(() => gutterBtns[1].click());
+    await settle();
+    if (!host.querySelector(".mc-diff-annotation-input")) {
+      flushSync(() => gutterBtns[1].click());
+      await settle();
+    }
+    flushSync(() => {
+      gutterBtns[0].dispatchEvent(new MouseEvent("click", { bubbles: true, shiftKey: true }));
+    });
+    await settle();
+    check(
+      host.querySelector(".mc-diff-annotation-line-pill")?.textContent === "L10–L11",
+      "Reverse Shift+Click (L11 -> Shift+L10) selects multi-line range L10–L11",
+    );
+    check(
+      host.querySelectorAll(".diff-line.is-in-range").length === 2,
+      "Reverse Shift+Click highlights both L10 and L11 in range",
+    );
 
     const fileGroup = {
       id: "workspace:src/local.ts",

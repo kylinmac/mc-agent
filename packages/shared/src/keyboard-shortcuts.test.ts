@@ -111,6 +111,19 @@ describe("keyboard shortcut mapping", () => {
         "win32",
       ),
     ).toBe(true);
+
+    const sessionInfo = KEYBOARD_SHORTCUTS.find(
+      (shortcut) => shortcut.id === "toggleSessionInfo",
+    )!;
+    expect(sessionInfo.defaultBinding).toBe("Mod+I");
+    expect(resolveKeybinding(sessionInfo, undefined, "darwin")).toBe("Mod+I");
+    expect(
+      keybindingMatchesEvent(
+        "Mod+I",
+        { key: "i", code: "KeyI", metaKey: true },
+        "darwin",
+      ),
+    ).toBe(true);
   });
 
   it("assigns Option/Alt+Space to the global plugin launcher", () => {

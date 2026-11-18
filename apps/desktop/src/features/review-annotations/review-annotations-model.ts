@@ -42,6 +42,55 @@ export function annotationLineKey(
     : `${snapshotId}:raw:${fallbackHunkIndex}:${fallbackLineIndex}`;
 }
 
+export type DiffRangeSelectionTarget = {
+  lineKey: string;
+  side: "old" | "new";
+  startLine: number | null;
+  endLine: number;
+};
+
+/**
+ * Resolve a `Shift+Click` line-range selection in either direction (top-down
+ * `L5 -> Shift+L8` or bottom-up `L8 -> Shift+L5`) into a canonical range
+ * `startLine..endLine`. When the higher line's key is present in the rendered
+ * diff, anchor at `hi` so the inline editor opens beneath the selected block;
+ * otherwise fall back to `clickedLineKey`.
+ */
+export function resolveDiffShiftRangeTarget(params: {
+  snapshotId: string;
+  side: "old" | "new";
+  anchorLine: number;
+  clickedLine: number;
+  clickedLineKey: string;
+  hasLineKey?: (key: string) => boolean;
+}): DiffRangeSelectionTarget {
+  const lo = Math.min(params.anchorLine, params.clickedLine);
+  const hi = Math.max(params.anchorLine, params.clickedLine);
+  if (lo === hi) {
+    return {
+      lineKey: params.clickedLineKey,
+      side: params.side,
+      startLine: null,
+      endLine: hi,
+    };
+  }
+  const hiKey = annotationLineKey(params.snapshotId, params.side, hi);
+  if (!params.hasLineKey || params.hasLineKey(hiKey)) {
+    return {
+      lineKey: hiKey,
+      side: params.side,
+      startLine: lo,
+      endLine: hi,
+    };
+  }
+  return {
+    lineKey: params.clickedLineKey,
+    side: params.side,
+    startLine: params.anchorLine,
+    endLine: params.clickedLine,
+  };
+}
+
 export function resolveAnnotationRootIdentity(
   root?: string | null,
   parentToolCallId?: string | null,
@@ -88,20 +137,38 @@ export function removeAnnotationItem(
   return list.filter((entry) => entry.id !== id);
 }
 
+export type SentAnnotationSnapshot = Pick<DiffAnnotation, "id" | "lineKey" | "note"> &
+  Partial<Pick<DiffAnnotation, "startLine" | "line">>;
+
+function normalizedAnnotationStartLine(
+  startLine: number | null | undefined,
+  endLine: number | null | undefined,
+): number | null {
+  return startLine !== undefined && startLine !== null && startLine !== endLine
+    ? startLine
+    : null;
+}
+
 /**
- * Remove only annotations that were part of `sentBatch` AND whose `note` and
- * `lineKey` remained unchanged while the async send was in flight. Any note
- * added or edited during send stays queued for the next batch.
+ * Remove only annotations that were part of `sentBatch` AND whose `note`,
+ * `lineKey`, and line-range bounds (`startLine`, `line`) remained unchanged
+ * while the async send was in flight. Any note added or edited during send
+ * stays queued for the next batch.
  */
 export function pruneSentAnnotations(
   current: readonly DiffAnnotation[],
-  sentBatch: readonly Pick<DiffAnnotation, "id" | "lineKey" | "note">[],
+  sentBatch: readonly SentAnnotationSnapshot[],
 ): DiffAnnotation[] {
   const sentById = new Map(sentBatch.map((item) => [item.id, item]));
   return current.filter((entry) => {
     const sent = sentById.get(entry.id);
     if (!sent) return true;
-    return sent.note !== entry.note || sent.lineKey !== entry.lineKey;
+    const startChanged =
+      normalizedAnnotationStartLine(sent.startLine, sent.line) !==
+      normalizedAnnotationStartLine(entry.startLine, entry.line);
+    const endChanged =
+      sent.line !== undefined && entry.line !== undefined ? sent.line !== entry.line : false;
+    return sent.note !== entry.note || sent.lineKey !== entry.lineKey || startChanged || endChanged;
   });
 }
 
@@ -275,7 +342,7 @@ export async function executeBatchAnnotationSend(params: {
   getSessionItems: (sessionId: string) => readonly DiffAnnotation[];
   pruneSent: (
     sessionId: string,
-    sentBatch: readonly Pick<DiffAnnotation, "id" | "lineKey" | "note">[],
+    sentBatch: readonly SentAnnotationSnapshot[],
   ) => void;
   restoreSent?: (sessionId: string, sentBatch: readonly DiffAnnotation[]) => void;
   isBusy: (sessionId: string) => boolean;

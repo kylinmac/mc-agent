@@ -56,6 +56,22 @@ export type SessionRuntime = {
   readonly submittedComposerDrafts: Map<string, SubmittedComposerDraft>;
   readonly pendingSessionConfigurations: Map<string, SessionConfiguration>;
   readonly sessionConfigurationFlushes: Map<string, Promise<Error | undefined>>;
+  recordQueuedDraft?: (
+    id: string,
+    sessionId: string,
+    content: string,
+    draft: SubmittedComposerDraft["draft"],
+  ) => void;
+  rekeyQueuedDraft?: (previousId: string, nextId: string) => void;
+  markQueuedDraftDequeued?: (id: string) => void;
+  removeQueuedDraft?: (id: string) => void;
+  hasQueuedDraft?: (sessionId: string) => boolean;
+  consumeQueuedDraftByContent?: (
+    sessionId: string,
+    content: string,
+  ) => SubmittedComposerDraft["draft"] | undefined;
+  clearDequeuedDraftsForSession?: (sessionId: string) => void;
+  clearSessionQueuedDrafts?: (sessionId: string) => void;
   beginNavigationIntent: () => number;
   navigationIntentIsCurrent: (intent: number) => boolean;
   newSessionScopeKey: (projectPath?: string | null) => string;
@@ -132,6 +148,13 @@ export function createSessionRuntime({ get, set }: StoreAccess): SessionRuntime 
   const liveSessionTranscripts = new Set<string>();
   const sessionHistoryCache = new Map<string, SessionHistoryWindow>();
   const submittedComposerDrafts = new Map<string, SubmittedComposerDraft>();
+  const queuedTurnDrafts: Array<{
+    id: string;
+    sessionId: string;
+    content: string;
+    draft: SubmittedComposerDraft["draft"];
+    dequeuedAt?: number;
+  }> = [];
   const pendingSessionConfigurations = new Map<string, SessionConfiguration>();
   const sessionConfigurationFlushes = new Map<string, Promise<Error | undefined>>();
   const sessionDetailLoads = new Map<string, ReturnType<typeof api.getSession>>();
@@ -413,6 +436,68 @@ export function createSessionRuntime({ get, set }: StoreAccess): SessionRuntime 
     submittedComposerDrafts,
     pendingSessionConfigurations,
     sessionConfigurationFlushes,
+    recordQueuedDraft: (id, sessionId, content, draft) => {
+      const existing = queuedTurnDrafts.findIndex((entry) => entry.id === id);
+      if (existing >= 0) queuedTurnDrafts.splice(existing, 1);
+      queuedTurnDrafts.push({ id, sessionId, content, draft });
+      while (queuedTurnDrafts.length > 64) queuedTurnDrafts.shift();
+    },
+    rekeyQueuedDraft: (previousId, nextId) => {
+      const target = queuedTurnDrafts.find((entry) => entry.id === previousId);
+      if (target) target.id = nextId;
+    },
+    markQueuedDraftDequeued: (id) => {
+      const target = queuedTurnDrafts.find((entry) => entry.id === id);
+      if (!target) return;
+      for (let i = queuedTurnDrafts.length - 1; i >= 0; i -= 1) {
+        const candidate = queuedTurnDrafts[i];
+        if (
+          candidate &&
+          candidate.sessionId === target.sessionId &&
+          candidate.dequeuedAt !== undefined &&
+          candidate.id !== id
+        ) {
+          queuedTurnDrafts.splice(i, 1);
+        }
+      }
+      target.dequeuedAt = Date.now();
+    },
+    removeQueuedDraft: (id) => {
+      const index = queuedTurnDrafts.findIndex((entry) => entry.id === id);
+      if (index >= 0) queuedTurnDrafts.splice(index, 1);
+    },
+    hasQueuedDraft: (sessionId) =>
+      queuedTurnDrafts.some((entry) => entry.sessionId === sessionId),
+    consumeQueuedDraftByContent: (sessionId, content) => {
+      let index = queuedTurnDrafts.findLastIndex(
+        (entry) =>
+          entry.sessionId === sessionId &&
+          entry.content === content &&
+          entry.dequeuedAt !== undefined,
+      );
+      if (index < 0) {
+        index = queuedTurnDrafts.findLastIndex(
+          (entry) => entry.sessionId === sessionId && entry.content === content,
+        );
+      }
+      if (index < 0) return undefined;
+      return queuedTurnDrafts.splice(index, 1)[0]?.draft;
+    },
+    clearDequeuedDraftsForSession: (sessionId) => {
+      for (let i = queuedTurnDrafts.length - 1; i >= 0; i -= 1) {
+        const entry = queuedTurnDrafts[i];
+        if (entry?.sessionId === sessionId && entry.dequeuedAt !== undefined) {
+          queuedTurnDrafts.splice(i, 1);
+        }
+      }
+    },
+    clearSessionQueuedDrafts: (sessionId) => {
+      for (let i = queuedTurnDrafts.length - 1; i >= 0; i -= 1) {
+        if (queuedTurnDrafts[i]?.sessionId === sessionId) {
+          queuedTurnDrafts.splice(i, 1);
+        }
+      }
+    },
     beginNavigationIntent: () => navigationIntents.begin(),
     navigationIntentIsCurrent: (intent) => navigationIntents.isCurrent(intent),
     newSessionScopeKey: (projectPath) =>

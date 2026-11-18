@@ -207,6 +207,7 @@ function clearLocalSessionState(
     const sessionOutcomes = { ...state.sessionOutcomes };
     delete sessionOutcomes[id];
     const queuedPrompts = withoutRecordKey(state.queuedPrompts, id);
+    runtime.clearSessionQueuedDrafts?.(id);
     const workPanelContexts = withoutRecordKey(state.workPanelContexts, id);
     const pendingPermissions = clearSessionPermissions(
       state.pendingPermissions,

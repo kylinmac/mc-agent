@@ -6,6 +6,9 @@ import { initReactI18next } from "react-i18next";
 import { catalogs, flattenCatalog } from "@pi-desktop/i18n";
 import { Sidebar } from "../../apps/desktop/src/components/Sidebar";
 import { ConversationTopbar } from "../../apps/desktop/src/components/ConversationTopbar";
+import { SessionInfo } from "../../apps/desktop/src/features/session-info/SessionInfo";
+import { toggleSessionInfoOpenForSession } from "../../apps/desktop/src/features/session-info/session-info-model";
+import { SubagentTopology } from "../../apps/desktop/src/features/chat/transcript/SubagentDetail";
 import { SessionHoverCard } from "../../apps/desktop/src/features/sessions/SessionHoverCard";
 import { PluginViewTab } from "../../apps/desktop/src/components/workpanel/PluginViewTab";
 import { useBlockingOverlayActive } from "../../apps/desktop/src/lib/blocking-overlay";
@@ -45,7 +48,9 @@ function Surface() {
   return <div className="app-shell" style={{"--ds-sidebar-width":`${sbWidth}px`}}>
     <div className="app-chat-shell"><Sidebar sidebarWidth={sbWidth} sidebarToggleShortcut="" onToggleSidebar={() => {}} onWidthChange={setSbWidth} onWidthCommit={setSbWidth} onResizeCollapse={() => {}} />
       <main className="main-pane"><ConversationTopbar sidebarCollapsed={false} workPanelOpen={false}
-        onToggleSidebar={() => {}} onNewTask={() => useAppStore.setState({activeSessionId:null})} onOpenSearch={() => {}} /></main>
+        onToggleSidebar={() => {}} onNewTask={() => useAppStore.setState({activeSessionId:null})} onOpenSearch={() => {}} />
+        <SessionInfo />
+        <div className="chat-surface" /></main>
     </div>
     <NativePanel />
     {hover && <SessionHoverCard card={{ session:sessions[0], target:document.querySelector(".sidebar-header"), space:"Alpha", temporary:true }}
@@ -64,6 +69,144 @@ window.tabProbe = async (stage) => {
   if (stage === "narrow") {
     check(document.querySelectorAll("[data-project-tab]").length === 3, "merge multi-folder, folder and ungrouped sessions");
     check(!document.querySelector('[data-tab-key="page:creative"]') && !saved().includes("page:creative"), "legacy creative page tab is pruned from storage and DOM");
+    // Unstarted empty session s17 hides SessionInfo and reserves zero left margin on .chat-surface.
+    const mainPaneEl = document.querySelector(".main-pane");
+    const chatSurfaceEl = document.querySelector(".chat-surface");
+    check(!document.querySelector(".mc-session-info"), "unstarted empty session hides SessionInfo");
+    check(getComputedStyle(chatSurfaceEl).paddingLeft === "0px", "unstarted empty session leaves zero left padding on .chat-surface");
+    useAppStore.setState({
+      messages: [{ id: "m1", role: "user", content: "start chat", createdAt: "2026-11-18T00:00:00Z" }],
+    });
+    await settle();
+    check(Boolean(document.querySelector(".mc-session-info")), "starting conversation mounts SessionInfo");
+    check(
+      document.querySelector(".mc-session-info-trigger")?.getAttribute("title")?.includes("(⌘I)"),
+      "SessionInfo trigger tooltip advertises ⌘I shortcut on macOS",
+    );
+    flushSync(() => toggleSessionInfoOpenForSession("s17"));
+    await settle();
+    check(
+      document.querySelector(".mc-session-info")?.classList.contains("is-open") &&
+        document.querySelector(".mc-session-info-trigger")?.getAttribute("aria-expanded") === "true",
+      "toggleSessionInfo shortcut action opens SessionInfo",
+    );
+    flushSync(() => toggleSessionInfoOpenForSession("s17"));
+    await settle();
+    check(
+      !document.querySelector(".mc-session-info")?.classList.contains("is-open") &&
+        document.querySelector(".mc-session-info-trigger")?.getAttribute("aria-expanded") === "false",
+      "toggleSessionInfo shortcut action collapses SessionInfo",
+    );
+    check(
+      Number.parseFloat(getComputedStyle(chatSurfaceEl).paddingLeft) > 0,
+      "started conversation applies SessionInfo left gutter on narrow pane",
+    );
+    useAppStore.setState({
+      messages: [],
+      sessionHistory: { s17: { messageStart: 0, hasMoreBefore: false } },
+    });
+    await settle();
+    check(!document.querySelector(".mc-session-info"), "returning to empty session unmounts SessionInfo");
+    check(
+      mainPaneEl.style.getPropertyValue("--mc-info-gutter") === "" &&
+        mainPaneEl.style.getPropertyValue("--mc-info-offset") === "" &&
+        getComputedStyle(chatSurfaceEl).paddingLeft === "0px",
+      "unmounting SessionInfo clears --mc-info-gutter/--mc-info-offset and restores symmetric 0px paddingLeft",
+    );
+    // Settings / slot pages remove the sidebar collapse button from the header and restore it on chat.
+    check(Boolean(document.querySelector('.sidebar-header-actions [data-nav="toggle-sidebar"]')), "chat page renders sidebar collapse button");
+    for (const pinnedPage of ["settings", "plugins", "scheduled"]) {
+      useAppStore.setState({ page: pinnedPage });
+      await settle();
+      check(!document.querySelector('.sidebar-header-actions [data-nav="toggle-sidebar"]'), `${pinnedPage} hides sidebar collapse button`);
+    }
+    useAppStore.setState({ page: "chat" });
+    await settle();
+    check(Boolean(document.querySelector('.sidebar-header-actions [data-nav="toggle-sidebar"]')), "returning to chat restores sidebar collapse button");
+    // Subagent topology connectors align without dangling stubs in both wide (>520px) and stacked (<=520px) widths.
+    const topoHost = document.createElement("div");
+    chatSurfaceEl.appendChild(topoHost);
+    const topoRoot = createRoot(topoHost);
+    const mkTask = (id, summary) => ({
+      kind: "tool",
+      message: {
+        id: `task-${id}`,
+        role: "tool",
+        content: "",
+        createdAt: "2026-11-18T00:00:00Z",
+        toolName: "Task",
+        toolCallId: `call-${id}`,
+        toolStatus: "running",
+        toolArgs: { agent: "explorer", task: summary },
+        toolResult: { details: { delegationId: id, agent: "explorer", status: "running", modelId: "gpt-6.2-sol", thinkingLevel: "medium" } },
+      },
+    });
+    const renderTopo = async (width, items) => {
+      flushSync(() =>
+        topoRoot.render(
+          <div className="tool-activity-group has-subagents open" style={{ width: `${width}px` }}>
+            <SubagentTopology items={items} />
+          </div>,
+        ),
+      );
+      await settle();
+    };
+    await renderTopo(680, [mkTask("only", "Inspect single subagent card")]);
+    {
+      const conn = topoHost.querySelector(".subagent-topology-connector");
+      const node = topoHost.querySelector(".subagent-topology-node");
+      const before = getComputedStyle(node, "::before");
+      const after = getComputedStyle(node, "::after");
+      check(after.content === "none", `wide 1-subagent hides vertical spine, got ${after.content}`);
+      const connY = conn.getBoundingClientRect().top;
+      const branchY = node.getBoundingClientRect().top + Number.parseFloat(before.top);
+      check(Math.abs(connY - branchY) <= 1, `wide 1-subagent straight line mismatch: ${connY} vs ${branchY}`);
+    }
+    await renderTopo(680, [
+      mkTask("a", "Check Claude Code diff across multiple lines of summary text to make card taller"),
+      mkTask("b", "Compare Codex CLI source"),
+    ]);
+    {
+      const agents = topoHost.querySelector(".subagent-topology-agents");
+      check(getComputedStyle(agents, "::before").content === "none", "legacy container spine disabled");
+      const nodes = [...topoHost.querySelectorAll(".subagent-topology-node")];
+      const firstBefore = getComputedStyle(nodes[0], "::before");
+      const firstAfter = getComputedStyle(nodes[0], "::after");
+      check(Math.abs(Number.parseFloat(firstAfter.top) - Number.parseFloat(firstBefore.top)) <= 0.5, "wide first node spine starts at branch");
+      const lastRect = nodes[1].getBoundingClientRect();
+      const lastBefore = getComputedStyle(nodes[1], "::before");
+      const lastAfter = getComputedStyle(nodes[1], "::after");
+      const spineEnd = lastRect.height - Number.parseFloat(lastAfter.bottom);
+      const branchEnd = Number.parseFloat(lastBefore.top) + Number.parseFloat(lastBefore.height);
+      check(Math.abs(spineEnd - branchEnd) <= 0.5, `wide last node spine overshoots branch: ${spineEnd} vs ${branchEnd}`);
+    }
+    for (const items of [
+      [mkTask("only", "Compare Claude Desktop archive")],
+      [mkTask("a", "Check Claude Code diff"), mkTask("b", "Compare Codex CLI source")],
+    ]) {
+      await renderTopo(440, items);
+      const conn = topoHost.querySelector(".subagent-topology-connector");
+      const agents = topoHost.querySelector(".subagent-topology-agents");
+      const nodes = [...topoHost.querySelectorAll(".subagent-topology-node")];
+      const firstAfter = getComputedStyle(nodes[0], "::after");
+      const connLeft = Number.parseFloat(getComputedStyle(conn).marginLeft);
+      const spineLeft =
+        Number.parseFloat(getComputedStyle(agents).paddingLeft) +
+        nodes[0].offsetWidth -
+        Number.parseFloat(firstAfter.right) -
+        Number.parseFloat(firstAfter.width);
+      check(Math.abs(connLeft - spineLeft) <= 0.5, `stacked trunk x mismatch: connector=${connLeft} vs spine=${spineLeft}`);
+      check(Number.parseFloat(firstAfter.top) === 0, `stacked first spine must touch connector at top=0, got ${firstAfter.top}`);
+      const last = nodes[nodes.length - 1];
+      const lastRect = last.getBoundingClientRect();
+      const lastBefore = getComputedStyle(last, "::before");
+      const lastAfter = getComputedStyle(last, "::after");
+      const spineEnd = lastRect.height - Number.parseFloat(lastAfter.bottom);
+      const branchEnd = Number.parseFloat(lastBefore.top) + Number.parseFloat(lastBefore.height);
+      check(Math.abs(spineEnd - branchEnd) <= 0.5, `stacked last node spine overshoots branch: ${spineEnd} vs ${branchEnd}`);
+    }
+    flushSync(() => topoRoot.unmount());
+    topoHost.remove();
     // Narrow 240px sidebar with 4 plugin views + update + settings: nothing clips outside sidebar.
     flushSync(() => {
       window.setSbWidth(240);

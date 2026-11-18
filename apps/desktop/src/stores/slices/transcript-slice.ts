@@ -525,7 +525,10 @@ export function createTranscriptSlice({
       const smartStop = preserveSteering
         ? { kind: "settle" as const }
         : resolveComposerSmartStop(state.messages, submittedDraft);
-      if (smartStop.kind === "restore") {
+      if (
+        smartStop.kind === "restore" ||
+        (!preserveSteering && !submittedDraft && runtime?.hasQueuedDraft?.(sessionId))
+      ) {
         const fullMessages = await runtime.loadFullSessionMessages(sessionId);
         if (!fullMessages || get().activeSessionId !== sessionId) {
           submittedDraft?.resolveAbort?.(false);
@@ -535,15 +538,19 @@ export function createTranscriptSlice({
         const merged = mergeLiveSessionMessages(fullMessages, get().messages);
         const fullStop = resolveComposerSmartStop(merged, submittedDraft);
         if (fullStop.kind === "restore") {
+          const restoredDraft =
+            submittedDraft?.draft ??
+            runtime?.consumeQueuedDraftByContent?.(sessionId, fullStop.draft.text) ??
+            fullStop.draft;
           runtime.submittedComposerDrafts.delete(sessionId);
           submittedDraft?.resolveAbort?.(true);
-          const onSmartStopUndo = fullStop.draft.onSmartStopUndo;
+          const onSmartStopUndo = restoredDraft.onSmartStopUndo;
           const fullWindow = { messageStart: 0, hasMoreBefore: false };
           runtime.cacheSessionTranscript(sessionId, fullStop.kept, fullWindow);
           set((current) => ({
             messages: fullStop.kept,
             sessionHistory: { ...current.sessionHistory, [sessionId]: fullWindow },
-            ...(onSmartStopUndo ? {} : { composerPrefill: { ...fullStop.draft, sessionId } }),
+            ...(onSmartStopUndo ? {} : { composerPrefill: { ...restoredDraft, sessionId } }),
             isRunning: false,
             runningSessions: { ...current.runningSessions, [sessionId]: false },
           }));
@@ -572,6 +579,7 @@ export function createTranscriptSlice({
       }
       submittedDraft?.resolveAbort?.(false);
       runtime.submittedComposerDrafts.delete(sessionId);
+      runtime.clearDequeuedDraftsForSession?.(sessionId);
       const stoppedRows = (rows: UiMessage[]) =>
         rows.map((message) => {
           if (message.role === "assistant" && message.status === "streaming") {

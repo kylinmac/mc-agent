@@ -115,6 +115,7 @@ export function createQueueSlice({
           !entries.some((entry) => entry.id === item.id)
         ) {
           queuedDrafts.delete(item.id);
+          runtime?.markQueuedDraftDequeued?.(item.id);
         }
       }
       const next = { ...state.queuedPrompts };
@@ -132,6 +133,7 @@ export function createQueueSlice({
       queuedPrompts: removeQueuedPrompt(state.queuedPrompts, sessionId, promptId),
     }));
     queuedDrafts.delete(promptId);
+    runtime?.removeQueuedDraft?.(promptId);
     void api.removeQueuedPrompt(promptId).catch((error) => {
       get().showToast(
         error instanceof Error ? error.message : String(error),
@@ -165,6 +167,7 @@ export function createQueueSlice({
       set((state) => ({
         queuedPrompts: enqueueQueuedPrompt(state.queuedPrompts, item),
       }));
+      runtime?.recordQueuedDraft?.(item.id, sessionId, content, queuedDraft);
       const attachments = promptAttachmentsFromDraft(queuedDraft.fileReferences);
       return api
         .queuePrompt({
@@ -174,6 +177,7 @@ export function createQueueSlice({
         })
         .then((entry) => {
           queuedDrafts.set(entry.id, queuedDraft);
+          runtime?.rekeyQueuedDraft?.(item.id, entry.id);
           set((state) => ({
             queuedPrompts: removeQueuedPrompt(
               state.queuedPrompts,
@@ -185,6 +189,7 @@ export function createQueueSlice({
           return true;
         })
         .catch((error) => {
+          runtime?.removeQueuedDraft?.(item.id);
           set((state) => ({
             queuedPrompts: removeQueuedPrompt(
               state.queuedPrompts,
@@ -213,6 +218,7 @@ export function createQueueSlice({
           queuedPrompts: removeQueuedPrompt(state.queuedPrompts, sessionId, promptId),
         }));
         queuedDrafts.delete(promptId);
+        runtime?.removeQueuedDraft?.(promptId);
       } catch (error) {
         const conflict = error instanceof Error && "code" in error && error.code === "CONFLICT";
         get().showToast(conflict ? i18n.t("chat.queuedPromptAlreadyStarted") :
@@ -427,6 +433,7 @@ export function createQueueSlice({
               }
             : { text: content, fileReferences: [] },
         };
+        runtime?.clearSessionQueuedDrafts?.(startedIn);
         runtime.submittedComposerDrafts.set(startedIn, submission);
         set((state) => ({
           isRunning: state.activeSessionId === startedIn ? true : state.isRunning,

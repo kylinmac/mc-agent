@@ -239,6 +239,12 @@ export function createEventsSlice({
       if (event.type === "asktool_request" && event.request.autoContinued) {
         recordSettledAskDuringRestore(runtime, event.request.sessionId, event.request.requestId);
       }
+      if (
+        (event.type === "message_start" && event.message.role === "assistant") ||
+        event.type === "tool_start"
+      ) {
+        runtime.clearDequeuedDraftsForSession?.(envelope.sessionId);
+      }
       if (event.type === "agent_end" || event.type === "error") {
         runtime.submittedComposerDrafts.delete(envelope.sessionId);
       }
