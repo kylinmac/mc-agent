@@ -117,6 +117,7 @@ export function DiffLineAnnotationSlot({
   rootIdentity,
   lineKey,
   side,
+  startLineNumber,
   lineNumber,
   lineType,
   code,
@@ -132,6 +133,7 @@ export function DiffLineAnnotationSlot({
   rootIdentity?: string;
   lineKey: string;
   side: "old" | "new";
+  startLineNumber?: number | null;
   lineNumber: number | null;
   lineType: "add" | "del" | "context";
   code: string;
@@ -169,6 +171,8 @@ export function DiffLineAnnotationSlot({
       onCloseEdit();
       return;
     }
+    const resolvedStart =
+      startLineNumber !== undefined ? startLineNumber : (noteItem?.startLine ?? null);
     upsert({
       id: noteItem?.id,
       lineKey,
@@ -178,6 +182,7 @@ export function DiffLineAnnotationSlot({
       root,
       rootIdentity,
       side,
+      startLine: resolvedStart,
       line: lineNumber,
       lineType,
       code,
@@ -186,9 +191,25 @@ export function DiffLineAnnotationSlot({
     onCloseEdit();
   };
 
+  const activeStart =
+    startLineNumber !== undefined ? startLineNumber : (noteItem?.startLine ?? null);
+  const rangeBadge =
+    lineNumber !== null
+      ? activeStart !== null && activeStart !== lineNumber
+        ? `L${Math.min(activeStart, lineNumber)}–L${Math.max(activeStart, lineNumber)}`
+        : `L${lineNumber}`
+      : null;
+
   if (editing) {
     return (
       <div className="mc-diff-annotation-editor">
+        {rangeBadge ? (
+          <div className="mc-diff-annotation-editor-head">
+            <span className="mc-diff-annotation-line-pill">
+              {side === "old" ? `old ${rangeBadge}` : rangeBadge}
+            </span>
+          </div>
+        ) : null}
         <Textarea
           autoFocus
           rows={2}
@@ -224,7 +245,14 @@ export function DiffLineAnnotationSlot({
 
   return (
     <div className="mc-diff-annotation-card">
-      <span className="mc-diff-annotation-text">{noteItem?.note}</span>
+      <div className="mc-diff-annotation-card-body">
+        {rangeBadge && activeStart !== null && lineNumber !== null && activeStart !== lineNumber ? (
+          <span className="mc-diff-annotation-line-pill">
+            {side === "old" ? `old ${rangeBadge}` : rangeBadge}
+          </span>
+        ) : null}
+        <span className="mc-diff-annotation-text">{noteItem?.note}</span>
+      </div>
       <div className="mc-diff-annotation-card-actions">
         <Button size="sm" variant="ghost" onClick={onStartEdit}>
           {t("mcProject.diffAnnotateEdit")}

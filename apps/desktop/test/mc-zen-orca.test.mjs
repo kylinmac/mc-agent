@@ -12,13 +12,17 @@ import {
 } from "../src/features/attention-feed/attention-model.ts";
 import {
   annotationLineKey,
+  countReviewedFiles,
   executeBatchAnnotationSend,
   formatDiffAnnotationsPrompt,
+  isReviewFileViewed,
   pruneAnnotationsForExistingSessions,
   pruneSentAnnotations,
   removeAnnotationItem,
   resolveAnnotationRootIdentity,
   restoreSentAnnotations,
+  reviewFileSignature,
+  toggleReviewFileViewedMap,
   upsertAnnotationItem,
 } from "../src/features/review-annotations/review-annotations-model.ts";
 import { resolveComposerSmartStop } from "../src/lib/composer-smart-stop.ts";
@@ -920,4 +924,70 @@ test("Round-3 P2/P3: NotificationCenter read/clear sync, Windows C:\\ & ProjectF
   assert.match(attnWatcher, /listableSessions\(sessions\)/);
   assert.equal(existsSync(new URL("../src/features/app-rail/AppRail.tsx", import.meta.url)), false);
   assert.equal(existsSync(new URL("../src/features/creative/CreativePage.tsx", import.meta.url)), false);
+});
+
+test("R37 UX: Left-gutter speech-bubble morph, Shift-range prompt formatting, and snapshot-bound file Viewed progress", () => {
+  // 1. Multi-line Shift-range formatting (`L5–L8` and `old L12–L16`).
+  let list = [];
+  list = upsertAnnotationItem(list, {
+    id: "range-new",
+    lineKey: "snap-1:new:8",
+    sessionId: "s1",
+    snapshotId: "snap-1",
+    path: "src/query.ts",
+    side: "new",
+    startLine: 5,
+    line: 8,
+    lineType: "add",
+    code: "return query();",
+    note: "Extract lines 5-8 into helper",
+  });
+  list = upsertAnnotationItem(list, {
+    id: "range-old",
+    lineKey: "snap-1:old:16",
+    sessionId: "s1",
+    snapshotId: "snap-1",
+    path: "src/query.ts",
+    side: "old",
+    startLine: 12,
+    line: 16,
+    lineType: "del",
+    code: "oldQuery();",
+    note: "Keep fallback error code from old block",
+  });
+  const prompt = formatDiffAnnotationsPrompt("请修改：", list);
+  assert.match(prompt, /- \*\*L5–L8\*\* \(`\+return query\(\);`\): Extract lines 5-8 into helper/);
+  assert.match(prompt, /- \*\*old L12–L16\*\* \(`-oldQuery\(\);`\): Keep fallback error code from old block/);
+
+  // 2. Per-file `Viewed` progress tracks `(snapshotId, state)` signature and auto-resets when re-edited.
+  const filesRound1 = [
+    { id: "workspace:a.ts", entries: [{ change: { snapshotId: "s-a1", state: "active" } }] },
+    { id: "workspace:b.ts", entries: [{ change: { snapshotId: "s-b1", state: "active" } }] },
+  ];
+  const sigA1 = reviewFileSignature(filesRound1[0].entries);
+  const toggledOn = toggleReviewFileViewedMap(undefined, "workspace:a.ts", sigA1);
+  assert.equal(toggledOn.viewed, true);
+  assert.equal(isReviewFileViewed(toggledOn.next, "workspace:a.ts", sigA1), true);
+  assert.equal(countReviewedFiles(filesRound1, toggledOn.next), 1);
+
+  // Agent edits `a.ts` again in Round 2 (new snapshot `s-a2`): Viewed automatically resets to 0/2!
+  const filesRound2 = [
+    { id: "workspace:a.ts", entries: [{ change: { snapshotId: "s-a1", state: "active" } }, { change: { snapshotId: "s-a2", state: "active" } }] },
+    { id: "workspace:b.ts", entries: [{ change: { snapshotId: "s-b1", state: "active" } }] },
+  ];
+  assert.equal(countReviewedFiles(filesRound2, toggledOn.next), 0);
+
+  // Unchecking toggles off cleanly:
+  const toggledOff = toggleReviewFileViewedMap(toggledOn.next, "workspace:a.ts", sigA1);
+  assert.equal(toggledOff.viewed, false);
+  assert.deepEqual(toggledOff.next, {});
+
+  // 3. CSS & DOM contracts for left-gutter bubble swap and Forced Colors safety.
+  const zenCss = readFileSync(new URL("../src/styles/mc-zen-orca.css", import.meta.url), "utf8");
+  const cardSource = readFileSync(new URL("../src/components/ReviewChangeCard.tsx", import.meta.url), "utf8");
+  assert.match(zenCss, /--mc-icon-bubble-add:/);
+  assert.match(zenCss, /--mc-icon-bubble-saved:/);
+  assert.match(zenCss, /forced-color-adjust:\s*none/);
+  assert.match(cardSource, /className="mc-diff-gutter-text"/);
+  assert.match(cardSource, /aria-expanded=\{isEditingLine\}/);
 });

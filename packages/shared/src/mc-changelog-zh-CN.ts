@@ -13,6 +13,16 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.84",
+    date: "2026-11-18",
+    features: [
+      "变更审阅面板支持按文件标记“已阅”并自动收起该文件，顶栏显示“已阅 X/Y”进度；助手后续再次修改该文件时会自动恢复为未读。",
+    ],
+    improvements: [
+      "鼠标移到变更对比任意代码行时，整行高亮且左侧行号直接切换为评论气泡图标，支持按住 Shift 点击另一行气泡连选行区间添加批注。",
+    ],
+  },
+  {
     version: "1.0.83",
     date: "2026-11-18",
     features: [

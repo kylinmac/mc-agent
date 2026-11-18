@@ -11,6 +11,11 @@ import { ReviewHistoryFile } from "./ReviewHistoryFile";
 import { ReviewTurnOption } from "./ReviewTurnOption";
 import { ReviewHistoryToolbar } from "./ReviewHistoryToolbar";
 import { ReviewBatchBar } from "../../features/review-annotations/ReviewAnnotationWidgets";
+import {
+  countReviewedFiles,
+  useSessionDiffAnnotations,
+  useSessionReviewedFiles,
+} from "../../features/review-annotations/review-annotations";
 
 type Selection = { turnId?: string; snapshotId?: string; focusSeq?: number };
 
@@ -72,13 +77,21 @@ export function ReviewHistoryPanel({ sessionId }: { sessionId: string }) {
   };
   const selectedId = selection.turnId ?? (selection.snapshotId ? result.turnId ?? "" : "");
   const count = files.length;
+  const reviewedByFileId = useSessionReviewedFiles(sessionId);
+  const pendingNotes = useSessionDiffAnnotations(sessionId);
+  const reviewedCount = useMemo(
+    () => countReviewedFiles(files, reviewedByFileId),
+    [files, reviewedByFileId],
+  );
   return <div className={`review-tab review-history${wrap ? "" : " is-nowrap"}`} aria-busy={loading}>
     <ReviewHistoryToolbar history={history} onHistory={value => {
       setHistory(value); setSelection(value && result.turnId ? { turnId: result.turnId } : {});
     }} count={count} additions={files.reduce((sum, file) => sum + file.additions, 0)}
       deletions={files.reduce((sum, file) => sum + file.deletions, 0)} context={context} onContext={value => {
         rememberReviewContextLines(value); setContext(value);
-      }} wrap={wrap} onWrap={() => setWrap(value => !value)} />
+      }} wrap={wrap} onWrap={() => setWrap(value => !value)}
+      reviewedCount={count > 0 ? reviewedCount : undefined}
+      showAnnotateHint={count > 0 && pendingNotes.length === 0} />
     <ReviewBatchBar sessionId={sessionId} />
     {history && <div className="review-history-selector">
       <span className="review-history-label">{t("panel.review.historyTitle")}</span>
