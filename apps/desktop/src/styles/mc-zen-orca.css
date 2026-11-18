@@ -233,6 +233,110 @@
   gap: 6px;
 }
 
+:root {
+  --mc-icon-bubble-add: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'/%3E%3Cpath d='M12 7v6'/%3E%3Cpath d='M9 10h6'/%3E%3C/svg%3E");
+  --mc-icon-bubble-saved: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'/%3E%3Cpath d='M8 9h8'/%3E%3Cpath d='M8 13h5'/%3E%3C/svg%3E");
+}
+
+.mc-review-progress-pill {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--ds-tile);
+  color: var(--ds-text-secondary);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.mc-review-progress-pill.is-complete {
+  border-color: color-mix(in oklab, var(--ds-success) 32%, transparent);
+  background: color-mix(in oklab, var(--ds-success) 14%, transparent);
+  color: var(--ds-success);
+}
+
+.mc-review-toolbar-hint {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ds-text-faint);
+  font-size: var(--text-2xs);
+}
+
+.mc-review-toolbar-hint > svg {
+  flex: none;
+  pointer-events: none;
+}
+
+.mc-review-file-notes-badge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklab, var(--ds-accent) 16%, transparent);
+  color: var(--ds-accent);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.mc-review-viewed-btn {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-inline-size: 24px;
+  min-block-size: 24px;
+  align-items: center;
+  gap: 4px;
+  padding: 0 7px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+  cursor: pointer;
+  transition: background var(--motion-duration-fast) var(--motion-ease-out),
+    color var(--motion-duration-fast) var(--motion-ease-out),
+    border-color var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.mc-review-viewed-btn > svg {
+  flex: none;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.mc-review-viewed-btn:hover {
+  background: var(--ds-bg-hover);
+  color: var(--ds-text-primary);
+}
+
+.mc-review-viewed-btn.is-viewed {
+  border-color: color-mix(in oklab, var(--ds-success) 34%, transparent);
+  background: color-mix(in oklab, var(--ds-success) 13%, transparent);
+  color: var(--ds-success);
+}
+
+.mc-review-viewed-btn.is-viewed > svg {
+  opacity: 1;
+}
+
+.mc-review-viewed-btn:focus-visible {
+  outline: 1.5px solid var(--ds-accent);
+  outline-offset: 1px;
+}
+
+.review-history-file.is-viewed:not(.open) .review-change-card-path {
+  color: var(--ds-text-muted);
+}
+
 .mc-diff-line-wrap {
   display: flex;
   flex-direction: column;
@@ -240,38 +344,116 @@
 
 .mc-diff-line-wrap > .diff-line {
   position: relative;
-  padding-right: 24px;
+  transition: background var(--motion-duration-fast) var(--motion-ease-out),
+    box-shadow var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.mc-diff-line-wrap > .diff-line.is-annotatable:hover {
+  background: color-mix(in oklab, var(--ds-accent) 8%, transparent);
+  box-shadow: inset 2px 0 0 var(--ds-accent);
+}
+
+.mc-diff-line-wrap > .diff-line.add.is-annotatable:hover {
+  background: color-mix(in oklab, var(--ds-success) 18%, var(--ds-accent) 8%);
+}
+
+.mc-diff-line-wrap > .diff-line.del.is-annotatable:hover {
+  background: color-mix(in oklab, var(--ds-error) 18%, var(--ds-accent) 8%);
+}
+
+.mc-diff-line-wrap > .diff-line.is-in-range,
+.mc-diff-line-wrap > .diff-line.has-note {
+  box-shadow: inset 2px 0 0 var(--ds-accent);
 }
 
 .mc-diff-annotate-btn {
-  position: absolute;
-  top: 50%;
-  right: 4px;
-  transform: translateY(-50%);
+  position: sticky;
+  left: 0;
+  z-index: 1;
   display: inline-flex;
-  width: 18px;
-  height: 18px;
   align-items: center;
-  justify-content: center;
-  border: 1px solid var(--ds-border-subtle);
+  justify-content: flex-end;
+  border: 0;
   border-radius: var(--radius-xs);
-  background: var(--ds-bg-elevated-opaque);
-  color: var(--ds-text-muted);
-  opacity: 0;
+  background: transparent;
   cursor: pointer;
+  transition: background var(--motion-duration-fast) var(--motion-ease-out),
+    color var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.mc-diff-annotate-btn.diff-line-sign {
+  min-inline-size: 24px;
+  justify-content: center;
+}
+
+.mc-diff-annotate-btn.review-line-number {
+  min-inline-size: 4ch;
+}
+
+.mc-diff-gutter-text {
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-out);
+  pointer-events: none;
+}
+
+.mc-diff-annotate-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 13px;
+  height: 13px;
+  flex: none;
+  background-color: currentColor;
+  mask: var(--mc-icon-bubble-add) no-repeat center / contain;
+  opacity: 0;
+  transform: scale(0.84);
+  pointer-events: none;
+  forced-color-adjust: none;
   transition: opacity var(--motion-duration-fast) var(--motion-ease-out),
-    color var(--motion-duration-fast) var(--motion-ease-out),
-    background var(--motion-duration-fast) var(--motion-ease-out);
+    transform var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.mc-diff-annotate-btn.has-note {
+  color: var(--ds-accent);
+}
+
+.mc-diff-annotate-btn.has-note::after {
+  mask-image: var(--mc-icon-bubble-saved);
+  opacity: 1;
+  transform: scale(1);
+}
+
+.mc-diff-annotate-btn.has-note .mc-diff-gutter-text {
+  opacity: 0;
 }
 
 .mc-diff-line-wrap > .diff-line:hover .mc-diff-annotate-btn,
-.mc-diff-line-wrap > .diff-line:focus-within .mc-diff-annotate-btn {
+.mc-diff-annotate-btn:focus-visible,
+.mc-diff-annotate-btn.is-editing {
+  background: color-mix(in oklab, var(--ds-accent) 18%, var(--ds-bg-elevated-opaque));
+  color: var(--ds-accent);
+}
+
+.mc-diff-line-wrap > .diff-line:hover .mc-diff-gutter-text,
+.mc-diff-annotate-btn:focus-visible .mc-diff-gutter-text,
+.mc-diff-annotate-btn.is-editing .mc-diff-gutter-text {
+  opacity: 0;
+}
+
+.mc-diff-line-wrap > .diff-line:hover .mc-diff-annotate-btn::after,
+.mc-diff-annotate-btn:focus-visible::after,
+.mc-diff-annotate-btn.is-editing::after {
   opacity: 1;
+  transform: scale(1);
 }
 
 .mc-diff-annotate-btn:hover {
-  background: var(--ds-bg-hover);
-  color: var(--ds-text-primary);
+  background: color-mix(in oklab, var(--ds-accent) 28%, var(--ds-bg-elevated-opaque));
+}
+
+.mc-diff-annotate-btn:focus-visible {
+  outline: 1.5px solid var(--ds-accent);
+  outline-offset: -1.5px;
 }
 
 .mc-diff-annotation-editor,
@@ -285,6 +467,29 @@
   border-radius: var(--radius-sm);
   background: var(--ds-bg-secondary);
   font-family: var(--font-sans);
+}
+
+.mc-diff-annotation-editor-head,
+.mc-diff-annotation-card-body {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.mc-diff-annotation-line-pill {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  background: color-mix(in oklab, var(--ds-accent) 15%, transparent);
+  color: var(--ds-accent);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
 }
 
 .mc-diff-annotation-card {

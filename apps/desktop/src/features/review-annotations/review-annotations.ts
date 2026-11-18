@@ -1,11 +1,15 @@
 import { create } from "zustand";
 import { useAppStore } from "../../stores/app-store";
 import {
+  countReviewedFiles,
   executeBatchAnnotationSend,
+  isReviewFileViewed,
   pruneAnnotationsForExistingSessions,
   pruneSentAnnotations,
   removeAnnotationItem,
   restoreSentAnnotations,
+  reviewFileSignature,
+  toggleReviewFileViewedMap,
   upsertAnnotationItem,
   type BatchAnnotationSendResult,
   type DiffAnnotation,
@@ -13,19 +17,57 @@ import {
 
 export {
   annotationLineKey,
+  countReviewedFiles,
   executeBatchAnnotationSend,
   formatDiffAnnotationsPrompt,
+  isReviewFileViewed,
   pruneAnnotationsForExistingSessions,
   pruneSentAnnotations,
   resolveAnnotationRootIdentity,
   restoreSentAnnotations,
+  reviewFileSignature,
+  toggleReviewFileViewedMap,
   type BatchAnnotationSendResult,
   type DiffAnnotation,
 } from "./review-annotations-model";
 
+const REVIEWED_STORAGE_KEY = "mc.reviewedFiles";
+const EMPTY_REVIEWED: Record<string, string> = {};
+
+function readStoredReviewedFiles(): Record<string, Record<string, string>> {
+  try {
+    if (typeof sessionStorage === "undefined") return {};
+    const parsed = JSON.parse(sessionStorage.getItem(REVIEWED_STORAGE_KEY) ?? "{}") as unknown;
+    if (!parsed || typeof parsed !== "object") return {};
+    const result: Record<string, Record<string, string>> = {};
+    for (const [sessionId, rawMap] of Object.entries(parsed)) {
+      if (!rawMap || typeof rawMap !== "object") continue;
+      const clean = Object.fromEntries(
+        Object.entries(rawMap).filter(
+          (entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].length > 0,
+        ),
+      );
+      if (Object.keys(clean).length > 0) result[sessionId] = clean;
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+function writeStoredReviewedFiles(data: Record<string, Record<string, string>>): void {
+  try {
+    if (typeof sessionStorage === "undefined") return;
+    sessionStorage.setItem(REVIEWED_STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // best-effort session persistence
+  }
+}
+
 type ReviewAnnotationsState = {
   bySession: Record<string, DiffAnnotation[]>;
   sendingBySession: Record<string, boolean>;
+  reviewedBySession: Record<string, Record<string, string>>;
   upsert: (
     input: Omit<DiffAnnotation, "id" | "createdAt"> & { id?: string; createdAt?: number },
   ) => void;
@@ -36,6 +78,7 @@ type ReviewAnnotationsState = {
   ) => void;
   restoreSent: (sessionId: string, sentBatch: readonly DiffAnnotation[]) => void;
   pruneSessions: (existingSessionIds: ReadonlySet<string>) => void;
+  toggleFileReviewed: (sessionId: string, fileId: string, signature: string) => boolean;
   setSending: (sessionId: string, sending: boolean) => void;
   clear: (sessionId: string) => void;
 };
@@ -45,6 +88,7 @@ const EMPTY: DiffAnnotation[] = [];
 export const useReviewAnnotations = create<ReviewAnnotationsState>((set) => ({
   bySession: {},
   sendingBySession: {},
+  reviewedBySession: readStoredReviewedFiles(),
   upsert: (input) =>
     set((state) => ({
       bySession: {
@@ -104,8 +148,43 @@ export const useReviewAnnotations = create<ReviewAnnotationsState>((set) => ({
         state.bySession,
         existingSessionIds,
       );
-      return pruned === state.bySession ? state : { bySession: pruned };
+      let reviewedChanged = false;
+      const nextReviewed: Record<string, Record<string, string>> = {};
+      for (const [id, map] of Object.entries(state.reviewedBySession)) {
+        if (existingSessionIds.has(id)) {
+          nextReviewed[id] = map;
+        } else {
+          reviewedChanged = true;
+        }
+      }
+      if (reviewedChanged) writeStoredReviewedFiles(nextReviewed);
+      if (pruned === state.bySession && !reviewedChanged) return state;
+      return {
+        ...(pruned === state.bySession ? {} : { bySession: pruned }),
+        ...(reviewedChanged ? { reviewedBySession: nextReviewed } : {}),
+      };
     }),
+  toggleFileReviewed: (sessionId, fileId, signature) => {
+    let outcome = false;
+    set((state) => {
+      const { next, viewed } = toggleReviewFileViewedMap(
+        state.reviewedBySession[sessionId],
+        fileId,
+        signature,
+      );
+      outcome = viewed;
+      let nextBySession: Record<string, Record<string, string>>;
+      if (Object.keys(next).length === 0) {
+        const { [sessionId]: _removed, ...rest } = state.reviewedBySession;
+        nextBySession = rest;
+      } else {
+        nextBySession = { ...state.reviewedBySession, [sessionId]: next };
+      }
+      writeStoredReviewedFiles(nextBySession);
+      return { reviewedBySession: nextBySession };
+    });
+    return outcome;
+  },
   setSending: (sessionId, sending) =>
     set((state) => {
       const current = Boolean(state.sendingBySession[sessionId]);
@@ -132,6 +211,14 @@ export const useReviewAnnotations = create<ReviewAnnotationsState>((set) => ({
 export function useSessionDiffAnnotations(sessionId?: string | null): readonly DiffAnnotation[] {
   return useReviewAnnotations((state) =>
     sessionId ? (state.bySession[sessionId] ?? EMPTY) : EMPTY,
+  );
+}
+
+export function useSessionReviewedFiles(
+  sessionId?: string | null,
+): Readonly<Record<string, string>> {
+  return useReviewAnnotations((state) =>
+    sessionId ? (state.reviewedBySession[sessionId] ?? EMPTY_REVIEWED) : EMPTY_REVIEWED,
   );
 }
 

@@ -14,7 +14,7 @@
 2. **收拢为极简两列外壳（修订 [MC-ADR-0004](mc-0004-app-rail-and-title-tabs.md) 第 1–2 条）。** 移除窗口最左侧独立 52px `AppRail` 列；内置导航（对话主页、扩展、定时任务、更新状态、设置）及插件面板快捷入口收至侧边栏底部紧凑动作条（`SidebarFooter`，窄侧栏下自动换行，确保 240px 及多插件开启时不裁掉设置与更新入口）。侧边栏收起且位于非对话页时，标题栏左侧提供返回对话入口。Windows 左侧固定标题栏控制区相应去掉竖栏宽度偏移。
 3. **保留对话左边距自适应 `SessionInfo` 面板。** 继续沿用 [MC-ADR-0004](mc-0004-app-rail-and-title-tabs.md) 第 5 条与 [MC-ADR-0007](mc-0007-split-view.md)：宽屏下停靠于居中对话列左侧天然留白区并仅按实际重叠量偏移，窄屏自动切为悬浮态，常驻可一键点开编辑 `AGENTS.md`、项目记忆、系统提示词及压缩会话，并补充滚动链隔离与稳定滚动槽。
 4. **跨项目待处理聚合流与在场消红点。** 新增 `features/attention-feed/`：由挂载于 `AppShell` 的常驻 `AttentionFeedWatcher` 跟踪状态（收起侧边栏不丢完成记录），在侧边栏会话列表上方按需汇总跨项目的「待拍板（权限审批／提问）」「运行中」「刚完成（仅正常完成的后台回合，排除失败、中断与手动压缩）」会话；无条目时完全隐藏。按聊天内容实际可见性（排除非对话路由及工作面板最大化遮挡，支持并列分栏多列可见）自动消除未读标记。
-5. **Diff 行级攒批批注发回对话。** 新增 `features/review-annotations/`，在 `ReviewChangeDetails` 按所属面板会话作用域（`SlotSessionProvider`）隔离分屏批注，以 `(snapshotId, side, lineNumber)` 锚定代码行（切换上下文行数不覆盖邻行意见），汇总提示词按工作树标识 `(rootIdentity, path)` 区分同名文件，异步发送确认后仅清理本批未改动条目（发送失败或发送期间新增／编辑均保留）。
+5. **Diff 行级气泡攒批批注与文件已阅进度。** 新增 `features/review-annotations/`，在 `ReviewChangeDetails` 按所属面板会话作用域（`SlotSessionProvider`）隔离分屏批注：悬停或聚焦代码行时左侧行号／符号槽切换为气泡图标（支持 `Shift` 连选区间），以 `(snapshotId, side, lineNumber)` 锚定代码行，汇总提示词按工作树标识 `(rootIdentity, path)` 区分同名文件；`ReviewHistoryPanel` 顶栏展示已阅文件进度与轻量批注提示，文件头提供按 `(snapshotId, state)` 签名绑定的「已阅」勾选自动折叠；异步发送确认后仅清理本批未改动条目，停止撤回时恢复批注而不覆盖原聊天框草稿。
 6. **克制中性灰视觉纪律。** 外壳与取消／关闭／清空等退回类控件保持无色幽灵态，彩色仅用于表达实时状态（待拍板警告色、运行主色、完成与新增成功色、删除与异常错误色）。
 
 ## 影响

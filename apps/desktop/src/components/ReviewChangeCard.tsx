@@ -1,5 +1,5 @@
 import { useChatSessionCapability } from "../hooks/use-chat-session-capability";
-import { memo, useEffect, useId, useMemo, useState } from "react";
+import { memo, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type {
   ReviewChange,
@@ -16,7 +16,7 @@ import { useSlotSessionId } from "../plugins/renderer-slots/use-slots";
 import { useAppStore } from "../stores/app-store";
 import { useCopy } from "./Markdown";
 import { cx } from "./ui";
-import { IconCheck, IconChevronRight, IconCopy, IconPlus, IconSnapshot } from "./icons";
+import { IconCheck, IconChevronRight, IconCopy, IconSnapshot } from "./icons";
 import {
   annotationLineKey,
   resolveAnnotationRootIdentity,
@@ -62,7 +62,13 @@ export function ReviewChangeDetails({ message, compact = false, contextLines = 3
   const rollback = useAppStore((state) => state.rollbackWorkspaceChange);
   const { copied, copy } = useCopy();
   const [rollingBack, setRollingBack] = useState(false);
-  const [editingLineKey, setEditingLineKey] = useState<string | null>(null);
+  const [editingTarget, setEditingTarget] = useState<{
+    lineKey: string;
+    side: "old" | "new";
+    startLine: number | null;
+    endLine: number | null;
+  } | null>(null);
+  const rangeAnchorRef = useRef<{ side: "old" | "new"; line: number } | null>(null);
   const targetSessionId = annotationSessionId || sessionId || slotSessionId || activeSessionId;
   const targetCanAnnotate = useAppStore((state) => {
     const id = targetSessionId;
@@ -135,29 +141,113 @@ export function ReviewChangeDetails({ message, compact = false, contextLines = 3
                 const lineNum = reviewLineNumber(line);
                 const lKey = annotationLineKey(change.snapshotId, side, lineNum, hunkIndex, lineIndex);
                 const existingNote = annotationsByLineKey?.get(lKey);
-                const isEditingLine = editingLineKey === lKey;
+                const isEditingLine = editingTarget?.lineKey === lKey;
+                const signChar = line.type === "add" ? "+" : line.type === "del" ? "−" : " ";
+                const rangeLo =
+                  editingTarget &&
+                  editingTarget.side === side &&
+                  editingTarget.startLine !== null &&
+                  editingTarget.endLine !== null
+                    ? Math.min(editingTarget.startLine, editingTarget.endLine)
+                    : null;
+                const rangeHi =
+                  editingTarget &&
+                  editingTarget.side === side &&
+                  editingTarget.startLine !== null &&
+                  editingTarget.endLine !== null
+                    ? Math.max(editingTarget.startLine, editingTarget.endLine)
+                    : null;
+                const inSelectedRange =
+                  lineNum !== null &&
+                  rangeLo !== null &&
+                  rangeHi !== null &&
+                  lineNum >= rangeLo &&
+                  lineNum <= rangeHi;
+                const displayLabel = numbered ? (lineNum ?? "") : signChar;
+                const annotateLabel = t("mcProject.diffAnnotateAdd", {
+                  line: lineNum ?? lineIndex + 1,
+                });
                 return (
                   <div className="mc-diff-line-wrap" key={lineIndex}>
-                    <div className={cx("diff-line", line.type)}>
-                      {numbered && <span className="review-line-number" data-side={side}
-                        aria-label={lineNum === null ? undefined : t(side === "old" ? "panel.review.oldLine" : "panel.review.newLine", { line: lineNum })}>
-                        {lineNum}
-                      </span>}
-                      {!numbered && <span className="diff-line-sign" aria-hidden>
-                        {line.type === "add" ? "+" : line.type === "del" ? "−" : " "}
-                      </span>}
-                      <span className="diff-line-text">{line.text}</span>
+                    <div
+                      className={cx(
+                        "diff-line",
+                        line.type,
+                        canAnnotateCard && "is-annotatable",
+                        Boolean(existingNote) && "has-note",
+                        inSelectedRange && "is-in-range",
+                      )}
+                    >
                       {canAnnotateCard ? (
                         <button
                           type="button"
-                          className="mc-diff-annotate-btn"
-                          aria-label={t("mcProject.diffAnnotateAdd", { line: lineNum ?? lineIndex + 1 })}
-                          title={t("mcProject.diffAnnotateAdd", { line: lineNum ?? lineIndex + 1 })}
-                          onClick={() => setEditingLineKey((current) => (current === lKey ? null : lKey))}
+                          className={cx(
+                            numbered ? "review-line-number" : "diff-line-sign",
+                            "mc-diff-annotate-btn",
+                            Boolean(existingNote) && "has-note",
+                            isEditingLine && "is-editing",
+                          )}
+                          data-side={side}
+                          aria-label={annotateLabel}
+                          aria-expanded={isEditingLine}
+                          onClick={(event) => {
+                            if (
+                              event.shiftKey &&
+                              rangeAnchorRef.current &&
+                              rangeAnchorRef.current.side === side &&
+                              lineNum !== null
+                            ) {
+                              const start = Math.min(rangeAnchorRef.current.line, lineNum);
+                              setEditingTarget({
+                                lineKey: lKey,
+                                side,
+                                startLine: start === lineNum ? null : start,
+                                endLine: lineNum,
+                              });
+                              return;
+                            }
+                            if (lineNum !== null) {
+                              rangeAnchorRef.current = { side, line: lineNum };
+                            }
+                            setEditingTarget((current) =>
+                              current?.lineKey === lKey
+                                ? null
+                                : {
+                                    lineKey: lKey,
+                                    side,
+                                    startLine: existingNote?.startLine ?? null,
+                                    endLine: lineNum,
+                                  },
+                            );
+                          }}
                         >
-                          <IconPlus size={11} aria-hidden />
+                          <span className="mc-diff-gutter-text" aria-hidden="true">
+                            {displayLabel}
+                          </span>
                         </button>
-                      ) : null}
+                      ) : numbered ? (
+                        <span
+                          className="review-line-number"
+                          data-side={side}
+                          aria-label={
+                            lineNum === null
+                              ? undefined
+                              : t(
+                                  side === "old"
+                                    ? "panel.review.oldLine"
+                                    : "panel.review.newLine",
+                                  { line: lineNum },
+                                )
+                          }
+                        >
+                          {lineNum}
+                        </span>
+                      ) : (
+                        <span className="diff-line-sign" aria-hidden="true">
+                          {signChar}
+                        </span>
+                      )}
+                      <span className="diff-line-text">{line.text}</span>
                     </div>
                     {canAnnotateCard && targetSessionId && (isEditingLine || Boolean(existingNote)) ? (
                       <DiffLineAnnotationSlot
@@ -168,13 +258,24 @@ export function ReviewChangeDetails({ message, compact = false, contextLines = 3
                         rootIdentity={rootIdentity}
                         lineKey={lKey}
                         side={side}
+                        startLineNumber={isEditingLine ? editingTarget?.startLine : existingNote?.startLine}
                         lineNumber={lineNum}
                         lineType={line.type}
                         code={line.text}
                         noteItem={existingNote}
                         editing={isEditingLine}
-                        onStartEdit={() => setEditingLineKey(lKey)}
-                        onCloseEdit={() => setEditingLineKey(null)}
+                        onStartEdit={() => {
+                          if (lineNum !== null) {
+                            rangeAnchorRef.current = { side, line: lineNum };
+                          }
+                          setEditingTarget({
+                            lineKey: lKey,
+                            side,
+                            startLine: existingNote?.startLine ?? null,
+                            endLine: lineNum,
+                          });
+                        }}
+                        onCloseEdit={() => setEditingTarget(null)}
                       />
                     ) : null}
                   </div>

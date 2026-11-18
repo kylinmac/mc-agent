@@ -506,4 +506,4 @@ P8；V100：吸收轻量并行巡检与行级批量审查闭环，不引入自�
 | 项 | 约定 |
 | --- | --- |
 | 跨项目待处理聚合流 | 由主壳常驻 `AttentionFeedWatcher`（收起侧栏不丢监听，结合窗口 `visibilityState` 与工作面板最大化判断可见性，启动／重载时从未读完成通知恢复且不重显已读项）追踪状态；侧边栏顶部在存在关注项时显示 `SidebarAttentionFeed`，标题徽章展示真实总数，超出 6 条提供展开／收起入口；点击「标为已读」或切入可见时同步清理对应会话的 `sessionOutcomes` 与未读通知 |
-| Diff 行级攒批批注 | `ReviewChangeDetails` 按所属面板会话 ID 作用域（`SlotSessionProvider` / `annotationSessionId`，远程工作区与 `pi-native` 展开内联差异不误调本地 `workspaceReviewContext`）隔离分屏批注，锚点采用 `(snapshotId, side, lineNumber)` 以免疫上下文行数切换；`ReviewTab` 顶部汇总发送按会话加飞行锁防切换会话重复发送，计划待审批时禁用发送并提示原因，发送确认后仅清理本批内容未变的条目 |
+| Diff 行级气泡批注与已阅进度 | `ReviewChangeDetails` 按所属面板会话 ID 作用域（`SlotSessionProvider` / `annotationSessionId`，远程工作区与 `pi-native` 展开内联差异不误调本地 `workspaceReviewContext`）隔离分屏批注；鼠标悬停或键盘聚焦任意 Diff 行时整行高亮、左侧行号／符号槽切换为气泡批注按钮（支持 `Shift+Click` 连选行区间），锚点采用 `(snapshotId, side, lineNumber)` 以免疫上下文行数切换；`ReviewHistoryPanel` 顶栏显示「已阅 X/Y」进度与批注引导，每个文件头提供按快照签名绑定的「已阅」勾选自动折叠（后续发生新改动时自动恢复未读）；单栏／分屏输入框上方与审查面板头部汇总发送加会话飞行锁、计划待审批时禁用并提示，停止撤回时不覆盖原聊天草稿与附件 |

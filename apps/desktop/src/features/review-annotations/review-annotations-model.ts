@@ -15,6 +15,8 @@ export type DiffAnnotation = {
   /** Provenance key matching `groupReviewFiles` (`root`, `unknown:<callId>`, or `"workspace"`). */
   rootIdentity?: string;
   side: "old" | "new";
+  /** Optional start line when the user Shift-selects a multi-line range (`startLine..line`). */
+  startLine?: number | null;
   line: number | null;
   lineType: "add" | "del" | "context";
   code: string;
@@ -233,12 +235,19 @@ export function formatDiffAnnotationsPrompt(
     ];
     for (const entry of sorted) {
       const prefix = entry.lineType === "add" ? "+" : entry.lineType === "del" ? "-" : " ";
-      const loc =
+      const hasRange =
+        entry.startLine !== undefined &&
+        entry.startLine !== null &&
+        entry.line !== null &&
+        entry.startLine !== entry.line;
+      const lineLabel =
         entry.line !== null
-          ? entry.side === "old"
-            ? `old L${entry.line}`
+          ? hasRange
+            ? `L${Math.min(entry.startLine!, entry.line)}–L${Math.max(entry.startLine!, entry.line)}`
             : `L${entry.line}`
           : "diff line";
+      const loc =
+        entry.line !== null && entry.side === "old" ? `old ${lineLabel}` : lineLabel;
       const snippet = entry.code.trim();
       const noteText = formatNoteBody(entry.note);
       lines.push(
@@ -321,4 +330,61 @@ export async function executeBatchAnnotationSend(params: {
   } finally {
     setSending?.(sessionId, false);
   }
+}
+
+export type ReviewFileEntryLike = {
+  change: {
+    snapshotId: string;
+    state?: string;
+  };
+};
+
+/**
+ * Deterministic fingerprint of a `ReviewFileGroup`'s recorded snapshots and states.
+ * When the agent edits the file again in a subsequent turn (or a snapshot is rolled
+ * back), the signature changes and automatically invalidates any stale "Viewed" mark.
+ */
+export function reviewFileSignature(entries: readonly ReviewFileEntryLike[]): string {
+  return entries
+    .map((entry) => `${entry.change.snapshotId}:${entry.change.state ?? "active"}`)
+    .join("|");
+}
+
+export function isReviewFileViewed(
+  reviewedByFileId: Readonly<Record<string, string>> | undefined,
+  fileId: string,
+  signature: string,
+): boolean {
+  return Boolean(signature && reviewedByFileId?.[fileId] === signature);
+}
+
+export function toggleReviewFileViewedMap(
+  current: Readonly<Record<string, string>> | undefined,
+  fileId: string,
+  signature: string,
+): { next: Record<string, string>; viewed: boolean } {
+  const base = current ?? {};
+  if (!signature) return { next: { ...base }, viewed: false };
+  if (base[fileId] === signature) {
+    const { [fileId]: _removed, ...rest } = base;
+    return { next: rest, viewed: false };
+  }
+  return {
+    next: { ...base, [fileId]: signature },
+    viewed: true,
+  };
+}
+
+export function countReviewedFiles(
+  files: readonly { id: string; entries: readonly ReviewFileEntryLike[] }[],
+  reviewedByFileId: Readonly<Record<string, string>> | undefined,
+): number {
+  if (!reviewedByFileId || files.length === 0) return 0;
+  let count = 0;
+  for (const file of files) {
+    if (isReviewFileViewed(reviewedByFileId, file.id, reviewFileSignature(file.entries))) {
+      count += 1;
+    }
+  }
+  return count;
 }

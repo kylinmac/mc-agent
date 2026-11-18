@@ -4826,6 +4826,26 @@
     "zh-CN": "在第 {{line}} 行添加批注",
     "zh-TW": "在第 {{line}} 行新增批註"
   },
+  "diffAnnotateAddRange": {
+    "en": "Comment on lines {{start}}–{{end}}",
+    "zh-CN": "在第 {{start}}–{{end}} 行添加批注",
+    "zh-TW": "在第 {{start}}–{{end}} 行新增批註"
+  },
+  "diffAnnotateToolbarHint": {
+    "en": "Hover a line to comment",
+    "zh-CN": "悬停代码行点击气泡批注",
+    "zh-TW": "懸停程式碼行點擊氣泡批註"
+  },
+  "reviewFileViewed": {
+    "en": "Viewed",
+    "zh-CN": "已阅",
+    "zh-TW": "已閱"
+  },
+  "reviewProgress": {
+    "en": "Viewed {{reviewed}}/{{total}}",
+    "zh-CN": "已阅 {{reviewed}}/{{total}}",
+    "zh-TW": "已閱 {{reviewed}}/{{total}}"
+  },
   "diffAnnotatePlaceholder": {
     "en": "Describe what to change on this line… ({{shortcut}} to save)",
     "zh-CN": "写下这行的修改意见…（{{shortcut}} 保存）",

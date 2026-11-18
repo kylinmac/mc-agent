@@ -9,6 +9,8 @@ import { initReactI18next } from "react-i18next";
 import { catalogs, flattenCatalog } from "@pi-desktop/i18n";
 import { SessionTabs } from "../../src/features/session-tabs/SessionTabs";
 import { ReviewChangeCard } from "../../src/components/ReviewChangeCard";
+import { ReviewHistoryFile } from "../../src/components/workpanel/ReviewHistoryFile";
+import { ReviewHistoryToolbar } from "../../src/components/workpanel/ReviewHistoryToolbar";
 import { ReviewTab } from "../../src/components/workpanel/ReviewTab";
 import { SidebarAttentionFeed } from "../../src/features/attention-feed/SidebarAttentionFeed";
 import { useAttentionStore } from "../../src/features/attention-feed/attention-store";
@@ -409,11 +411,81 @@ async function checkRound2ReviewAndAttentionEdgeCases() {
     });
     await settle();
     check(!host.querySelector(".mc-chat-review-batch-dock"), "ChatReviewBatchDock hides when active session Review pane is open");
+
+    // 6. R37 UX: Left-gutter button sits before `.diff-line-text`, supports Shift+Click multi-line range (`L10–L11`),
+    //    and `ReviewHistoryFile` "已阅" button auto-collapses an open file while updating `ReviewHistoryToolbar` progress.
+    const gutterBtns = [...host.querySelectorAll(".mc-diff-annotate-btn")];
+    check(gutterBtns.length === 2, "each diff line renders its left-gutter bubble button");
+    check(
+      gutterBtns[0].nextElementSibling?.classList.contains("diff-line-text"),
+      "annotate bubble button sits in the left gutter right before code text",
+    );
+    flushSync(() => gutterBtns[0].click()); // anchor at L10 (and closes or opens L10)
+    await settle();
+    if (!host.querySelector(".mc-diff-annotation-input")) {
+      flushSync(() => gutterBtns[0].click());
+      await settle();
+    }
+    flushSync(() => {
+      gutterBtns[1].dispatchEvent(new MouseEvent("click", { bubbles: true, shiftKey: true }));
+    });
+    await settle();
+    check(
+      host.querySelector(".mc-diff-annotation-line-pill")?.textContent === "L10–L11",
+      "Shift+Click selects multi-line range L10–L11",
+    );
+
+    const fileGroup = {
+      id: "workspace:src/local.ts",
+      path: "src/local.ts",
+      additions: 1,
+      deletions: 0,
+      entries: [{ message: localDiffMessage, change: localDiffMessage.toolResult.details.review }],
+    };
+    flushSync(() =>
+      subRoot.render(
+        <div>
+          <ReviewHistoryToolbar
+            history={false}
+            onHistory={() => {}}
+            count={2}
+            additions={4}
+            deletions={1}
+            context={3}
+            onContext={() => {}}
+            wrap={true}
+            onWrap={() => {}}
+            reviewedCount={0}
+            showAnnotateHint={true}
+          />
+          <ReviewHistoryFile
+            file={fileGroup}
+            sessionId="a"
+            context={3}
+            disabled={false}
+            onChanged={() => {}}
+          />
+        </div>,
+      ),
+    );
+    await settle();
+    check(host.querySelector(".mc-review-progress-pill")?.textContent.includes("已阅 0/2"), "toolbar displays Viewed 0/2 progress");
+    check(host.querySelector(".mc-review-toolbar-hint")?.textContent.includes("气泡"), "toolbar displays hover bubble hint when 0 notes");
+    // Open file, then click "已阅" -> file auto-collapses and aria-pressed becomes "true"!
+    flushSync(() => host.querySelector(".review-history-file-header").click());
+    await settle();
+    check(host.querySelector(".review-history-file.open"), "file expanded before clicking Viewed");
+    const viewedBtn = host.querySelector(".mc-review-viewed-btn");
+    check(viewedBtn?.getAttribute("aria-pressed") === "false", "Viewed button starts unpressed");
+    flushSync(() => viewedBtn.click());
+    await settle();
+    check(!host.querySelector(".review-history-file.open"), "clicking Viewed auto-collapses open file");
+    check(host.querySelector(".mc-review-viewed-btn")?.getAttribute("aria-pressed") === "true", "Viewed button updates aria-pressed=true");
   } finally {
     api.workspaceReviewContext = prevContextApi;
     flushSync(() => subRoot.unmount());
     host.remove();
-    useReviewAnnotations.setState({ bySession: {}, sendingBySession: {} });
+    useReviewAnnotations.setState({ bySession: {}, sendingBySession: {}, reviewedBySession: {} });
     useAttentionStore.setState({ unreadCompleted: {} });
     useAppStore.setState({
       sessions: prevState.sessions,
