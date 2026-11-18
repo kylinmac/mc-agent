@@ -64,7 +64,13 @@ export function createInteractionSlice({
       }));
     },
 
-    setPage: (page, opts) => {
+    setPage: (requestedPage, opts) => {
+      const page: AppState["page"] =
+        requestedPage === "scheduled" ||
+        requestedPage === "plugins" ||
+        requestedPage === "settings"
+          ? requestedPage
+          : "chat";
       runtime.beginNavigationIntent();
       const record = opts?.record !== false;
       set((state) => {

@@ -14,9 +14,8 @@ test("groups share sidebar multi-folder identity and keep first appearance and t
     ["c", { id: "c", projectPath: "/work/resources" }],
     ["d", { id: "d" }],
   ]);
-  assert.deepEqual(groupProjectTabs(["a", "page:creative", "b", "c", "d", "loading"], sessions, folders, "Ungrouped"), [
+  assert.deepEqual(groupProjectTabs(["a", "b", "c", "d", "loading"], sessions, folders, "Ungrouped"), [
     { kind: "project", id: "project:one", title: "Project", keys: ["a", "c"] },
-    { kind: "tab", key: "page:creative" },
     { kind: "project", id: "path:/other/code", title: "code", keys: ["b"] },
     { kind: "project", id: "ungrouped", title: "Ungrouped", keys: ["d", "loading"] },
   ]);
@@ -42,37 +41,32 @@ test("reordering a project group moves all of its sessions together and keeps in
     ["c1", { id: "c1", projectPath: "/gamma" }],
     ["c2", { id: "c2", projectPath: "/gamma" }],
   ]);
-  const tabs = ["a1", "page:creative", "b1", "a2", "c1", "c2"];
+  const tabs = ["a1", "b1", "a2", "c1", "c2"];
   const entries = groupProjectTabs(tabs, sessions, new Map(), "Ungrouped");
   assert.deepEqual(entries.map(groupedEntryId), [
     "group:path:/alpha",
-    "tab:page:creative",
     "group:path:/beta",
     "group:path:/gamma",
   ]);
   // Interleaved group A moving after B coalesces A's tabs in order at B's trailing edge.
   assert.deepEqual(
     moveGroupedTab(tabs, entries, "group:path:/alpha", "group:path:/beta", true),
-    ["page:creative", "b1", "a1", "a2", "c1", "c2"],
+    ["b1", "a1", "a2", "c1", "c2"],
   );
   // Dragging A before its immediate right neighbour is a no-op visually and keeps tabs unchanged.
   assert.deepEqual(
-    moveGroupedTab(tabs, entries, "group:path:/alpha", "tab:page:creative", false),
+    moveGroupedTab(tabs, entries, "group:path:/alpha", "group:path:/beta", false),
     tabs,
   );
-  // Independent page tab moves cleanly before an earlier group, and last group moves to front.
-  assert.deepEqual(
-    moveGroupedTab(tabs, entries, "tab:page:creative", "group:path:/alpha", false),
-    ["page:creative", "a1", "b1", "a2", "c1", "c2"],
-  );
+  // Last group moves cleanly before the first group.
   assert.deepEqual(
     moveGroupedTab(tabs, entries, "group:path:/gamma", "group:path:/alpha", false),
-    ["c1", "c2", "a1", "page:creative", "b1", "a2"],
+    ["c1", "c2", "a1", "b1", "a2"],
   );
   // Moving the first group past the last appends all of its tabs at the end.
   assert.deepEqual(
     moveGroupedTab(tabs, entries, "group:path:/alpha", "group:path:/gamma", true),
-    ["page:creative", "b1", "c1", "c2", "a1", "a2"],
+    ["b1", "c1", "c2", "a1", "a2"],
   );
   assert.deepEqual(moveGroupedTab(tabs, entries, "missing", "group:path:/beta", true), tabs);
 });

@@ -421,3 +421,15 @@ V85 云端补充：PR #114 的 CI `42827535202` 全部通过，含 Linux Electro
 ## V97 标签栏可读性、滚动渐隐与界面视觉细节（R11.23；P8）
 
 2026-11-17：`apps/desktop/test/session-tabs.test.mjs`（含 `tabScrollFadeEdges` 与 `.mc-project-tab` `flex: 0 0 auto` / `.fade-left` / `.fade-right` CSS 断言）与 `session-tab-groups.test.mjs` 通过；`pnpm --filter @pi-desktop/desktop lint`（样式令牌）通过；隔离 Electron E2E `node scripts/e2e-session-tabs.mjs`（`narrow`/`wide`/`many-projects`）通过。未验证：实机安装版桌面窗口下分组标签中键关闭、滚动边缘渐隐遮罩、焦点描边及 `tabular-nums` 等宽数字的真实视觉呈现。
+
+## V98 下线创作工作台界面（R35；P8）
+
+2026-11-18：`apps/desktop/test/mc-zen-orca.test.mjs`、`session-tabs.test.mjs`、`mc-creative-contract.test.mjs` 通过；隔离 Electron `node scripts/e2e-session-tabs.mjs` 与 `apps/desktop/test/mc-chat-usability.test.mjs` 验证旧本地缓存中的 `page:creative` 标签在启动时自动清理且普通会话标签、图片预览与草稿逻辑正常。未验证：各平台安装版（`~/.mc-agent`）从历史带创作标签状态升级后的实机首次打开表现。
+
+## V99 极简两列外壳与左边距自适应会话面板（R36；P8）
+
+2026-11-18：`apps/desktop/test/sidebar-footer.test.mjs`、`session-info.test.mjs`、`utility-navigation.test.mjs` 通过；隔离 Electron `node scripts/e2e-session-tabs.mjs` 验证移除 `AppRail` 后的两列布局及 240px 窄侧栏开启 4 个插件面板时，`SidebarFooter` 的设置、更新与全部插件入口完整位于侧边栏边界内且尺寸达标；macOS 开发版实机验证左侧自适应 `SessionInfo` 常驻与一键编辑可用。未验证：Windows / Linux 实机及各平台打包安装版渲染。
+
+## V100 跨项目待处理聚合流与 Diff 行级攒批批注（R37；P8）
+
+2026-11-18：`apps/desktop/test/mc-zen-orca.test.mjs` 与隔离 Electron `apps/desktop/test/mc-chat-usability.test.mjs` 通过，覆盖：收起侧栏常驻跟踪、窗口最小化与工作面板最大化遮挡保未读、重载时从未读完成通知恢复且不重显已读项、点击「标为已读」同步清理 `sessionOutcomes` 与通知、7+ 待处理项真实总数展示与展开／收起、仅成功完成进入绿色「刚完成」，以及分屏键盘批注会话隔离、远程工作区展开内联 Diff 不误报上下文错误、切换会话防重复发送、计划待审批禁用提示、上下文行数切换不串行、多 worktree 同名文件区分、异步发送竞态保批。未验证：连接真实模型与真实多 worktree 子代理委托下的端到端安装版实测。

@@ -39,7 +39,7 @@ test("tab menu and visible image previews work through the real components", {
     // The isolated esbuild fixture has no Tailwind pass; expose its theme tokens.
     const cssPath = join(temp, "renderer.css");
     await writeFile(cssPath, (await readFile(cssPath, "utf8")).replace(/@theme[^\{]*\{/g, ":root {"));
-    await writeFile(join(temp, "index.html"), '<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="renderer.css"><style>:root{--text-xs:11px;--text-sm:12px;--text-base:14px;--radius-md:8px;--radius-lg:16px;--radius-full:9999px}body{margin:0;font:14px system-ui;background:var(--ds-bg-primary);color:var(--ds-text-primary)}button,input{font:inherit}</style><div id="root"></div><script type="module" src="renderer.js"></script>');
+    await writeFile(join(temp, "index.html"), '<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="renderer.css"><style>:root{--text-xs:11px;--text-sm:12px;--text-base:14px;--radius-md:8px;--radius-lg:16px;--radius-full:9999px}body{margin:0;font:14px system-ui;background:var(--ds-bg-primary);color:var(--ds-text-primary)}button,input{font:inherit}</style><div id="root"></div><script>localStorage.setItem("mc.sessionTabs",JSON.stringify(["page:creative","a"]))</script><script type="module" src="renderer.js"></script>');
     await writeFile(join(temp, "main.cjs"), `
 const { app, BrowserWindow } = require("electron");
 const path = require("node:path");

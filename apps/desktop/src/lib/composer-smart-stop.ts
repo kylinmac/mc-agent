@@ -35,6 +35,8 @@ export type ComposerDraftFileReference = {
 export type ComposerDraftSnapshot = {
   text: string;
   fileReferences: ComposerDraftFileReference[];
+  /** mc-agent: programmatic send (e.g. diff review batch) whose smart-stop undo restores its own store without overwriting the chat composer via `composerPrefill`. */
+  onSmartStopUndo?: () => void;
 };
 
 export type ComposerPrefill = ComposerDraftSnapshot & {

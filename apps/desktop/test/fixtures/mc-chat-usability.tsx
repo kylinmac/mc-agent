@@ -8,6 +8,16 @@ import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import { catalogs, flattenCatalog } from "@pi-desktop/i18n";
 import { SessionTabs } from "../../src/features/session-tabs/SessionTabs";
+import { ReviewChangeCard } from "../../src/components/ReviewChangeCard";
+import { ReviewTab } from "../../src/components/workpanel/ReviewTab";
+import { SidebarAttentionFeed } from "../../src/features/attention-feed/SidebarAttentionFeed";
+import { useAttentionStore } from "../../src/features/attention-feed/attention-store";
+import { SlotSessionProvider } from "../../src/plugins/renderer-slots/use-slots";
+import { ChatReviewBatchDock, ReviewBatchBar } from "../../src/features/review-annotations/ReviewAnnotationWidgets";
+import {
+  sendBatchAnnotationsToSession,
+  useReviewAnnotations,
+} from "../../src/features/review-annotations/review-annotations";
 import { useAppStore } from "../../src/stores/app-store";
 import { setSplitColumns, useSplitView } from "../../src/lib/mc-split-view";
 import { api } from "../../src/lib/api";
@@ -21,6 +31,7 @@ import "../../src/styles/composer.css";
 import "../../src/styles/app-rail.css";
 import "../../src/styles/ui-kit.css";
 import "../../src/styles/mc-session-tabs.css";
+import "../../src/styles/mc-zen-orca.css";
 
 const noop = () => {};
 const settle = () => new Promise((resolve) => setTimeout(resolve, 30));
@@ -91,8 +102,342 @@ async function action(label) {
   check(item, "menu item missing: " + label);
   item.click(); await settle();
 }
+function makeReviewMessage(id, snapshotId, path) {
+  return {
+    id,
+    role: "tool",
+    toolName: "Edit",
+    toolStatus: "success",
+    content: "",
+    toolResult: {
+      details: {
+        root: "workspace",
+        review: {
+          version: 1,
+          snapshotId,
+          messageId: id,
+          path,
+          operation: "edit",
+          status: "modified",
+          state: "active",
+          additions: 1,
+          deletions: 0,
+          reversible: false,
+          hunks: [{ header: "@@ -10,1 +10,2 @@", lines: [{ type: "context", text: "const x = 1;" }, { type: "add", text: "const y = 2;" }] }],
+        },
+      },
+    },
+  };
+}
+
+async function checkSplitPaneAnnotationIsolation() {
+  useReviewAnnotations.setState({ bySession: {} });
+  useAppStore.setState({ activeSessionId: "a", page: "chat" });
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const splitRoot = createRoot(host);
+  const msgA = makeReviewMessage("m-a", "snap-a", "src/a.ts");
+  const msgB = makeReviewMessage("m-b", "snap-b", "src/b.ts");
+  try {
+    flushSync(() =>
+      splitRoot.render(
+        <div style={{ display: "flex", gap: "12px" }}>
+          <div data-pane="a">
+            <SlotSessionProvider sessionId="a">
+              <ReviewChangeCard message={msgA} asToolRow openRequest={1} />
+            </SlotSessionProvider>
+          </div>
+          <div data-pane="b">
+            <SlotSessionProvider sessionId="b">
+              <ReviewChangeCard message={msgB} asToolRow openRequest={1} />
+            </SlotSessionProvider>
+          </div>
+        </div>,
+      ),
+    );
+    await settle();
+    check(useAppStore.getState().activeSessionId === "a", "focus stays on pane A");
+    const paneB = host.querySelector('[data-pane="b"]');
+    const addBtnB = paneB.querySelector(".mc-diff-annotate-btn");
+    check(addBtnB, "pane B renders diff annotate button");
+    addBtnB.focus();
+    addBtnB.click();
+    await settle();
+    const textareaB = paneB.querySelector(".mc-diff-annotation-input");
+    check(textareaB, "pane B opens inline annotation editor");
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set.call(textareaB, "仅归属 B 会话的键盘批注");
+    textareaB.dispatchEvent(new Event("input", { bubbles: true }));
+    await settle();
+    textareaB.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", metaKey: true, bubbles: true, cancelable: true }));
+    await settle();
+    check(useAppStore.getState().activeSessionId === "a", "keyboard save in B never steals global focus state");
+    check(!useReviewAnnotations.getState().bySession.a, "pane A batch remains untouched");
+    check(useReviewAnnotations.getState().bySession.b?.length === 1, "annotation saved exclusively to pane B batch");
+    check(paneB.querySelector(".mc-diff-annotation-card")?.textContent.includes("仅归属 B 会话的键盘批注"), "annotation card rendered in pane B");
+    // Switch focus to B and back to A: annotation stays pinned in B.
+    useAppStore.setState({ activeSessionId: "b" });
+    await settle();
+    check(paneB.querySelector(".mc-diff-annotation-card")?.textContent.includes("仅归属 B 会话的键盘批注"), "annotation stays in B when B is focused");
+    useAppStore.setState({ activeSessionId: "a" });
+    await settle();
+    check(paneB.querySelector(".mc-diff-annotation-card")?.textContent.includes("仅归属 B 会话的键盘批注"), "annotation stays in B after focus returns to A");
+    check(!host.querySelector('[data-pane="a"] .mc-diff-annotation-card'), "pane A never shows B's annotation");
+  } finally {
+    flushSync(() => splitRoot.unmount());
+    host.remove();
+    useReviewAnnotations.setState({ bySession: {}, sendingBySession: {} });
+  }
+}
+
+async function checkRound2ReviewAndAttentionEdgeCases() {
+  const prevState = useAppStore.getState();
+  const prevContextApi = api.workspaceReviewContext;
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const subRoot = createRoot(host);
+  let contextCalls = 0;
+  const acknowledged = [];
+  try {
+    // 1. Remote workspace LegacyReviewTab expanding inline diff MUST NOT call workspaceReviewContext or show contextError.
+    api.workspaceReviewContext = async () => {
+      contextCalls += 1;
+      throw new Error("remote workspace has no local review context");
+    };
+    const remoteMsg = makeReviewMessage("m-rem", "snap-rem", "src/remote.ts");
+    useAppStore.setState({
+      sessions: [
+        ...sessions,
+        { id: "rem-ws", title: "Remote WS", source: "local", remoteWorkspace: { hostKey: "box", path: "/srv/app" } },
+      ],
+      activeSessionId: "rem-ws",
+      messages: [remoteMsg],
+    });
+    flushSync(() => subRoot.render(<ReviewTab />));
+    await settle();
+    const headerBtn = host.querySelector(".review-change-card-header");
+    check(headerBtn, "remote workspace LegacyReviewTab renders ReviewChangeCard");
+    headerBtn.click();
+    await settle();
+    check(contextCalls === 0, "LegacyReviewTab never calls workspaceReviewContext on remote workspace");
+    check(!host.querySelector('[role="alert"]'), "remote workspace diff shows no contextError alert");
+    check(host.querySelector(".review-change-diff")?.textContent.includes("const y = 2;"), "remote workspace inline diff renders cleanly");
+
+    // 2. Plan approval pending disables batch send button with clear reason, and mid-send session switch blocks double-send.
+    useReviewAnnotations.setState({
+      bySession: {
+        a: [{
+          id: "n-plan",
+          lineKey: "snap-a:new:10",
+          sessionId: "a",
+          snapshotId: "snap-a",
+          path: "src/a.ts",
+          side: "new",
+          line: 10,
+          lineType: "add",
+          code: "const y = 2;",
+          note: "Check plan lock",
+          createdAt: 1,
+        }],
+      },
+      sendingBySession: {},
+    });
+    useAppStore.setState({
+      sessions,
+      activeSessionId: "a",
+      messages: [],
+      pendingPlans: { a: { id: "plan-1", sessionId: "a", status: "pending", kind: "plan", title: "Plan", createdAt: "" } },
+    });
+    flushSync(() => subRoot.render(<ReviewBatchBar sessionId="a" />));
+    await settle();
+    check(host.querySelector(".mc-review-batch-hint")?.textContent.includes("请先审批当前计划"), "batch bar explains pending plan lock");
+    const primarySendBtn = [...host.querySelectorAll(".mc-review-batch-actions button")].at(-1);
+    check(primarySendBtn?.disabled === true, "send button disabled while plan approval is pending");
+
+    // Clear pending plan, start delayed send on "a", remount ReviewBatchBar as if switching a -> b -> a, verify still locked.
+    let resolvePrompt;
+    let promptCount = 0;
+    useAppStore.setState({
+      pendingPlans: {},
+      sendPrompt: () => new Promise((resolve) => { promptCount += 1; resolvePrompt = resolve; }),
+    });
+    flushSync(() => subRoot.render(<ReviewBatchBar key="mount-1" sessionId="a" />));
+    await settle();
+    host.querySelectorAll(".mc-review-batch-actions button")[1].click();
+    await settle();
+    flushSync(() => subRoot.render(<ReviewBatchBar key="mount-2" sessionId="b" />));
+    await settle();
+    flushSync(() => subRoot.render(<ReviewBatchBar key="mount-3" sessionId="a" />));
+    await settle();
+    const remountedSendBtn = host.querySelectorAll(".mc-review-batch-actions button")[1];
+    check(remountedSendBtn?.disabled === true, "remounted ReviewBatchBar keeps send button disabled while in flight");
+    const secondTry = await sendBatchAnnotationsToSession("a", "Intro:");
+    check(secondTry.sent === false && secondTry.blockedReason === "sending" && promptCount === 1, "switching sessions cannot send same batch twice");
+    resolvePrompt(true);
+    await settle();
+
+    // 3. SidebarAttentionFeed with 7 items shows true count 7, expands 7th item, and Mark Read syncs acknowledgeSessionOutcome.
+    const seven = Array.from({ length: 7 }, (_, i) => ({ id: `att-${i + 1}`, title: `任务 ${i + 1}`, source: "local" }));
+    const perms = Object.fromEntries(seven.slice(0, 6).map((s) => [s.id, [{ id: `p-${s.id}` }]]));
+    useAttentionStore.setState({ unreadCompleted: { "att-7": 9999 } });
+    useAppStore.setState({
+      sessions: seven,
+      activeSessionId: "att-1",
+      page: "chat",
+      pendingPermissions: perms,
+      sessionOutcomes: { "att-7": "completed" },
+      acknowledgeSessionOutcome: async (id) => {
+        acknowledged.push(id);
+        useAppStore.setState({ sessionOutcomes: {} });
+      },
+    });
+    flushSync(() => subRoot.render(<SidebarAttentionFeed />));
+    await settle();
+    check(host.querySelector(".mc-attention-count")?.textContent === "7", "attention header shows true total 7 instead of truncated 6");
+    check(host.querySelectorAll(".mc-attention-row").length === 6, "collapsed attention feed renders 6 rows");
+    const moreBtn = host.querySelector("[data-attention-toggle-more]");
+    check(moreBtn, "overflow toggle button rendered when > 6 items");
+    moreBtn.click();
+    await settle();
+    check(host.querySelectorAll(".mc-attention-row").length === 7, "expanding reveals the 7th item");
+    host.querySelector(".mc-attention-clear").click();
+    await settle();
+    check(acknowledged.includes("att-7"), "Mark Read synchronizes acknowledgeSessionOutcome for completed sessions");
+    check(!useAppStore.getState().sessionOutcomes["att-7"], "sidebar sessionOutcome cleared together with attention feed");
+
+    // 4. Round-3: stray scheduledRun unread key does NOT expose "Mark read" when only needs_action/running rows exist,
+    //    and selectSession rejection surfaces an error toast instead of unhandled rejection.
+    const toastMessages = [];
+    useAttentionStore.setState({ unreadCompleted: { "sched-hidden": 9999 } });
+    useAppStore.setState({
+      sessions: [
+        ...seven.slice(0, 2),
+        { id: "sched-hidden", title: "Cron", source: "local", scheduledRun: true },
+      ],
+      pendingPermissions: { "att-1": [{ id: "p-1" }] },
+      selectSession: async () => {
+        throw new Error("项目文件夹已移走");
+      },
+      showToast: (msg) => {
+        toastMessages.push(msg);
+      },
+    });
+    flushSync(() => subRoot.render(<SidebarAttentionFeed />));
+    await settle();
+    check(!host.querySelector(".mc-attention-clear"), "scheduledRun unread key must not show Mark read when no completed row is visible");
+    host.querySelector('[data-attention-session="att-2"]')?.click();
+    useAppStore.setState({ pendingPermissions: { "att-1": [{ id: "p-1" }], "att-2": [{ id: "p-2" }] } });
+    flushSync(() => subRoot.render(<SidebarAttentionFeed />));
+    await settle();
+    host.querySelector('[data-attention-session="att-2"]').click();
+    await settle();
+    check(toastMessages.includes("项目文件夹已移走"), "selectSession error surfaces toast in SidebarAttentionFeed");
+
+    // 5. Round-3: ChatReviewBatchDock renders when WorkPanel is closed and hides when active session's Review pane is open;
+    //    and mid-send re-editing a diff note preserves the user's in-progress textarea draft when pruneSent fires.
+    const localDiffMessage = makeReviewMessage("m-local-diff", "snap-local-1", "src/local.ts");
+    useReviewAnnotations.setState({
+      bySession: {
+        a: [{
+          id: "n-edit-race",
+          lineKey: "snap-local-1:new:10",
+          sessionId: "a",
+          snapshotId: "snap-local-1",
+          path: "src/local.ts",
+          side: "new",
+          line: 10,
+          lineType: "context",
+          code: "const x = 1;",
+          note: "旧批注内容",
+          createdAt: 1,
+        }],
+      },
+      sendingBySession: {},
+    });
+    useAppStore.setState({
+      sessions,
+      activeSessionId: "a",
+      workPanelOpen: false,
+      workPanelTabs: [],
+    });
+    flushSync(() =>
+      subRoot.render(
+        <SlotSessionProvider sessionId="a">
+          <ReviewChangeCard message={localDiffMessage} asToolRow openRequest={1} />
+          <ChatReviewBatchDock sessionId="a" />
+        </SlotSessionProvider>,
+      ),
+    );
+    await settle();
+    check(Boolean(host.querySelector(".mc-chat-review-batch-dock .mc-review-batch-bar")), "ChatReviewBatchDock visible when WorkPanel is closed");
+
+    // Open Edit on the saved annotation, type new draft, then simulate in-flight send pruneSent deleting `n-edit-race`:
+    const editBtn = [...host.querySelectorAll(".mc-diff-annotation-card-actions button")][0];
+    check(editBtn, "saved annotation card renders Edit button");
+    flushSync(() => editBtn.click());
+    await settle();
+    const noteTextarea = host.querySelector(".mc-diff-annotation-input");
+    check(noteTextarea, "annotation editor textarea opened");
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set.call(noteTextarea, "正在重新输入的草稿");
+    noteTextarea.dispatchEvent(new Event("input", { bubbles: true }));
+    await settle();
+    flushSync(() => {
+      useReviewAnnotations.getState().pruneSent("a", [{ id: "n-edit-race", lineKey: "snap-local-1:new:10", note: "旧批注内容" }]);
+    });
+    await settle();
+    check(
+      host.querySelector(".mc-diff-annotation-input")?.value === "正在重新输入的草稿",
+      "in-flight pruneSent must not clear active re-edit textarea draft",
+    );
+
+    // Save the new draft and verify ChatReviewBatchDock hides once WorkPanel opens Review tab for session "a":
+    flushSync(() => {
+      useReviewAnnotations.getState().upsert({
+        lineKey: "snap-local-1:new:10",
+        sessionId: "a",
+        snapshotId: "snap-local-1",
+        path: "src/local.ts",
+        side: "new",
+        line: 10,
+        lineType: "context",
+        code: "const x = 1;",
+        note: "正在重新输入的草稿",
+      });
+      useAppStore.setState({
+        workPanelOpen: true,
+        workPanelTabs: [{ id: "review", kind: "review" }],
+      });
+    });
+    await settle();
+    check(!host.querySelector(".mc-chat-review-batch-dock"), "ChatReviewBatchDock hides when active session Review pane is open");
+  } finally {
+    api.workspaceReviewContext = prevContextApi;
+    flushSync(() => subRoot.unmount());
+    host.remove();
+    useReviewAnnotations.setState({ bySession: {}, sendingBySession: {} });
+    useAttentionStore.setState({ unreadCompleted: {} });
+    useAppStore.setState({
+      sessions: prevState.sessions,
+      activeSessionId: prevState.activeSessionId,
+      page: prevState.page,
+      messages: prevState.messages,
+      pendingPlans: prevState.pendingPlans,
+      pendingPermissions: prevState.pendingPermissions,
+      sessionOutcomes: prevState.sessionOutcomes,
+      sendPrompt: prevState.sendPrompt,
+      selectSession: prevState.selectSession,
+      showToast: prevState.showToast,
+      workPanelOpen: prevState.workPanelOpen,
+      workPanelTabs: prevState.workPanelTabs,
+      acknowledgeSessionOutcome: prevState.acknowledgeSessionOutcome,
+    });
+  }
+}
+
 window.usabilityProbe = async () => {
-  await settle(); await select("b"); await settle(); await select("c"); await settle(); await select("a"); await settle();
+  await settle();
+  const initialStoredTabs = JSON.parse(localStorage.getItem("mc.sessionTabs") ?? "[]");
+  check(!initialStoredTabs.includes("page:creative") && !tab("page:creative"), "legacy page:creative tab must be pruned on load");
+  await select("b"); await settle(); await select("c"); await settle(); await select("a"); await settle();
   await menu("b"); await action("置顶"); check(pins[0] === "b", "pin must target clicked tab");
   await menu("b"); await action("重命名任务");
   const input = document.querySelector("#session-rename-input");
@@ -116,9 +461,8 @@ window.usabilityProbe = async () => {
     check(tabs().join() === "b,a", "rail page added a tab: " + page);
     check(!document.querySelector('[role="tab"][aria-selected="true"]'), "rail page highlights a conversation tab");
   }
-  useAppStore.setState({ page: "creative" }); await settle();
-  await menu("page:creative");
-  check(!document.querySelector('[role="menu"]').textContent.includes("重命名任务"), "page menu must omit session actions");
+  useAppStore.setState({ page: "chat" }); await settle();
+  await menu("a");
   await action("关闭全部标签"); check(tabs().length === 0, "close all");
   await select("a"); await settle();
   const images = [1, 2].map((i) => ({ id: "image-" + i, path: "/image" + i + ".png", name: "图片 " + i + ".png", kind: "image", mimeType: "image/png", sessionId: "a", token: String.fromCharCode(0xe000 + i) }));
@@ -158,5 +502,7 @@ window.usabilityProbe = async () => {
   await checkCurrentContext();
   await checkFastMode();
   await checkBuiltinPrompt();
+  await checkSplitPaneAnnotationIsolation();
+  await checkRound2ReviewAndAttentionEdgeCases();
   return { passed: true, thumbnails: 2, tabs: tabs() };
 };

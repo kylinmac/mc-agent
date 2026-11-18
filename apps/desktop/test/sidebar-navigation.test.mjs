@@ -18,7 +18,7 @@ const hoverHookSource = await readFile(
 );
 const globalStyles = await loadStyles();
 const railSource = await readFile(
-  new URL("../src/features/app-rail/AppRail.tsx", import.meta.url),
+  new URL("../src/features/app-rail/SidebarFooter.tsx", import.meta.url),
   "utf8",
 );
 const appSource = await readAppSource();

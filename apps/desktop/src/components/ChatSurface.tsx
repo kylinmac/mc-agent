@@ -17,6 +17,7 @@ import { headPermission } from "../lib/pending-permissions";
 import { headAsk } from "../lib/pending-asks";
 import { useSplitView } from "../lib/mc-split-view";
 import { SplitColumns } from "../features/split-view/SplitColumns";
+import { ChatReviewBatchDock } from "../features/review-annotations/ReviewAnnotationWidgets";
 
 import { isRemoteSession } from "../lib/remote-session-safety";
 const StableComposer = memo(Composer);
@@ -219,6 +220,7 @@ export const ChatSurface = memo(function ChatSurface({
               />
             ))}
           </div>
+          <ChatReviewBatchDock sessionId={visibleSessionId} />
           <StableComposer variant="docked" />
         </>
       )}

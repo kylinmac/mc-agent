@@ -479,3 +479,31 @@ P8；V97：在按项目合并与跨界面数值展示中补齐排版与视觉稳
 | 滚动边缘渐隐 | `.mc-session-tabs-viewport` 在左右存在溢出隐藏内容时通过 `mask-image` 渐隐边缘，避免文字在滚动边界被硬切 |
 | 焦点描边收敛 | 消除覆盖 `mc-focus.css` 的实心焦点框，统一复用柔和背景提亮且关闭下拉不残留白框 |
 | 等宽数字排版 | 标签计数、会话信息占比／耗时、后台任务徽章及用量统计视图统一启用 `font-variant-numeric: tabular-nums` |
+
+## R35 下线创作工作台界面（2026-11-17 已确认）
+
+P8；V98：按 [MC-ADR-0029](adr/mc-0029-zen-shell-and-orca-loop.md) 下线独立创作工作台界面，减轻导航与维护复杂度，同时保持数据兼容：
+
+| 项 | 约定 |
+| --- | --- |
+| 界面入口移除 | 移除 `page === "creative"` 路由、标题栏 `page:creative` 标签、项目工作台创作用途徽标及模板编辑器 `creative` 目标选项 |
+| 能力与数据保留 | 普通会话的 `GenerateImages` 工具、订阅账号生图模型配置，以及 `host-core` 的 `mc_creative_*` 表与 RPC 保持不变，已有本地数据库正常读写 |
+
+## R36 极简两列外壳与左边距自适应会话面板（2026-11-17 已确认）
+
+P8；V99：消除左侧双栏导航冗余，统一克制中性灰视觉层级，同时保留宽屏左侧留白区的常驻会话信息体验（[MC-ADR-0029](adr/mc-0029-zen-shell-and-orca-loop.md)）：
+
+| 项 | 约定 |
+| --- | --- |
+| 取消独立左竖栏 | 移除 52px `AppRail` 列；对话主页、插件、定时任务、插件贡献面板、更新状态与设置收拢至侧边栏底部 `SidebarFooter`（窄侧栏下自动换行，保证 240px 宽度及多插件开启时所有入口完整可达）；侧边栏收起且处于非对话页时，标题栏左侧提供返回对话入口 |
+| 左边距自适应会话面板 | 保留 `SessionInfo` 在对话左侧留白区的自适应停靠／窄屏悬浮机制，常驻可直接点击编辑项目记忆、`AGENTS.md`、系统提示词与手动压缩，并启用 `overscroll-behavior: contain` 与 `scrollbar-gutter: stable` |
+| 中性灰与状态用色 | 外壳与关闭／取消／清空等退回操作使用中性幽灵样式；彩色仅用于表达实时状态（待拍板、运行中、刚完成、增删与错误） |
+
+## R37 跨项目待处理聚合流与 Diff 行级攒批批注（2026-11-17 已确认）
+
+P8；V100：吸收轻量并行巡检与行级批量审查闭环，不引入自由嵌套分屏复杂度（[MC-ADR-0029](adr/mc-0029-zen-shell-and-orca-loop.md)）：
+
+| 项 | 约定 |
+| --- | --- |
+| 跨项目待处理聚合流 | 由主壳常驻 `AttentionFeedWatcher`（收起侧栏不丢监听，结合窗口 `visibilityState` 与工作面板最大化判断可见性，启动／重载时从未读完成通知恢复且不重显已读项）追踪状态；侧边栏顶部在存在关注项时显示 `SidebarAttentionFeed`，标题徽章展示真实总数，超出 6 条提供展开／收起入口；点击「标为已读」或切入可见时同步清理对应会话的 `sessionOutcomes` 与未读通知 |
+| Diff 行级攒批批注 | `ReviewChangeDetails` 按所属面板会话 ID 作用域（`SlotSessionProvider` / `annotationSessionId`，远程工作区与 `pi-native` 展开内联差异不误调本地 `workspaceReviewContext`）隔离分屏批注，锚点采用 `(snapshotId, side, lineNumber)` 以免疫上下文行数切换；`ReviewTab` 顶部汇总发送按会话加飞行锁防切换会话重复发送，计划待审批时禁用发送并提示原因，发送确认后仅清理本批内容未变的条目 |

@@ -41,6 +41,8 @@ import {
 import { listableSessions } from "../lib/session-origin";
 import { mergeProjectEntries, sessionFolderLabel } from "../features/project-sidebar/project-merge";
 import { useProjectFolderIndex } from "../features/project-sidebar/useProjectFolderIndex";
+import { SidebarAttentionFeed } from "../features/attention-feed/SidebarAttentionFeed";
+import { SidebarFooter } from "../features/app-rail/SidebarFooter";
 import {
   composerDropItems,
   hasComposerFileDrag,
@@ -2663,6 +2665,7 @@ export function Sidebar({
       </div>
 
       <div className="sidebar-body no-drag">
+        <SidebarAttentionFeed />
 
         {pinnedSessions.length > 0 ? (
           <section
@@ -2843,6 +2846,7 @@ export function Sidebar({
       </div>
       {/* mc-agent: pages such as settings put their navigation here. */}
       <SidebarSlotHost />
+      <SidebarFooter />
       {renderFloatingMenu()}
       {sessionHoverCard ? (
         <SessionHoverCard

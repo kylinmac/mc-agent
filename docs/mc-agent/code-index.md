@@ -150,7 +150,8 @@ host-core 也可作为内部工具子进程启动（`tools::INTERNAL_TOOL_RUNNER
 
 | 功能 | 代码 |
 |---|---|
-| 左侧竖栏 | `apps/desktop/src/features/app-rail/AppRail.tsx`；样式 `apps/desktop/src/styles/app-rail.css`（竖栏、标题栏与三层配色）；其余 mc 样式按功能拆在 `styles/mc-*.css`（标签栏、信息栏、工作面板、后台任务、提示词、用量、扩展页、定时任务、更新按钮、系统权限），在 `globals.css` 里按原顺序引入 |
+| 侧栏底部导航（原左侧竖栏） | `apps/desktop/src/features/app-rail/SidebarFooter.tsx`（MC-ADR-0029 / R36 取代独立 `AppRail`）；Windows 顶栏左控 `WindowsTitlebarActions.tsx`、更新按钮 `UpdateRailButton.tsx`；样式 `apps/desktop/src/styles/app-rail.css`；其余 mc 样式按功能拆在 `styles/mc-*.css`，在 `globals.css` 里按原顺序引入 |
+| 跨项目待处理聚合与 Diff 攒批批注（R37） | 侧栏待处理流与在场消红点 `apps/desktop/src/features/attention-feed/`（`attention-model.ts`、`attention-store.ts`、`SidebarAttentionFeed.tsx`）；Diff 行级批注与汇总发送 `apps/desktop/src/features/review-annotations/`（`review-annotations-model.ts`、`review-annotations.ts`、`ReviewAnnotationWidgets.tsx`）；样式 `apps/desktop/src/styles/mc-zen-orca.css` |
 | 顶部标签栏 | `apps/desktop/src/features/session-tabs/`（`tab-list.ts` 纯逻辑，`SessionTabs.tsx` 组件）；挂在 `ConversationTopbar.tsx` 与 `AppShell.tsx` 的 `main-titlebar` |
 | 设置以标签打开 | `apps/desktop/src/features/app/AppShell.tsx`（`mc-settings-tab`）；设置导航进侧边栏 `features/sidebar-slot/SidebarSlot.tsx` |
 | 侧边栏按项目合并 | `apps/desktop/src/features/project-sidebar/`；host 侧失效目录查询 `project.folders.missing`（`rpc/resource_dirs_rpc.rs`） |
@@ -187,7 +188,7 @@ host-core 也可作为内部工具子进程启动（`tools::INTERNAL_TOOL_RUNNER
 |---|---|
 | 创作跨进程契约 | `packages/shared/src/types/creative.ts`（记录类型、`CreativeMethods` 方法表、`CREATIVE_RENDERER_METHODS`）；契约测试 `apps/desktop/test/mc-creative-contract.test.mjs` |
 | 创作 host-core | `crates/host-core/src/mc_creative/`：`mod.rs`（用途、存储、记录、公共辅助）、`assets.rs`（素材、分类、创作模板）、`jobs.rs`（生成任务）、`comparisons.rs`（对比集）、`schema.rs`（`mc_schema_versions` 迁移）；RPC `rpc/mc_creative_rpc.rs` |
-| 创作界面拆分 | `apps/desktop/src/features/creative/use-grid-selection.ts`（选择、框选、方向键）、`use-asset-actions.ts`（导入、移动、移除、删除文件） |
+| 创作保留模块（R35） | 独立 `CreativePage` 工作台前端已按 MC-ADR-0029 下线；保留 `apps/desktop/src/features/creative/AccountImageModels.tsx`（设置页订阅账号生图模型）、`creative-model.ts`、`creative-types.ts`、`StudioChat.tsx` |
 | 会话保留 | 计数与来源注册 `apps/desktop/src/lib/session-holds.ts`；React 钩子 `lib/use-held-session.ts`；分栏把列注册为来源（`lib/mc-split-view.ts`），创作聊天用 `useHeldSession` |
 | 系统权限 | Main `electron/main/mc-macos-permissions.ts`、`ipc/mc-permissions-ipc.ts`；页面 `src/features/settings/SystemPermissionsPage.tsx`；类型 `packages/shared/src/types/mac-permissions.ts`；helper 的分项检查在 `crates/mc-computer/src/macos/mod.rs` |
 | Windows 电脑操作（R12） | `crates/mc-computer/src/windows/`：mod 编排与状态、native 窗口／完整性检查、uia 元素树／pattern、input 输入、capture PNG；打包 `scripts/build-mc-computer.mjs`；独立窗口验收 `scripts/e2e-mc-computer-windows.mjs` |

@@ -22,11 +22,8 @@
   overflow: hidden;
 }
 
-.app-rail ~ .sidebar .mc-sidebar-slot {
+.app-chat-shell > .sidebar .mc-sidebar-slot {
   border-top: 1px solid var(--mc-card-border);
-  border-left: 1px solid var(--mc-card-border);
-  border-top-left-radius: 12px;
-  background: var(--mc-card-bg);
 }
 
 .mc-sidebar-slot .settings-nav {

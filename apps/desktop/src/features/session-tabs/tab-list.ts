@@ -1,12 +1,12 @@
 /*
-  mc-agent: open tabs in the title bar. A tab is a conversation (its session
-  id) or the creative workspace ("page:creative"). The
-  list keeps the order tabs were opened in (unlike the most-recently-used
-  order of retained panes) and lives only in this browser profile.
+  mc-agent: open conversation tabs in the title bar. Standalone page tabs
+  ("page:creative", etc.) are retired per MC-ADR-0029 / R35; the list keeps the
+  order tabs were opened in (unlike the most-recently-used order of retained
+  panes) and lives only in this browser profile.
 */
 
 export const MAX_TABS = 20;
-export const PAGE_TABS = ["creative"] as const;
+export const PAGE_TABS = [] as const;
 export type PageTab = (typeof PAGE_TABS)[number];
 const PAGE_PREFIX = "page:";
 

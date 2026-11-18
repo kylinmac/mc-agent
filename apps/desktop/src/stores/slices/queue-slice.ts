@@ -152,6 +152,7 @@ export function createQueueSlice({
             fileReferences: draft.fileReferences.map((reference) => ({
               ...reference,
             })),
+            ...(draft.onSmartStopUndo ? { onSmartStopUndo: draft.onSmartStopUndo } : {}),
           }
         : { text: content, fileReferences: [] };
       const item: QueuedPrompt = {
@@ -231,6 +232,11 @@ export function createQueueSlice({
         promptId,
       );
       if (!item || isPendingQueuedPrompt(item) || isPromotedQueuedPrompt(item)) {
+        return;
+      }
+      if (item.draft.onSmartStopUndo) {
+        detachQueuedPrompt(sessionId, promptId);
+        item.draft.onSmartStopUndo();
         return;
       }
       // `item.content` is token-stripped; the row's captured draft is the text
@@ -417,6 +423,7 @@ export function createQueueSlice({
                 fileReferences: draft.fileReferences.map((reference) => ({
                   ...reference,
                 })),
+                ...(draft.onSmartStopUndo ? { onSmartStopUndo: draft.onSmartStopUndo } : {}),
               }
             : { text: content, fileReferences: [] },
         };

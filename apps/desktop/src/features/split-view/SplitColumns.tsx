@@ -26,6 +26,7 @@ import { groupPanes } from "../work-tools/work-panes-model";
 import { usePanePrefs } from "../work-tools/pane-layout";
 import { PANE_ICONS } from "../work-tools/WorkPanes";
 import { PLACEHOLDER_KEYS } from "../chat/composer/model";
+import { ChatReviewBatchDock } from "../review-annotations/ReviewAnnotationWidgets";
 import { closeSplitColumn, focusSplitColumn, openSplitColumnTool, useColumnTranscript } from "./split-actions";
 
 /*
@@ -421,6 +422,7 @@ function SplitColumn({
               </div>
             </div>
           )}
+          {id ? <ChatReviewBatchDock sessionId={id} /> : null}
           {focused ? (
             id ? (
               <LiveComposerSlot sessionId={id}>{renderComposer("docked")}</LiveComposerSlot>

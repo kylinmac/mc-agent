@@ -1,6 +1,6 @@
 # MC-ADR-0013: 创作工作台（一期：图片）
 
-**Status:** Accepted
+**Status:** Partially Superseded by [MC-ADR-0029](mc-0029-zen-shell-and-orca-loop.md)（独立创作工作台页面、导航与 `page:creative` 标签已按 R35 下线；第 3–4、7–8 条 `mc_creative_*` 表／RPC、普通对话 `GenerateImages` 与订阅账号生图模型配置继续保留）
 **Date:** 2026-10-20
 **Deciders:** 产品负责人
 

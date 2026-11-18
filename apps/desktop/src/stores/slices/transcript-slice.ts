@@ -537,15 +537,17 @@ export function createTranscriptSlice({
         if (fullStop.kind === "restore") {
           runtime.submittedComposerDrafts.delete(sessionId);
           submittedDraft?.resolveAbort?.(true);
+          const onSmartStopUndo = fullStop.draft.onSmartStopUndo;
           const fullWindow = { messageStart: 0, hasMoreBefore: false };
           runtime.cacheSessionTranscript(sessionId, fullStop.kept, fullWindow);
           set((current) => ({
             messages: fullStop.kept,
             sessionHistory: { ...current.sessionHistory, [sessionId]: fullWindow },
-            composerPrefill: { ...fullStop.draft, sessionId },
+            ...(onSmartStopUndo ? {} : { composerPrefill: { ...fullStop.draft, sessionId } }),
             isRunning: false,
             runningSessions: { ...current.runningSessions, [sessionId]: false },
           }));
+          onSmartStopUndo?.();
           if (fullStop.kept.length < merged.length) {
             try {
               await api.replaceSessionMessages(sessionId, fullStop.kept);

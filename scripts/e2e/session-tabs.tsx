@@ -4,7 +4,6 @@ import { flushSync } from "react-dom";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import { catalogs, flattenCatalog } from "@pi-desktop/i18n";
-import { AppRail } from "../../apps/desktop/src/features/app-rail/AppRail";
 import { Sidebar } from "../../apps/desktop/src/components/Sidebar";
 import { ConversationTopbar } from "../../apps/desktop/src/components/ConversationTopbar";
 import { SessionHoverCard } from "../../apps/desktop/src/features/sessions/SessionHoverCard";
@@ -23,6 +22,7 @@ window.piDesktop = { platform: "darwin", on() { return () => {}; }, async invoke
   if (method.endsWith("project-group/list")) return { ok: true, data: { groups: [{ id: "alpha", name: "Alpha 项目", roots: [
     { path: "/alpha/code", kind: "workspace" }, { path: "/alpha/resources", kind: "resources" },
   ] }] } };
+  if (method.endsWith("updates/getState")) return { ok: true, data: { availableVersion: "9.9.9", selfInstall: true, status: "available" } };
   if (method.endsWith("missing-folders")) return { ok: true, data: { folders: [] } };
   if (method.endsWith("/setVisible")) nativeVisible = args.visible;
   return { ok: true, data: { sessions: [], notifications: [], groups: [], folders: [] } };
@@ -39,9 +39,11 @@ function NativePanel() {
 }
 function Surface() {
   const [hover, setHover] = React.useState(false);
+  const [sbWidth, setSbWidth] = React.useState(280);
   window.setHover = setHover;
-  return <div className="app-shell" style={{"--ds-sidebar-width":"280px"}}>
-    <div className="app-chat-shell"><AppRail /><Sidebar onToggleSidebar={() => {}} />
+  window.setSbWidth = setSbWidth;
+  return <div className="app-shell" style={{"--ds-sidebar-width":`${sbWidth}px`}}>
+    <div className="app-chat-shell"><Sidebar sidebarWidth={sbWidth} sidebarToggleShortcut="" onToggleSidebar={() => {}} onWidthChange={setSbWidth} onWidthCommit={setSbWidth} onResizeCollapse={() => {}} />
       <main className="main-pane"><ConversationTopbar sidebarCollapsed={false} workPanelOpen={false}
         onToggleSidebar={() => {}} onNewTask={() => useAppStore.setState({activeSessionId:null})} onOpenSearch={() => {}} /></main>
     </div>
@@ -61,7 +63,46 @@ window.tabProbe = async (stage) => {
   await settle();
   if (stage === "narrow") {
     check(document.querySelectorAll("[data-project-tab]").length === 3, "merge multi-folder, folder and ungrouped sessions");
-    check(document.querySelector('[data-tab-key="page:creative"]'), "creative stays independent");
+    check(!document.querySelector('[data-tab-key="page:creative"]') && !saved().includes("page:creative"), "legacy creative page tab is pruned from storage and DOM");
+    // Narrow 240px sidebar with 4 plugin views + update + settings: nothing clips outside sidebar.
+    flushSync(() => {
+      window.setSbWidth(240);
+      useAppStore.setState({
+        pluginViews: [1, 2, 3, 4].map((n) => ({
+          ref: `fixture.p${n}/panel`,
+          pluginId: `fixture.p${n}`,
+          pluginName: `Plugin ${n}`,
+          viewId: "panel",
+          title: `插件 ${n}`,
+        })),
+      });
+    });
+    await settle();
+    const sidebarEl = document.querySelector(".sidebar");
+    const sbRect = sidebarEl.getBoundingClientRect();
+    check(Math.round(sbRect.width) === 240, `sidebar width expected 240, got ${sbRect.width}`);
+    for (const sel of [
+      '[data-nav="rail-home"]',
+      '[data-nav="plugins"]',
+      '[data-nav="scheduled"]',
+      '[data-nav="rail-view:fixture.p1/panel"]',
+      '[data-nav="rail-view:fixture.p2/panel"]',
+      '[data-nav="rail-view:fixture.p3/panel"]',
+      '[data-nav="rail-view:fixture.p4/panel"]',
+      '[data-nav="update"]',
+      '[data-nav="settings"]',
+    ]) {
+      const btn = sidebarEl.querySelector(sel);
+      check(btn, `missing footer button ${sel}`);
+      const r = btn.getBoundingClientRect();
+      check(r.width >= 24 && r.height >= 24, `footer button ${sel} shrunk too small: ${r.width}x${r.height}`);
+      check(r.left >= sbRect.left - 1 && r.right <= sbRect.right + 1, `footer button ${sel} clipped outside 240px sidebar (${r.left}..${r.right} vs ${sbRect.left}..${sbRect.right})`);
+    }
+    flushSync(() => {
+      window.setSbWidth(280);
+      useAppStore.setState({ pluginViews: [] });
+    });
+    await settle();
     await click('[data-project-tab="project:alpha"]');
     check(document.querySelectorAll("[data-menu-tab]").length === 8, "project lists all eight sessions");
     check(!nativeVisible, "dropdown blocks native view");
@@ -113,7 +154,7 @@ window.tabProbe = async (stage) => {
     check(!document.querySelector('[data-project-tab="ungrouped"]'), "closing group removes project pill");
     check(!saved().includes("s16") && !saved().includes("s17"), "closing group removes all member tabs");
     check(useAppStore.getState().runningSessions.s16 === true, "closing group keeps running tasks");
-    check(useAppStore.getState().page === "creative", "closing active group focuses surviving neighbour");
+    check(useAppStore.getState().page === "chat" && useAppStore.getState().activeSessionId === "s6", "closing active group focuses surviving neighbour");
     check(nativeVisible, "closing group restores native view");
     await click('[data-project-tab="project:alpha"]');
     await click('[data-menu-tab="s1"] .mc-tab-menu-select');

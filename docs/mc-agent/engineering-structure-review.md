@@ -56,7 +56,7 @@
 
 源码确认：
 
-- [CreativePage.tsx](../../apps/desktop/src/features/creative/CreativePage.tsx) 约 1,200 行，除页面组合外，还管理框选、拖放、移动／撤销、生成表单、分类和队列。
+- `apps/desktop/src/features/creative/CreativePage.tsx`（2026-11-17 已按 MC-ADR-0029 下线移除）当时约 1,200 行，除页面组合外，还管理框选、拖放、移动／撤销、生成表单、分类和队列。
 - [mc_creative.rs](../../crates/host-core/src/mc_creative/mod.rs) 约 2,250 行，含测试，覆盖素材、文件分类、任务、对比集、项目用途和账号模型设置。
 - `ensure_schema` 在业务模块内建表、探测字段并补列。
 
@@ -174,8 +174,8 @@
 
 | 编号 | 问题与修改位置 | 怎么改 | 验收 |
 |---|---|---|---|
-| D1 | [NewCreativeDialog.tsx](../../apps/desktop/src/features/creative/NewCreativeDialog.tsx) 将资料根目录预览为 `/assets`，但 Rust `storage_for` 对两种根目录均使用 `/creative` | 删除资料目录对应 `/assets` 的特殊分支，保留实际存储规则；预览处理末尾分隔符，兼顾 Windows。创建成功后的实际路径以 host 返回的 `storage.base` 为准，不为修正文案增加预览 RPC | 新建项目、已有工作区、已有资料目录、追加文件夹四条路径的预览与实际目标一致；先补能捕获原错误的用例 |
-| D2 | [CreativePage.tsx](../../apps/desktop/src/features/creative/CreativePage.tsx) 的 `moveStorage` 只是切换位置；名称及提示容易被理解为迁移 | 内部名称改为明确的切换语义；界面使用“更改创作存储位置”，成功提示说明“后续文件写入新位置，已有文件保留原位”；检查新建入口、存储菜单与项目资料入口用词。新文案进 `packages/i18n`，至少 en／zh-CN | 切换后新文件进入新位置，旧文件及素材记录不被搬动或重写；不声称旧文件始终可访问（解除旧根关联后仍受权限约束） |
+| D1 | `NewCreativeDialog.tsx`（已随 MC-ADR-0029 下线）曾将资料根目录预览为 `/assets`，但 Rust `storage_for` 对两种根目录均使用 `/creative` | 删除资料目录对应 `/assets` 的特殊分支，保留实际存储规则；预览处理末尾分隔符，兼顾 Windows。创建成功后的实际路径以 host 返回的 `storage.base` 为准，不为修正文案增加预览 RPC | 新建项目、已有工作区、已有资料目录、追加文件夹四条路径的预览与实际目标一致；先补能捕获原错误的用例 |
+| D2 | `CreativePage.tsx`（已随 MC-ADR-0029 下线）的 `moveStorage` 只是切换位置；名称及提示容易被理解为迁移 | 内部名称改为明确的切换语义；界面使用“更改创作存储位置”，成功提示说明“后续文件写入新位置，已有文件保留原位”；检查新建入口、存储菜单与项目资料入口用词。新文案进 `packages/i18n`，至少 en／zh-CN | 切换后新文件进入新位置，旧文件及素材记录不被搬动或重写；不声称旧文件始终可访问（解除旧根关联后仍受权限约束） |
 | D3 | 创作存储响应类型在页面调用处重复声明，路径规则也在界面多处出现 | 与 2.1 一并将现有 `Storage` 响应字段纳入 shared 类型与方法映射；前端当前位置读取 `storage.base`，仅未提交选择的预览做轻量路径显示。host-core 保持路径校验和存储解析的权威实现 | Rust 序列化、Main／Preload、Renderer 类型字段一致；非法根目录仍被拒绝；不增加通用“目录服务”框架 |
 | D4 | [现状架构](as-built-architecture.md)、[协议与数据](protocol-data.md)、[创作方案](creative-studio.md)及 `data-paths.ts` 顶部历史注释存在过时或易混淆的目录表述 | 按 7.1 校对术语和路径；历史 PI-Desktop 说明明确标注历史范围；对照 [MC-ADR-0003](adr/mc-0003-equal-workspaces-and-project-home.md)、[MC-ADR-0008](adr/mc-0008-installed-identity.md)、[MC-ADR-0013](adr/mc-0013-creative-studio.md) 更新受影响契约。保留环境变量名及兼容语义 | 文档不再把项目等同资料目录，不把 `~/.mc-agent/projects` 写成当前默认资料位置；文档检查与相对链接检查通过 |
 

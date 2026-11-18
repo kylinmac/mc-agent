@@ -9,7 +9,6 @@ import {
   useState,
 } from "react";
 import { ConversationTopbar } from "../../components/ConversationTopbar";
-import { AppRail } from "../app-rail/AppRail";
 import { WindowsTitlebarActions } from "../app-rail/WindowsTitlebarActions";
 import { SessionTabs } from "../session-tabs/SessionTabs";
 import { SessionInfo } from "../session-info/SessionInfo";
@@ -36,6 +35,7 @@ import { resolveWorkPanelPlacement, resolveWorkPanelStackChatWidth } from "@pi-d
 import { isRemoteSession } from "../../lib/remote-session-safety";
 import { shouldStackWorkPanel, workPanelLayout } from "../../lib/work-panel-resize";
 import { useAppStore } from "../../stores/app-store";
+import { AttentionFeedWatcher } from "../attention-feed/attention-store";
 import { LiveVoiceStatusHost } from "../voice/live/LiveVoiceStatusHost";
 import { CollapsedTitlebarActions, RoutePending } from "./chrome";
 import { StackedWorkPanelDock, useWindowHeight } from "./StackedWorkPanelDock";
@@ -49,12 +49,6 @@ const SettingsPage = lazy(() =>
 const ScheduledPage = lazy(() =>
   import("../../pages/ScheduledPage").then((module) => ({
     default: module.ScheduledPage,
-  })),
-);
-// mc-agent creative studio (docs/mc-agent/creative-studio.md).
-const CreativePage = lazy(() =>
-  import("../creative/CreativePage").then((module) => ({
-    default: module.CreativePage,
   })),
 );
 const PluginsPage = lazy(() =>
@@ -217,7 +211,6 @@ export function AppShell() {
           <div
             className="app-chat-shell"
           >
-            <AppRail />
             {!sidebarCollapsed || sidebarExiting ? (
               <Sidebar
                 className={cx(sidebarEntering && "is-entering", sidebarExiting && "is-exiting")}
@@ -294,8 +287,6 @@ export function AppShell() {
                     <SessionTabs onNewTask={() => void runMenuCommand("newTask")} />
                   </div>
                 )}
-                {/* mc-agent: no update popup. The app rail's update button and
-                    Settings → Info carry new versions, downloads and restarts. */}
                 {/* mc-agent: session information card in the conversation's left margin. */}
                 {/* In a split view each column has its own (MC-ADR-0007). */}
                 {page === "chat" && !split ? <SessionInfo /> : null}
@@ -359,10 +350,6 @@ export function AppShell() {
                   {page === "scheduled" ? (
                     <div className="route-surface route-page">
                       <ScheduledPage />
-                    </div>
-                  ) : page === "creative" ? (
-                    <div className="route-surface route-page">
-                      <CreativePage />
                     </div>
                   ) : page === "plugins" ? (
                     <div className="route-surface route-page">
@@ -441,6 +428,7 @@ export function AppShell() {
           </Suspense>
         ) : null}
         <ToastHost anchorElement={page === "settings" ? null : toastAnchor} />
+        <AttentionFeedWatcher chatSurfaceVisible={!workPanelMaximized && page === "chat"} />
         <LiveVoiceStatusHost />
         <PluginRendererHost />
         <ExtensionPromptHost />

@@ -1,6 +1,6 @@
 # MC-ADR-0004: 左侧竖栏、顶部标签栏与设置标签
 
-**Status:** Accepted
+**Status:** Accepted（第 1–2 条独立 `AppRail` 与三层竖栏已于 2026-11-17 由 [MC-ADR-0029](mc-0029-zen-shell-and-orca-loop.md) / R36 修订为两列外壳与侧栏底部 `SidebarFooter`；其余顶部会话标签、设置内嵌路由、项目合并与会话信息栏继续生效）
 **Date:** 2026-10-18
 **Deciders:** 产品负责人
 

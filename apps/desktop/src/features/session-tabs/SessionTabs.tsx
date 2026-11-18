@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEven
 import { useTranslation } from "react-i18next";
 import { create } from "zustand";
 import { useAppStore } from "../../stores/app-store";
-import { IconChevronDown, IconClose, IconPalette, IconPlus } from "../../components/icons";
+import { IconChevronDown, IconClose, IconPlus } from "../../components/icons";
 import { NotificationCenter } from "../../components/NotificationCenter";
 import { Button } from "../../components/ui";
 import { useProjectFolderIndex } from "../project-sidebar/useProjectFolderIndex";
@@ -35,7 +35,6 @@ import {
   saveTabs,
   tabDropTarget,
   tabPage,
-  type PageTab,
   tabScrollFadeEdges,
   tabStripOverflows,
   tabWheelScrollDelta,
@@ -59,9 +58,7 @@ function isDefaultTitle(title?: string | null) {
   return !trimmed || ["new task", "new chat", "新建任务", "新对话"].includes(trimmed);
 }
 
-const PAGE_ICONS: Record<PageTab, ReactNode> = {
-  creative: <IconPalette size={12} aria-hidden />,
-};
+const PAGE_ICONS: Record<string, ReactNode> = {};
 
 /*
   mc-agent: the fixed tab bar across the title bar, after an IDE's editor
@@ -338,12 +335,10 @@ export function SessionTabs({ onNewTask }: { onNewTask: () => void }) {
 
   useEffect(revealActiveTab, [activeKey, grouped, groupSignature]);
 
-  const pageTitle: Record<PageTab, string> = {
-    creative: t("mcProject.creativeTitle"),
-  };
+  const pageTitle: Record<string, string> = {};
   const titleOf = (key: string) => {
     const tabPageName = tabPage(key);
-    if (tabPageName) return pageTitle[tabPageName];
+    if (tabPageName) return pageTitle[tabPageName] ?? tabPageName;
     const title = byId.get(key)?.title;
     return isDefaultTitle(title) ? t("chat.untitledTask") : (title as string);
   };

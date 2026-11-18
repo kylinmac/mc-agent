@@ -1,17 +1,12 @@
-/* mc-agent app rail (features/app-rail): app-level destinations at the
-   window's left edge, visible whether or not the sidebar is open.
-
-   Three tones, after ChatGPT's desktop layout: the rail and the title-bar
-   row share the darkest "chrome" tone, the sidebar body is a lighter card
-   with a rounded corner, and the conversation keeps the primary surface.
-   Tones derive from the theme's own colors so contributed themes still
-   apply. */
+/* mc-agent Zen shell chrome (MC-ADR-0029 / R36): two-column layout without
+   the standalone 52px leftmost AppRail. App-level destinations sit quietly in
+   the sidebar footer dock (`SidebarFooter.tsx`), while the title-bar row keeps
+   the monochrome chrome tone across pages. */
 :root {
-  --mc-app-rail-width: 52px;
+  --mc-app-rail-width: 0px;
 }
 
-/* R11.12: one persistent Windows navigation group, outside the animated dock.
-   Its 112px footprint includes the rail; reserve the remaining 60px in content. */
+/* R11.12: one persistent Windows navigation group, outside the animated dock. */
 :root[data-platform="win32"] .mc-windows-titlebar-actions {
   position: absolute;
   top: 0;
@@ -34,20 +29,18 @@
 }
 
 :root[data-platform="win32"] .sidebar-header {
-  /* Padding leaves a draggable rectangle behind the search button. Move the
-     rectangle itself, so native caption hit testing cannot eat the click. */
-  margin-left: 60px;
+  /* 112px reserves the persistent 108px Windows navigation cluster plus 4px clearance. */
+  margin-left: 112px;
   min-width: 0;
   padding-left: 0;
 }
 
 :root[data-platform="win32"] .app-shell.sidebar-collapsed .conversation-topbar,
 :root[data-platform="win32"] .app-shell.sidebar-collapsed .main-titlebar {
-  inset-inline-start: 60px;
+  inset-inline-start: 112px;
   padding-left: 0;
 }
 
-:root[data-platform="win32"] .app-rail-drag,
 :root[data-platform="win32"] .mc-windows-titlebar-actions button {
   -webkit-app-region: no-drag;
   app-region: no-drag;
@@ -76,107 +69,81 @@
 }
 
 :root {
-  --mc-chrome-bg: color-mix(in oklab, var(--ds-bg-primary) 92%, #000);
-  --mc-card-bg: color-mix(in oklab, var(--ds-bg-primary) 97%, #000);
+  --mc-chrome-bg: color-mix(in oklab, var(--ds-bg-primary) 94%, #000);
+  --mc-card-bg: color-mix(in oklab, var(--ds-bg-primary) 98%, #000);
   --mc-card-border: color-mix(in oklab, var(--ds-text-primary) 7%, transparent);
 }
 
 :root[data-theme="dark"] {
-  --mc-chrome-bg: color-mix(in oklab, var(--ds-bg-primary) 62%, #000);
-  --mc-card-bg: color-mix(in oklab, var(--ds-bg-primary) 94%, #fff);
+  --mc-chrome-bg: color-mix(in oklab, var(--ds-bg-primary) 72%, #000);
+  --mc-card-bg: color-mix(in oklab, var(--ds-bg-primary) 95%, #fff);
 }
 
-.app-rail {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  width: var(--mc-app-rail-width);
-  flex: 0 0 var(--mc-app-rail-width);
-  flex-direction: column;
-  align-items: center;
-  min-height: 0;
-  padding: 0 0 10px;
-  background: var(--mc-chrome-bg);
-}
-
-/* The top band belongs to the window title bar: it drags the window and
-   leaves the traffic lights their corner. */
-.app-rail-drag {
-  width: 100%;
-  height: var(--ds-toolbar-height);
-  flex: 0 0 var(--ds-toolbar-height);
-  -webkit-app-region: drag;
-}
-
-.app-rail-actions,
-.app-rail-plugins,
-.app-rail-bottom {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-/* Built-in destinations above, plugin entries below. */
-.app-rail-divider {
-  width: 24px;
-  height: 1px;
-  flex: 0 0 1px;
-  margin: 10px 0;
-  background: var(--ds-border-subtle);
-}
-
-.app-rail-bottom {
-  margin-top: auto;
-}
-
-/* The sidebar sits on the chrome tone; its body is the card. */
-.app-rail ~ .sidebar.sidebar-surface,
-:root[data-platform="darwin"] .app-rail ~ .sidebar.sidebar-surface {
+/* Monochrome & quiet sidebar surface. */
+.app-chat-shell > .sidebar.sidebar-surface,
+:root[data-platform="darwin"] .app-chat-shell > .sidebar.sidebar-surface {
   background: var(--mc-chrome-bg);
   background-image: none;
+  border-right: 1px solid var(--mc-card-border);
 }
 
-.app-rail ~ .sidebar .sidebar-body {
-  border-top: 1px solid var(--mc-card-border);
-  border-left: 1px solid var(--mc-card-border);
-  border-top-left-radius: 12px;
+.app-chat-shell > .sidebar .sidebar-body {
   padding-top: 6px;
-  background: var(--mc-card-bg);
 }
 
-/* The title-bar row runs across the window in the chrome tone, on every
-   page: conversations, route pages and settings alike. */
-.app-rail ~ .main-pane :is(.conversation-topbar, .main-titlebar) {
+/* Compact horizontal dock at the bottom of the sidebar (MC-ADR-0029).
+   Wraps gracefully on narrow sidebars (e.g. 240px with multiple plugin views)
+   so Settings, Update and every plugin launcher stay inside the sidebar bounds. */
+.mc-sidebar-footer {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  max-height: 116px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px 8px 8px;
+  border-top: 1px solid var(--mc-card-border);
+}
+
+.mc-sidebar-footer-group,
+.mc-sidebar-footer-plugins {
+  display: contents;
+}
+
+.mc-sidebar-footer .footer-action {
+  flex: 0 0 32px;
+}
+
+.mc-sidebar-footer-end {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+/* The title-bar row runs across the window in the chrome tone, on every page. */
+.app-chat-shell > .main-pane :is(.conversation-topbar, .main-titlebar) {
   background: var(--mc-chrome-bg);
 }
 
-/* Windows/Linux controls complete the same title-bar row. Override the
-   upstream dock surface too: its transparent dark fill exposes the pane below. */
+/* Windows/Linux controls complete the same title-bar row. */
 .app-shell > .window-controls,
 .app-shell:has(.work-panel) > .window-controls {
   background: var(--mc-chrome-bg);
 }
 
-.app-rail ~ .main-pane .main-titlebar:has(.mc-titlebar-tabs) {
+.app-chat-shell > .main-pane .main-titlebar:has(.mc-titlebar-tabs) {
   justify-content: flex-start;
   gap: 8px;
-  /* Keep clear of the work-panel toggle pinned at the top-right corner. */
   padding-right: calc(var(--ds-work-panel-toggle-size, 28px) + 20px);
 }
 
-/* Settings open as a tab: the main title bar replaces settings' own band,
-   and the tab bar replaces its "back to app" button. */
+/* Settings open as a route inside the shell: the main title bar replaces
+   settings' own band, and the sidebar footer replaces its "back to app" button. */
 .mc-settings-tab .settings-titlebar,
 .mc-settings-tab .settings-nav-footer {
   display: none;
-}
-
-/* The traffic lights now overhang the rail, so content to its right only
-   reserves what is left of their footprint. */
-:root[data-platform="darwin"]:not([data-fullscreen="true"]) .app-rail ~ :is(.sidebar, .main-pane) {
-  --ds-window-lead-inset: max(
-    8px,
-    calc(var(--ds-traffic-light-edge) + var(--ds-traffic-light-gap) - var(--mc-app-rail-width))
-  );
 }

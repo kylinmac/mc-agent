@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ResourceTemplateSummary, ResourceTemplateTarget } from "@pi-desktop/shared";
+import type { ResourceTemplateSummary } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { Button } from "../../components/ui";
@@ -36,7 +36,6 @@ export function TemplateManager({ onError }: { onError: (message: string) => voi
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [copyFrom, setCopyFrom] = useState("");
-  const [newTarget, setNewTarget] = useState<ResourceTemplateTarget>("resources");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const onErrorRef = useRef(onError);
@@ -47,7 +46,7 @@ export function TemplateManager({ onError }: { onError: (message: string) => voi
     void api
       .listResourceTemplates()
       .then(({ templates: listed }) => {
-        if (!canceled) setTemplates(listed);
+        if (!canceled) setTemplates(listed.filter((item) => item.target !== "creative"));
       })
       .catch((error: unknown) => onErrorRef.current(messageOf(error)));
     return () => {
@@ -61,7 +60,7 @@ export function TemplateManager({ onError }: { onError: (message: string) => voi
     setNotice("");
     try {
       const { templates: listed } = await action();
-      setTemplates(listed);
+      setTemplates(listed.filter((item) => item.target !== "creative"));
       setNotice(done);
       return true;
     } catch (error) {
@@ -80,8 +79,8 @@ export function TemplateManager({ onError }: { onError: (message: string) => voi
     }
     const source = templates.find((template) => template.name === copyFrom);
     const base: TemplateDraftState = source
-      ? { ...draftFromSummary(source), name, target: newTarget }
-      : { name, description: "", folders: [], target: newTarget };
+      ? { ...draftFromSummary(source), name, target: "resources" }
+      : { name, description: "", folders: [], target: "resources" };
     void run(
       () => api.saveResourceTemplate(toPayload(base, { create: true, copyFrom: source?.name })),
       t("mcProject.templateCreated", { name }),
@@ -119,15 +118,6 @@ export function TemplateManager({ onError }: { onError: (message: string) => voi
                 if (event.key === "Escape") setCreating(false);
               }}
             />
-            <select
-              className="mc-workbench-select"
-              aria-label={t("mcProject.templateTarget")}
-              value={newTarget}
-              onChange={(event) => setNewTarget(event.target.value as ResourceTemplateTarget)}
-            >
-              <option value="resources">{t("mcProject.templateTargetResources")}</option>
-              <option value="creative">{t("mcProject.templateTargetCreative")}</option>
-            </select>
             <select
               className="mc-workbench-select"
               aria-label={t("mcProject.templateCopyFrom")}
@@ -261,7 +251,7 @@ function TemplateCard({
         <div className="mc-template-card-title">
           <strong>{template.name}</strong>
           <span className="mc-template-badge">
-            {t(template.target === "creative" ? "mcProject.templateTargetCreative" : "mcProject.templateTargetResources")}
+            {t("mcProject.templateTargetResources")}
           </span>
           {template.builtin ? <span className="mc-template-badge">{t("mcProject.templateBuiltin")}</span> : null}
           <span className="mc-template-version">v{template.version}</span>
