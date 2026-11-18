@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.82",
+    date: "2026-11-18",
+    fixes: [
+      "获取 ChatGPT 订阅模型列表时会自动查询 Codex 版本，避免因内置版本过旧而漏掉账号已开放的新模型。",
+    ],
+  },
+  {
     version: "1.0.81",
     date: "2026-11-17",
     improvements: [
