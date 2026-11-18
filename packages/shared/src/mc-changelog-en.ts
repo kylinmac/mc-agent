@@ -9,6 +9,16 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.84",
+    date: "2026-11-18",
+    features: [
+      "Files in the review panel can now be marked Viewed to collapse them automatically with a live Viewed X/Y counter in the toolbar, resetting automatically if the agent edits the file again.",
+    ],
+    improvements: [
+      "Hovering any diff line now highlights the row and turns its left line-number gutter into a comment bubble button, with Shift+Click support for commenting on a multi-line range.",
+    ],
+  },
+  {
     version: "1.0.83",
     date: "2026-11-18",
     features: [
