@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.82",
+    date: "2026-11-18",
+    fixes: [
+      "Fetching the ChatGPT subscription model list now looks up the Codex version automatically so an outdated built-in version no longer hides newly available account models.",
+    ],
+  },
+  {
     version: "1.0.81",
     date: "2026-11-17",
     improvements: [
