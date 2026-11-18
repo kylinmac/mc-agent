@@ -460,8 +460,11 @@ is the endpoint that vendor actually publishes:
 - ChatGPT Plus/Pro (`openai-codex`): `GET {base}/codex/models?client_version=…`,
   with the account id taken from the access token. The endpoint requires
   `client_version` and hides models whose minimum Codex client is newer, so
-  the value is a pinned Codex CLI version (`CODEX_MODELS_CLIENT_VERSION`) that
-  is bumped when an account model goes missing. A `{ data: [...] }` payload is
+  the desktop uses the newest stable version found in the local Codex
+  `models_cache.json`, `version.json`, or the public npm `@openai/codex` latest
+  release. The lookup is shared across accounts for 24 hours, or five minutes
+  if npm is unavailable. Without a known version it uses the catalog fallback.
+  A `{ data: [...] }` payload is
   not accepted. A newly published id such as `gpt-6-luna` is selectable
   without a client update when that response includes it.
 - GitHub Copilot: `GET {base}/models` with the pinned IDE identity headers and

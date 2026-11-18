@@ -2,6 +2,7 @@ import {
   app,
   BrowserWindow,
   ipcMain,
+  net,
   powerMonitor,
   session,
 } from "electron";
@@ -38,6 +39,7 @@ import {
   ModelsDevCatalog,
   catalogModelConfigFor,
 } from "./models-dev-catalog";
+import { createCodexVersionReader } from "./codex-client-version";
 import { VendorOAuth } from "./oauth";
 import { AppUpdaterController } from "./updater";
 import {
@@ -276,6 +278,7 @@ const modelsDevCatalog = new ModelsDevCatalog({
 });
 
 const vendorOAuth = new VendorOAuth({
+  codexClientVersion: createCodexVersionReader((url, init) => net.fetch(url, init)),
   call: <T,>(method: string, params?: unknown): Promise<T> => {
     const currentHost = getHost();
     if (!currentHost) throw new Error("host unavailable");
