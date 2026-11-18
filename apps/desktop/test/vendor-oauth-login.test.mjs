@@ -189,6 +189,7 @@ function harness(options = {}) {
       stores.push(store);
       return options.createModels ? options.createModels(store) : fakeModels(store, options);
     },
+    codexClientVersion: async () => "1.2.3",
     modelConfigFor: options.modelConfigFor,
     getPluginOAuthBridge: options.getPluginOAuthBridge,
     onAccountModels: options.onAccountModels,
@@ -1071,6 +1072,7 @@ async function liveCopilotBinding(sibling, options = {}) {
       auth: { oauth: { name: "GitHub Copilot", loginLabel: "Sign in" } },
     },
     models: [sibling],
+    codexClientVersion: async () => "1.2.3",
     modelConfigFor: options.modelConfigFor,
     onAccountModels: options.onAccountModels,
     onAccountRemoved: options.onAccountRemoved,
@@ -1307,6 +1309,7 @@ test("a ChatGPT account lists the models /codex/models returns for its client ve
   const row = host.providers.get(done.providerId);
   assert.deepEqual(row.models.map((model) => model.id), ["gpt-6-luna", "gpt-6.1-sol"]);
   assert.equal(seen[0].pathname, "/backend-api/codex/models");
+  assert.equal(seen[0].searchParams.get("client_version"), "1.2.3");
   const binding = await oauth.bindingFor(done.providerId, "gpt-6.1-sol");
   assert.equal(binding.baseUrl, "https://chatgpt.com/backend-api");
 });

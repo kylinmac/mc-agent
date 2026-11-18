@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  CODEX_MODELS_CLIENT_VERSION,
   VendorModelListError,
   parseCodexReasoningLevels,
   parseVendorModelIds,
@@ -23,12 +22,13 @@ test("ChatGPT accounts list models from the Codex endpoint, not /models", () => 
   const request = vendorModelListRequest({
     vendorId: "openai-codex",
     apiKey: codexToken(),
+    codexClientVersion: "1.2.3",
   });
   const url = new URL(request?.url ?? "");
   assert.equal(`${url.origin}${url.pathname}`, "https://chatgpt.com/backend-api/codex/models");
   // The endpoint answers 400 "client_version Field required" without it.
-  assert.equal(url.searchParams.get("client_version"), CODEX_MODELS_CLIENT_VERSION);
-  assert.match(CODEX_MODELS_CLIENT_VERSION, /^\d+\.\d+\.\d+$/);
+  assert.equal(url.searchParams.get("client_version"), "1.2.3");
+  assert.equal(vendorModelListRequest({ vendorId: "openai-codex", apiKey: codexToken() }), undefined);
   assert.equal(request?.headers["chatgpt-account-id"], "acct_123");
   assert.equal(parseVendorModelIds("openai-codex", {
     models: [
@@ -41,7 +41,7 @@ test("ChatGPT accounts list models from the Codex endpoint, not /models", () => 
   }), null);
   assert.equal(vendorModelListRequest({
     vendorId: "openai-codex",
-    apiKey: "not-a-jwt",
+    apiKey: "not-a-jwt", codexClientVersion: "1.2.3",
   }), undefined);
 });
 
@@ -119,7 +119,7 @@ test("Copilot only keeps a new id when its family has one wire API", () => {
 
 test("a failed model list keeps a token-free excerpt of the response body", async () => {
   const token = codexToken();
-  const request = vendorModelListRequest({ vendorId: "openai-codex", apiKey: token });
+  const request = vendorModelListRequest({ vendorId: "openai-codex", apiKey: token, codexClientVersion: "1.2.3" });
   const body = JSON.stringify({
     detail: [{ loc: ["query", "client_version"], msg: "Field required" }],
     echoed: `Bearer ${token}`,

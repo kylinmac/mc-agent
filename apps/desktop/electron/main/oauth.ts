@@ -199,6 +199,7 @@ export type OAuthModelOption = {
 };
 
 export type VendorOAuthDeps = {
+  codexClientVersion?: () => Promise<string | undefined>;
   /** host-core RPC. Only the generic `secrets.*` and `providers.*` methods. */
   call: HostCall;
   /** Push login progress to the renderer. Never carries token material. */
@@ -949,7 +950,14 @@ export class VendorOAuth {
       });
       return undefined;
     }
+    const codexClientVersion = account.vendorId === "openai-codex" && apiKey
+      ? await this.deps.codexClientVersion?.() : undefined;
+    if (account.vendorId === "openai-codex" && apiKey && !codexClientVersion) {
+      this.log("warn", "Codex client version unavailable for model list", { vendorId: account.vendorId });
+      return this.rememberLiveModels(account, null);
+    }
     const request = vendorModelListRequest({
+      codexClientVersion,
       vendorId: account.vendorId,
       apiKey,
       baseUrl,
