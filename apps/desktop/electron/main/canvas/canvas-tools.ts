@@ -1,12 +1,18 @@
 import { resolve } from "node:path";
 import {
+  applyWhiteboardOpsToScene,
   CANVAS_GUIDE,
+  sessionCanvasGroupId,
+  summarizeWhiteboardScene,
   type Canvas,
   type CanvasApplied,
   type CanvasChange,
   type CanvasComments,
+  type CanvasKind,
   type CanvasSummary,
   type CanvasThread,
+  type CanvasWhiteboardScene,
+  type WhiteboardOp,
 } from "@pi-desktop/shared";
 import type { LocalToolHandler } from "../agent-sidecar";
 
@@ -79,30 +85,42 @@ function threadForAgent(thread: CanvasThread, sessionId: string) {
 }
 
 export function createCanvasTools(getHost: () => Host | null) {
-  type Context = { ok: false; result: ToolResult } | { ok: true; host: Host; group: GroupRecord };
+  type Context = { ok: false; result: ToolResult } | { ok: true; host: Host; groupId: string };
   const context = async (sessionId: string): Promise<Context> => {
     const host = getHost();
     if (!host) return { ok: false, result: fail("HOST_UNAVAILABLE", "Host unavailable.") };
-    const { session } = await host.call<{ session?: { projectPath?: string } }>("session.get", { id: sessionId });
-    const group = await projectGroupOf(host, session?.projectPath);
-    if (!group)
+    const { session } = await host.call<{ session?: { id?: string; projectPath?: string } | null }>("session.get", {
+      id: sessionId,
+    });
+    if (!session) {
       return {
         ok: false,
-        result: fail("NOT_IN_PROJECT", "This conversation is not in a project, so it has no canvas."),
+        result: fail("SESSION_NOT_FOUND", "Session not found."),
       };
-    return { ok: true, host, group };
+    }
+    const group = await projectGroupOf(host, session.projectPath);
+    return {
+      ok: true,
+      host,
+      groupId: group ? group.id : sessionCanvasGroupId(sessionId),
+    };
   };
 
-  /** `CanvasRead`: the canvases, or one canvas with chosen artboard sources and its comments. */
+  /** `CanvasRead`: the canvases, or one canvas (prototype HTML artboards or Excalidraw whiteboard + preview image). */
   const read: LocalToolHandler = async ({ sessionId, args }) => {
     const found = await context(sessionId);
     if (!found.ok) return found.result;
-    const { host, group } = found;
-    const input = (args ?? {}) as { canvasId?: unknown; boards?: unknown; comments?: unknown };
+    const { host, groupId } = found;
+    const input = (args ?? {}) as {
+      canvasId?: unknown;
+      boards?: unknown;
+      comments?: unknown;
+      includeImage?: unknown;
+    };
     try {
       const canvasId = str(input.canvasId, 40);
       if (!canvasId) {
-        const { canvases } = await host.call<{ canvases: CanvasSummary[] }>("canvas.list", { groupId: group.id });
+        const { canvases } = await host.call<{ canvases: CanvasSummary[] }>("canvas.list", { groupId });
         return done({ canvases });
       }
       const boards =
@@ -113,12 +131,29 @@ export function createCanvasTools(getHost: () => Host | null) {
             : {};
       const { canvas, html } = await host.call<{ canvas: Canvas; html: Record<string, string> | null }>(
         "canvas.get",
-        { groupId: group.id, canvasId, ...boards },
+        { groupId, canvasId, ...boards },
       );
       const result: Record<string, unknown> = { canvas, html: html ?? undefined };
+      if (canvas.kind === "whiteboard") {
+        const loaded = await host.call<{
+          canvas: Canvas;
+          scene: CanvasWhiteboardScene;
+          hasPreview: boolean;
+        }>("canvas.whiteboard.get", { groupId, canvasId, includeFiles: false });
+        result.whiteboard = summarizeWhiteboardScene(loaded.scene);
+        if (loaded.hasPreview && input.includeImage !== false) {
+          const preview = await host.call<{ mimeType: string | null; dataBase64: string | null }>(
+            "canvas.whiteboard.preview",
+            { groupId, canvasId },
+          );
+          if (preview.dataBase64 && preview.mimeType) {
+            result.images = [{ data: preview.dataBase64, mimeType: preview.mimeType }];
+          }
+        }
+      }
       if (input.comments !== false) {
         const { comments } = await host.call<{ comments: CanvasComments }>("canvas.comments.list", {
-          groupId: group.id,
+          groupId,
           canvasId,
         });
         result.comments = comments.threads.map((thread) => threadForAgent(thread, sessionId));
@@ -129,42 +164,87 @@ export function createCanvasTools(getHost: () => Host | null) {
     }
   };
 
-  /** `CanvasWrite`: create a canvas and/or apply a batch of element operations. */
+  /** `CanvasWrite`: create a canvas and/or apply prototype `ops` or Excalidraw `whiteboardOps`. */
   const write: LocalToolHandler = async ({ sessionId, args }) => {
     const found = await context(sessionId);
     if (!found.ok) return found.result;
-    const { host, group } = found;
-    const input = (args ?? {}) as { canvasId?: unknown; title?: unknown; baseVersion?: unknown; ops?: unknown };
+    const { host, groupId } = found;
+    const input = (args ?? {}) as {
+      canvasId?: unknown;
+      title?: unknown;
+      kind?: unknown;
+      baseVersion?: unknown;
+      ops?: unknown;
+      whiteboardOps?: unknown;
+    };
     const ops = Array.isArray(input.ops) ? input.ops : [];
+    const whiteboardOps = Array.isArray(input.whiteboardOps) ? (input.whiteboardOps as WhiteboardOp[]) : [];
+    if (ops.length > 0 && whiteboardOps.length > 0) {
+      return fail("INVALID_ARGUMENT", "Pass either ops (prototype) or whiteboardOps (whiteboard), not both.");
+    }
     try {
       let canvasId = str(input.canvasId, 40);
       let baseVersion = typeof input.baseVersion === "number" ? input.baseVersion : undefined;
       let created = false;
+      let resolvedKind: CanvasKind | undefined =
+        input.kind === "whiteboard" || input.kind === "prototype" ? input.kind : undefined;
       if (!canvasId) {
         const title = str(input.title);
         if (!title) return fail("INVALID_ARGUMENT", "Give canvasId to change a canvas, or title to create one.");
-        const { canvas } = await host.call<{ canvas: Canvas }>("canvas.create", { groupId: group.id, title });
+        const createKind: CanvasKind =
+          resolvedKind ?? (whiteboardOps.length > 0 && ops.length === 0 ? "whiteboard" : "prototype");
+        const { canvas } = await host.call<{ canvas: Canvas }>("canvas.create", {
+          groupId,
+          title,
+          ...(createKind === "whiteboard" ? { kind: "whiteboard" } : {}),
+        });
         canvasId = canvas.id;
         baseVersion = canvas.version;
+        resolvedKind = canvas.kind ?? createKind;
         created = true;
       }
       if (baseVersion === undefined)
         return fail("INVALID_ARGUMENT", "baseVersion is required: read the canvas first and pass its version.");
-      if (!ops.length) {
-        if (created) emit({ groupId: group.id, canvasId, sessionId });
-        const { canvas } = await host.call<{ canvas: Canvas }>("canvas.get", { groupId: group.id, canvasId });
-        return done({ canvasId, version: canvas.version, created });
+      if (!ops.length && !whiteboardOps.length) {
+        if (created) emit({ groupId, canvasId, sessionId });
+        const { canvas } = await host.call<{ canvas: Canvas }>("canvas.get", { groupId, canvasId });
+        return done({ canvasId, kind: canvas.kind ?? "prototype", version: canvas.version, created });
+      }
+      if (whiteboardOps.length > 0) {
+        const current = await host.call<{ canvas: Canvas; scene: CanvasWhiteboardScene }>("canvas.whiteboard.get", {
+          groupId,
+          canvasId,
+          includeFiles: false,
+        });
+        const { scene: nextScene, added } = applyWhiteboardOpsToScene(current.scene, whiteboardOps);
+        const saved = await host.call<{ canvas: Canvas }>("canvas.whiteboard.agentSave", {
+          groupId,
+          canvasId,
+          baseVersion,
+          scene: nextScene,
+          sessionId,
+        });
+        emit({ groupId, canvasId, sessionId });
+        return done({
+          canvasId,
+          kind: "whiteboard",
+          created,
+          version: saved.canvas.version,
+          added,
+          whiteboard: summarizeWhiteboardScene(nextScene),
+        });
       }
       const applied = await host.call<CanvasApplied>("canvas.agentApply", {
-        groupId: group.id,
+        groupId,
         canvasId,
         baseVersion,
         ops,
         sessionId,
       });
-      emit({ groupId: group.id, canvasId, sessionId });
+      emit({ groupId, canvasId, sessionId });
       return done({
         canvasId,
+        kind: applied.canvas.kind ?? "prototype",
         created,
         version: applied.canvas.version,
         added: applied.added,
@@ -180,7 +260,7 @@ export function createCanvasTools(getHost: () => Host | null) {
   const comment: LocalToolHandler = async ({ sessionId, args }) => {
     const found = await context(sessionId);
     if (!found.ok) return found.result;
-    const { host, group } = found;
+    const { host, groupId } = found;
     const input = (args ?? {}) as {
       canvasId?: unknown;
       action?: unknown;
@@ -194,7 +274,7 @@ export function createCanvasTools(getHost: () => Host | null) {
     };
     const canvasId = str(input.canvasId, 40);
     if (!canvasId) return fail("INVALID_ARGUMENT", "canvasId is required.");
-    const base = { groupId: group.id, canvasId, sessionId };
+    const base = { groupId, canvasId, sessionId };
     const text = typeof input.text === "string" ? input.text : "";
     const threadId = str(input.threadId, 40);
     try {
@@ -247,7 +327,7 @@ export function createCanvasTools(getHost: () => Host | null) {
         default:
           return fail("INVALID_ARGUMENT", "action is reply, resolve, reopen or add.");
       }
-      emit({ groupId: group.id, canvasId, sessionId });
+      emit({ groupId, canvasId, sessionId });
       const thread = comments.threads.find((candidate) => candidate.id === (startedId ?? threadId));
       return done({ thread: thread ? threadForAgent(thread, sessionId) : undefined });
     } catch (error) {
@@ -262,7 +342,7 @@ export function createCanvasTools(getHost: () => Host | null) {
     async (call) => {
       const result = await handler(call);
       const content = result.content as { kind?: string; errorCode?: string } | undefined;
-      const reached = content?.errorCode !== "NOT_IN_PROJECT" && content?.errorCode !== "HOST_UNAVAILABLE";
+      const reached = content?.errorCode !== "SESSION_NOT_FOUND" && content?.errorCode !== "HOST_UNAVAILABLE";
       const asked = (call.args as { guide?: unknown } | undefined)?.guide === true;
       if (!content || !reached || (guided.has(call.sessionId) && !asked)) return result;
       guided.add(call.sessionId);

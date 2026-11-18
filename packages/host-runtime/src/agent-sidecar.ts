@@ -295,7 +295,17 @@ export class AgentSidecar {
     try {
       return await Promise.race([
         (async () => {
-          if (imageGeneration || ["WorkPanelList", "WorkPanelRead", "WorkPanelAction"].includes(String(params.toolName))) {
+          if (
+            imageGeneration ||
+            [
+              "WorkPanelList",
+              "WorkPanelRead",
+              "WorkPanelAction",
+              "CanvasRead",
+              "CanvasWrite",
+              "CanvasComment",
+            ].includes(String(params.toolName))
+          ) {
             if (imageGeneration) imageGenerationPrompts(input.args);
             if (!this.host) throw new Error("host unavailable");
             const gate = await this.host.call<LocalToolResult>("tools.execute", params);
@@ -575,12 +585,13 @@ export class AgentSidecar {
           // other host-local tool fails closed even if a stale runtime asks for
           // it directly.
           const result =
-            params.mode === "plan" && !["BrowserPreview", "WorkPanelList", "WorkPanelRead"].includes(toolName)
+            (params.mode === "plan" || params.mode === "goal") &&
+            !["BrowserPreview", "WorkPanelList", "WorkPanelRead", "CanvasRead"].includes(toolName)
               ? {
                   ok: false,
                   isError: true,
                   errorCode: "TOOL_DISABLED_IN_PLAN",
-                  content: `${toolName} is unavailable in Plan mode.`,
+                  content: `${toolName} is unavailable in ${params.mode === "goal" ? "Goal" : "Plan"} mode.`,
                 }
               : await this.runLocalTool(localTool, {
                   sessionId: String(params.sessionId ?? ""),

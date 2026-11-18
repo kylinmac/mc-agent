@@ -21,8 +21,10 @@
 
 mod comments;
 pub mod html;
+mod whiteboard;
 
 pub use comments::*;
+pub use whiteboard::*;
 
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -108,6 +110,8 @@ pub struct Canvas {
     pub v: u32,
     pub id: String,
     pub title: String,
+    #[serde(default)]
+    pub kind: CanvasKind,
     pub version: u64,
     pub created_at: i64,
     pub updated_at: i64,
@@ -120,6 +124,7 @@ pub struct Canvas {
 pub struct CanvasSummary {
     pub id: String,
     pub title: String,
+    pub kind: CanvasKind,
     pub version: u64,
     pub updated_at: i64,
     pub boards: usize,
@@ -319,6 +324,7 @@ pub fn list(db: &Database, group: &ProjectGroupRecord) -> Result<Vec<CanvasSumma
                 .count(),
             id: name,
             title: canvas.title,
+            kind: canvas.kind,
             version: canvas.version,
             updated_at: canvas.updated_at,
             path: dir,
@@ -336,26 +342,9 @@ fn clean_title(raw: &str) -> Result<String> {
     Ok(title.chars().take(MAX_TITLE).collect())
 }
 
+#[cfg(test)]
 pub fn create(db: &Database, group: &ProjectGroupRecord, title: &str) -> Result<Canvas> {
-    let title = clean_title(title)?;
-    let _guard = lock();
-    let root = canvas_root(db, group)?;
-    let id = short_id("c");
-    let dir = root.join(&id);
-    let now = now_ms();
-    let canvas = Canvas {
-        v: FORMAT,
-        id,
-        title,
-        version: 1,
-        created_at: now,
-        updated_at: now,
-        elements: Vec::new(),
-    };
-    fs::create_dir_all(dir.join(FRAMES_DIR))
-        .with_context(|| format!("create {}", dir.display()))?;
-    write_canvas(&dir, &canvas)?;
-    Ok(canvas)
+    create_with_kind(db, group, title, CanvasKind::Prototype)
 }
 
 pub fn get(db: &Database, group: &ProjectGroupRecord, id: &str) -> Result<Canvas> {
@@ -541,6 +530,11 @@ pub fn apply(
     let _guard = lock();
     let dir = canvas_dir(db, group, id)?;
     let mut canvas = read_canvas(&dir)?;
+    if canvas.kind != CanvasKind::Prototype {
+        return Err(anyhow!(
+            "INVALID_ARGUMENT: canvas {id} is a whiteboard; use whiteboard operations instead of HTML artboard ops"
+        ));
+    }
     if canvas.version != base_version {
         return Err(anyhow!(
             "CONFLICT: the canvas changed (version {} now, {} given); read it again and redo the change on the current version",

@@ -1,5 +1,14 @@
 import { fenceCanvasData } from "@pi-desktop/shared";
-import type { Canvas, CanvasElement, CanvasNode, CanvasOp, CanvasThread } from "@pi-desktop/shared";
+import type {
+  Canvas,
+  CanvasElement,
+  CanvasKind,
+  CanvasNode,
+  CanvasOp,
+  CanvasThread,
+  WhiteboardSceneSummary,
+} from "@pi-desktop/shared";
+import type { ComposerDraftFileReference } from "../../lib/composer-smart-stop";
 
 /*
   mc-agent prototype canvas (docs/mc-agent/prototype-canvas.md): the pure part
@@ -107,6 +116,7 @@ export function makeNonce(): string {
 export type CanvasViewState = {
   canvasId: string;
   title: string;
+  kind?: CanvasKind;
   version: number;
   visibleBoards: string[];
   selectedBoards: string[];
@@ -114,6 +124,10 @@ export type CanvasViewState = {
   selected: CanvasNode[];
   errored: Array<{ boardId: string; message: string }>;
   dirty: boolean;
+  /** Non-deleted element count when `kind === "whiteboard"`. */
+  whiteboardElementCount?: number;
+  /** Selected element IDs when `kind === "whiteboard"`. */
+  whiteboardSelectedIds?: string[];
 };
 
 /**
@@ -121,6 +135,19 @@ export type CanvasViewState = {
  * says. Labels come from host-core's reading of the source.
  */
 export function viewContext(state: CanvasViewState) {
+  if (state.kind === "whiteboard") {
+    return {
+      canvas: {
+        id: state.canvasId,
+        title: state.title,
+        kind: "whiteboard" as const,
+        version: state.version,
+      },
+      elementCount: state.whiteboardElementCount ?? 0,
+      selectedElementIds: (state.whiteboardSelectedIds ?? []).slice(0, 20),
+      hint: "Call CanvasRead with this canvasId when you need the full whiteboard structure and rendered preview image.",
+    };
+  }
   return {
     canvas: { id: state.canvasId, title: state.title, version: state.version },
     visibleBoards: state.visibleBoards.slice(0, 20),
@@ -142,7 +169,11 @@ export function viewContext(state: CanvasViewState) {
 }
 
 export function hasViewContext(state: CanvasViewState | null): state is CanvasViewState {
-  return Boolean(state && (state.visibleBoards.length || state.selected.length || state.selectedBoards.length));
+  if (!state) return false;
+  if (state.kind === "whiteboard") {
+    return (state.whiteboardElementCount ?? 0) > 0;
+  }
+  return Boolean(state.visibleBoards.length || state.selected.length || state.selectedBoards.length);
 }
 
 export function viewContextText(state: CanvasViewState, nonce: string): string {
@@ -160,7 +191,16 @@ export type CanvasAttachment =
       messages: Array<{ author: "user" | "agent"; text: string }>;
     }
   | { kind: "note"; key: string; canvasId: string; noteId: string; text: string; boardId?: string }
-  | { kind: "errors"; key: string; canvasId: string; boardId: string; messages: string[] };
+  | { kind: "errors"; key: string; canvasId: string; boardId: string; messages: string[] }
+  | {
+      kind: "whiteboard";
+      key: string;
+      canvasId: string;
+      title: string;
+      scope: "selection" | "all";
+      summary: WhiteboardSceneSummary;
+      imageFile?: ComposerDraftFileReference;
+    };
 
 /** Up to this much error text goes into one message. */
 export const MAX_ERROR_ATTACHMENT_CHARS = 1800;
@@ -196,6 +236,24 @@ export function errorsAttachment(canvasId: string, boardId: string, messages: re
   return { kind: "errors", key: `errors:${canvasId}:${boardId}`, canvasId, boardId, messages: kept };
 }
 
+export function whiteboardAttachment(params: {
+  canvasId: string;
+  title: string;
+  scope: "selection" | "all";
+  summary: WhiteboardSceneSummary;
+  imageFile?: ComposerDraftFileReference;
+}): CanvasAttachment {
+  return {
+    kind: "whiteboard",
+    key: `whiteboard:${params.canvasId}:${params.scope}`,
+    canvasId: params.canvasId,
+    title: params.title,
+    scope: params.scope,
+    summary: params.summary,
+    ...(params.imageFile ? { imageFile: params.imageFile } : {}),
+  };
+}
+
 /** Attachments added again replace the earlier copy, in their first place. */
 export function addAttachment(list: readonly CanvasAttachment[], item: CanvasAttachment): CanvasAttachment[] {
   const at = list.findIndex((existing) => existing.key === item.key);
@@ -221,6 +279,15 @@ export function attachmentsText(list: readonly CanvasAttachment[], nonce: string
         return { type: "note", canvasId: item.canvasId, noteId: item.noteId, boardId: item.boardId, text: item.text };
       case "errors":
         return { type: "artboard errors", canvasId: item.canvasId, boardId: item.boardId, errors: item.messages };
+      case "whiteboard":
+        return {
+          type: item.scope === "selection" ? "whiteboard selection" : "whiteboard snapshot",
+          canvasId: item.canvasId,
+          title: item.title,
+          totalElements: item.summary.totalElements,
+          imageCount: item.summary.imageCount,
+          elements: item.summary.elements,
+        };
     }
   });
   return fenceCanvasData("attachments", JSON.stringify(body, null, 1), nonce);

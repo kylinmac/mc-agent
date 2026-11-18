@@ -27,6 +27,7 @@ type UseComposerSubmitOptions = {
   invalidateComposerTransforms: () => void;
   pasting: boolean;
   activeFileReferences: ComposerFileReference[];
+  fallbackEmptyPrompt?: string;
   t: TFunction;
   sendPrompt: AppState["sendPrompt"];
   steerPrompt: AppState["steerPrompt"];
@@ -62,6 +63,7 @@ export function useComposerSubmit({
   invalidateComposerTransforms,
   pasting,
   activeFileReferences,
+  fallbackEmptyPrompt,
   t,
   sendPrompt,
   steerPrompt,
@@ -74,8 +76,10 @@ export function useComposerSubmit({
     // An image chip keeps its place in the prompt: main resolves the `@path` it
     // serializes to against the attachment it prepared, so the image block
     // arrives where the user put it instead of trailing the text.
-    const inlineContent = serializeInlineComposerFileReferences(rawText, activeFileReferences);
-    const serializedContent = serializeComposerFileReferences(rawText, activeFileReferences);
+    const rawInlineContent = serializeInlineComposerFileReferences(rawText, activeFileReferences);
+    const rawSerializedContent = serializeComposerFileReferences(rawText, activeFileReferences);
+    const inlineContent = rawInlineContent || fallbackEmptyPrompt || "";
+    const serializedContent = rawSerializedContent || fallbackEmptyPrompt || "";
     if (!serializedContent) return;
     if (sendBlocked || (steering && !steeringAllowed)) {
       if (pasting) showToast(t("chat.pasteInProgress"), { variant: "info" });

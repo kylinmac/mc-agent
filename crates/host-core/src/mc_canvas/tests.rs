@@ -503,3 +503,117 @@ fn the_agents_title_moves_up_off_its_row() {
         40.0
     );
 }
+
+#[test]
+fn whiteboard_canvases_persist_scene_files_preview_and_clean_session_scope() {
+    use base64::engine::general_purpose::STANDARD as BASE64;
+    use base64::Engine;
+
+    let f = fixture();
+    // 1. Legacy canvas.json without `kind` defaults to `Prototype`.
+    let proto = create(&f.db, &f.group, "HTML 原型").unwrap();
+    assert_eq!(proto.kind, CanvasKind::Prototype);
+
+    // 2. Create a Whiteboard canvas alongside Prototype in the same project.
+    let wb = create_with_kind(&f.db, &f.group, "登录流程图", CanvasKind::Whiteboard).unwrap();
+    assert_eq!(wb.kind, CanvasKind::Whiteboard);
+    assert!(wb.id.starts_with('w'));
+
+    let both = list(&f.db, &f.group).unwrap();
+    assert_eq!(both.len(), 2);
+
+    // 3. Save scene + 2 embedded images + valid 1x1 PNG preview; then drop 1 image and verify GC.
+    let one_px_png = BASE64.encode(b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR");
+    let mut files = BTreeMap::new();
+    files.insert(
+        "img_keep".to_string(),
+        WhiteboardBinaryFile {
+            id: "img_keep".to_string(),
+            mime_type: "image/png".to_string(),
+            data_url: format!("data:image/png;base64,{one_px_png}"),
+            created: Some(100),
+        },
+    );
+    files.insert(
+        "img_drop".to_string(),
+        WhiteboardBinaryFile {
+            id: "img_drop".to_string(),
+            mime_type: "image/png".to_string(),
+            data_url: format!("data:image/png;base64,{one_px_png}"),
+            created: Some(101),
+        },
+    );
+    let scene1 = WhiteboardScene {
+        elements: vec![
+            json!({ "id": "r1", "type": "rectangle", "x": 10, "y": 20, "width": 120, "height": 60 }),
+            json!({ "id": "i1", "type": "image", "fileId": "img_keep", "x": 200, "y": 20, "width": 100, "height": 80 }),
+            json!({ "id": "i2", "type": "image", "fileId": "img_drop", "x": 320, "y": 20, "width": 100, "height": 80 }),
+        ],
+        app_state: Some(json!({ "viewBackgroundColor": "#ffffff" })),
+    };
+
+    let saved1 = whiteboard_save(
+        &f.db,
+        &f.group,
+        &wb.id,
+        Some(wb.version),
+        &scene1,
+        Some(&files),
+        Some(&one_px_png),
+    )
+    .unwrap();
+    assert_eq!(saved1.version, 2);
+
+    // Stale base_version is rejected:
+    let conflict =
+        whiteboard_save(&f.db, &f.group, &wb.id, Some(1), &scene1, None, None).unwrap_err();
+    assert!(conflict.to_string().contains("CONFLICT:"));
+
+    // Next save drops `i2` (`img_drop`) -> orphan file is garbage-collected!
+    let scene2 = WhiteboardScene {
+        elements: vec![
+            json!({ "id": "r1", "type": "rectangle", "x": 10, "y": 20, "width": 120, "height": 60 }),
+            json!({ "id": "i1", "type": "image", "fileId": "img_keep", "x": 200, "y": 20, "width": 100, "height": 80 }),
+        ],
+        app_state: None,
+    };
+    let saved2 = whiteboard_save(
+        &f.db,
+        &f.group,
+        &wb.id,
+        Some(saved1.version),
+        &scene2,
+        None,
+        None,
+    )
+    .unwrap();
+    assert_eq!(saved2.version, 3);
+
+    let loaded = whiteboard_get(&f.db, &f.group, &wb.id, true).unwrap();
+    // Saving a new scene without `previewPngBase64` clears stale preview.png;
+    // `whiteboard_save_preview` then refreshes preview.png WITHOUT bumping `version`.
+    assert!(!loaded.has_preview);
+    assert_eq!(loaded.scene.elements.len(), 2);
+    let loaded_files = loaded.files.unwrap();
+    assert_eq!(
+        loaded_files.keys().cloned().collect::<Vec<_>>(),
+        vec!["img_keep"]
+    );
+    assert!(!whiteboard_save_preview(&f.db, &f.group, &wb.id, 1, &one_px_png).unwrap());
+    assert!(whiteboard_save_preview(&f.db, &f.group, &wb.id, saved2.version, &one_px_png).unwrap());
+    assert_eq!(get(&f.db, &f.group, &wb.id).unwrap().version, 3);
+    assert_eq!(
+        whiteboard_preview(&f.db, &f.group, &wb.id)
+            .unwrap()
+            .as_deref(),
+        Some(one_px_png.as_str())
+    );
+
+    // 4. Temporary session scope (`session:<id>`) creates isolated folder and cleans up on session delete.
+    let temp_group = session_group_record("temp-sess-42").unwrap();
+    let temp_wb = create_with_kind(&f.db, &temp_group, "随手画", CanvasKind::Whiteboard).unwrap();
+    assert_eq!(list(&f.db, &temp_group).unwrap().len(), 1);
+    assert_eq!(temp_wb.kind, CanvasKind::Whiteboard);
+    remove_session_canvases(f.db.data_dir(), "temp-sess-42");
+    assert_eq!(list(&f.db, &temp_group).unwrap().len(), 0);
+}

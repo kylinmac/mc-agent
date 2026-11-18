@@ -32,7 +32,7 @@
 | [标签菜单与图片预览](requirements.md#r22-标签菜单与输入框图片预览2026-10-31-已确认) | R22：顶部标签常用操作、输入框直接预览图片；P8；V63–V64 |
 | [Fast 速度开关](requirements.md#r24-fast-速度开关2026-10-31-已确认) | R24：模型名称左侧闪电、按供应商和模型保存、兼容请求接线；P8；V67 |
 | [创作工作台方案](creative-studio.md) | 历史方案（独立工作台界面已由 [MC-ADR-0029](adr/mc-0029-zen-shell-and-orca-loop.md) / R35 下线；普通对话 `GenerateImages`、订阅账号生图模型配置与 `mc_creative_*` 后端保留） |
-| [原型画布方案](prototype-canvas.md) | R18 原型画布：Agent 在会话工作面板里画 HTML 原型，人看、试交互、评论与 @Agent，视图上下文（A 档已实现）；B 档原型跳转与导出、C 档所见即所得编辑（待评审） |
+| [原型画布方案](prototype-canvas.md) | R18 原型画布与 R38 Excalidraw 白板：HTML 交互画板与离线白板草图双模式并存、贴图圈注、按需视觉读取与 Agent 双向绘图（[MC-ADR-0024](adr/mc-0024-prototype-canvas.md)、[MC-ADR-0030](adr/mc-0030-whiteboard-canvas.md)）；B/C 档待评审 |
 | [macOS 权限归属与授权体验](macos-permissions.md) | 权限调用进程、签名身份、分步授权、复检；2026-10-22 已实施，结果见第 9 节 |
 | [电脑操作方案](computer-use.md) | 内置 Computer Use 插件：macOS 与 Windows 后端、权限及验证边界 |
 | [Windows 安装与更新](windows-install-update.md) | R15：暗色单页安装、后台下载、原目录静默更新 |

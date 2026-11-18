@@ -1,4 +1,5 @@
-import { resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { extname, join, resolve } from "node:path";
 import { defineConfig } from "electron-vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -38,6 +39,67 @@ function dropLegacyFontFallbacks(): Plugin {
         "",
       );
       return stripped === code ? null : { code: stripped, map: null };
+    },
+  };
+}
+
+// mc-agent (MC-ADR-0030): serve & bundle Excalidraw's compact WOFF2 fonts locally
+// (~480 KB, omitting the 12 MB CJK split font in favor of OS CJK fallback) and
+// suppress its remote CDN fallback so whiteboards run 100% offline under strict CSP.
+const EXCALIDRAW_COMPACT_FONT_FAMILIES = [
+  "Assistant",
+  "Cascadia",
+  "ComicShanns",
+  "Excalifont",
+  "Liberation",
+  "Lilita",
+  "Nunito",
+  "Virgil",
+];
+
+function bundleOfflineExcalidrawAssets(): Plugin {
+  const fontsRoot = resolve(__dirname, "node_modules/@excalidraw/excalidraw/dist/prod/fonts");
+  return {
+    name: "mc-offline-excalidraw-assets",
+    transform(code, id) {
+      if (!/@excalidraw[\\/_]excalidraw/.test(id) || !/\.js(?:\?.*)?$/.test(id)) return null;
+      const patched = code
+        .replace(/([A-Za-z0-9_$]+)\.push\(new URL\([^()]*ASSETS_FALLBACK_URL\)\)/g, "$1")
+        .replace(
+          /("Virgil"\s*,\s*\.\.\.[A-Za-z0-9_$]+\))\s*([,;])\s*[A-Za-z0-9_$]+\(\s*[A-Za-z0-9_$]+\s*,\s*\.\.\.[A-Za-z0-9_$]+\)/g,
+          "$1$2 void 0",
+        );
+      return patched === code ? null : { code: patched, map: null };
+    },
+    configureServer(server) {
+      server.middlewares.use("/excalidraw-assets/fonts/", (req, res, next) => {
+        const rel = decodeURIComponent((req.url ?? "").split("?")[0] ?? "").replace(/^\/+/, "");
+        if (!rel || rel.includes("..")) return next();
+        const file = join(fontsRoot, rel);
+        if (!existsSync(file) || !statSync(file).isFile()) return next();
+        const ext = extname(file).toLowerCase();
+        res.setHeader(
+          "Content-Type",
+          ext === ".woff2" ? "font/woff2" : ext === ".ttf" ? "font/ttf" : "application/octet-stream",
+        );
+        res.end(readFileSync(file));
+      });
+    },
+    generateBundle() {
+      if (!existsSync(fontsRoot)) return;
+      for (const family of EXCALIDRAW_COMPACT_FONT_FAMILIES) {
+        const dir = join(fontsRoot, family);
+        if (!existsSync(dir)) continue;
+        for (const entry of readdirSync(dir)) {
+          const full = join(dir, entry);
+          if (!statSync(full).isFile()) continue;
+          this.emitFile({
+            type: "asset",
+            fileName: `excalidraw-assets/fonts/${family}/${entry}`,
+            source: readFileSync(full),
+          });
+        }
+      }
     },
   };
 }
@@ -117,7 +179,13 @@ export default defineConfig({
         },
       },
     },
-    plugins: [react(), tailwindcss(), tightenCsp(), dropLegacyFontFallbacks()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      tightenCsp(),
+      dropLegacyFontFallbacks(),
+      bundleOfflineExcalidrawAssets(),
+    ],
     resolve: {
       alias: [
         { find: "@renderer", replacement: resolve("src") },

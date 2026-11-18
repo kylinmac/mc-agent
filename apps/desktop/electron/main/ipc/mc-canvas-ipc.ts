@@ -48,19 +48,78 @@ export function registerMcCanvasIpc({ registrar, getHost, sendToRenderer }: McCa
     const { canvas, html } = await host.call<{ canvas: Canvas; html: Record<string, string> | null }>("canvas.get", {
       groupId,
       canvasId,
-      html: true,
+      ...( { html: true } ),
     });
+    const isWhiteboard = canvas.kind === "whiteboard";
+    let previewBase64: string | null = null;
+    if (isWhiteboard) {
+      const preview = await host.call<{ dataBase64: string | null }>("canvas.whiteboard.preview", {
+        groupId,
+        canvasId,
+      });
+      previewBase64 = preview.dataBase64;
+    }
+    const baseName = canvasExportFileName(canvas.title).replace(/\.html$/i, "");
     const window = BrowserWindow.fromWebContents(event.sender);
-    const options = {
-      defaultPath: join(app.getPath("downloads"), canvasExportFileName(canvas.title)),
-      filters: [{ name: "HTML", extensions: ["html"] }],
-    };
+    const options = isWhiteboard
+      ? {
+          defaultPath: join(app.getPath("downloads"), `${baseName}.${previewBase64 ? "png" : "excalidraw"}`),
+          filters: [
+            ...(previewBase64 ? [{ name: "PNG Image", extensions: ["png"] }] : []),
+            { name: "Excalidraw JSON", extensions: ["excalidraw", "json"] },
+            { name: "HTML", extensions: ["html"] },
+          ],
+        }
+      : {
+          defaultPath: join(app.getPath("downloads"), `${baseName}.html`),
+          filters: [{ name: "HTML", extensions: ["html"] }],
+        };
     const { canceled, filePath } = window
       ? await dialog.showSaveDialog(window, options)
       : await dialog.showSaveDialog(options);
     if (canceled || !filePath) return { canceled: true };
-    await writeFile(filePath, buildCanvasExport(canvas, html ?? {}), "utf8");
+    if (isWhiteboard && filePath.toLowerCase().endsWith(".png") && previewBase64) {
+      await writeFile(filePath, Buffer.from(previewBase64, "base64"));
+    } else if (isWhiteboard && /\.(?:excalidraw|json)$/i.test(filePath)) {
+      const loaded = await host.call<{
+        scene: { elements: unknown[]; appState?: Record<string, unknown> };
+        files: Record<string, unknown> | null;
+      }>("canvas.whiteboard.get", { groupId, canvasId, includeFiles: true });
+      const doc = {
+        type: "excalidraw",
+        version: 2,
+        source: "mc-agent",
+        elements: loaded.scene.elements,
+        appState: loaded.scene.appState ?? { viewBackgroundColor: "#ffffff" },
+        files: loaded.files ?? {},
+      };
+      await writeFile(filePath, JSON.stringify(doc, null, 2), "utf8");
+    } else {
+      await writeFile(filePath, buildCanvasExport(canvas, html ?? {}, previewBase64), "utf8");
+    }
     shell.showItemInFolder(filePath);
     return { path: filePath };
   });
+
+  registrar.handleWithEvent(
+    IPC.invoke.canvasCaptureRect,
+    async (event, input: { x?: unknown; y?: unknown; width?: unknown; height?: unknown } = {}) => {
+      registrar.assertMainWindowSender(event);
+      const rawX = typeof input?.x === "number" && Number.isFinite(input.x) ? input.x : 0;
+      const rawY = typeof input?.y === "number" && Number.isFinite(input.y) ? input.y : 0;
+      const rawW = typeof input?.width === "number" && Number.isFinite(input.width) ? input.width : 0;
+      const rawH = typeof input?.height === "number" && Number.isFinite(input.height) ? input.height : 0;
+      const x = Math.max(0, Math.round(rawX));
+      const y = Math.max(0, Math.round(rawY));
+      const right = Math.round(rawX + rawW);
+      const bottom = Math.round(rawY + rawH);
+      const width = right > x ? Math.min(4096, right - x) : 0;
+      const height = bottom > y ? Math.min(4096, bottom - y) : 0;
+      if (!width || !height) throw invalid("valid capture bounds required");
+      const image = await event.sender.capturePage({ x, y, width, height });
+      if (image.isEmpty()) return { dataUrl: null, width: 0, height: 0 };
+      const size = image.getSize();
+      return { dataUrl: image.toDataURL(), width: size.width, height: size.height };
+    },
+  );
 }

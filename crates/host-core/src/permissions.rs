@@ -166,6 +166,7 @@ impl PermissionManager {
                 | "new_context"
                 | "WorkPanelList"
                 | "WorkPanelRead"
+                | "CanvasRead"
         )
     }
 
