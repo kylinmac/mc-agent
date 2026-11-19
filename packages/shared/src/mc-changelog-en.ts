@@ -10,8 +10,17 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
 export const mcEnEntries: McReleaseNotes[] = [
   {
     version: "1.0.85",
-    date: "2026-11-18",
+    date: "2026-11-19",
+    features: [
+      "Added an offline Excalidraw whiteboard mode in the Canvas panel (available in standalone temporary chats too) for sketching shapes, text, arrows, and pasted screenshots, sending full or selected regions to the agent, letting the agent read sketches or draw flowcharts, and annotating HTML prototype artboards on the whiteboard.",
+      "Added a configurable ⌘I (Ctrl+I on Windows/Linux) shortcut to show or hide the session info panel.",
+    ],
+    improvements: [
+      "Empty conversations hide the session info panel until the first message is sent, and the left navigation sidebar stays pinned on Settings, Plugins, and Scheduled pages.",
+      "Subagent topology connectors now align to each card's vertical center without leaving trailing line stubs.",
+    ],
     fixes: [
+      "Fixed reverse Shift+Click diff range selection, preserved in-flight line-range edits when sending review notes, and restored queued review-note batches on immediate Stop after dequeue.",
       "Fixed Windows chat file links that incorrectly reported an access restriction for paths containing dot-prefixed directories such as .mc-agent.",
     ],
   },
