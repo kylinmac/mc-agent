@@ -76,11 +76,11 @@ export function useComposerSubmit({
     // An image chip keeps its place in the prompt: main resolves the `@path` it
     // serializes to against the attachment it prepared, so the image block
     // arrives where the user put it instead of trailing the text.
-    const rawInlineContent = serializeInlineComposerFileReferences(rawText, activeFileReferences);
-    const rawSerializedContent = serializeComposerFileReferences(rawText, activeFileReferences);
-    const inlineContent = rawInlineContent || fallbackEmptyPrompt || "";
-    const serializedContent = rawSerializedContent || fallbackEmptyPrompt || "";
-    if (!serializedContent) return;
+    const inlineContent = serializeInlineComposerFileReferences(rawText, activeFileReferences);
+    const serializedContent = serializeComposerFileReferences(rawText, activeFileReferences);
+    const effectiveInlineContent = inlineContent || fallbackEmptyPrompt || "";
+    const effectiveSerializedContent = serializedContent || fallbackEmptyPrompt || "";
+    if (!effectiveSerializedContent) return;
     if (sendBlocked || (steering && !steeringAllowed)) {
       if (pasting) showToast(t("chat.pasteInProgress"), { variant: "info" });
       return;
@@ -107,7 +107,7 @@ export function useComposerSubmit({
     // prove `/compact` is not a builtin, so it refuses the submission and keeps
     // the text out of the model's input (issue #795).
     if (!steering && localCommandsAllowed) {
-      const slashSubmission = parseSlashSubmission(serializedContent);
+      const slashSubmission = parseSlashSubmission(effectiveSerializedContent);
       const resolution = slashSubmission
         ? await resolveComposerCommand(slashSubmission.name)
         : null;
@@ -187,9 +187,9 @@ export function useComposerSubmit({
     const accepted = await submitWithLatestDraftRestore(
       submittedDraftKey,
       () => steering
-        ? steerPrompt(inlineContent, submittedDraft)
+        ? steerPrompt(effectiveInlineContent, submittedDraft)
         : sendPrompt(
-            inlineContent,
+            effectiveInlineContent,
             submittedDraft,
             activeSessionId ?? undefined,
             captureAcceptedSession,

@@ -542,15 +542,16 @@ export function createTranscriptSlice({
             submittedDraft?.draft ??
             runtime?.consumeQueuedDraftByContent?.(sessionId, fullStop.draft.text) ??
             fullStop.draft;
+          fullStop.draft = restoredDraft;
           runtime.submittedComposerDrafts.delete(sessionId);
           submittedDraft?.resolveAbort?.(true);
-          const onSmartStopUndo = restoredDraft.onSmartStopUndo;
+          const onSmartStopUndo = fullStop.draft.onSmartStopUndo;
           const fullWindow = { messageStart: 0, hasMoreBefore: false };
           runtime.cacheSessionTranscript(sessionId, fullStop.kept, fullWindow);
           set((current) => ({
             messages: fullStop.kept,
             sessionHistory: { ...current.sessionHistory, [sessionId]: fullWindow },
-            ...(onSmartStopUndo ? {} : { composerPrefill: { ...restoredDraft, sessionId } }),
+            ...(onSmartStopUndo ? {} : { composerPrefill: { ...fullStop.draft, sessionId } }),
             isRunning: false,
             runningSessions: { ...current.runningSessions, [sessionId]: false },
           }));

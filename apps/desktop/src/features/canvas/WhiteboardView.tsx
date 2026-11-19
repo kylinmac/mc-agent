@@ -13,7 +13,7 @@ import {
   getNonDeletedElements,
   restoreElements,
 } from "@excalidraw/excalidraw";
-import "@excalidraw/excalidraw/index.css";
+import "../../../node_modules/@excalidraw/excalidraw/dist/prod/index.css";
 import type {
   AppState as ExcalidrawAppState,
   BinaryFileData,
