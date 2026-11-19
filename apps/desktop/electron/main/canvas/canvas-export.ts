@@ -52,7 +52,30 @@ function heightOf(element: CanvasElement): number {
 }
 
 /** Build the exported page. `html` holds each artboard's source by id; a missing one shows empty. */
-export function buildCanvasExport(canvas: Canvas, html: Record<string, string>): string {
+export function buildCanvasExport(
+  canvas: Canvas,
+  html: Record<string, string>,
+  whiteboardPreviewBase64?: string | null,
+): string {
+  if (canvas.kind === "whiteboard") {
+    const imgMarkup = whiteboardPreviewBase64
+      ? `<img src="data:image/png;base64,${escapeAttribute(whiteboardPreviewBase64)}" alt="${escapeAttribute(canvas.title)}" style="max-width:100%;height:auto;display:block;margin:0 auto;box-shadow:0 1px 4px rgb(0 0 0 / 16%);border-radius:8px;background:#fff">`
+      : `<p style="text-align:center;color:#57606a;padding:48px 16px">Empty whiteboard</p>`;
+    return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="${escapeAttribute(PAGE_CONTENT_SECURITY_POLICY)}">
+<title>${escapeText(canvas.title)}</title>
+<style>${PAGE_CSS}</style>
+</head>
+<body style="padding:32px">
+${imgMarkup}
+</body>
+</html>
+`;
+  }
   const elements = canvas.elements;
   const top = (element: CanvasElement) => element.y - (element.type === "frame" ? STRIP : 0);
   const minX = elements.length ? Math.min(...elements.map((element) => element.x)) : 0;

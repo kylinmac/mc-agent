@@ -87,6 +87,7 @@ export * from "./dictation.js";
 export * from "./mc-user-hooks.js";
 export * from "./mc-agent-memory.js";
 export * from "./mc-canvas.js";
+export * from "./mc-whiteboard.js";
 export * from "./mc-project-proposal.js";
 export * from "./subscription-quota.js";
 

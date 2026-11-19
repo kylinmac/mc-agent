@@ -1,7 +1,14 @@
 import { useSessionContextBreakdown } from "../chat/context-usage/useSessionContextBreakdown";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import type { SessionCollaborationSummary, SessionContextBreakdown } from "@pi-desktop/shared";
+import {
+  KEYBOARD_SHORTCUTS,
+  keybindingDisplayParts,
+  resolveKeybinding,
+  type SessionCollaborationSummary,
+  type SessionContextBreakdown,
+  type ShortcutPlatform,
+} from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { transcriptViewMessages } from "../../lib/transcript-reading";
@@ -39,16 +46,22 @@ import {
   clampPanelWidth,
   DEFAULT_PREFS,
   conversationOffset,
+  isSessionInfoOpenFor,
+  notifySessionInfoChange,
   panelMode,
+  readOpenMap,
   readPrefs,
   reorderSections,
   savePrefs,
   SECTION_IDS,
+  setSessionInfoOpenForSession,
+  subscribeSessionInfoOpen,
   toggleIn,
   type BreakdownRowKey,
   type PanelPrefs,
   type SectionId,
 } from "./session-info-model";
+import { isStoreSessionConversationStarted } from "./session-info-state";
 
 function compact(tokens: number): string {
   if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`;
@@ -93,31 +106,10 @@ const EXPANDABLE: Partial<Record<BreakdownRowKey, keyof SessionContextBreakdown>
   in this browser profile. The context section splits usage by kind
   (estimated by the agent runtime) and offers a manual compaction.
 */
-const OPEN_KEY = "mc.sessionInfoOpen";
 /** The button's left inset plus the space kept after it, less the dock gap the offset adds. */
 const BUTTON_GAP = 12 + 8 - 16;
-const OPEN_KEEP = 200;
 const EMPTY_MESSAGES: never[] = [];
 const EMPTY_PATHS: string[] = [];
-
-/** Whether the panel is open, per conversation; the last choice is the default for others. */
-function readOpenMap(): Record<string, boolean> {
-  try {
-    const raw = JSON.parse(localStorage.getItem(OPEN_KEY) ?? "{}") as unknown;
-    if (!raw || typeof raw !== "object") return {};
-    return Object.fromEntries(Object.entries(raw).filter((entry): entry is [string, boolean] => typeof entry[1] === "boolean"));
-  } catch {
-    return {};
-  }
-}
-
-function saveOpenMap(map: Record<string, boolean>): void {
-  try {
-    localStorage.setItem(OPEN_KEY, JSON.stringify(Object.fromEntries(Object.entries(map).slice(-OPEN_KEEP))));
-  } catch {
-    // best-effort persistence
-  }
-}
 
 /*
   Each conversation has its own panel (MC-ADR-0007): in a split view every
@@ -141,38 +133,47 @@ export function SessionInfo({
   const [projectEditor, setProjectEditor] = useState<"memory" | "instructions" | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const activeSessionId = useAppStore((s) => s.activeSessionId);
-  const sessionId = sessionProp ?? activeSessionId;
-  const focused = sessionId === activeSessionId;
+  const targetSessionId = sessionProp ?? activeSessionId;
+  const started = useAppStore((s) => isStoreSessionConversationStarted(s, targetSessionId));
+  const sessionId = started ? targetSessionId : undefined;
+  const focused = Boolean(sessionId) && sessionId === activeSessionId;
   const container = scope === "column" ? ".mc-split-chat" : ".main-pane";
   const [openMap, setOpenMap] = useState(readOpenMap);
-  const open = sessionId !== undefined && openMap[sessionId] !== undefined ? openMap[sessionId] : prefs.open;
+  const sessionIdRef = useRef(sessionId);
+  sessionIdRef.current = sessionId;
+  useEffect(() => {
+    return subscribeSessionInfoOpen((changedSessionId) => {
+      setOpenMap(readOpenMap());
+      if (!changedSessionId || changedSessionId === sessionIdRef.current) {
+        setPrefsState(readPrefs());
+        setMenuOpen(false);
+      }
+    });
+  }, []);
+  const open = isSessionInfoOpenFor(sessionId, openMap, prefs);
+  const activeOpen = Boolean(sessionId) && open;
   const setOpen = (value: boolean) => {
-    if (sessionId) {
-      setOpenMap((current) => {
-        const { [sessionId]: _previous, ...rest } = current;
-        const next = { ...rest, [sessionId]: value };
-        saveOpenMap(next);
-        return next;
-      });
-    }
-    setPrefs((current) => ({ ...current, open: value }));
+    setSessionInfoOpenForSession(sessionId, value);
+    setPrefsState(readPrefs());
+    setOpenMap(readOpenMap());
   };
   const session = useAppStore((s) =>
-    open && sessionId ? s.sessions.find((candidate) => candidate.id === sessionId) : undefined,
+    activeOpen && sessionId ? s.sessions.find((candidate) => candidate.id === sessionId) : undefined,
   );
-  const activeWorkspace = useAppStore((s) => (open ? s.workspace : null));
-  const openProjectPaths = useAppStore((s) => (open ? s.openProjectPaths : EMPTY_PATHS));
-  const sessionCount = useAppStore((s) => (open ? s.sessions.length : 0));
+  const activeWorkspace = useAppStore((s) => (activeOpen ? s.workspace : null));
+  const openProjectPaths = useAppStore((s) => (activeOpen ? s.openProjectPaths : EMPTY_PATHS));
+  const sessionCount = useAppStore((s) => (activeOpen ? s.sessions.length : 0));
   const contextUsageDisplay = useAppStore((s) => s.settings?.contextUsageDisplay);
+  const keybindings = useAppStore((s) => s.settings?.keybindings);
   const messages = useAppStore((s) =>
-    !open
+    !activeOpen
       ? EMPTY_MESSAGES
       : s.activeSessionId === sessionId
         ? s.messages
         : ((sessionId ? s.retainedTranscripts[sessionId] : undefined) ?? EMPTY_MESSAGES),
   );
   const messageCount = useAppStore((s) =>
-    !open
+    !activeOpen
       ? 0
       : s.activeSessionId === sessionId
         ? s.messages.length
@@ -181,12 +182,16 @@ export function SessionInfo({
           : 0,
   );
   const messageParents = useAppStore((s) =>
-    open && sessionId ? s.sessionHistory[sessionId]?.messageParents : undefined,
+    activeOpen && sessionId ? s.sessionHistory[sessionId]?.messageParents : undefined,
   );
   const isRunning = useAppStore((s) =>
-    s.activeSessionId === sessionId ? s.isRunning : Boolean(sessionId && s.runningSessions[sessionId]),
+    !sessionId
+      ? false
+      : s.activeSessionId === sessionId
+        ? s.isRunning
+        : Boolean(s.runningSessions[sessionId]),
   );
-  const compactions = useAppStore((s) => (open && sessionId ? s.sessionCompactions[sessionId] : undefined));
+  const compactions = useAppStore((s) => (activeOpen && sessionId ? s.sessionCompactions[sessionId] : undefined));
   const openWorkPanelTab = useAppStore((s) => s.openWorkPanelTab);
   const selectSession = useAppStore((s) => s.selectSession);
   const openSubagentTab = useAppStore((s) => s.openSubagentTab);
@@ -209,19 +214,28 @@ export function SessionInfo({
       if (useAppStore.getState().activeSessionId === sessionId) action();
     });
   };
-  const { index } = useProjectFolderIndex(open ? `${openProjectPaths.join("\n")}|${sessionCount}` : null);
+  const { index } = useProjectFolderIndex(activeOpen ? `${openProjectPaths.join("\n")}|${sessionCount}` : null);
   const mode = panelMode(paneWidth, prefs.width);
 
   const setPrefs = (update: (current: PanelPrefs) => PanelPrefs) =>
     setPrefsState((current) => {
       const next = update(current);
       savePrefs(next);
+      notifySessionInfoChange();
       return next;
     });
 
   // Docked or floating follows the main pane's width. The root only exists
-  // once a session is selected, so observe again when that changes.
+  // once a conversation has started, so observe again when that changes.
   const mounted = Boolean(sessionId);
+  useEffect(() => {
+    if (!mounted) {
+      setMenuOpen(false);
+      setCapability(null);
+      setPromptOpen(false);
+      setProjectEditor(null);
+    }
+  }, [mounted]);
   useEffect(() => {
     if (!mounted) return;
     const pane = rootRef.current?.closest<HTMLElement>(container);
@@ -254,6 +268,7 @@ export function SessionInfo({
   const docked = mounted && open && mode === "docked";
   const offset = conversationOffset(paneWidth, prefs.width, contentWidth);
   useEffect(() => {
+    if (!mounted) return;
     const pane = rootRef.current?.closest<HTMLElement>(container);
     if (!pane) return;
     if (docked) pane.style.setProperty("--mc-info-offset", `${offset}px`);
@@ -261,7 +276,7 @@ export function SessionInfo({
     return () => {
       pane.style.removeProperty("--mc-info-offset");
     };
-  }, [docked, offset, container]);
+  }, [mounted, docked, offset, container]);
 
   // The conversation never runs under the button either: it keeps to the
   // button's right where the button would overlap it (CSS takes the larger
@@ -269,6 +284,10 @@ export function SessionInfo({
   const toggleRef = useRef<HTMLDivElement>(null);
   const [toggleWidth, setToggleWidth] = useState(0);
   useEffect(() => {
+    if (!mounted) {
+      setToggleWidth(0);
+      return;
+    }
     const row = toggleRef.current;
     if (!row || typeof ResizeObserver === "undefined") return;
     // The buttons' extent, not the row's: the open row spans the panel.
@@ -285,8 +304,11 @@ export function SessionInfo({
   // In a split column the button sits in the column's header instead, so the
   // conversation keeps its full width; the header makes room for it.
   const gutter =
-    scope === "pane" && toggleWidth > 0 ? conversationOffset(paneWidth, toggleWidth + BUTTON_GAP, contentWidth) : 0;
+    mounted && scope === "pane" && toggleWidth > 0
+      ? conversationOffset(paneWidth, toggleWidth + BUTTON_GAP, contentWidth)
+      : 0;
   useEffect(() => {
+    if (!mounted) return;
     const pane = rootRef.current?.closest<HTMLElement>(container);
     if (!pane) return;
     pane.style.setProperty("--mc-info-gutter", `${gutter}px`);
@@ -297,7 +319,7 @@ export function SessionInfo({
       pane.style.removeProperty("--mc-info-gutter");
       column?.style.removeProperty("--mc-info-toggle");
     };
-  }, [gutter, container, scope, toggleWidth, docked, prefs.width]);
+  }, [mounted, gutter, container, scope, toggleWidth, docked, prefs.width]);
 
   const changes = useMemo(() => summarizeReviewChanges(reviewChangesFromMessages(messages)), [messages]);
   // Subtasks: this conversation's `Task` subagents, then the sessions it
@@ -308,16 +330,16 @@ export function SessionInfo({
   );
   // The poller is shared with the work panel header, which follows the
   // active session too, so both always ask for the same list.
-  const shells = useBackgroundShells(open ? sessionId : null);
+  const shells = useBackgroundShells(activeOpen ? sessionId : null);
   const anyRunning =
     subagents.some((item) => item.status === "running" || item.status === "creating") ||
     shells.some((shell) => shell.status === "running");
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    if (!open || !anyRunning) return;
+    if (!activeOpen || !anyRunning) return;
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [open, anyRunning]);
+  }, [activeOpen, anyRunning]);
 
   const breakdown = useSessionContextBreakdown(sessionId);
   const context = breakdown ? contextUsageFromBreakdown(breakdown) : null;
@@ -327,7 +349,7 @@ export function SessionInfo({
   // turn ends. A running turn is estimated too (mc-agent B-002): the list
   // should never wait for the turn to finish.
   useEffect(() => {
-    if (!open || !sessionId) return;
+    if (!activeOpen || !sessionId) return;
     let canceled = false;
     void api
       .getSessionCollaboration(sessionId)
@@ -351,7 +373,7 @@ export function SessionInfo({
     return () => {
       canceled = true;
     };
-  }, [open, sessionId, messageCount, isRunning]);
+  }, [activeOpen, sessionId, messageCount, isRunning]);
 
   // The panel opens and closes only through its button. The layout menu
   // closes on an outside click or Escape.
@@ -775,6 +797,16 @@ export function SessionInfo({
     />
   ) : null;
 
+  const rawPlatform = typeof window !== "undefined" ? window.piDesktop?.platform : undefined;
+  const platform: ShortcutPlatform =
+    rawPlatform === "win32" || rawPlatform === "linux" ? rawPlatform : "darwin";
+  const toggleShortcutDef = KEYBOARD_SHORTCUTS.find((candidate) => candidate.id === "toggleSessionInfo");
+  const toggleShortcutBinding = toggleShortcutDef
+    ? resolveKeybinding(toggleShortcutDef, keybindings, platform)
+    : null;
+  const toggleShortcutLabel = keybindingDisplayParts(toggleShortcutBinding, platform).join(
+    platform === "darwin" ? "" : "+",
+  );
   const toggleRow = (
     <div className="mc-session-info-toggle-row" ref={toggleRef}>
       <button
@@ -782,7 +814,7 @@ export function SessionInfo({
         className={`mc-session-info-trigger${open ? " active" : ""}`}
         aria-expanded={open}
         aria-label={t("mcProject.sessionInfoTitle")}
-        title={`${t("mcProject.sessionInfoTitle")}\n${t("mcProject.sessionInfoCustomizeHint")}`}
+        title={`${t("mcProject.sessionInfoTitle")}${toggleShortcutLabel ? ` (${toggleShortcutLabel})` : ""}\n${t("mcProject.sessionInfoCustomizeHint")}`}
         onClick={() => {
           setMenuOpen(false);
           setOpen(!open);

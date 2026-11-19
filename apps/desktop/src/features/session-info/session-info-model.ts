@@ -33,6 +33,39 @@ export function panelMode(paneWidth: number, panelWidth = PANEL_DEFAULT_WIDTH): 
 export const SECTION_IDS = ["environment", "context", "changes", "workers", "background", "connectors"] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
 
+export type SessionStartSignals = {
+  sessionId?: string | null;
+  isRunning: boolean;
+  hasTranscriptMessages: boolean;
+  transcriptLoaded: boolean;
+  summaryMessageCount?: number;
+  hasPendingInteraction?: boolean;
+  compactionCount?: number;
+  messageParentCount?: number;
+};
+
+/**
+ * Whether a conversation has started so its session info button/panel should
+ * mount. Newly created empty conversations stay completely free of session
+ * statistics and left-margin reservations until the first turn begins.
+ */
+export function hasSessionConversationStarted(signals: SessionStartSignals): boolean {
+  if (!signals.sessionId) return false;
+  if (
+    signals.isRunning ||
+    signals.hasTranscriptMessages ||
+    signals.hasPendingInteraction ||
+    (signals.compactionCount ?? 0) > 0 ||
+    (signals.messageParentCount ?? 0) > 0
+  ) {
+    return true;
+  }
+  if (!signals.transcriptLoaded && (signals.summaryMessageCount ?? 0) > 0) {
+    return true;
+  }
+  return false;
+}
+
 export type PanelPrefs = {
   open: boolean;
   width: number;
@@ -141,10 +174,12 @@ export function breakdownRows(breakdown: SessionContextBreakdown): BreakdownRow[
 }
 
 const STORAGE_KEY = "mc.sessionInfo";
+const OPEN_KEY = "mc.sessionInfoOpen";
+const OPEN_KEEP = 200;
 
 export function readPrefs(): PanelPrefs {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = globalThis.localStorage?.getItem(STORAGE_KEY);
     return normalizePrefs(raw ? JSON.parse(raw) : null);
   } catch {
     return normalizePrefs(null);
@@ -153,8 +188,72 @@ export function readPrefs(): PanelPrefs {
 
 export function savePrefs(prefs: PanelPrefs): void {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+    globalThis.localStorage?.setItem(STORAGE_KEY, JSON.stringify(prefs));
   } catch {
     // Without storage the panel keeps its layout for this window only.
   }
+}
+
+/** Whether the panel is open, per conversation; the last choice is the default for others. */
+export function readOpenMap(): Record<string, boolean> {
+  try {
+    const raw = JSON.parse(globalThis.localStorage?.getItem(OPEN_KEY) ?? "{}") as unknown;
+    if (!raw || typeof raw !== "object") return {};
+    return Object.fromEntries(
+      Object.entries(raw).filter((entry): entry is [string, boolean] => typeof entry[1] === "boolean"),
+    );
+  } catch {
+    return {};
+  }
+}
+
+export function saveOpenMap(map: Record<string, boolean>): void {
+  try {
+    globalThis.localStorage?.setItem(
+      OPEN_KEY,
+      JSON.stringify(Object.fromEntries(Object.entries(map).slice(-OPEN_KEEP))),
+    );
+  } catch {
+    // best-effort persistence
+  }
+}
+
+const sessionInfoListeners = new Set<(changedSessionId?: string) => void>();
+
+export function subscribeSessionInfoOpen(listener: (changedSessionId?: string) => void): () => void {
+  sessionInfoListeners.add(listener);
+  return () => {
+    sessionInfoListeners.delete(listener);
+  };
+}
+
+export function notifySessionInfoChange(changedSessionId?: string): void {
+  for (const listener of sessionInfoListeners) listener(changedSessionId);
+}
+
+export function isSessionInfoOpenFor(
+  sessionId: string | undefined,
+  openMap: Record<string, boolean>,
+  prefs: PanelPrefs,
+): boolean {
+  return sessionId !== undefined && openMap[sessionId] !== undefined ? openMap[sessionId] : prefs.open;
+}
+
+export function setSessionInfoOpenForSession(sessionId: string | undefined, value: boolean): boolean {
+  if (sessionId) {
+    const current = readOpenMap();
+    const { [sessionId]: _previous, ...rest } = current;
+    saveOpenMap({ ...rest, [sessionId]: value });
+  }
+  const currentPrefs = readPrefs();
+  savePrefs({ ...currentPrefs, open: value });
+  notifySessionInfoChange(sessionId);
+  return value;
+}
+
+export function toggleSessionInfoOpenForSession(sessionId: string): boolean {
+  const openMap = readOpenMap();
+  const prefs = readPrefs();
+  const next = !isSessionInfoOpenFor(sessionId, openMap, prefs);
+  return setSessionInfoOpenForSession(sessionId, next);
 }

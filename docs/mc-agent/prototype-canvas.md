@@ -281,11 +281,8 @@ C 档的前提是 A 档的画板约定被一直遵守。如果到时发现自由
 
 ## 后续（C 档以后）
 
-- **手画工具：** 画笔、形状、连线接开源库，不自己写。
-  - [Excalidraw](https://github.com/excalidraw/excalidraw)：MIT 协议，开源参考 [Jaaz](https://github.com/11cafe/jaaz) 就是基于它做的。
-  - [tldraw](https://github.com/tldraw/tldraw)：自定义 HTML 形状最方便，但正式使用要买授权，接入前核对当时的条款。
-  - 接入时画板仍按本方案的 HTML + 沙箱方式渲染，库只负责手画层。
-- 删除项目时一并清理它的画布目录（A 档未做，目录会留在数据目录里）。
+- **手画工具（2026-11-18 已由 R38 / [MC-ADR-0030](adr/mc-0030-whiteboard-canvas.md) 落地）：** 在同一「画布」标签下并存离线 [Excalidraw](https://github.com/excalidraw/excalidraw)（MIT）`whiteboard` 模式与既有 `prototype` HTML 画板模式，开放给所有本地对话（含无项目临时对话），支持手绘、几何图形、吸附箭头、文字、`⌘V` 贴图、原型画板送入白板圈画、局部／全局截图附带发送、`CanvasRead` 按需读取结构与预览画面，以及 `CanvasWrite` 反向生成流程图／线框图。
+- 删除项目时一并清理它的画布目录（A 档未做，目录会留在数据目录里；临时对话的 `session:<id>` 画布在删除会话时自动清理）。
 - 从画布生成文档或演示，再在画布上贴一张链接卡片。
 
 ## 实现情况（A 档）

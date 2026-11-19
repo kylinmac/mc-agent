@@ -525,7 +525,10 @@ export function createTranscriptSlice({
       const smartStop = preserveSteering
         ? { kind: "settle" as const }
         : resolveComposerSmartStop(state.messages, submittedDraft);
-      if (smartStop.kind === "restore") {
+      if (
+        smartStop.kind === "restore" ||
+        (!preserveSteering && !submittedDraft && runtime?.hasQueuedDraft?.(sessionId))
+      ) {
         const fullMessages = await runtime.loadFullSessionMessages(sessionId);
         if (!fullMessages || get().activeSessionId !== sessionId) {
           submittedDraft?.resolveAbort?.(false);
@@ -535,6 +538,11 @@ export function createTranscriptSlice({
         const merged = mergeLiveSessionMessages(fullMessages, get().messages);
         const fullStop = resolveComposerSmartStop(merged, submittedDraft);
         if (fullStop.kind === "restore") {
+          const restoredDraft =
+            submittedDraft?.draft ??
+            runtime?.consumeQueuedDraftByContent?.(sessionId, fullStop.draft.text) ??
+            fullStop.draft;
+          fullStop.draft = restoredDraft;
           runtime.submittedComposerDrafts.delete(sessionId);
           submittedDraft?.resolveAbort?.(true);
           const onSmartStopUndo = fullStop.draft.onSmartStopUndo;
@@ -572,6 +580,7 @@ export function createTranscriptSlice({
       }
       submittedDraft?.resolveAbort?.(false);
       runtime.submittedComposerDrafts.delete(sessionId);
+      runtime.clearDequeuedDraftsForSession?.(sessionId);
       const stoppedRows = (rows: UiMessage[]) =>
         rows.map((message) => {
           if (message.role === "assistant" && message.status === "streaming") {

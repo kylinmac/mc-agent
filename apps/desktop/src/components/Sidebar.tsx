@@ -85,7 +85,7 @@ import {
   sidebarResetWidth,
 } from "../lib/sidebar-resize";
 import { BrandLogo } from "./BrandLogo";
-import { SidebarSlotHost } from "../features/sidebar-slot/SidebarSlot";
+import { SidebarSlotHost, pagePinsSidebar } from "../features/sidebar-slot/SidebarSlot";
 import { ProjectEditDialog } from "./ProjectEditDialog";
 import {
   WorktreeBadge,
@@ -287,6 +287,7 @@ export function Sidebar({
   const navBack = useAppStore((s) => s.navBack);
   const canNavBack = useAppStore((s) => s.canNavBack);
   const page = useAppStore((s) => s.page);
+  const sidebarPinned = pagePinsSidebar(page);
   const settings = useAppStore((s) => s.settings);
   // Project headers must answer "is anything running under here?" while the
   // group is collapsed, so both affordances are resolved once per render
@@ -421,17 +422,21 @@ export function Sidebar({
       maxWidth: widthMax,
     });
     if (result.type === "collapse") {
-      finishSidebarResize(true, true);
-      return;
+      if (!sidebarPinned) {
+        finishSidebarResize(true, true);
+        return;
+      }
+      state.currentWidth = SIDEBAR_WIDTH_MIN;
+    } else {
+      state.currentWidth = result.width;
     }
-    state.currentWidth = result.width;
     if (state.frame) return;
     state.frame = requestAnimationFrame(() => {
       if (sidebarResizeRef.current !== state) return;
       state.frame = 0;
       onWidthChange(state.currentWidth);
     });
-  }, [finishSidebarResize, onWidthChange, widthMax]);
+  }, [finishSidebarResize, onWidthChange, sidebarPinned, widthMax]);
 
   const endSidebarResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (sidebarResizeRef.current?.pointerId !== event.pointerId) return;
@@ -2646,21 +2651,23 @@ export function Sidebar({
           <span>{t("app.shellName")}</span>
         </TooltipButton>
         <div className="sidebar-header-actions no-drag">
-          <TooltipButton
-            type="button"
-            className="icon-btn icon-btn-square"
-            tooltip={
-              sidebarToggleShortcut
-                ? `${t("nav.collapseSidebar")} (${sidebarToggleShortcut})`
-                : t("nav.collapseSidebar")
-            }
-            ariaLabel={t("nav.collapseSidebar")}
-            aria-expanded={true}
-            data-nav="toggle-sidebar"
-            onClick={onToggleSidebar}
-          >
-            <IconSidebar size={15} />
-          </TooltipButton>
+          {sidebarPinned ? null : (
+            <TooltipButton
+              type="button"
+              className="icon-btn icon-btn-square"
+              tooltip={
+                sidebarToggleShortcut
+                  ? `${t("nav.collapseSidebar")} (${sidebarToggleShortcut})`
+                  : t("nav.collapseSidebar")
+              }
+              ariaLabel={t("nav.collapseSidebar")}
+              aria-expanded={true}
+              data-nav="toggle-sidebar"
+              onClick={onToggleSidebar}
+            >
+              <IconSidebar size={15} />
+            </TooltipButton>
+          )}
         </div>
       </div>
 

@@ -34,7 +34,11 @@ import { AskToolCard } from "./AskToolCard";
 import { ProjectProposalSlot } from "../features/project-create/ProjectProposalSlot";
 import { NewProjectIntentBar } from "../features/project-create/NewProjectIntentBar";
 import { CanvasContextBar } from "../features/canvas/CanvasContextBar";
-import { withCanvasContext } from "../features/canvas/canvas-session";
+import {
+  defaultCanvasPromptForSession,
+  prepareCanvasSubmission,
+  useCanvasSession,
+} from "../features/canvas/canvas-session";
 import { NEW_PROJECT_PREFIX, useNewProjectIntent } from "../features/project-create/new-project-intent";
 import { PlanApprovalBar } from "./PlanApprovalBar";
 import { TaskDock } from "./TaskDock";
@@ -432,7 +436,12 @@ export function Composer({
       !isImageGenerationModel(imageGenerationCandidates, provider.id, modelId) &&
       (provider.hasSecret || provider.authKind === "none");
   const enterToSend = settings?.enterToSend ?? true;
-  const hasDraftContent = Boolean(value.trim() || activeFileReferences.length);
+  const hasQueuedCanvasAttachments = useCanvasSession((state) =>
+    Boolean(activeSessionId && state.sessions[activeSessionId]?.attachments.length),
+  );
+  const hasDraftContent = Boolean(
+    value.trim() || activeFileReferences.length || (localToolsAllowed && hasQueuedCanvasAttachments),
+  );
 
   useEffect(() => {
     if (!controlsBlocked) return;
@@ -465,11 +474,37 @@ export function Composer({
     steeringAllowed: sessionAllows(capabilitySession, "canSteer"),
     pasting,
     activeFileReferences,
+    fallbackEmptyPrompt: localToolsAllowed ? defaultCanvasPromptForSession(activeSessionId, t) : undefined,
     t,
-    // mc-agent: a message carries what the Canvas tab shows (prototype-canvas.md).
-    sendPrompt: (content, draft, target, onAccepted) =>
-      sendPrompt(withCanvasContext(target ?? activeSessionId ?? undefined, content), draft, target, onAccepted),
-    steerPrompt,
+    // mc-agent: a message carries what the Canvas tab shows (prototype-canvas.md / MC-ADR-0030);
+    // queued canvas/whiteboard chips are spent only after sendPrompt/steerPrompt succeeds.
+    sendPrompt: async (content, draft, target, onAccepted) => {
+      const sid = target ?? activeSessionId ?? undefined;
+      const prepared = prepareCanvasSubmission(
+        sid,
+        content,
+        draft,
+        defaultCanvasPromptForSession(sid, t),
+      );
+      const accepted = await sendPrompt(prepared.content, prepared.draft, target, (resolvedId) => {
+        prepared.commit(resolvedId);
+        onAccepted?.(resolvedId);
+      });
+      if (accepted) prepared.commit();
+      return accepted;
+    },
+    steerPrompt: async (content, draft) => {
+      const sid = activeSessionId ?? undefined;
+      const prepared = prepareCanvasSubmission(
+        sid,
+        content,
+        draft,
+        defaultCanvasPromptForSession(sid, t),
+      );
+      const accepted = await steerPrompt(prepared.content, prepared.draft);
+      if (accepted) prepared.commit();
+      return accepted;
+    },
     showToast,
     recordHistory: inputHistory.record,
     draft: {

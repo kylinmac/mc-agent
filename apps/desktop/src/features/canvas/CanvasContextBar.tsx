@@ -26,6 +26,13 @@ function attachmentLabel(item: CanvasAttachment, t: (key: string, options?: Reco
       return t("mcProject.canvasChipNote", { text: short(item.text) });
     case "errors":
       return t("mcProject.canvasChipErrors", { board: item.boardId });
+    case "whiteboard":
+      return item.scope === "selection"
+        ? t("mcProject.canvasChipWhiteboardSelection", {
+            title: short(item.title),
+            count: item.summary.totalElements,
+          })
+        : t("mcProject.canvasChipWhiteboard", { title: short(item.title) });
   }
 }
 
@@ -39,12 +46,12 @@ export function CanvasContextBar({ sessionId }: { sessionId: string | null | und
   useEffect(
     () =>
       api.canvas.onChanged((change) => {
-        if (!change.sessionId) return;
+        if (!sessionId || change.sessionId !== sessionId) return;
         const store = useAppStore.getState();
         store.openWorkPanelTabForSession(change.sessionId, canvasTab(change.canvasId));
         if (change.sessionId === store.activeSessionId) expandPane("canvas");
       }),
-    [],
+    [sessionId],
   );
 
   if (!sessionId || (!view && !attachments.length)) return null;
@@ -54,9 +61,16 @@ export function CanvasContextBar({ sessionId }: { sessionId: string | null | und
         <span className="mc-canvas-chip">
           <IconBrowser size={12} />
           <span>
-            {view.selected.length
-              ? t("mcProject.canvasChatSelected", { count: view.selected.length })
-              : t("mcProject.canvasChatVisible", { count: view.visibleBoards.length })}
+            {view.kind === "whiteboard"
+              ? view.whiteboardSelectedIds?.length
+                ? t("mcProject.canvasChatSelected", { count: view.whiteboardSelectedIds.length })
+                : t("mcProject.canvasChatWhiteboard", {
+                    title: view.title,
+                    count: view.whiteboardElementCount ?? 0,
+                  })
+              : view.selected.length
+                ? t("mcProject.canvasChatSelected", { count: view.selected.length })
+                : t("mcProject.canvasChatVisible", { count: view.visibleBoards.length })}
           </span>
           <button
             type="button"

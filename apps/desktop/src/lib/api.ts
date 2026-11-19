@@ -2220,6 +2220,9 @@ export const api = {
     /** Save a canvas as one HTML file where the user picks. */
     export: (groupId: string, canvasId: string) =>
       invoke<{ path?: string; canceled?: true }>(IPC.invoke.canvasExport, { groupId, canvasId }),
+    /** Capture a viewport rectangle of an artboard into a PNG data URL for whiteboard annotation. */
+    captureRect: (rect: { x: number; y: number; width: number; height: number }) =>
+      invoke<{ dataUrl: string | null; width: number; height: number }>(IPC.invoke.canvasCaptureRect, rect),
     /** The agent changed a canvas or its comments. */
     onChanged: (listener: (change: CanvasChange) => void) => {
       if (!window.piDesktop?.on) return () => undefined;

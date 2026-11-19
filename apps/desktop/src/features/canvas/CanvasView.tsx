@@ -78,6 +78,7 @@ export function CanvasView({
   onViewState,
   onAttach,
   onSendThread,
+  onSendBoardToWhiteboard,
 }: {
   groupId: string;
   canvasId: string;
@@ -88,6 +89,8 @@ export function CanvasView({
   onAttach: (attachment: CanvasAttachment) => void;
   /** Hand a thread to the conversation, now or with the next message. */
   onSendThread: (thread: CanvasThread, queue: boolean) => void;
+  /** Capture an HTML artboard into a whiteboard canvas for freehand annotation. */
+  onSendBoardToWhiteboard?: (element: CanvasElement) => void;
 }) {
   const { t } = useTranslation();
   const { canvas, comments, error, apply, preview, revert, setThreads } = useCanvas(groupId, canvasId);
@@ -535,6 +538,9 @@ export function CanvasView({
     openContextMenu(event, {
       label: element.title || element.text?.slice(0, 40) || element.id,
       items: [
+        ...(element.type === "frame" && onSendBoardToWhiteboard
+          ? [{ id: "whiteboard", label: t("mcProject.canvasSendBoardToWhiteboard"), onSelect: () => onSendBoardToWhiteboard(element) }]
+          : []),
         ...(element.type === "frame" && element.hasPrev
           ? [{ id: "restore", label: t("mcProject.canvasRestorePrevious"), onSelect: () => void change([{ op: "restore", id: element.id }]) }]
           : []),
@@ -545,7 +551,7 @@ export function CanvasView({
           id: "delete",
           label: t("mcProject.canvasDelete"),
           danger: true,
-          separatorBefore: element.type === "note" || element.hasPrev,
+          separatorBefore: element.type === "note" || element.hasPrev || Boolean(element.type === "frame" && onSendBoardToWhiteboard),
           onSelect: () => void removeElements([element.id]),
         },
       ],
@@ -586,6 +592,7 @@ export function CanvasView({
             if (tool === "select") setEntered(element.id);
           }}
           onRestore={() => void change([{ op: "restore", id: element.id }])}
+          onSendToWhiteboard={onSendBoardToWhiteboard ? () => onSendBoardToWhiteboard(element) : undefined}
           onReady={() => setReady((current) => ({ ...current, [element.id]: (current[element.id] ?? 0) + 1 }))}
           onError={(message) =>
             setErrors((current) => {

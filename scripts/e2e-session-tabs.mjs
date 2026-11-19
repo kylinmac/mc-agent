@@ -17,7 +17,7 @@ try {
     define:{"process.env.NODE_ENV":'"production"',"import.meta.env.DEV":"false"},
     alias:Object.fromEntries(["react","react-dom","i18next","react-i18next"].map(name=>[name,join(root,"apps/desktop/node_modules",name)]).concat([
       ["@pi-desktop/i18n",join(root,"packages/i18n/src")],["@pi-desktop/shared",join(root,"packages/shared/src")]])),
-    nodePaths:[join(root,"apps/desktop/node_modules")],loader:{".png":"dataurl",".svg":"dataurl"}});
+    nodePaths:[join(root,"apps/desktop/node_modules")],loader:{".css":"empty",".png":"dataurl",".svg":"dataurl"}});
   await writeFile(join(dir,"style.css"),(await loadStyles()).replace('@import "tailwindcss";', '') +
     '\n*{box-sizing:border-box}html,body,#root{height:100%;margin:0}button{font:inherit;border:0;background:none}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}');
   const tabs = [...Array.from({length:18},(_,i)=>`s${i}`),"page:creative"];

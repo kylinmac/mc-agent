@@ -20,6 +20,7 @@ import { IconCheck, IconChevronRight, IconCopy, IconSnapshot } from "./icons";
 import {
   annotationLineKey,
   resolveAnnotationRootIdentity,
+  resolveDiffShiftRangeTarget,
   useSessionDiffAnnotations,
   type DiffAnnotation,
 } from "../features/review-annotations/review-annotations";
@@ -106,6 +107,15 @@ export function ReviewChangeDetails({ message, compact = false, contextLines = 3
   const displayChange = contextResult?.result && !unavailable
     ? { ...change, hunks: contextResult.result.hunks, truncated: false } : change;
   const hunks = numberedReviewHunks(displayChange.hunks);
+  const renderedLineKeys = new Set<string>();
+  for (let hIdx = 0; hIdx < hunks.length; hIdx += 1) {
+    const h = hunks[hIdx]!;
+    for (let lIdx = 0; lIdx < h.lines.length; lIdx += 1) {
+      const ln = h.lines[lIdx]!;
+      const lnSide = ln.type === "del" ? "old" : "new";
+      renderedLineKeys.add(annotationLineKey(change.snapshotId, lnSide, reviewLineNumber(ln), hIdx, lIdx));
+    }
+  }
   const diffText = reviewDiffText(displayChange);
   const resolvedRoot = root ?? change.root;
   const rootIdentity = resolveAnnotationRootIdentity(resolvedRoot, message.parentToolCallId);
@@ -197,13 +207,16 @@ export function ReviewChangeDetails({ message, compact = false, contextLines = 3
                               rangeAnchorRef.current.side === side &&
                               lineNum !== null
                             ) {
-                              const start = Math.min(rangeAnchorRef.current.line, lineNum);
-                              setEditingTarget({
-                                lineKey: lKey,
-                                side,
-                                startLine: start === lineNum ? null : start,
-                                endLine: lineNum,
-                              });
+                              setEditingTarget(
+                                resolveDiffShiftRangeTarget({
+                                  snapshotId: change.snapshotId,
+                                  side,
+                                  anchorLine: rangeAnchorRef.current.line,
+                                  clickedLine: lineNum,
+                                  clickedLineKey: lKey,
+                                  hasLineKey: (key) => renderedLineKeys.has(key),
+                                }),
+                              );
                               return;
                             }
                             if (lineNum !== null) {

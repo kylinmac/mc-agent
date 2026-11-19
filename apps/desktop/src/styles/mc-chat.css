@@ -170,3 +170,78 @@
   color: var(--ds-text-muted);
   font-size: var(--text-xs);
 }
+
+/* mc-agent: dynamic per-node subagent topology connectors.
+   Upstream `.subagent-topology-agents::before` hardcodes `top: 36px; bottom: 36px`
+   for 70px cards and offsets `.subagent-topology-connector` (`margin-left: 28px`)
+   away from `left: 14px` under `max-width: 520px`, leaving dangling vertical
+   stubs below taller/running cards and disconnecting the trunk in stacked mode.
+   Drawing each node's horizontal branch (`::before`) and vertical spine segment
+   (`::after`) from its own midpoint (`50%`) keeps every joint exact at any height. */
+.subagent-activity-header:not(:has(> .subagent-stop-button)) {
+  padding-right: 0;
+}
+
+.subagent-topology-connector {
+  border-radius: 0;
+}
+
+.subagent-topology-agents::before {
+  content: none;
+}
+
+.subagent-topology-node::before {
+  top: calc(50% - 1px);
+  width: 14px;
+}
+
+.subagent-topology-node::after {
+  position: absolute;
+  right: calc(100% + 12px);
+  width: 2px;
+  border-radius: 0;
+  background: var(--ds-tile-deep);
+  content: "";
+}
+
+.subagent-topology-node:only-child::after {
+  content: none;
+}
+
+.subagent-topology-node:first-child:not(:only-child)::after {
+  top: calc(50% - 1px);
+  bottom: -5px;
+}
+
+.subagent-topology-node:not(:first-child):not(:last-child)::after {
+  top: -5px;
+  bottom: -5px;
+}
+
+.subagent-topology-node:last-child:not(:only-child)::after {
+  top: -5px;
+  bottom: calc(50% - 1px);
+}
+
+@container subagent-activity (max-width: 520px) {
+  .subagent-topology-connector {
+    width: 2px;
+    height: 14px;
+    margin-left: 24px;
+  }
+
+  .subagent-topology-agents {
+    padding-left: 38px;
+  }
+
+  .subagent-topology-node:only-child::after {
+    top: 0;
+    bottom: calc(50% - 1px);
+    content: "";
+  }
+
+  .subagent-topology-node:first-child:not(:only-child)::after {
+    top: 0;
+    bottom: -5px;
+  }
+}

@@ -41,6 +41,7 @@ test("shared shortcut map drives renderer dispatch and native menu accelerators"
     "openSearch",
     "openCommandPalette",
     "toggleSidebar",
+    "toggleSessionInfo",
     "openWorkPanel",
     "openPluginLauncher",
     "abort",

@@ -12,6 +12,9 @@
 /* Records: plain files under `<data dir>/canvas/<project>/<id>/`, read and
    written through host-core. */
 
+import type { CanvasWhiteboardBinaryFile, CanvasWhiteboardScene } from "./mc-whiteboard.js";
+
+export type CanvasKind = "prototype" | "whiteboard";
 export type CanvasElementKind = "frame" | "note" | "title";
 export const CANVAS_NOTE_COLORS = ["yellow", "blue", "green", "pink", "purple", "orange", "gray"] as const;
 export type CanvasNoteColor = (typeof CANVAS_NOTE_COLORS)[number];
@@ -41,6 +44,8 @@ export type Canvas = {
   v: number;
   id: string;
   title: string;
+  /** Defaults to `"prototype"` for legacy records created before R38. */
+  kind?: CanvasKind;
   version: number;
   createdAt: number;
   updatedAt: number;
@@ -51,6 +56,7 @@ export type Canvas = {
 export type CanvasSummary = {
   id: string;
   title: string;
+  kind?: CanvasKind;
   version: number;
   updatedAt: number;
   boards: number;
@@ -135,7 +141,7 @@ type WithCanvas<T extends object = object> = { groupId: string; canvasId: string
  */
 export type CanvasMethods = {
   "canvas.list": { params: WithProject; result: { canvases: CanvasSummary[] } };
-  "canvas.create": { params: WithProject<{ title: string }>; result: { canvas: Canvas } };
+  "canvas.create": { params: WithProject<{ title: string; kind?: CanvasKind }>; result: { canvas: Canvas } };
   "canvas.get": {
     params: WithCanvas<{ html?: boolean; boards?: string[] }>;
     result: { canvas: Canvas; html: Record<string, string> | null };
@@ -144,6 +150,35 @@ export type CanvasMethods = {
   "canvas.rename": { params: WithCanvas<{ title: string }>; result: { canvas: Canvas } };
   "canvas.delete": { params: WithCanvas; result: { ok: true } };
   "canvas.resolveNode": { params: WithCanvas<{ boardId: string; node: number }>; result: { node: CanvasNode } };
+  "canvas.whiteboard.get": {
+    params: WithCanvas<{ includeFiles?: boolean }>;
+    result: {
+      canvas: Canvas;
+      scene: CanvasWhiteboardScene;
+      files: Record<string, CanvasWhiteboardBinaryFile> | null;
+      hasPreview: boolean;
+    };
+  };
+  "canvas.whiteboard.save": {
+    params: WithCanvas<{
+      baseVersion?: number;
+      scene: CanvasWhiteboardScene;
+      upsertedFiles?: Record<string, CanvasWhiteboardBinaryFile>;
+      previewPngBase64?: string;
+    }>;
+    result: { canvas: Canvas };
+  };
+  "canvas.whiteboard.savePreview": {
+    params: WithCanvas<{
+      baseVersion: number;
+      previewPngBase64: string;
+    }>;
+    result: { updated: boolean };
+  };
+  "canvas.whiteboard.preview": {
+    params: WithCanvas;
+    result: { mimeType: string | null; dataBase64: string | null };
+  };
   "canvas.comments.list": { params: WithCanvas; result: { comments: CanvasComments } };
   "canvas.comments.add": {
     params: WithCanvas<{ anchor: CanvasAnchorInput; text: string }>;
@@ -177,6 +212,10 @@ export const CANVAS_RENDERER_METHODS = [
   "canvas.rename",
   "canvas.delete",
   "canvas.resolveNode",
+  "canvas.whiteboard.get",
+  "canvas.whiteboard.save",
+  "canvas.whiteboard.savePreview",
+  "canvas.whiteboard.preview",
   "canvas.comments.list",
   "canvas.comments.add",
   "canvas.comments.reply",
@@ -298,9 +337,10 @@ export function stripCanvasData(text: string): { text: string; blocks: number } 
  * tool descriptions every local project conversation carries stay short.
  */
 export const CANVAS_GUIDE = [
-  "When to draw: the user wants a prototype, mockup, screen, flow or layout to look at. Draw several options side by side when comparing helps, and keep one artboard per screen or state.",
-  "Layout: artboards in a row 80 px apart, rows 160 px apart; a title goes 140 px above its row (it is about 70 px tall and each artboard shows its name just above it); notes beside the row. Sizes: phone 390×844, tablet 834×1194, desktop 1440×900.",
-  'Operations: {op:"add", element:{type, id?, x, y, w, h, title?, text?, color?, boardId?}, html?} — type frame (an artboard; html required; title names it), note (a short explanation; color yellow|blue|green|pink|purple|orange|gray; boardId attaches it to an artboard), title (one bold line above a row of artboards; w is its width). {op:"update", id, set:{…same fields}, html?} changes fields and/or an artboard\'s HTML (the previous HTML is kept so the user can restore it). {op:"remove", id}. {op:"restore", id} swaps an artboard with its previous HTML. {op:"reorder", id, to:"front"|"back"}. A batch applies all or nothing against baseVersion; on a conflict, read the canvas again and redo the change.',
+  "Two canvas kinds coexist: `prototype` (interactive HTML artboards) and `whiteboard` (Excalidraw freehand sketches, wireframes, architecture/flow diagrams, and pasted reference images).",
+  "Prototype (`kind: \"prototype\"`): draw UI prototypes, screens, or side-by-side options as HTML artboards. Layout: artboards in a row 80 px apart, rows 160 px apart; a title goes 140 px above its row (it is about 70 px tall and each artboard shows its name just above it); notes beside the row. Sizes: phone 390×844, tablet 834×1194, desktop 1440×900.",
+  'Prototype operations (`ops`): {op:"add", element:{type, id?, x, y, w, h, title?, text?, color?, boardId?}, html?} — type frame (an artboard; html required; title names it), note (a short explanation; color yellow|blue|green|pink|purple|orange|gray; boardId attaches it to an artboard), title (one bold line above a row of artboards; w is its width). {op:"update", id, set:{…same fields}, html?} changes fields and/or an artboard\'s HTML (the previous HTML is kept so the user can restore it). {op:"remove", id}. {op:"restore", id} swaps an artboard with its previous HTML. {op:"reorder", id, to:"front"|"back"}. A batch applies all or nothing against baseVersion; on a conflict, read the canvas again and redo the change.',
   "Artboard HTML is a fragment placed in the artboard's body, which is exactly the artboard's size (a root with height: 100% fills it); it is checked on write: every element closed, attribute values quoted, no <!doctype>/<html>/<head>/<body>/<meta>/<link>/<iframe>/<object>/<embed>, unique data-mc-id values. Write styles inline (a <style> block for basics), text as literal markup, never built by scripts (scripts only for interaction state such as tabs or toggles). Nothing loads from the network: draw images with SVG or CSS, or use data: URLs. Give key elements (buttons, cards, sections, inputs) a short data-mc-id so comments stay attached when you revise. Fix the warnings a write returns.",
+  'Whiteboard (`kind: "whiteboard"`): when the user sketches wireframes, arrows, or pastes screenshots on a whiteboard, `CanvasRead` returns both the structured `whiteboard` summary (shapes, text, `startId -> endId` arrow bindings) and the rendered preview image so you can see freehand strokes and pasted screenshots directly. To draw or update diagrams/wireframes on a whiteboard via `CanvasWrite`, pass `kind: "whiteboard"` (when creating) and `whiteboardOps`: `{op:"add", element:{type:"rectangle"|"ellipse"|"diamond"|"text"|"arrow"|"line"|"frame", id?, x?, y?, w?, h?, label?, text?, strokeColor?, backgroundColor?, strokeStyle?, startId?, endId?, toX?, toY?, points?}}`, `{op:"update", id, set:{...}}`, `{op:"remove", id}`, or `{op:"clear"}`. Give nodes explicit `id`s (e.g. `"login"`, `"api"`) and connect them with `{op:"add", element:{type:"arrow", startId:"login", endId:"api", label:"POST"}}` — edge anchors and bindings are computed automatically.',
   "Comments: for a thread sent to you, read the artboard, make the change, then reply saying what you did and resolve it; do not resolve a thread you did not address. Start a thread of your own (CanvasComment add) to ask about something you are unsure of.",
 ].join("\n\n");

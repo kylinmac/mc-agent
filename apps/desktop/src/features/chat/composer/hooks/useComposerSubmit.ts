@@ -27,6 +27,7 @@ type UseComposerSubmitOptions = {
   invalidateComposerTransforms: () => void;
   pasting: boolean;
   activeFileReferences: ComposerFileReference[];
+  fallbackEmptyPrompt?: string;
   t: TFunction;
   sendPrompt: AppState["sendPrompt"];
   steerPrompt: AppState["steerPrompt"];
@@ -62,6 +63,7 @@ export function useComposerSubmit({
   invalidateComposerTransforms,
   pasting,
   activeFileReferences,
+  fallbackEmptyPrompt,
   t,
   sendPrompt,
   steerPrompt,
@@ -76,7 +78,7 @@ export function useComposerSubmit({
     // arrives where the user put it instead of trailing the text.
     const inlineContent = serializeInlineComposerFileReferences(rawText, activeFileReferences);
     const serializedContent = serializeComposerFileReferences(rawText, activeFileReferences);
-    if (!serializedContent) return;
+    if (!serializedContent && !fallbackEmptyPrompt) return;
     if (sendBlocked || (steering && !steeringAllowed)) {
       if (pasting) showToast(t("chat.pasteInProgress"), { variant: "info" });
       return;

@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 import { useTranslation } from "react-i18next";
-import { useAppStore } from "../../stores/app-store";
+import { materializeDraftSession, useAppStore } from "../../stores/app-store";
 import { TooltipButton } from "../../components/ui";
 import type { IconProps } from "../../components/icons";
 import { IconActivity, IconBrowser, IconDiff, IconFolder, IconGlobe, IconTerminal } from "../../components/icons";
@@ -32,6 +32,10 @@ export function WorkPanelQuickTools() {
   const pluginViews = useAppStore((s) => s.pluginViews);
   const cwd = useTerminalCwd();
   const activeSessionId = useAppStore((s) => s.activeSessionId);
+  const activeSession = useAppStore((s) => s.sessions.find((candidate) => candidate.id === s.activeSessionId));
+  const workspace = useAppStore((s) => s.workspace);
+  const remoteActive = activeSession ? isRemoteSession(activeSession) : Boolean(workspace?.remote);
+  const canUseCanvas = !remoteActive;
   const runningInBackground = useBackgroundShells(activeSessionId).filter((shell) => shell.status === "running").length;
   const openPanes = new Set(tabs.map(paneOf));
   const hasView = (pluginId: string, viewId: string) =>
@@ -46,14 +50,27 @@ export function WorkPanelQuickTools() {
     open: () => void;
   }> = [
     {
-      // The project's prototype canvas (docs/mc-agent/prototype-canvas.md).
+      // Prototype & Excalidraw whiteboard canvas (docs/mc-agent/prototype-canvas.md, MC-ADR-0030):
+      // available in every non-remote local conversation, including standalone temporary chats.
       pane: "canvas",
       icon: IconBrowser,
       label: t("mcProject.paneCanvas"),
-      tooltip: cwd ? undefined : t("mcProject.canvasNoProject"),
-      disabled: !cwd,
-      // Reopening keeps the canvas it showed.
-      open: () => openWorkPanelTab(tabs.find((tab) => tab.kind === "canvas") ?? canvasTab()),
+      tooltip: canUseCanvas ? undefined : t("mcProject.canvasNoSession"),
+      disabled: !canUseCanvas,
+      open: () => {
+        if (!canUseCanvas) return;
+        if (activeSessionId) {
+          openWorkPanelTab(tabs.find((tab) => tab.kind === "canvas") ?? canvasTab());
+          return;
+        }
+        void materializeDraftSession().then((createdId) => {
+          if (!createdId) return;
+          const store = useAppStore.getState();
+          const targetTab = store.workPanelTabs.find((tab) => tab.kind === "canvas") ?? canvasTab();
+          store.openWorkPanelTabForSession(createdId, targetTab);
+          expandPane("canvas");
+        });
+      },
     },
     {
       pane: "terminal",

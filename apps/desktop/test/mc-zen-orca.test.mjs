@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
+import { register } from "node:module";
 import test from "node:test";
+import { IPC } from "@pi-desktop/shared";
 import {
   DEFAULT_ATTENTION_LIMIT,
   buildAttentionItems,
@@ -20,6 +22,7 @@ import {
   pruneSentAnnotations,
   removeAnnotationItem,
   resolveAnnotationRootIdentity,
+  resolveDiffShiftRangeTarget,
   restoreSentAnnotations,
   reviewFileSignature,
   toggleReviewFileViewedMap,
@@ -75,6 +78,31 @@ test("R36: Zen 2-column shell keeps adaptive left-margin SessionInfo and wraps n
   const footerBlock = railCss.match(/\.mc-sidebar-footer\s*\{[^}]+\}/)?.[0] ?? "";
   assert.match(footerBlock, /flex-wrap:\s*wrap/);
   assert.match(railCss, /\.mc-sidebar-footer\s+\.footer-action\s*\{\s*flex:\s*0 0 32px;/);
+});
+
+test("R36: Settings and slot pages pin the left navigation sidebar, hiding collapse triggers and ignoring shortcuts", async () => {
+  const { pagePinsSidebar } = await import("../src/features/sidebar-slot/sidebar-slot-model.ts");
+  const runtimeSource = readFileSync(new URL("../src/features/app/useAppShellRuntime.tsx", import.meta.url), "utf8");
+  const sidebar = readFileSync(new URL("../src/components/Sidebar.tsx", import.meta.url), "utf8");
+  const winTitlebar = readFileSync(new URL("../src/features/app-rail/WindowsTitlebarActions.tsx", import.meta.url), "utf8");
+
+  assert.equal(pagePinsSidebar("settings"), true);
+  assert.equal(pagePinsSidebar("plugins"), true);
+  assert.equal(pagePinsSidebar("scheduled"), true);
+  assert.equal(pagePinsSidebar("chat"), false);
+  assert.equal(pagePinsSidebar(undefined), false);
+
+  assert.match(runtimeSource, /const toggleSidebar = useCallback\(\(\) => \{\s*if \(pagePinsSidebar\(useAppStore\.getState\(\)\.page\)\) return;/);
+  assert.match(runtimeSource, /const handleSidebarResizeCollapse = useCallback\(\(\) => \{\s*if \(pagePinsSidebar\(useAppStore\.getState\(\)\.page\)\) return;/);
+  assert.match(runtimeSource, /sidebarCollapsed:\s*sidebarPinned \? false : sidebarCollapsed/);
+  assert.match(sidebar, /\{sidebarPinned \? null : \(\s*<TooltipButton[\s\S]*?data-nav="toggle-sidebar"/);
+  assert.match(winTitlebar, /\{pagePinsSidebar\(page\) \? null : \(\s*<TooltipButton[\s\S]*?data-nav="toggle-sidebar"/);
+
+  const mcChatCss = readFileSync(new URL("../src/styles/mc-chat.css", import.meta.url), "utf8");
+  assert.match(mcChatCss, /\.subagent-topology-agents::before\s*\{\s*content:\s*none;/);
+  assert.match(mcChatCss, /\.subagent-topology-node::before\s*\{[\s\S]*?top:\s*calc\(50% - 1px\);/);
+  assert.match(mcChatCss, /\.subagent-topology-node:last-child:not\(:only-child\)::after\s*\{[\s\S]*?bottom:\s*calc\(50% - 1px\);/);
+  assert.match(mcChatCss, /@container subagent-activity \(max-width: 520px\)[\s\S]*?margin-left:\s*24px;[\s\S]*?padding-left:\s*38px;/);
 });
 
 test("P1: ReviewChangeCard scopes annotations to pane SlotSessionProvider rather than global activeSessionId", () => {
@@ -990,4 +1018,415 @@ test("R37 UX: Left-gutter speech-bubble morph, Shift-range prompt formatting, an
   assert.match(zenCss, /forced-color-adjust:\s*none/);
   assert.match(cardSource, /className="mc-diff-gutter-text"/);
   assert.match(cardSource, /aria-expanded=\{isEditingLine\}/);
+});
+
+test("Bugfix #160/#161 (1/3): Reverse Shift+Click (L8 -> Shift+L5) resolves canonical L5–L8 range", () => {
+  const rendered = new Set(["snap:new:5", "snap:new:6", "snap:new:7", "snap:new:8"]);
+
+  const forward = resolveDiffShiftRangeTarget({
+    snapshotId: "snap",
+    side: "new",
+    anchorLine: 5,
+    clickedLine: 8,
+    clickedLineKey: "snap:new:8",
+    hasLineKey: (k) => rendered.has(k),
+  });
+  assert.deepEqual(forward, {
+    lineKey: "snap:new:8",
+    side: "new",
+    startLine: 5,
+    endLine: 8,
+  });
+
+  const reverse = resolveDiffShiftRangeTarget({
+    snapshotId: "snap",
+    side: "new",
+    anchorLine: 8,
+    clickedLine: 5,
+    clickedLineKey: "snap:new:5",
+    hasLineKey: (k) => rendered.has(k),
+  });
+  assert.deepEqual(reverse, {
+    lineKey: "snap:new:8",
+    side: "new",
+    startLine: 5,
+    endLine: 8,
+  });
+
+  const singleLine = resolveDiffShiftRangeTarget({
+    snapshotId: "snap",
+    side: "new",
+    anchorLine: 8,
+    clickedLine: 8,
+    clickedLineKey: "snap:new:8",
+    hasLineKey: (k) => rendered.has(k),
+  });
+  assert.deepEqual(singleLine, {
+    lineKey: "snap:new:8",
+    side: "new",
+    startLine: null,
+    endLine: 8,
+  });
+
+  // Fallback when anchor's lineKey was scrolled/collapsed out of rendered hunks:
+  const fallback = resolveDiffShiftRangeTarget({
+    snapshotId: "snap",
+    side: "new",
+    anchorLine: 8,
+    clickedLine: 5,
+    clickedLineKey: "snap:new:5",
+    hasLineKey: (k) => k === "snap:new:5",
+  });
+  assert.deepEqual(fallback, {
+    lineKey: "snap:new:5",
+    side: "new",
+    startLine: 8,
+    endLine: 5,
+  });
+
+  // Top-down fallback (e.g. raw unnumbered key) preserves startLine=5, endLine=8 instead of collapsing 8..8:
+  const topDownFallback = resolveDiffShiftRangeTarget({
+    snapshotId: "snap",
+    side: "new",
+    anchorLine: 5,
+    clickedLine: 8,
+    clickedLineKey: "snap:raw:0:3",
+    hasLineKey: () => false,
+  });
+  assert.deepEqual(topDownFallback, {
+    lineKey: "snap:raw:0:3",
+    side: "new",
+    startLine: 5,
+    endLine: 8,
+  });
+});
+
+test("Bugfix #160/#161 (2/3): Editing startLine (L5–L8 -> L3–L8 or single-line) while send is in flight is preserved by pruneSentAnnotations", async () => {
+  const bySession = {
+    s1: [
+      {
+        id: "unchanged-range",
+        lineKey: "snap:new:12",
+        sessionId: "s1",
+        snapshotId: "snap",
+        path: "src/bounds.ts",
+        side: "new",
+        startLine: 10,
+        line: 12,
+        lineType: "add",
+        code: "return total;",
+        note: "Extract lines 10-12",
+        createdAt: 1,
+      },
+      {
+        id: "edited-range",
+        lineKey: "snap:new:8",
+        sessionId: "s1",
+        snapshotId: "snap",
+        path: "src/bounds.ts",
+        side: "new",
+        startLine: 5,
+        line: 8,
+        lineType: "add",
+        code: "const limit = max;",
+        note: "Check upper bound",
+        createdAt: 2,
+      },
+    ],
+  };
+
+  let resolveSend;
+  const sentPrompts = [];
+  const pendingSend = executeBatchAnnotationSend({
+    sessionId: "s1",
+    intro: "请修改：",
+    getSessionItems: (id) => bySession[id] ?? [],
+    pruneSent: (id, sentBatch) => {
+      bySession[id] = pruneSentAnnotations(bySession[id] ?? [], sentBatch);
+    },
+    isBusy: () => false,
+    sendPrompt: (prompt) =>
+      new Promise((resolve) => {
+        sentPrompts.push(prompt);
+        resolveSend = resolve;
+      }),
+    enqueuePrompt: async () => false,
+  });
+
+  // While sendPrompt is awaiting IPC, user widens L5–L8 to L3–L8 without changing note text:
+  bySession.s1 = upsertAnnotationItem(bySession.s1, {
+    id: "edited-range",
+    lineKey: "snap:new:8",
+    sessionId: "s1",
+    snapshotId: "snap",
+    path: "src/bounds.ts",
+    side: "new",
+    startLine: 3,
+    line: 8,
+    lineType: "add",
+    code: "const limit = max;",
+    note: "Check upper bound",
+  });
+
+  resolveSend(true);
+  const res = await pendingSend;
+  assert.equal(res.sent, true);
+  assert.match(sentPrompts[0], /- \*\*L5–L8\*\*/);
+  assert.doesNotMatch(sentPrompts[0], /L3–L8/);
+
+  // `unchanged-range` was sent as-is and pruned; `edited-range` (now L3–L8) MUST survive!
+  assert.deepEqual(
+    bySession.s1.map((item) => ({ id: item.id, startLine: item.startLine, line: item.line })),
+    [{ id: "edited-range", startLine: 3, line: 8 }],
+  );
+
+  // Shrinking L3–L8 back to single-line L8 (`startLine: null`) during a second send also survives:
+  const shrunk = pruneSentAnnotations(
+    [{ ...bySession.s1[0], startLine: null }],
+    bySession.s1,
+  );
+  assert.equal(shrunk.length, 1);
+  assert.equal(shrunk[0].startLine, null);
+});
+
+test("Bugfix #160/#161 (3/3): Stopping a queued diff-annotation batch right after dequeue restores annotations instead of overwriting composerPrefill", async () => {
+  register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
+  const [{ createSessionRuntime }, { createQueueSlice }, { createTranscriptSlice }] =
+    await Promise.all([
+      import("../src/stores/runtime/session-runtime.ts"),
+      import("../src/stores/slices/queue-slice.ts"),
+      import("../src/stores/slices/transcript-slice.ts"),
+    ]);
+
+  const previousWindow = globalThis.window;
+  let hostQueue = [];
+  let hostMessages = [];
+  let replacedMessages = null;
+  globalThis.window = {
+    piDesktop: {
+      invoke: async (channel, ...args) => {
+        const payload = args[0];
+        if (channel === IPC.invoke.agentQueuePush) {
+          const entry = {
+            id: `q-${hostQueue.length + 1}`,
+            sessionId: payload.sessionId,
+            content: payload.content,
+            position: hostQueue.length + 1,
+            createdAt: "2026-11-18T14:00:00Z",
+          };
+          hostQueue = [...hostQueue, entry];
+          return { ok: true, data: entry };
+        }
+        if (channel === IPC.invoke.agentQueueList) {
+          return { ok: true, data: { entries: hostQueue } };
+        }
+        if (channel === IPC.invoke.agentQueueRemove) {
+          hostQueue = hostQueue.filter((item) => item.id !== payload.turnId);
+          return { ok: true, data: {} };
+        }
+        if (channel === IPC.invoke.agentStop) {
+          return { ok: true, data: { requested: true } };
+        }
+        if (channel === IPC.invoke.sessionGet) {
+          return {
+            ok: true,
+            data: {
+              session: {
+                id: typeof payload === "string" ? payload : payload.id,
+                title: "Session A",
+                source: "desktop",
+                messages: hostMessages,
+                messageStart: 0,
+                hasMoreBefore: false,
+              },
+            },
+          };
+        }
+        if (channel === IPC.invoke.sessionReplaceMessages) {
+          replacedMessages = payload.messages;
+          hostMessages = payload.messages;
+          return { ok: true, data: {} };
+        }
+        throw new Error(`Unexpected IPC: ${channel}`);
+      },
+    },
+  };
+
+  try {
+    let bySession = {
+      "session-a": [
+        {
+          id: "queued-note-1",
+          lineKey: "snap-q:new:6",
+          sessionId: "session-a",
+          snapshotId: "snap-q",
+          path: "src/queued.ts",
+          side: "new",
+          startLine: 4,
+          line: 6,
+          lineType: "add",
+          code: "return queued();",
+          note: "Restore me on smart-stop after dequeue",
+          createdAt: 10,
+        },
+      ],
+    };
+
+    const turn1Messages = [
+      { id: "u1", role: "user", content: "Run turn 1", createdAt: "2026-11-18T13:59:00Z" },
+      {
+        id: "a1",
+        role: "assistant",
+        content: "Turn 1 finished.",
+        status: "complete",
+        createdAt: "2026-11-18T13:59:10Z",
+      },
+    ];
+    hostMessages = [...turn1Messages];
+
+    let state = {
+      page: "chat",
+      activeSessionId: "session-a",
+      sessions: [{ id: "session-a", title: "Session A", source: "desktop" }],
+      messages: [...turn1Messages],
+      retainedTranscripts: {},
+      sessionHistory: {},
+      pendingPlans: {},
+      pendingPermissions: {},
+      queuedPrompts: {},
+      isRunning: true,
+      runningSessions: { "session-a": true },
+      latestTurnResults: {},
+      sessionOutcomes: {},
+      composerPrefill: undefined,
+      showToast: assert.fail,
+      rememberModel() {},
+      refreshSessions: async () => {},
+    };
+    const access = {
+      get: () => state,
+      set: (patch) => {
+        const next = typeof patch === "function" ? patch(state) : patch;
+        state = { ...state, ...next };
+      },
+    };
+    const runtime = createSessionRuntime(access);
+    const queueSlice = createQueueSlice({
+      ...access,
+      runtime,
+      promptAttachmentsFromDraft: () => [],
+      withoutRecordKey: (record, key) => {
+        const next = { ...record };
+        delete next[key];
+        return next;
+      },
+      viewingSessionIdForPrompt: () => "session-a",
+      messageErrorFromUnknown: (error) => ({ code: "FAILED", message: String(error) }),
+      assistantErrorMessage: () => ({ id: "err", role: "assistant", content: "failed", createdAt: "" }),
+      materializeDraftSession: async () => null,
+    });
+    const transcriptSlice = createTranscriptSlice({
+      ...access,
+      runtime,
+      promptAttachmentsFromMessage: () => [],
+      viewingSessionIdForPrompt: () => "session-a",
+      flushPendingSessionConfiguration: async () => {},
+    });
+    Object.assign(state, queueSlice, transcriptSlice);
+
+    // 1. Enqueue the diff-annotation batch while Turn 1 is still running:
+    const queuedResult = await executeBatchAnnotationSend({
+      sessionId: "session-a",
+      intro: "请按以下逐行代码审查批注一并修改：",
+      getSessionItems: (id) => bySession[id] ?? [],
+      pruneSent: (id, batch) => {
+        bySession[id] = pruneSentAnnotations(bySession[id] ?? [], batch);
+      },
+      restoreSent: (id, batch) => {
+        bySession[id] = restoreSentAnnotations(bySession[id] ?? [], batch);
+      },
+      isBusy: (id) => Boolean(state.runningSessions[id]),
+      sendPrompt: (prompt, id, onUndo) =>
+        state.sendPrompt(prompt, { text: prompt, fileReferences: [], onSmartStopUndo: onUndo }, id),
+      enqueuePrompt: (prompt, id, onUndo) =>
+        state.enqueuePrompt(prompt, { text: prompt, fileReferences: [], onSmartStopUndo: onUndo }, id),
+    });
+    assert.equal(queuedResult.sent, true);
+    assert.equal(queuedResult.queued, true);
+    assert.equal(bySession["session-a"].length, 0);
+    await state.refreshQueuedPrompts("session-a");
+    assert.equal(state.queuedPrompts["session-a"].length, 1);
+
+    // 2. Turn 1 finishes (`submittedComposerDrafts` cleared) and Host dequeues `q-1` into Turn 2:
+    const dequeuedEntry = hostQueue[0];
+    hostQueue = [];
+    runtime.submittedComposerDrafts.delete("session-a");
+    state.applyQueueChanged({ sessionId: "session-a", entries: [] });
+    assert.equal(state.queuedPrompts["session-a"], undefined);
+
+    const turn2User = {
+      id: "u2-batch",
+      role: "user",
+      content: dequeuedEntry.content,
+      createdAt: "2026-11-18T14:00:01Z",
+    };
+    hostMessages = [...turn1Messages, turn2User];
+    // Even if `state.messages` hasn't received `user_message_persisted` yet (worst-case IPC race),
+    // `abort()` checks `runtime.hasQueuedDraft("session-a")`, loads fullMessages, restores annotations,
+    // and leaves `composerPrefill` untouched!
+    state.isRunning = true;
+    state.runningSessions = { "session-a": true };
+
+    await state.abort();
+
+    assert.equal(
+      state.composerPrefill,
+      undefined,
+      "stopping dequeued annotation batch must NOT overwrite chat composer draft/attachments",
+    );
+    assert.equal(bySession["session-a"].length, 1);
+    assert.equal(bySession["session-a"][0].id, "queued-note-1");
+    assert.deepEqual(
+      replacedMessages?.map((m) => m.id),
+      ["u1", "a1"],
+      "Turn 2 user message retracted from durable transcript",
+    );
+
+    // 3. Cancellation cleanup: if user queues a batch and explicitly deletes it from the queue,
+    //    `removeQueuedDraft` clears its `onSmartStopUndo` so a later plain turn never misfires.
+    let undoMisfired = false;
+    await state.enqueuePrompt(
+      "Same text later",
+      {
+        text: "Same text later",
+        fileReferences: [],
+        onSmartStopUndo: () => {
+          undoMisfired = true;
+        },
+      },
+      "session-a",
+    );
+    await state.refreshQueuedPrompts("session-a");
+    const cancelledId = state.queuedPrompts["session-a"][0].id;
+    await state.removeQueuedPrompt(cancelledId);
+    assert.equal(state.queuedPrompts["session-a"], undefined);
+
+    const turn3PlainUser = {
+      id: "u3-plain",
+      role: "user",
+      content: "Same text later",
+      createdAt: "2026-11-18T14:01:00Z",
+    };
+    hostMessages = [...turn1Messages, turn3PlainUser];
+    state.messages = [...hostMessages];
+    state.isRunning = true;
+    state.runningSessions = { "session-a": true };
+
+    await state.abort();
+    assert.equal(undoMisfired, false);
+    assert.equal(state.composerPrefill?.text, "Same text later");
+  } finally {
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
 });

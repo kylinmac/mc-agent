@@ -36,6 +36,9 @@ import {
   pluginWorkPanelTab,
 } from "../../lib/work-panel-tabs";
 import { useAppStore } from "../../stores/app-store";
+import { toggleSessionInfoOpenForSession } from "../session-info/session-info-model";
+import { isStoreSessionConversationStarted } from "../session-info/session-info-state";
+import { pagePinsSidebar } from "../sidebar-slot/SidebarSlot";
 import { useSidebarTransition } from "./useSidebarTransition";
 import { useStartupWatchdog } from "./useStartupWatchdog";
 import { useTraySessions } from "./useTraySessions";
@@ -105,9 +108,10 @@ export function useAppShellRuntime() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(() => loadSidebarWidth());
+  const sidebarPinned = pagePinsSidebar(page);
   const { sidebarEntering, sidebarExiting, handleSidebarAnimationEnd } = useSidebarTransition(
     sidebarCollapsed,
-    ready && page !== "settings",
+    ready && page !== "settings" && !sidebarPinned,
   );
   const [shellWidth, setShellWidth] = useState(0);
   const appShellRef = useRef<HTMLDivElement>(null);
@@ -157,7 +161,9 @@ export function useAppShellRuntime() {
       workPanelWidth: workPanelRequestedWidth({
         containerWidth,
         sidebarWidth: sidebarWidthRef.current,
-        sidebarCollapsed: sidebarCollapsedRef.current,
+        sidebarCollapsed: pagePinsSidebar(useAppStore.getState().page)
+          ? false
+          : sidebarCollapsedRef.current,
         preferredWidth: workPanelWidthRef.current,
         yieldedWidth: workPanelYieldedWidthRef.current,
       }),
@@ -174,6 +180,7 @@ export function useAppShellRuntime() {
     saveSidebarWidth(nextWidth);
   }, []);
   const handleSidebarResizeCollapse = useCallback(() => {
+    if (pagePinsSidebar(useAppStore.getState().page)) return;
     autoCollapsedSidebarRef.current = false;
     setSidebarCollapsed(true);
   }, []);
@@ -212,6 +219,7 @@ export function useAppShellRuntime() {
   // must never capture a stale `sidebarCollapsed`. Every invocation is a user
   // action, so it clears an automatic-collapse record before toggling.
   const toggleSidebar = useCallback(() => {
+    if (pagePinsSidebar(useAppStore.getState().page)) return;
     autoCollapsedSidebarRef.current = false;
     if (sidebarCollapsedRef.current) reopenSidebar();
     else setSidebarCollapsed(true);
@@ -221,7 +229,7 @@ export function useAppShellRuntime() {
   // MainChat under its floor. The record is remembered only until the panel
   // closes.
   const autoCollapseSidebar = useCallback(() => {
-    if (sidebarCollapsedRef.current) return;
+    if (sidebarCollapsedRef.current || pagePinsSidebar(useAppStore.getState().page)) return;
     autoCollapsedSidebarRef.current = true;
     setSidebarCollapsed(true);
   }, []);
@@ -917,6 +925,18 @@ export function useAppShellRuntime() {
           case "toggleSidebar":
             toggleSidebar();
             break;
+          case "toggleSessionInfo": {
+            if (e.repeat || workPanelMaximizedRef.current) break;
+            const storeState = useAppStore.getState();
+            if (
+              storeState.page === "chat" &&
+              storeState.activeSessionId &&
+              isStoreSessionConversationStarted(storeState, storeState.activeSessionId)
+            ) {
+              toggleSessionInfoOpenForSession(storeState.activeSessionId);
+            }
+            break;
+          }
           case "openWorkPanel": {
             const p = useAppStore.getState().page;
             if (p !== "settings" && p !== "plugins" && p !== "scheduled") {
@@ -1068,7 +1088,7 @@ export function useAppShellRuntime() {
   const requestedWorkPanelWidth = workPanelRequestedWidth({
     containerWidth: shellWidth,
     sidebarWidth,
-    sidebarCollapsed: sidebarCollapsed && !sidebarExiting,
+    sidebarCollapsed: !sidebarPinned && sidebarCollapsed && !sidebarExiting,
     preferredWidth: workPanelWidth,
     yieldedWidth: workPanelYieldedWidth,
   });
@@ -1087,10 +1107,10 @@ export function useAppShellRuntime() {
     workPanelOpen,
     searchOpen,
     setSearchOpen,
-    sidebarCollapsed,
+    sidebarCollapsed: sidebarPinned ? false : sidebarCollapsed,
     setSidebarCollapsed,
-    sidebarEntering,
-    sidebarExiting,
+    sidebarEntering: sidebarPinned ? false : sidebarEntering,
+    sidebarExiting: sidebarPinned ? false : sidebarExiting,
     sidebarWidth,
     sidebarWidthMax,
     handleSidebarWidthChange,

@@ -52,6 +52,16 @@ test("subtask sidebars include their session's off-page Task without adopting se
     assert.doesNotMatch(render(BackgroundPane), /local-fixer/);
     assert.equal((render(SessionInfo).match(/>local-fixer</g) ?? []).length, 1);
     assert.equal(useAppStore.getState().messages.length, 1, "projection must not append context to the canonical transcript");
+    // Brand-new unstarted session renders nothing even when mc.sessionInfoOpen is true.
+    useAppStore.setState({
+      activeSessionId: "fresh",
+      sessions: [{ id: "fresh", messageCount: 0 }],
+      messages: [],
+      isRunning: false,
+      runningSessions: {},
+      sessionHistory: { fresh: { messageStart: 0, hasMoreBefore: false } },
+    });
+    assert.equal(render(SessionInfo), "");
   } finally {
     if (previousStorage === undefined) delete globalThis.localStorage;
     else globalThis.localStorage = previousStorage;

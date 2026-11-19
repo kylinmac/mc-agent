@@ -234,14 +234,18 @@ test("the agent's tools act for its conversation, in the project it works in", a
   const stale = await tools.write({ sessionId: "s1", args: { canvasId: "c9", ops: [{ op: "remove", id: "a" }] } });
   assert.equal(stale.errorCode, "INVALID_ARGUMENT");
   assert.equal((await tools.comment({ sessionId: "s1", args: { canvasId: "c9", action: "shout" } })).errorCode, "INVALID_ARGUMENT");
-  // A folder-only project has canvases too; a conversation outside any project has none.
+  // A folder-only project has canvases too; a standalone conversation outside any project uses its session:<id> scope.
   const code = toolHost({ "session.get": { session: { projectPath: "/work/code" } }, "canvas.list": { canvases: [] } });
   const listed = await createCanvasTools(() => code).read({ sessionId: "s2", args: {} });
   assert.equal(listed.ok, true);
   assert.equal(code.calls.find((call) => call.method === "canvas.list").params.groupId, "legacy:/work/code");
-  const loose = toolHost({ "session.get": { session: { projectPath: "/tmp/elsewhere" } } });
-  const refused = await createCanvasTools(() => loose).read({ sessionId: "s3", args: {} });
-  assert.equal(refused.errorCode, "NOT_IN_PROJECT");
+  const loose = toolHost({ "session.get": { session: { id: "s3" } }, "canvas.list": { canvases: [] } });
+  const standalone = await createCanvasTools(() => loose).read({ sessionId: "s3", args: {} });
+  assert.equal(standalone.ok, true);
+  assert.equal(loose.calls.find((call) => call.method === "canvas.list").params.groupId, "session:s3");
+  const missingSession = toolHost({ "session.get": { session: null } });
+  const refused = await createCanvasTools(() => missingSession).read({ sessionId: "s-missing", args: {} });
+  assert.equal(refused.errorCode, "SESSION_NOT_FOUND");
   assert.equal(refused.content.guide, undefined);
   // Host refusals reach the agent as words it can act on.
   const conflicted = toolHost({ "canvas.agentApply": new Error("CONFLICT: the canvas changed (version 5 now, 2 given)") });
@@ -263,6 +267,7 @@ test("the renderer reaches the user's canvas methods only, never the agent's or 
     "canvas.comments.agentAdd",
     "canvas.comments.agentReply",
     "canvas.comments.agentSetStatus",
+    "canvas.whiteboard.agentSave",
   ]);
 });
 
@@ -294,4 +299,132 @@ test("an exported canvas is one offline page: artboards sandboxed in place, text
   assert.match(page, /background:#d6e8ff/);
   assert.equal(canvasExportFileName('a/b: "c"'), "a b c.html");
   assert.equal(canvasExportFileName("  "), "canvas.html");
+});
+
+test("R38: CanvasWrite and CanvasRead support bidirectional Excalidraw whiteboards and on-demand PNG previews", async () => {
+  let storedScene = { elements: [] };
+  const host = toolHost({
+    "session.get": { session: { id: "temp-s1" } },
+    "canvas.create": (params) => ({
+      canvas: { id: "w1", title: params.title, kind: params.kind ?? "prototype", version: 1, elements: [] },
+    }),
+    "canvas.get": () => ({
+      canvas: { id: "w1", title: "架构草图", kind: "whiteboard", version: 2, elements: [] },
+      html: null,
+    }),
+    "canvas.whiteboard.get": () => ({
+      canvas: { id: "w1", title: "架构草图", kind: "whiteboard", version: 1, elements: [] },
+      scene: storedScene,
+      files: null,
+      hasPreview: true,
+    }),
+    "canvas.whiteboard.agentSave": (params) => {
+      storedScene = params.scene;
+      return {
+        canvas: { id: "w1", title: "架构草图", kind: "whiteboard", version: 2, elements: [] },
+      };
+    },
+    "canvas.whiteboard.preview": () => ({
+      mimeType: "image/png",
+      dataBase64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
+    }),
+    "canvas.comments.list": { comments: { version: 0, threads: [] } },
+  });
+
+  const tools = createCanvasTools(() => host);
+  const written = await tools.write({
+    sessionId: "temp-s1",
+    args: {
+      title: "架构草图",
+      whiteboardOps: [
+        { op: "add", element: { id: "ui", type: "rectangle", x: 40, y: 80, w: 160, h: 72, label: "前端面板" } },
+        { op: "add", element: { id: "host", type: "ellipse", x: 320, y: 80, w: 160, h: 72, label: "Rust Host" } },
+        { op: "add", element: { id: "rpc", type: "arrow", startId: "ui", endId: "host", label: "JSON-RPC" } },
+      ],
+    },
+  });
+  assert.equal(written.ok, true);
+  assert.equal(written.content.kind, "whiteboard");
+  assert.deepEqual(written.content.added, ["ui", "host", "rpc"]);
+  assert.equal(
+    host.calls.find((c) => c.method === "canvas.create")?.params?.groupId,
+    "session:temp-s1",
+  );
+  assert.equal(
+    host.calls.find((c) => c.method === "canvas.create")?.params?.kind,
+    "whiteboard",
+  );
+
+  // Reading the whiteboard returns both the structured scene summary AND the visual preview image block!
+  const readWithImg = await tools.read({ sessionId: "temp-s1", args: { canvasId: "w1" } });
+  assert.equal(readWithImg.ok, true);
+  assert.equal(readWithImg.content.whiteboard.totalElements, 3);
+  assert.equal(readWithImg.content.whiteboard.elements[2].startId, "ui");
+  assert.equal(readWithImg.content.whiteboard.elements[2].endId, "host");
+  assert.equal(readWithImg.content.images.length, 1);
+  assert.equal(readWithImg.content.images[0].mimeType, "image/png");
+
+  // Passing includeImage: false omits binary image payload when only structure is needed:
+  const readStructureOnly = await tools.read({
+    sessionId: "temp-s1",
+    args: { canvasId: "w1", includeImage: false },
+  });
+  assert.equal(readStructureOnly.content.images, undefined);
+});
+
+test("R38: Whiteboard lightweight viewContext avoids empty noise and whiteboardAttachment preserves Composer draft", () => {
+  const emptyWb = {
+    canvasId: "w1",
+    title: "草图",
+    kind: "whiteboard",
+    version: 1,
+    visibleBoards: [],
+    selectedBoards: [],
+    selected: [],
+    errored: [],
+    dirty: false,
+    whiteboardElementCount: 0,
+    whiteboardSelectedIds: [],
+  };
+  assert.equal(model.hasViewContext(emptyWb), false);
+
+  const nonEmptyWb = {
+    ...emptyWb,
+    version: 3,
+    whiteboardElementCount: 4,
+    whiteboardSelectedIds: ["box1"],
+  };
+  assert.equal(model.hasViewContext(nonEmptyWb), true);
+  const ctx = model.viewContext(nonEmptyWb);
+  assert.equal(ctx.canvas.kind, "whiteboard");
+  assert.equal(ctx.elementCount, 4);
+  assert.deepEqual(ctx.selectedElementIds, ["box1"]);
+
+  const wbAtt = model.whiteboardAttachment({
+    canvasId: "w1",
+    title: "首页草图",
+    scope: "selection",
+    summary: {
+      totalElements: 1,
+      imageCount: 0,
+      elements: [{ id: "box1", type: "rectangle", x: 10, y: 20, w: 120, h: 60, text: "搜索栏" }],
+    },
+    imageFile: {
+      path: "/scratch/whiteboard-w1-selection.png",
+      name: "whiteboard-w1-selection.png",
+      kind: "image",
+      mimeType: "image/png",
+    },
+  });
+  const attBlock = model.attachmentsText([wbAtt], "nonce123456");
+  assert.match(attBlock, /"whiteboard selection"/);
+  assert.match(attBlock, /"搜索栏"/);
+
+  const exportedWb = buildCanvasExport(
+    { v: 1, id: "w1", title: "白板 <1>", kind: "whiteboard", version: 2, elements: [] },
+    {},
+    "YWJjZA==",
+  );
+  assert.match(exportedWb, /data:image\/png;base64,YWJjZA==/);
+  assert.match(exportedWb, /<title>白板 &lt;1&gt;<\/title>/);
 });

@@ -10,7 +10,11 @@ use serde_json::{json, Value};
 
 use super::{rpc_err, AppState, JsonRpcError};
 use crate::db::ProjectGroupRecord;
-use crate::mc_canvas::{self as canvas, Actor, AnchorInput, Op, ThreadStatus};
+use crate::mc_canvas::{
+    self as canvas, Actor, AnchorInput, CanvasKind, Op, ThreadStatus, WhiteboardBinaryFile,
+    WhiteboardScene,
+};
+use std::collections::BTreeMap;
 
 pub fn handle(state: &AppState, method: &str, params: &Value) -> Result<Value, JsonRpcError> {
     let db = &state.db;
@@ -26,6 +30,23 @@ pub fn handle(state: &AppState, method: &str, params: &Value) -> Result<Value, J
         serde_json::from_value(raw)
             .map_err(|error| rpc_err(1002, format!("ops: {error}"), "INVALID_PARAMS"))
     };
+    let scene = || -> Result<WhiteboardScene, JsonRpcError> {
+        let raw = params.get("scene").cloned().unwrap_or(Value::Null);
+        serde_json::from_value(raw)
+            .map_err(|error| rpc_err(1002, format!("scene: {error}"), "INVALID_PARAMS"))
+    };
+    let upserted_files =
+        || -> Result<Option<BTreeMap<String, WhiteboardBinaryFile>>, JsonRpcError> {
+            let Some(raw) = params.get("upsertedFiles") else {
+                return Ok(None);
+            };
+            if raw.is_null() {
+                return Ok(None);
+            }
+            serde_json::from_value(raw.clone())
+                .map(Some)
+                .map_err(|error| rpc_err(1002, format!("upsertedFiles: {error}"), "INVALID_PARAMS"))
+        };
     let base_version = || {
         params
             .get("baseVersion")
@@ -44,8 +65,11 @@ pub fn handle(state: &AppState, method: &str, params: &Value) -> Result<Value, J
     let text = || params.get("text").and_then(Value::as_str).unwrap_or("");
     let result = match method {
         "canvas.list" => canvas::list(db, group).map(|canvases| json!({ "canvases": canvases })),
-        "canvas.create" => canvas::create(db, group, text_or(params, "title"))
-            .map(|canvas| json!({ "canvas": canvas })),
+        "canvas.create" => {
+            let kind: CanvasKind = parse(params, "kind").unwrap_or_default();
+            canvas::create_with_kind(db, group, text_or(params, "title"), kind)
+                .map(|canvas| json!({ "canvas": canvas }))
+        }
         "canvas.get" => {
             let id = canvas_id()?;
             (|| {
@@ -92,6 +116,55 @@ pub fn handle(state: &AppState, method: &str, params: &Value) -> Result<Value, J
         "canvas.boardDocument" => {
             canvas::board_document(db, group, canvas_id()?, required(params, "boardId")?)
                 .map(|(html, rev)| json!({ "html": html, "rev": rev }))
+        }
+        "canvas.whiteboard.get" => canvas::whiteboard_get(
+            db,
+            group,
+            canvas_id()?,
+            params
+                .get("includeFiles")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+        )
+        .map(|loaded| json!(loaded)),
+        "canvas.whiteboard.save" => canvas::whiteboard_save(
+            db,
+            group,
+            canvas_id()?,
+            params.get("baseVersion").and_then(Value::as_u64),
+            &scene()?,
+            upserted_files()?.as_ref(),
+            params.get("previewPngBase64").and_then(Value::as_str),
+        )
+        .map(|canvas| json!({ "canvas": canvas })),
+        "canvas.whiteboard.agentSave" => {
+            let _ = agent()?;
+            canvas::whiteboard_save(
+                db,
+                group,
+                canvas_id()?,
+                params.get("baseVersion").and_then(Value::as_u64),
+                &scene()?,
+                upserted_files()?.as_ref(),
+                params.get("previewPngBase64").and_then(Value::as_str),
+            )
+            .map(|canvas| json!({ "canvas": canvas }))
+        }
+        "canvas.whiteboard.savePreview" => canvas::whiteboard_save_preview(
+            db,
+            group,
+            canvas_id()?,
+            base_version()?,
+            text_or(params, "previewPngBase64"),
+        )
+        .map(|updated| json!({ "updated": updated })),
+        "canvas.whiteboard.preview" => {
+            canvas::whiteboard_preview(db, group, canvas_id()?).map(|preview| {
+                json!({
+                    "mimeType": preview.as_ref().map(|_| "image/png"),
+                    "dataBase64": preview,
+                })
+            })
         }
         "canvas.comments.list" => canvas::comments(db, group, canvas_id()?)
             .map(|comments| json!({ "comments": comments })),
@@ -168,6 +241,16 @@ fn text_or<'a>(params: &'a Value, key: &str) -> &'a str {
 
 fn group(state: &AppState, params: &Value) -> Result<ProjectGroupRecord, JsonRpcError> {
     let group_id = required(params, "groupId")?;
+    if let Some(session_id) = group_id.strip_prefix("session:") {
+        let trimmed = session_id.trim();
+        let exists = crate::sessions::get_session(&state.db, trimmed)
+            .map_err(|error| rpc_err(1000, error.to_string(), "INTERNAL"))?
+            .is_some();
+        if !exists {
+            return Err(rpc_err(1007, "session not found", "NOT_FOUND"));
+        }
+        return canvas::session_group_record(trimmed).map_err(coded);
+    }
     state
         .db
         .project_group(group_id)

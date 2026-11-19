@@ -22,3 +22,5 @@ export function IntoSidebarSlot({ children }: { children: ReactNode }) {
   const element = useSlotStore((s) => s.element);
   return element ? createPortal(children, element) : <>{children}</>;
 }
+
+export { pagePinsSidebar } from "./sidebar-slot-model";

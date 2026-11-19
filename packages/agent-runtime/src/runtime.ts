@@ -4367,10 +4367,12 @@ export class DesktopAgentRuntime {
       tools.push("PluginScaffold", "PluginPack", "GenerateImages", "SaveCreativeAsset", ...Object.keys(scheduledToolParameters));
       // mc-agent: only a conversation in a project has a memory to write.
       if (this.projectPath && !this.remoteWorkspace) tools.push(REMEMBER_TOOL_NAME);
-      // mc-agent: a canvas belongs to a local project.
-      if (this.projectPath && !this.remoteWorkspace) tools.push(...CANVAS_TOOL_NAMES);
       // mc-agent: projects are created on this machine (MC-ADR-0023).
       if (!this.remoteWorkspace) tools.push(PROJECT_TEMPLATES_TOOL_NAME, CREATE_PROJECT_TOOL_NAME);
+    }
+    // mc-agent: local sessions (project or standalone) can read canvases in any mode, and write/comment in agent mode (MC-ADR-0030).
+    if (!this.remoteWorkspace) {
+      tools.push(...CANVAS_TOOL_NAMES.filter(name => this.mode === "agent" || name === "CanvasRead"));
     }
     if (!this.remoteWorkspace) tools.push(...PANEL_TOOL_NAMES.filter(name => this.mode === "agent" || name !== "WorkPanelAction"));
     const builtins = tools.map(exec);
@@ -4560,6 +4562,7 @@ export class DesktopAgentRuntime {
       "BrowserPreview",
       "WorkPanelList",
       "WorkPanelRead",
+      "CanvasRead",
       "Bash",
       ASK_TOOL_NAME,
       CONTEXT_COMPACTION_TOOL_NAME,

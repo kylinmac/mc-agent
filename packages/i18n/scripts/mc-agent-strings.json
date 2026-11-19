@@ -4915,5 +4915,95 @@
     "en": "Show less",
     "zh-CN": "收起",
     "zh-TW": "收起"
+  },
+  "canvasKindWhiteboard": {
+    "en": "Whiteboard",
+    "zh-CN": "白板",
+    "zh-TW": "白板"
+  },
+  "canvasKindPrototype": {
+    "en": "Prototype",
+    "zh-CN": "原型",
+    "zh-TW": "原型"
+  },
+  "canvasNewWhiteboard": {
+    "en": "New whiteboard",
+    "zh-CN": "新建白板草图",
+    "zh-TW": "新增白板草圖"
+  },
+  "canvasNewPrototype": {
+    "en": "New HTML prototype",
+    "zh-CN": "新建 HTML 原型",
+    "zh-TW": "新增 HTML 原型"
+  },
+  "canvasDefaultWhiteboardTitle": {
+    "en": "Whiteboard sketch",
+    "zh-CN": "白板草图",
+    "zh-TW": "白板草圖"
+  },
+  "canvasAttachWhiteboard": {
+    "en": "Attach to chat",
+    "zh-CN": "附带到对话",
+    "zh-TW": "附加到對話"
+  },
+  "canvasAttachSelection": {
+    "en": "Attach selection ({{count}})",
+    "zh-CN": "附带所选 ({{count}})",
+    "zh-TW": "附加所選 ({{count}})"
+  },
+  "canvasSendSelectionToAgent": {
+    "en": "Send selection to agent",
+    "zh-CN": "把所选发给 Agent",
+    "zh-TW": "把所選發給 Agent"
+  },
+  "canvasWhiteboardElements": {
+    "en": "{{count}} items",
+    "zh-CN": "{{count}} 个元素",
+    "zh-TW": "{{count}} 個元素"
+  },
+  "canvasWhiteboardSelected": {
+    "en": "{{count}} selected",
+    "zh-CN": "已选 {{count}} 项",
+    "zh-TW": "已選 {{count}} 項"
+  },
+  "canvasChatWhiteboard": {
+    "en": "Canvas: whiteboard “{{title}}” ({{count}} items)",
+    "zh-CN": "画布：白板“{{title}}”（{{count}} 项）",
+    "zh-TW": "畫布：白板「{{title}}」（{{count}} 項）"
+  },
+  "canvasChipWhiteboard": {
+    "en": "Sketch: {{title}}",
+    "zh-CN": "草图截图：{{title}}",
+    "zh-TW": "草圖截圖：{{title}}"
+  },
+  "canvasChipWhiteboardSelection": {
+    "en": "Sketch selection: {{title}} ({{count}})",
+    "zh-CN": "草图局部：{{title}}（{{count}} 项）",
+    "zh-TW": "草圖局部：{{title}}（{{count}} 項）"
+  },
+  "canvasSendBoardToWhiteboard": {
+    "en": "Annotate on whiteboard",
+    "zh-CN": "送入白板批注",
+    "zh-TW": "送入白板批註"
+  },
+  "canvasHandleWhiteboard": {
+    "en": "Please review the attached whiteboard sketch.",
+    "zh-CN": "请结合附带的这张白板草图处理。",
+    "zh-TW": "請結合附加的這張白板草圖處理。"
+  },
+  "canvasWhiteboardAttachedNotice": {
+    "en": "Attached whiteboard sketch to next message",
+    "zh-CN": "已附带白板草图到下一条消息",
+    "zh-TW": "已附加白板草圖到下一則訊息"
+  },
+  "canvasWhiteboardEmptyNotice": {
+    "en": "Draw something or paste an image on the whiteboard first",
+    "zh-CN": "白板还是空的，先画几笔或粘贴图片吧",
+    "zh-TW": "白板還是空的，先畫幾筆或貼上圖片吧"
+  },
+  "canvasNoSession": {
+    "en": "Open a local conversation to use the canvas.",
+    "zh-CN": "请先打开一个本地对话再使用画布。",
+    "zh-TW": "請先開啟一個本地對話再使用畫布。"
   }
 }

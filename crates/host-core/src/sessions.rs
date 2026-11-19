@@ -1974,6 +1974,7 @@ pub fn delete_session(db: &Database, id: &str) -> Result<bool> {
         // failed scheduled-run cleanup) also drops the transcript files.
         transcripts::remove_session_files(db.data_dir(), id);
         crate::mc_prompts::clear_session_template(db, id);
+        crate::mc_canvas::remove_session_canvases(db.data_dir(), id);
     }
     Ok(n > 0)
 }

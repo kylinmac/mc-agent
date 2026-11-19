@@ -2,7 +2,7 @@ import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent }
 import { useTranslation } from "react-i18next";
 import type { CanvasElement, CanvasNode } from "@pi-desktop/shared";
 import { cx } from "../../components/ui";
-import { IconCircleAlert, IconUndo2 } from "../../components/icons";
+import { IconCircleAlert, IconPencil, IconUndo2 } from "../../components/icons";
 import { CanvasFrame, type CanvasFrameHandle } from "./CanvasFrame";
 import type { Box } from "./canvas-model";
 import type { Hover } from "./use-board-picking";
@@ -31,6 +31,7 @@ export function CanvasBoard({
   onPointerLeave,
   onDoubleClick,
   onRestore,
+  onSendToWhiteboard,
   onReady,
   onError,
   onEscape,
@@ -59,6 +60,7 @@ export function CanvasBoard({
   onPointerLeave: () => void;
   onDoubleClick: () => void;
   onRestore: () => void;
+  onSendToWhiteboard?: () => void;
   onReady: () => void;
   onError: (message: string) => void;
   onEscape: () => void;
@@ -89,17 +91,30 @@ export function CanvasBoard({
             {element.w}×{element.h}
           </span>
         )}
-        {element.hasPrev ? (
-          <button
-            type="button"
-            className="mc-canvas-strip-action"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={onRestore}
-          >
-            <IconUndo2 size={11 * ink} />
-            {t("mcProject.canvasRestorePrevious")}
-          </button>
-        ) : null}
+        <span className="mc-canvas-strip-actions">
+          {onSendToWhiteboard ? (
+            <button
+              type="button"
+              className="mc-canvas-strip-action"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={onSendToWhiteboard}
+            >
+              <IconPencil size={11 * ink} />
+              {t("mcProject.canvasSendBoardToWhiteboard")}
+            </button>
+          ) : null}
+          {element.hasPrev ? (
+            <button
+              type="button"
+              className="mc-canvas-strip-action"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={onRestore}
+            >
+              <IconUndo2 size={11 * ink} />
+              {t("mcProject.canvasRestorePrevious")}
+            </button>
+          ) : null}
+        </span>
       </div>
       {mounted ? (
         <CanvasFrame
