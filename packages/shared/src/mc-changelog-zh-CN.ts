@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.85",
+    date: "2026-11-18",
+    fixes: [
+      "修复 Windows 对话中点击包含 .mc-agent 等点号开头目录的文件链接时，误报文件超出允许访问范围的问题。",
+    ],
+  },
+  {
     version: "1.0.84",
     date: "2026-11-18",
     features: [

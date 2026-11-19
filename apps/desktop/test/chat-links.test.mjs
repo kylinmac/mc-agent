@@ -98,6 +98,24 @@ test("Windows Markdown file links survive parsing and sanitization without chang
   assertMarkdownLinkClick(encodedSlashMarkup, "D:/person/dir name/报告.js");
 });
 
+test("Windows file links preserve backslashes before punctuation in directory names", () => {
+  const path = String.raw`C:\Users\demo\.mc-agent\scratch\报告.mp4`;
+  for (const source of [
+    "[Report](<" + path + ">)",
+    "[**Report**](" + path + ' "Open report")',
+    "[Report][artifact]\n\n[artifact]: <" + path + ">",
+    "[](" + path + ")",
+  ]) {
+    assertMarkdownLinkClick(renderSanitizedMarkdown(source), path);
+  }
+
+  const slashPath = String.raw`C:\.scratch\-draft\report.txt`;
+  assertMarkdownLinkClick(renderSanitizedMarkdown("[Report](" + slashPath + ")"), slashPath);
+
+  const escaped = String.raw`[Report](C:\\Users\\demo\\.mc-agent\\report.txt)`;
+  assertMarkdownLinkClick(renderSanitizedMarkdown(escaped), String.raw`C:\Users\demo\.mc-agent\report.txt`);
+});
+
 test("positioned HTML references preserve source navigation through Markdown sanitization", () => {
   for (const source of [
     "Source: animation.html:12:3",

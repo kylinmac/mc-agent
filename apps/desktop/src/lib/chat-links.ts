@@ -446,6 +446,7 @@ export type MdastNode = {
   value?: string;
   url?: string;
   children?: MdastNode[];
+  position?: { start: { offset?: number }; end: { offset?: number } };
 };
 
 const SKIP_MDAST = new Set([
@@ -456,9 +457,46 @@ const SKIP_MDAST = new Set([
   "html",
 ]);
 
-function normalizeMarkdownLinkDestination(node: MdastNode): void {
+function literalWindowsLinkPath(node: MdastNode, source: string): string | undefined {
+  const start = node.position?.start.offset;
+  const end = node.position?.end.offset;
+  if (start === undefined || end === undefined || source[start] !== "[") return;
+
+  // CommonMark has already unescaped the destination. Recover literal
+  // Windows separators from this node's source span before encoding the href.
+  let destinationStart: number;
+  if (node.type === "link") {
+    const labelEnd = node.children?.at(-1)?.position?.end.offset ?? start + 1;
+    if (!source.startsWith("](", labelEnd)) return;
+    destinationStart = labelEnd + 2;
+  } else {
+    const label = /^\[(?:\\[^\r\n]|[^\]\\]){1,999}\]:/u.exec(
+      source.slice(start, Math.min(end, start + 1002)),
+    );
+    if (!label) return;
+    destinationStart = start + label[0].length;
+  }
+
+  const destination = source.slice(
+    destinationStart,
+    Math.min(end, destinationStart + 1024),
+  );
+  const match = /^\s*(?:<([^<>\r\n]+)>|([^\s()]+))(?=$|[\s)])/u.exec(destination);
+  const path = match?.[1] ?? match?.[2];
+  if (!path || !/^[A-Za-z]:\\/.test(path) || path.includes("\\\\") || !parseFileRef(path)) return;
+  // Only recover separators the parser swallowed as punctuation escapes.
+  // Explicitly escaped backslashes and all other Markdown links stay on the
+  // normal path, and Main still checks the resolved path before opening it.
+  const unescaped = path.replace(/\\([.@+_#-])/gu, "$1");
+  if (unescaped !== path && unescaped === node.url) return path;
+}
+
+function normalizeMarkdownLinkDestination(node: MdastNode, source?: string): void {
   if ((node.type === "link" || node.type === "definition") && typeof node.url === "string") {
-    node.url = normalizeMarkdownFilePath(node.url);
+    const literal = source && /^[A-Za-z]:/.test(node.url)
+      ? literalWindowsLinkPath(node, source)
+      : undefined;
+    node.url = normalizeMarkdownFilePath(literal ?? node.url);
   }
 }
 
@@ -471,6 +509,7 @@ export function linkifyMdastTree(
   tree: MdastNode | null | undefined,
   root?: string | null,
   baseDir?: string | null,
+  source?: string,
 ): void {
   const budget = createChatLinkScanBudget();
   const finishDiagnostic = beginRenderDiagnostic("markdown-linkify-tree");
@@ -492,7 +531,7 @@ export function linkifyMdastTree(
   function walk(node: MdastNode | null | undefined, skip: boolean) {
     if (!node || typeof node.type !== "string") return;
     inputNodeCount += 1;
-    normalizeMarkdownLinkDestination(node);
+    normalizeMarkdownLinkDestination(node, source);
     if ((node.type === "text" || node.type === "inlineCode") && typeof node.value === "string") {
       sourceLength += node.value.length;
     }
@@ -583,8 +622,8 @@ export function remarkChatFileLinks(
   baseDir?: string | null,
 ) {
   return function remarkChatFileLinksPlugin() {
-    return (tree: MdastNode) => {
-      linkifyMdastTree(tree, root, baseDir);
+    return (tree: MdastNode, file?: { value?: string | Uint8Array }) => {
+      linkifyMdastTree(tree, root, baseDir, typeof file?.value === "string" ? file.value : undefined);
     };
   };
 }

@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.85",
+    date: "2026-11-18",
+    fixes: [
+      "Fixed Windows chat file links that incorrectly reported an access restriction for paths containing dot-prefixed directories such as .mc-agent.",
+    ],
+  },
+  {
     version: "1.0.84",
     date: "2026-11-18",
     features: [
