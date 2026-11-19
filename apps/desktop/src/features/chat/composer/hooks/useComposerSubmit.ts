@@ -78,9 +78,7 @@ export function useComposerSubmit({
     // arrives where the user put it instead of trailing the text.
     const inlineContent = serializeInlineComposerFileReferences(rawText, activeFileReferences);
     const serializedContent = serializeComposerFileReferences(rawText, activeFileReferences);
-    const effectiveInlineContent = inlineContent || fallbackEmptyPrompt || "";
-    const effectiveSerializedContent = serializedContent || fallbackEmptyPrompt || "";
-    if (!effectiveSerializedContent) return;
+    if (!serializedContent && !fallbackEmptyPrompt) return;
     if (sendBlocked || (steering && !steeringAllowed)) {
       if (pasting) showToast(t("chat.pasteInProgress"), { variant: "info" });
       return;
@@ -107,7 +105,7 @@ export function useComposerSubmit({
     // prove `/compact` is not a builtin, so it refuses the submission and keeps
     // the text out of the model's input (issue #795).
     if (!steering && localCommandsAllowed) {
-      const slashSubmission = parseSlashSubmission(effectiveSerializedContent);
+      const slashSubmission = parseSlashSubmission(serializedContent);
       const resolution = slashSubmission
         ? await resolveComposerCommand(slashSubmission.name)
         : null;
@@ -187,9 +185,9 @@ export function useComposerSubmit({
     const accepted = await submitWithLatestDraftRestore(
       submittedDraftKey,
       () => steering
-        ? steerPrompt(effectiveInlineContent, submittedDraft)
+        ? steerPrompt(inlineContent, submittedDraft)
         : sendPrompt(
-            effectiveInlineContent,
+            inlineContent,
             submittedDraft,
             activeSessionId ?? undefined,
             captureAcceptedSession,
