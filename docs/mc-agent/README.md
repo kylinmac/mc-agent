@@ -4,14 +4,14 @@
 
 [订阅剩余额度：来源、约束与验证范围](subscription-quota.md)。
 
-当前方向已确定：**Fork PI-Desktop，继承 Agent 能力，重点完善项目文档、资源与开发任务管理。** 已进入开发阶段：R1–R12 已合入 `main`，R13、R14 等 2026-10-22 转正的需求代码已完成、待发版。需求是否确认、代码是否合入、是否验收通过分别记录，见[需求文档](requirements.md)和[验收与开发计划](validation-plan.md)第 2.1 节。
+当前方向已确定：**Fork PI-Desktop，继承 Agent 能力，重点完善多项目工作区、工作面板工具、变更审阅与可视化画布沟通。** 已进入持续开发与发版阶段：R1–R38 已合入 `main` 并随 [GitHub Releases](https://github.com/kylinmac/mc-agent/releases) 发布（macOS Apple Silicon 与 Windows x64）。需求是否确认、代码是否合入、是否验收通过分别记录，见[需求文档](requirements.md)和[验收与开发计划](validation-plan.md)第 2.1 节。
 
 ## 阅读顺序
 
 | 顺序 | 文档 | 阅读重点 |
 |---|---|---|
 | 1 | [功能与项目管理缺口](pi-desktop-analysis.md) | 上游已有多少、真正缺什么、证据和限制 |
-| 2 | [需求文档](requirements.md) | 已确认定位、继承能力、新增需求 R1–R14（首版 R1–R5、R10；界面 R11；电脑操作 R12；创作存储与模板 R13；系统权限 R14） |
+| 2 | [需求文档](requirements.md) | 已确认定位、继承能力、新增需求 R1–R38（项目与界面外壳、电脑操作、原型画布与 Excalidraw 白板、后台压缩、并行审阅等） |
 | 3 | [架构文档](architecture.md) | 沿用哪些模块，项目管理在哪里扩展 |
 | 4 | [现状架构](as-built-architecture.md) | 仓库里已有代码的进程和边界 |
 | 5 | [功能代码索引](code-index.md) | 功能到目录的对照，末尾两节是 mc-agent 新增代码 |
