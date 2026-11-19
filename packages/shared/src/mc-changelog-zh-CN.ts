@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.86",
+    date: "2026-11-19",
+    fixes: [
+      "修复暗色模式下在 Excalidraw 白板输入或选中文字时，光标与选中高亮因主题反相变成黑色而看不见的问题。",
+    ],
+  },
+  {
     version: "1.0.85",
     date: "2026-11-19",
     features: [

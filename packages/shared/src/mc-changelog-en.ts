@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.86",
+    date: "2026-11-19",
+    fixes: [
+      "Fixed invisible text caret and selection highlight when typing or selecting text on the Excalidraw whiteboard in dark mode.",
+    ],
+  },
+  {
     version: "1.0.85",
     date: "2026-11-19",
     features: [

@@ -300,6 +300,19 @@ flushSync(() => root.render(<Harness />));
   check(attachBtn, "attach-to-chat button exists");
   check(attachBtn.getAttribute("aria-disabled") === "true", "empty whiteboard marks attach button aria-disabled=true");
 
+  // Verify Excalidraw dark-mode wysiwyg text editor keeps caret-color synced to currentColor (not white inverted to black)
+  const stage = document.querySelector<HTMLElement>(".mc-whiteboard-stage")!;
+  const probeTextarea = document.createElement("textarea");
+  probeTextarea.className = "excalidraw-wysiwyg";
+  probeTextarea.style.color = "rgb(30, 30, 30)";
+  stage.appendChild(probeTextarea);
+  const wysiwygStyle = getComputedStyle(probeTextarea);
+  check(
+    wysiwygStyle.caretColor === "rgb(30, 30, 30)",
+    `expected wysiwyg caretColor to follow currentColor rgb(30, 30, 30), got ${wysiwygStyle.caretColor}`,
+  );
+  probeTextarea.remove();
+
   // Verify focusgroup / roving tabindex keyboard accessibility
   const nativeFocusGroup = "focusGroup" in HTMLElement.prototype;
   if (!nativeFocusGroup) {

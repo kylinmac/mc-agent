@@ -654,6 +654,22 @@
   overflow: hidden;
 }
 
+/* Excalidraw applies `filter: var(--theme-filter)` (`invert(93%) hue-rotate(180deg)`)
+   to `.excalidraw-wysiwyg` in dark mode so dark ink (`#1e1e1e`) renders bright on the
+   dark canvas. Global `base.css` sets `caret-color: var(--ds-text-primary)` and
+   `::selection { color: var(--ds-text-primary) }` (white in dark mode), which the
+   filter inverts to near-black and hides against the dark background. Keeping both on
+   `currentColor` with a mid-tone blue selection tint keeps the caret and highlight
+   visible in both light and dark themes. */
+.mc-whiteboard-stage .excalidraw-wysiwyg {
+  caret-color: currentColor;
+}
+
+.mc-whiteboard-stage .excalidraw-wysiwyg::selection {
+  background: color-mix(in srgb, var(--mc-canvas-select) 38%, transparent);
+  color: currentColor;
+}
+
 .mc-whiteboard-meta {
   padding: 0 4px;
   color: var(--ds-text-secondary);
