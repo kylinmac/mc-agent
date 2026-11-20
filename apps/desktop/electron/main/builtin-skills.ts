@@ -1,7 +1,12 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseSkillFrontmatter } from "@pi-desktop/plugin-sdk";
-import { GEN_UI_SKILL_ID, NEW_PROJECT_SKILL_ID } from "@pi-desktop/shared";
+import {
+  ALCHEMY_SKILL_ID,
+  GEN_UI_SKILL_ID,
+  NEW_PROJECT_SKILL_ID,
+  PROGRAMMATIC_TOOLS_SKILL_ID,
+} from "@pi-desktop/shared";
 import type { PluginSkillDef } from "@pi-desktop/agent-runtime";
 import type { LoadedSkillDocument } from "./skill-document";
 import { getModuleDirectory } from "./module-path";
@@ -25,6 +30,10 @@ export const VISUALIZE_SKILL_ID = GEN_UI_SKILL_ID;
 const VISUALIZE_SKILL_FILE = "visualize.md";
 /** mc-agent: create a project from the conversation (MC-ADR-0023). */
 const NEW_PROJECT_SKILL_FILE = "new-project.md";
+/** mc-agent: read-only programmatic tool batching (R39). */
+const PROGRAMMATIC_TOOLS_SKILL_FILE = "programmatic-tools.md";
+/** mc-agent: distill reusable skills & prompt templates (R41). */
+const ALCHEMY_SKILL_FILE = "alchemy.md";
 
 /** electron-builder copies `resources/skills` to `<resources>/skills`. */
 function resolveBuiltinSkillPath(fileName: string): string | null {
@@ -103,6 +112,8 @@ const BUILTIN_SKILL_FILES = [
   [VISUALIZE_SKILL_ID, VISUALIZE_SKILL_FILE],
   [PLUGIN_DEV_SKILL_ID, PLUGIN_DEV_SKILL_FILE],
   [NEW_PROJECT_SKILL_ID, NEW_PROJECT_SKILL_FILE],
+  [PROGRAMMATIC_TOOLS_SKILL_ID, PROGRAMMATIC_TOOLS_SKILL_FILE],
+  [ALCHEMY_SKILL_ID, ALCHEMY_SKILL_FILE],
 ] as const;
 
 function builtinSkillFile(id: string): string | null {
@@ -124,8 +135,8 @@ export function builtinSkillCatalog(): PluginSkillDef[] {
  * fresh so a packaged update takes effect without a restart.
  */
 export function builtinSkills(input: BuiltinSkillInput): PluginSkillDef[] {
-  const ids: string[] = [IMAGE_GENERATION_SKILL_ID];
-  if (!input.remote) ids.push(VISUALIZE_SKILL_ID, NEW_PROJECT_SKILL_ID);
+  const ids: string[] = [IMAGE_GENERATION_SKILL_ID, PROGRAMMATIC_TOOLS_SKILL_ID];
+  if (!input.remote) ids.push(VISUALIZE_SKILL_ID, NEW_PROJECT_SKILL_ID, ALCHEMY_SKILL_ID);
   if (isPluginWorkspace(input.workspacePath, input.pluginPaths)) ids.push(PLUGIN_DEV_SKILL_ID);
   const activeIds = new Set(ids);
   const disabled = new Set(input.disabledIds ?? []);

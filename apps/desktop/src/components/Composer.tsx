@@ -32,6 +32,7 @@ import {
 import { ComposerAutocomplete } from "./ComposerAutocomplete";
 import { AskToolCard } from "./AskToolCard";
 import { ProjectProposalSlot } from "../features/project-create/ProjectProposalSlot";
+import { AlchemyProposalSlot } from "../features/alchemy/AlchemyProposalSlot";
 import { NewProjectIntentBar } from "../features/project-create/NewProjectIntentBar";
 import { CanvasContextBar } from "../features/canvas/CanvasContextBar";
 import {
@@ -647,6 +648,7 @@ export function Composer({
           <AskToolCard key={pendingAsk.requestId} request={pendingAsk} queued={queuedAsks} />
         ) : null}
         {localToolsAllowed ? <ProjectProposalSlot sessionId={activeSessionId} /> : null}
+        {localToolsAllowed ? <AlchemyProposalSlot sessionId={activeSessionId} /> : null}
         {localToolsAllowed ? <CanvasContextBar sessionId={activeSessionId} /> : null}
         {variant === "home" && localToolsAllowed ? (
           <NewProjectIntentBar

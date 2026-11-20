@@ -13,6 +13,17 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.87",
+    date: "2026-11-20",
+    features: [
+      "新增只读批量脚本编排能力，助手在需要连续扫描多个文件、项目资料或历史会话时，可在沙箱内一次汇总过滤并只返回精简结果，减少上下文占用。",
+      "新增技能与系统提示词模板提炼卡片（输入 /skill:mc-agent/alchemy 或在对话中要求提炼）：可解析项目文件、资料、记忆与历史会话的 mc:// 动态引用，经预览与微调确认后一键保存为当前项目或全局技能、或系统提示词模板。",
+    ],
+    improvements: [
+      "对话默认提醒助手将新建文件、报告与演示页面落在当前工作区或项目资料目录内，并引导在右侧文件树、变更对比与画布面板查看。",
+    ],
+  },
+  {
     version: "1.0.86",
     date: "2026-11-19",
     fixes: [

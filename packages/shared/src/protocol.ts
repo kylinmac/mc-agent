@@ -269,6 +269,9 @@ export const IPC = {
     mcProjectEnsureDraft: "pi-desktop/mc-project-create/ensure-draft",
     mcProjectLocationsGet: "pi-desktop/mc-project-create/locations/get",
     mcProjectLocationsSet: "pi-desktop/mc-project-create/locations/set",
+    // mc-agent alchemy artifact proposals (R41).
+    mcAlchemyProposals: "pi-desktop/mc-alchemy/proposals",
+    mcAlchemyProposalResolve: "pi-desktop/mc-alchemy/resolve",
     projectFoldersMissing: "pi-desktop/project-resources/missing-folders",
     projectResourcesTemplateSave: "pi-desktop/project-resources/templates/save",
     projectResourcesTemplateDelete: "pi-desktop/project-resources/templates/delete",
@@ -542,6 +545,8 @@ export const IPC = {
     canvasChanged: "pi-desktop/mc-canvas/event/changed",
     // mc-agent: the project proposals waiting for the user (MC-ADR-0023).
     mcProjectProposalsChanged: "pi-desktop/mc-project-create/event/proposals",
+    // mc-agent: the alchemy artifact proposals waiting for the user (R41).
+    mcAlchemyProposalsChanged: "pi-desktop/mc-alchemy/event/proposals",
     /** Progress of an install or update, while it is still running. */
     pluginInstallProgress: "pi-desktop/plugin/event/installProgress",
     /** Host-originated app settings mutation (e.g. plugin `app.setTheme`). */
