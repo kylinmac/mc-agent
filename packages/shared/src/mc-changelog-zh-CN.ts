@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.88",
+    date: "2026-11-20",
+    features: [
+      "新增可选内置插件「tty7 外部终端」（默认关闭，可在插件页随时开关）：启用后，仅在你明确点名 tty7、外部终端或具体 %pane 时，助手才通过 tty7-server 直接读取本地与 SSH 远端窗格屏幕，并在你每次审批确认后向该窗格执行命令、发送按键或分屏，不走截图和键鼠模拟。",
+    ],
+  },
+  {
     version: "1.0.87",
     date: "2026-11-20",
     features: [

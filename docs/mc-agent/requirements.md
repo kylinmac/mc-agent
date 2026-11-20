@@ -547,3 +547,13 @@ P8；V104：复用既有用户技能（`skills.create`）与系统提示词模�
 | 内部引用 `ResolveRef` | 支持只读解析 `mc://resource/<rel>`、`mc://workspace/<rel>`、`mc://prompt/<id>`、`mc://skill/<id>`、`mc://session/<id>` 与 `mc://memory`；文件类引用严格经 `realpath` 校验落在工作区或项目资料目录根内，拒绝路径穿越与符号链接逃逸，输出上限 32KB；本地会话各模式可用且可供 `RunScript` 批量只读调用 |
 | 提案卡片 `ProposeAlchemyArtifact` | Agent 发起提炼后经 Main 侧 `AlchemyProposalBroker` 挂起并推送至输入框上方 `AlchemyProposalCard`，用户可审阅或微调名称、触发说明、作用域（当前项目或全局）与正文并查看嵌入的 `mc://` 动态引用；确认保存才写盘，支持「需要修改」与「取消」，停止回合时自动清理挂起提案 |
 | 引导技能与文案 | 内置技能 `apps/desktop/resources/skills/alchemy.md` 指导“稳定步骤固化、可变规则写 `mc://` 引用”；卡片文案经 `packages/i18n/scripts/mc-agent-strings.json` 同步全部 9 种语言目录 |
+
+## R42 tty7 外部终端内置 MCP 插件（2026-11-20 已确认）
+
+P8、P11；V105：在不走 Computer Use（不录屏、不模拟键鼠、不抢窗口焦点）且不修改上游核心文件的前提下，以可选内置插件形式接入本机运行中的 `tty7` 后台控制平面（`tty7-server` 共享 PTY），支持人机共驾本地与 SSH 远端窗格：
+
+| 项 | 约定 |
+| --- | --- |
+| 默认关闭、显式按需 | 插件位于 `apps/desktop/resources/plugins/mc.tty7/`，`enabledByDefault: false`，可在插件页一键开关；MCP 工具走既有 `ToolSearch` 延迟目录；技能 `skills/tty7.md` 与工具描述明确要求仅在用户点名 `tty7`、外部终端、`%pane`、SSH 远端目标或主动输入 `/skill:mc.tty7/tty7` 时才使用，常规命令继续走 `Bash`，右侧面板终端继续走 R27 `WorkPanel*` |
+| 读写分级审批 | `manifest.json` 的 `toolRisk` 仅将 8 个只读工具（`doctor`、`list_machines`、`list_workspaces`、`list_panes`、`capture_pane`、`pane_procs`、`list_agents`、`wait_pane`）标为 `low`；5 个写入／控制工具（`exec_in_pane`、`send_to_pane`、`split_pane`、`new_workspace`、`close_pane`）保持审批门禁 |
+| 协议与安全边界 | 零外部依赖 stdio MCP Server（`mcp-server.mjs`）全程 `shell: false` 调用 `tty7` CLI，校验 `%pane`／`machine`／`workspace`／按键防 flag 注入，交互文本经 `--stdin` 管道发送避免进 `ps`，输出有界截断 64KB 并标记为不可信数据，绝不擅自启动 `tty7-server` |
