@@ -437,3 +437,15 @@ V85 云端补充：PR #114 的 CI `42827535202` 全部通过，含 Linux Electro
 ## V101 画布并存 Excalidraw 白板与双向草图沟通（R38；P14）
 
 2026-11-18：`cargo test -p host-core --locked mc_canvas`（18/18）、`permissions::tests`（22/22）与 `delete_session`（2/2）通过，覆盖旧 `canvas.json` 缺省兼容 `prototype`、同项目 `whiteboard` 与 `prototype` 并存、`whiteboard.json`／`files/*.json`（总贴图上限 80 与孤立贴图回收及删后撤销重传）／`preview.png` PNG 魔数校验、`savePreview` 不递增 `canvas.version` 防连续 `CanvasWrite` 冲突、无预览写盘自动清理过期 `preview.png`、`CanvasRead` 在 Plan／Goal 契约模式下三道门禁放行，以及无项目临时会话 `session:<id>` 隔离目录与删会话清理；`@pi-desktop/shared`（1,415 项）、`@pi-desktop/host-runtime`（144 项）、`@pi-desktop/i18n`（9 语言同步与 32 项测试）、`apps/desktop/test/mc-canvas.test.mjs`（12/12）通过；隔离 Electron E2E `apps/desktop/test/mc-whiteboard-e2e.test.mjs`（拦截全部 `http:`/`https:` 外网请求为 0）验证无项目临时会话从真实 `WorkPanelQuickTools` 顶栏按钮打开画布、点击「新建白板草图」离线挂载真实 `<Excalidraw />`、工具栏 `role="toolbar"`／`focusgroup="toolbar wrap"`／`aria-disabled` 键盘可访问性、Agent `whiteboardOps` 实时刷新画布且 `savePreview` 不涨版本号、点击「附带到对话」导出真实 PNG 芯片（发送失败前保留芯片、发送成功后仅移除已发送芯片且支持 Steer 与空输入框直发），以及 HTML 原型画板点击「送入白板批注」按舞台边界裁剪像素嵌入白板并自动补齐预览图；`electron-vite build` 验证主入口保持 `359 kB`、Excalidraw 拆分为异步 chunk、离线字体子集 `429 KB` 且剔除 `esm.sh` 回退与 `Xiaolai` 切片注册；`cargo fmt -p host-core --check`、`cargo clippy -p host-core --all-targets --locked`、`@pi-desktop/agent-runtime` 与 `@pi-desktop/desktop` 类型检查／构建／bundle、`pnpm lint`、`node scripts/check-architecture.mjs` 通过。未验证：连接真实付费多模态模型下的 `CanvasRead` 识图与 `CanvasWrite` 真实对话回合实测，以及各平台打包安装版实机测试。
+
+## V102 只读批量脚本编排 `RunScript`（R39；P8）
+
+2026-11-20：`@pi-desktop/shared`（`mc-run-script.test.ts` 4/4）与 `@pi-desktop/agent-runtime`（`mc-run-script.test.ts` 5/5 及全量 136 个测试文件 1,808 项）通过，覆盖：只读工具白名单放行与 `ProjectTasks`/`ProjectResources` 按只读动作门控，拦截写操作、`Bash`、`Task`/子代理、交互卡片与递归调用；独立 `worker_threads` + `vm.createContext`（禁用 `codeGeneration.strings`/`wasm`）阻断 `process`/`require`/`fetch`/`Function` 逃逸；无限循环超时强杀、`AbortSignal` 与 `abortAll()` 终止在途线程且后续回合可复用、调用次数上限与 16KB 输出截断。未验证：连接真实模型时的多文件脚本生成准确率及各平台安装版实机运行。
+
+## V103 工作区落盘与右侧工作面板联动指引（R40；P8）
+
+2026-11-20：`@pi-desktop/shared`（`mc-workspace-guide.test.ts` 4/4）与 `@pi-desktop/host-runtime`（`launch-resolver.test.ts` 及全量 22 个测试文件 144 项）通过，验证单目录、多目录含资料目录及远程会话三类场景下的提示词文案与 `mc-agent workspace guide` 注入；`session-launch.ts` 与 `sidecar.ts` 接线经 `@pi-desktop/desktop` 类型检查与 `electron-vite build` 通过。未验证：真实模型在新指引下跨多轮对话的落盘遵从率。
+
+## V104 炼丹炉：内部引用解析与技能／模板提案卡片（R41；P8）
+
+2026-11-20：`@pi-desktop/shared`（`mc-alchemy.test.ts` 6/6）、`@pi-desktop/i18n`（9 语言同步与 32 项测试）与 `node --test apps/desktop/test/mc-alchemy.test.mjs`（4/4）通过，覆盖：`parseMcRefUri` 对 6 类 `mc://` 引用解析与路径穿越拦截、`ResolveRef` 实际读取工作区／资料目录／模板／技能／历史会话／记忆并拦截符号链接逃逸、`ProposeAlchemyArtifact` 经 Broker 挂起与 `AbortSignal` 自动清理、`saveAlchemyArtifact` 走既有 `skills.create`（区分项目与全局作用域）与 `mcPrompts` 追加保存不覆盖既有模板，以及内置技能 `programmatic-tools` / `alchemy` 按本地与远程条件暴露。`pnpm lint`（含 Biome 与样式 token 检查）、`pnpm release:check-notes 1.0.87`、`docs` 文档检查与 `electron-vite build` 通过。未验证：安装版实机弹窗交互与连接真实模型端到端提炼会话。

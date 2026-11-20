@@ -213,6 +213,8 @@ import type {
   ProjectLocationPreference,
   ProjectProposal,
   ProjectProposalDecision,
+  AlchemyProposal,
+  AlchemyProposalDecision,
 } from "@pi-desktop/shared";
 
 export interface ImportCandidate {
@@ -2206,6 +2208,18 @@ export const api = {
       if (!window.piDesktop?.on) return () => undefined;
       return window.piDesktop.on(IPC.event.mcProjectProposalsChanged, (payload) =>
         listener((payload as { proposals?: ProjectProposal[] }).proposals ?? []),
+      );
+    },
+  },
+  /** mc-agent: alchemy artifact proposals (R41). */
+  mcAlchemy: {
+    proposals: () => invoke<{ proposals: AlchemyProposal[] }>(IPC.invoke.mcAlchemyProposals),
+    resolve: (requestId: string, decision: AlchemyProposalDecision) =>
+      invoke<{ ok: boolean }>(IPC.invoke.mcAlchemyProposalResolve, { requestId, decision }),
+    onChanged: (listener: (proposals: AlchemyProposal[]) => void) => {
+      if (!window.piDesktop?.on) return () => undefined;
+      return window.piDesktop.on(IPC.event.mcAlchemyProposalsChanged, (payload) =>
+        listener((payload as { proposals?: AlchemyProposal[] }).proposals ?? []),
       );
     },
   },

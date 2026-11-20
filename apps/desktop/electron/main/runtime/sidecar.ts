@@ -4,6 +4,7 @@ import { fastModeEnabled, type AppSettings } from "@pi-desktop/shared";
 import {
   IPC,
   projectFolderGuide,
+  workspaceArtifactGuide,
   type AgentEventEnvelope,
   type ProjectFolderGuideNote,
   type ProjectFolderGuideRoot,
@@ -25,6 +26,7 @@ import { createImageGenerationTool } from "../services/image-generation-service"
 import { mergeAccountImageModels, type ProviderPublic } from "@pi-desktop/shared";
 import { createCreativeGenerator, emitCreativeJob, setCreativeGenerator } from "../creative/creative-generation";
 import { createCanvasTools } from "../canvas/canvas-tools";
+import { createProposeAlchemyTool, createResolveRefTool } from "../mc-alchemy";
 import { measureImage } from "../creative/measure-image";
 import { registerPluginDevTools } from "../plugin-dev-tools";
 import { resolveLocalFile } from "../browser-view";
@@ -443,8 +445,15 @@ export function createSidecarRuntime({
       const rootGuide = isolated
         ? ""
         : projectFolderGuide({ roots, startPath: project, notes: result.context?.notes });
+      const resourcePath = isolated
+        ? undefined
+        : roots.find((root) => root.kind === "resources" && root.path)?.path;
+      const workspaceGuide = workspaceArtifactGuide({
+        workspacePath: project,
+        resourcePath,
+      });
       const groupInstructions = result.context?.instructions?.trim();
-      if (!rootGuide && !groupInstructions) return instructions;
+      if (!rootGuide && !groupInstructions && !workspaceGuide) return instructions;
       return {
         entries: [
           ...(instructions?.entries ?? []),
@@ -454,10 +463,20 @@ export function createSidecarRuntime({
           ...(groupInstructions
             ? [{ source: "ChatGPT Project instructions", content: groupInstructions }]
             : []),
+          ...(workspaceGuide
+            ? [{ source: "mc-agent workspace guide", content: workspaceGuide }]
+            : []),
         ],
       };
     } catch {
-      return instructions;
+      const workspaceGuide = workspaceArtifactGuide({ workspacePath: project });
+      if (!workspaceGuide) return instructions;
+      return {
+        entries: [
+          ...(instructions?.entries ?? []),
+          { source: "mc-agent workspace guide", content: workspaceGuide },
+        ],
+      };
     }
   });
     // Request auth for a vendor account (ADR 0098). The sidecar names a provider
@@ -645,6 +664,9 @@ export function createSidecarRuntime({
     createProjectTemplatesTool(() => runtimeState.host, () => loadProjectLocations(dataDir)),
   );
   s.setLocalTool("CreateProject", createCreateProjectTool(() => runtimeState.host));
+  // mc-agent: alchemy reference resolution and artifact proposal cards (R41).
+  s.setLocalTool("ResolveRef", createResolveRefTool(() => runtimeState.host));
+  s.setLocalTool("ProposeAlchemyArtifact", createProposeAlchemyTool(() => runtimeState.host));
   s.setLocalTool("BrowserPreview", async ({ args, sessionId }) => {
     const raw = String((args as { path?: unknown })?.path ?? "").trim();
     if (!raw) {

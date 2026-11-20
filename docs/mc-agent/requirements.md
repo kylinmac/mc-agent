@@ -518,3 +518,32 @@ P14；V101：在保持现有 HTML 原型画布（R18）能力与沙箱边界不�
 | 全本地会话可用 | 项目内对话存在 `<数据目录>/canvas/<项目ID>/` 供同项目会话共享；不属于项目的本地临时对话使用 `session:<会话ID>` 作用域独立存储，删除会话时同步清理 |
 | 主动发送与按需读取 | 白板顶栏提供「附带到对话」与「发给 Agent」（有选中元素时只导选中局部，未选中导全局紧凑区域 PNG + 结构摘要，附带芯片合入消息图片附件且不覆盖原输入框草稿）；日常发消息仅携带轻量白板元信息而不自动塞大图，Agent 调用 `CanvasRead` 时一并返回图形／文字／箭头连线结构与最新 `preview.png` 视觉画面 |
 | Agent 反向绘图 | `CanvasWrite` 支持创建与编辑 `whiteboard` 画布（矩形、圆、菱形、带标签图形、`startId -> endId` 自动绑定箭头、直线、文字、分组框及删改清空），经主进程版本号校验落盘并实时同步到打开的白板界面 |
+
+## R39 只读批量脚本编排 `RunScript`（2026-11-20 已确认）
+
+P8；V102：在严守现有工具沙箱与只读边界的前提下，允许 Agent 通过受限沙箱脚本在单次调用内批量编排、过滤与聚合多次只读工具调用，避免大量中间结果涌入主对话上下文：
+
+| 项 | 约定 |
+| --- | --- |
+| 隔离沙箱与生命周期 | 在 `packages/agent-runtime/src/mc-run-script.ts` 通过独立 `worker_threads` 线程（内存上限 + `vm.createContext` 禁用 `codeGeneration.strings`/`wasm`，不暴露 `process`/`require`/`fs`/`fetch`）执行异步 JS，单次调用受超时（默认 30s、上限 120s）、调用次数（100）与输出截断（16KB）约束；`abort()` 终止在途线程且不阻断后续回合，`dispose()` 永久释放 |
+| 只读工具白名单 | 一期仅允许 `Read`、`Glob`、`Grep`、`CanvasRead`、`WorkPanelList`、`WorkPanelRead`、`ContextHistory`、`ProjectHistory`、`ProjectTemplates`、`ResolveRef` 及 `ProjectTasks`（`list`/`get`）、`ProjectResources`（`list`/`overview`/`read`）；写操作、`Bash`、`Task`/子代理、交互式卡片与递归 `RunScript` 一律拦截，仍由 `runtime.ts` 原有权限与模式守卫把关 |
+| 按需加载与引导技能 | `RunScript` 走既有 `ToolSearch` 延迟目录（所有模式可用，不增加常驻 Tool Schema），配套内置技能 `apps/desktop/resources/skills/programmatic-tools.md` 引导仅在 ≥3 次只读调用或过滤聚合场景使用 |
+
+## R40 工作区落盘与右侧工作面板联动指引（2026-11-20 已确认）
+
+P8；V103：补强单目录与多目录会话的统一工作区产物约束，不引入伴侣人格：
+
+| 项 | 约定 |
+| --- | --- |
+| 统一落盘约束 | `packages/shared/src/mc-workspace-guide.ts` 提供 `workspaceArtifactGuide()`，在 `session-launch.ts`、`sidecar.ts` 与 `launch-resolver.ts` 三条启动与刷新路径统一注入 `mc-agent workspace guide`，要求新建代码、脚手架与报告落在当前工作区（项目文档落在资料目录），不擅自建到 `/tmp`、`~` 或桌面 |
+| 工作面板联动提示 | 本地会话明确告知右侧工作面板提供文件树、变更 Diff（含行级批注）、终端与画布（HTML 原型与白板），产出对应内容后简短引导查看；远程会话省略本地专属面板说明 |
+
+## R41 炼丹炉：内部引用解析与技能／模板提案卡片（2026-11-20 已确认）
+
+P8；V104：复用既有用户技能（`skills.create`）与系统提示词模板（`mcPrompts.get`/`set`）存储，零新增数据库表，提供将对话与资料提炼为可复用资产的确认闭环：
+
+| 项 | 约定 |
+| --- | --- |
+| 内部引用 `ResolveRef` | 支持只读解析 `mc://resource/<rel>`、`mc://workspace/<rel>`、`mc://prompt/<id>`、`mc://skill/<id>`、`mc://session/<id>` 与 `mc://memory`；文件类引用严格经 `realpath` 校验落在工作区或项目资料目录根内，拒绝路径穿越与符号链接逃逸，输出上限 32KB；本地会话各模式可用且可供 `RunScript` 批量只读调用 |
+| 提案卡片 `ProposeAlchemyArtifact` | Agent 发起提炼后经 Main 侧 `AlchemyProposalBroker` 挂起并推送至输入框上方 `AlchemyProposalCard`，用户可审阅或微调名称、触发说明、作用域（当前项目或全局）与正文并查看嵌入的 `mc://` 动态引用；确认保存才写盘，支持「需要修改」与「取消」，停止回合时自动清理挂起提案 |
+| 引导技能与文案 | 内置技能 `apps/desktop/resources/skills/alchemy.md` 指导“稳定步骤固化、可变规则写 `mc://` 引用”；卡片文案经 `packages/i18n/scripts/mc-agent-strings.json` 同步全部 9 种语言目录 |

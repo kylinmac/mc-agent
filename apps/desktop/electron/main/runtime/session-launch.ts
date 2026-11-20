@@ -11,6 +11,7 @@ import {
   isImageGenerationModel,
   normalizeMode,
   projectFolderGuide,
+  workspaceArtifactGuide,
   trustedExtensionAgentKeyFromProviderId,
   type CommandShellCatalog,
   type McpServerRecord,
@@ -495,6 +496,7 @@ export function createSessionLaunchRuntime({
     // mc-agent (MC-ADR-0010): the conversation's folder and its project's
     // other folders, for project-bound system prompt templates.
     const projectRoots: string[] = projectPath ? [projectPath] : [];
+    let resourceFolderPath: string | undefined;
     if (projectPath) {
       try {
         const result = await runtimeState.host!.call<{
@@ -506,6 +508,9 @@ export function createSessionLaunchRuntime({
           } | null;
         }>("project.group.context", { path: projectPath });
         const groupRoots = result.context?.roots ?? [];
+        if (!workspaceRoot) {
+          resourceFolderPath = groupRoots.find((root) => root.kind === "resources" && root.path)?.path;
+        }
         projectRoots.push(...groupRoots.map((root) => root.path).filter((path): path is string => Boolean(path)));
         // An isolated session's root is its worktree; the group's other roots
         // are outside it and are not advertised (ADR 0329).
@@ -550,6 +555,19 @@ export function createSessionLaunchRuntime({
         } catch {
           // Legacy memory is also best effort.
         }
+      }
+      const workspaceGuide = workspaceArtifactGuide({
+        workspacePath: remoteWorkspace ? projectPath : (workspaceRoot ?? projectPath),
+        resourcePath: remoteWorkspace ? undefined : resourceFolderPath,
+        remote: Boolean(remoteWorkspace),
+      });
+      if (workspaceGuide) {
+        projectInstructions = {
+          entries: [
+            ...(projectInstructions?.entries ?? []),
+            { source: "mc-agent workspace guide", content: workspaceGuide },
+          ],
+        };
       }
     }
     // mc-agent (MC-ADR-0010): a matching template (the one picked for this

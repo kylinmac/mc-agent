@@ -1,0 +1,165 @@
+/* mc-agent (R41): Alchemy artifact proposal confirmation card. */
+
+.composer-stack > .mc-alchemy-card {
+  width: 100%;
+  margin: 0 0 8px;
+  background: var(--ds-bg-composer);
+  box-shadow: var(--ds-shadow-composer);
+}
+
+.mc-alchemy-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: min(520px, 60vh);
+  padding: 12px 14px;
+  overflow-y: auto;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--radius-md);
+  overscroll-behavior-y: contain;
+}
+
+.mc-alchemy-head,
+.mc-alchemy-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mc-alchemy-head-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mc-alchemy-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: var(--radius-xs);
+  background: var(--ds-bg-subtle);
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.mc-alchemy-title {
+  color: var(--ds-text);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.mc-alchemy-close {
+  display: inline-flex;
+  padding: 3px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+}
+
+.mc-alchemy-close:hover {
+  background: var(--ds-bg-hover);
+  color: var(--ds-text);
+}
+
+.mc-alchemy-note,
+.mc-alchemy-trigger {
+  margin: 0;
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-body);
+}
+
+.mc-alchemy-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mc-alchemy-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mc-alchemy-label {
+  color: var(--ds-text-faint);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.mc-alchemy-input,
+.mc-alchemy-textarea {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--radius-sm);
+  background: var(--ds-bg-surface);
+  color: var(--ds-text);
+  font-size: var(--text-sm);
+  font-family: inherit;
+}
+
+.mc-alchemy-textarea {
+  resize: vertical;
+  min-height: 120px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-relaxed);
+}
+
+.mc-alchemy-scope-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.mc-alchemy-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ds-text);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.mc-alchemy-radio.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mc-alchemy-refs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mc-alchemy-ref-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mc-alchemy-ref-chip {
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--ds-bg-subtle);
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+}
+
+.mc-alchemy-error {
+  margin: 0;
+  color: var(--ds-danger);
+  font-size: var(--text-xs);
+}
+
+.mc-alchemy-foot-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

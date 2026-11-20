@@ -8,6 +8,7 @@ import {
   isCommandShellCatalog,
   normalizeMode,
   projectFolderGuide,
+  workspaceArtifactGuide,
   resolveBindingLimits,
   trustedExtensionAgentKeyFromProviderId,
   type CommandShellCatalog,
@@ -262,6 +263,7 @@ export function createHeadlessLaunchResolver(options: HeadlessLaunchResolverOpti
       typeof session.projectPath === "string" && session.projectPath.trim() ? session.projectPath.trim() : undefined;
     let projectInstructions = await loadInstructionChain(projectPath);
     let projectMemory: string | undefined;
+    let resourceFolderPath: string | undefined;
     if (projectPath) {
       try {
         const result = await host.call<{
@@ -273,6 +275,7 @@ export function createHeadlessLaunchResolver(options: HeadlessLaunchResolverOpti
           } | null;
         }>("project.group.context", { path: projectPath });
         const groupRoots = result.context?.roots ?? [];
+        resourceFolderPath = groupRoots.find((root) => root.kind === "resources" && root.path)?.path;
         const groupRootGuide = projectFolderGuide({
           roots: groupRoots,
           startPath: projectPath,
@@ -303,6 +306,18 @@ export function createHeadlessLaunchResolver(options: HeadlessLaunchResolverOpti
         } catch {
           // Project memory is best effort; it must never prevent a session launch.
         }
+      }
+      const workspaceGuide = workspaceArtifactGuide({
+        workspacePath: projectPath,
+        resourcePath: resourceFolderPath,
+      });
+      if (workspaceGuide) {
+        projectInstructions = {
+          entries: [
+            ...(projectInstructions?.entries ?? []),
+            { source: "mc-agent workspace guide", content: workspaceGuide },
+          ],
+        };
       }
     }
 

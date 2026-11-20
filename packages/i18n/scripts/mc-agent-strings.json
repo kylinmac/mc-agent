@@ -5005,5 +5005,90 @@
     "en": "Open a local conversation to use the canvas.",
     "zh-CN": "请先打开一个本地对话再使用画布。",
     "zh-TW": "請先開啟一個本地對話再使用畫布。"
+  },
+  "alchemyTitleSkill": {
+    "en": "Save as Skill",
+    "zh-CN": "保存为技能",
+    "zh-TW": "儲存為技能"
+  },
+  "alchemyTitlePromptTemplate": {
+    "en": "Save as System Prompt Template",
+    "zh-CN": "保存为系统提示词模板",
+    "zh-TW": "儲存為系統提示詞範本"
+  },
+  "alchemyKindSkill": {
+    "en": "Skill",
+    "zh-CN": "技能",
+    "zh-TW": "技能"
+  },
+  "alchemyKindPromptTemplate": {
+    "en": "Prompt template",
+    "zh-CN": "系统提示词模板",
+    "zh-TW": "系統提示詞範本"
+  },
+  "alchemyNameLabel": {
+    "en": "Name",
+    "zh-CN": "名称",
+    "zh-TW": "名稱"
+  },
+  "alchemyDescriptionLabel": {
+    "en": "Trigger description",
+    "zh-CN": "触发说明",
+    "zh-TW": "觸發說明"
+  },
+  "alchemyScopeLabel": {
+    "en": "Scope",
+    "zh-CN": "保存位置",
+    "zh-TW": "儲存位置"
+  },
+  "alchemyScopeProject": {
+    "en": "Current project",
+    "zh-CN": "当前项目",
+    "zh-TW": "目前專案"
+  },
+  "alchemyScopeGlobal": {
+    "en": "All projects (global)",
+    "zh-CN": "全部项目（全局）",
+    "zh-TW": "全部專案（全域）"
+  },
+  "alchemyBodyLabel": {
+    "en": "Content",
+    "zh-CN": "正文内容",
+    "zh-TW": "正文內容"
+  },
+  "alchemyRefsLabel": {
+    "en": "Live references",
+    "zh-CN": "动态引用",
+    "zh-TW": "動態引用"
+  },
+  "alchemyTriggerHint": {
+    "en": "Next time: {{trigger}}",
+    "zh-CN": "下次用法：{{trigger}}",
+    "zh-TW": "下次用法：{{trigger}}"
+  },
+  "alchemySave": {
+    "en": "Save",
+    "zh-CN": "确认保存",
+    "zh-TW": "確認儲存"
+  },
+  "alchemySaving": {
+    "en": "Saving…",
+    "zh-CN": "正在保存…",
+    "zh-TW": "正在儲存…"
+  },
+  "alchemyRevise": {
+    "en": "Ask for edits",
+    "zh-CN": "需要修改",
+    "zh-TW": "需要修改"
+  },
+  "alchemyCancel": {
+    "en": "Cancel",
+    "zh-CN": "取消",
+    "zh-TW": "取消"
+  },
+  "alchemySavedToast": {
+    "en": "Saved “{{name}}”",
+    "zh-CN": "已保存「{{name}}」",
+    "zh-TW": "已儲存「{{name}}」"
   }
 }

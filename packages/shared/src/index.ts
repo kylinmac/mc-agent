@@ -89,6 +89,9 @@ export * from "./mc-agent-memory.js";
 export * from "./mc-canvas.js";
 export * from "./mc-whiteboard.js";
 export * from "./mc-project-proposal.js";
+export * from "./mc-run-script.js";
+export * from "./mc-workspace-guide.js";
+export * from "./mc-alchemy.js";
 export * from "./subscription-quota.js";
 
 export * from "./fast-mode.js";

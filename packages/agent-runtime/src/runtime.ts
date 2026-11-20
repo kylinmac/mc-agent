@@ -62,6 +62,19 @@ import {
   projectTemplatesDescription,
   projectTemplatesParameters,
 } from "./mc-project-tools.js";
+import {
+  PROPOSE_ALCHEMY_TOOL_NAME,
+  RESOLVE_REF_TOOL_NAME,
+  proposeAlchemyDescription,
+  proposeAlchemyParameters,
+  resolveRefDescription,
+  resolveRefParameters,
+} from "./mc-alchemy-tools.js";
+import {
+  buildRunScriptTool,
+  RUN_SCRIPT_TOOL_NAME,
+  RunScriptController,
+} from "./mc-run-script.js";
 import { todoWriteDescription, todoWriteParameters } from "./todo-tool.js";
 import { createJevClassifierTool } from "./jev-classifier-tool.js";
 import { scheduledToolParameters, scheduledToolDescriptions } from "./scheduled-tools.js";
@@ -2000,6 +2013,7 @@ export class DesktopAgentRuntime {
   private runCancelled = false;
   /** Cancels an active user hook child process on `abort` / `dispose` (mc-agent RT-1). */
   private activeUserHookAbort?: AbortController;
+  private readonly runScriptController = new RunScriptController();
   /**
    * Permission scope of the delegate currently executing one tool call,
    * keyed by tool call id (ADR 0089). The host reads it on `tools.execute` and
@@ -3664,6 +3678,9 @@ export class DesktopAgentRuntime {
       // mc-agent project creation from the conversation (MC-ADR-0023).
       if (toolName === PROJECT_TEMPLATES_TOOL_NAME) return projectTemplatesDescription;
       if (toolName === CREATE_PROJECT_TOOL_NAME) return createProjectDescription;
+      // mc-agent alchemy references and artifact proposals (R41).
+      if (toolName === RESOLVE_REF_TOOL_NAME) return resolveRefDescription;
+      if (toolName === PROPOSE_ALCHEMY_TOOL_NAME) return proposeAlchemyDescription;
       if (scheduledToolDescriptions[toolName]) return scheduledToolDescriptions[toolName];
       switch (toolName) {
         case "BrowserPreview":
@@ -3729,6 +3746,8 @@ export class DesktopAgentRuntime {
       ...panelToolParameters,
       [PROJECT_TEMPLATES_TOOL_NAME]: projectTemplatesParameters,
       [CREATE_PROJECT_TOOL_NAME]: createProjectParameters,
+      [RESOLVE_REF_TOOL_NAME]: resolveRefParameters,
+      [PROPOSE_ALCHEMY_TOOL_NAME]: proposeAlchemyParameters,
       TodoWrite: todoWriteParameters,
       Read: {
         path: pathParam(
@@ -4368,8 +4387,10 @@ export class DesktopAgentRuntime {
       // mc-agent: only a conversation in a project has a memory to write.
       if (this.projectPath && !this.remoteWorkspace) tools.push(REMEMBER_TOOL_NAME);
       // mc-agent: projects are created on this machine (MC-ADR-0023).
-      if (!this.remoteWorkspace) tools.push(PROJECT_TEMPLATES_TOOL_NAME, CREATE_PROJECT_TOOL_NAME);
+      if (!this.remoteWorkspace) tools.push(PROJECT_TEMPLATES_TOOL_NAME, CREATE_PROJECT_TOOL_NAME, PROPOSE_ALCHEMY_TOOL_NAME);
     }
+    // mc-agent (R41): local sessions can resolve mc:// references read-only in any mode.
+    if (!this.remoteWorkspace) tools.push(RESOLVE_REF_TOOL_NAME);
     // mc-agent: local sessions (project or standalone) can read canvases in any mode, and write/comment in agent mode (MC-ADR-0030).
     if (!this.remoteWorkspace) {
       tools.push(...CANVAS_TOOL_NAMES.filter(name => this.mode === "agent" || name === "CanvasRead"));
@@ -4467,6 +4488,11 @@ export class DesktopAgentRuntime {
       // R29: on-demand project workbench access; writes only outside contract modes.
       buildProjectTasksTool(this.host, this.sessionId, () => !proposalKindForMode(this.mode)),
       buildProjectResourcesTool(this.host, this.sessionId, () => !proposalKindForMode(this.mode)),
+      // R39: sandboxed read-only programmatic tool batching.
+      buildRunScriptTool({
+        getCatalog: () => this.toolCatalog,
+        controller: this.runScriptController,
+      }),
       ...extensionTools,
     ];
   }
@@ -4570,6 +4596,8 @@ export class DesktopAgentRuntime {
       PROJECT_HISTORY_TOOL_NAME,
       PROJECT_TASKS_TOOL_NAME,
       PROJECT_RESOURCES_TOOL_NAME,
+      RESOLVE_REF_TOOL_NAME,
+      RUN_SCRIPT_TOOL_NAME,
       SUBMIT_TOOL_NAMES[kind],
     ]).has(name);
   }
@@ -10239,6 +10267,7 @@ export class DesktopAgentRuntime {
     this.gracefulStopRequested = false;
     this.runCancelled = true;
     this.activeUserHookAbort?.abort();
+    this.runScriptController.abortAll();
     this.steeringWaitAbort?.abort();
     this.extensionRunner?.cancelPending();
     this.resolvePendingAskTools();
@@ -10492,6 +10521,7 @@ export class DesktopAgentRuntime {
     this.acceptingSteering = false;
     this.runCancelled = true;
     this.activeUserHookAbort?.abort();
+    this.runScriptController.dispose();
     this.steeringWaitAbort?.abort();
     this.resolvePendingAskTools();
     this.abortRunningDelegations();

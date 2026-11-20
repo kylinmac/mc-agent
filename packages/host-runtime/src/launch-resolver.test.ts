@@ -112,6 +112,12 @@ describe("createHeadlessLaunchResolver", () => {
       "- Resource folder (project documents): /docs/App — read RESOURCES.md there first; it lists every document with a summary and its status",
       '- Workspace "web": /work/web — 前端',
     ]);
+    const workspaceGuide = launch.sidecarParams.projectInstructions?.entries.find(
+      (entry) => entry.source === "mc-agent workspace guide",
+    )?.content;
+    expect(workspaceGuide).toContain("/work/server");
+    expect(workspaceGuide).toContain("/docs/App");
+    expect(workspaceGuide).toContain("Files, Changes");
   });
 
   it("uses only the full wire ID binding for a routed model, retaining its request ID", async () => {

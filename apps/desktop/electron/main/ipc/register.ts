@@ -33,6 +33,7 @@ import { registerMcBackgroundIpc, registerMcBackgroundWake } from "./mc-backgrou
 import { registerMcCanvasIpc } from "./mc-canvas-ipc";
 import { registerMcCreativeIpc } from "./mc-creative-ipc";
 import { registerMcProjectCreateIpc } from "./mc-project-create-ipc";
+import { registerMcAlchemyIpc } from "./mc-alchemy-ipc";
 import { imageDataUrl, measureImage } from "../creative/measure-image";
 import { setPluginPanelResolver } from "../work-panel-agent/plugin-surface";
 import { panelBridge } from "../work-panel-agent/bridge";
@@ -436,6 +437,8 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
       return result.canceled ? null : (result.filePaths[0] ?? null);
     },
   });
+  // mc-agent alchemy artifact proposals (R41).
+  registerMcAlchemyIpc({ registrar, sendToRenderer });
   // mc-agent user hooks (MC-ADR-0021).
   registrar.handle(IPC.invoke.mcHooksGet, async () => ({ hooks: await loadUserHooks(dataDir) }));
   registrar.handle(IPC.invoke.mcHooksSet, async (hooks: unknown) => ({ hooks: await saveUserHooks(dataDir, hooks) }));

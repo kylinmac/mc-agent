@@ -9,6 +9,17 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.87",
+    date: "2026-11-20",
+    features: [
+      "Added sandboxed read-only script batching so the agent can loop, filter, and aggregate across multiple files, project resources, or history lookups in one pass and return only concise results.",
+      "Added an Alchemy confirmation card (via /skill:mc-agent/alchemy or by asking to distill a workflow) that resolves live mc:// references to project files, resources, memory, or past chats and saves confirmed drafts as project/global skills or system prompt templates.",
+    ],
+    improvements: [
+      "Sessions now instruct the agent to place newly created files, reports, and demos inside the active workspace or project resource folder and point you to the matching Files, Changes, or Canvas panel tab.",
+    ],
+  },
+  {
     version: "1.0.86",
     date: "2026-11-19",
     fixes: [
