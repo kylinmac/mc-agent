@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "id": "mc.tty7",
+  "name": "tty7 Terminal",
+  "version": "0.1.0",
+  "description": "Opt-in bridge to your local and SSH tty7 terminal panes via tty7-server (no Computer Use). Only used when you explicitly ask the agent to inspect or drive tty7.",
+  "i18n": {
+    "en": {
+      "name": "tty7 Terminal",
+      "description": "Opt-in bridge to your local and SSH tty7 terminal panes via tty7-server (no Computer Use). Only used when you explicitly ask the agent to inspect or drive tty7.",
+      "safetyNotes": "When enabled, the agent can read panes from your running tty7 server (local and linked SSH machines) and, with your approval, execute commands, send keystrokes, split, or close panes. Reading panes does not ask; every write, send, exec, split, new, or close action asks for approval. The plugin never starts tty7-server on its own and never uses screen capture or mouse/keyboard injection."
+    },
+    "zh-CN": {
+      "name": "tty7 外部终端",
+      "description": "按需桥接你正在使用的 tty7 终端（支持本地与 SSH 远端窗格，直连 tty7-server，不走截图/键鼠模拟）。仅在你明确点名时由助手调用。",
+      "safetyNotes": "启用后，助手可读取运行中的 tty7 服务里的窗格屏幕、进程与工作区（包含已连接的 SSH 远端机），并在你每次确认后向指定窗格执行命令、发送按键、分屏或关闭窗格。只读查看不打扰；所有写入、执行、发键与窗格变更操作均需审批。本插件不会擅自启动 tty7-server，也不使用录屏或键鼠模拟。"
+    },
+    "zh-TW": {
+      "name": "tty7 外部終端",
+      "description": "按需橋接你正在使用的 tty7 終端（支援本機與 SSH 遠端窗格，直連 tty7-server，不走截圖／鍵鼠模擬）。僅在你明確點名時由助手呼叫。",
+      "safetyNotes": "啟用後，助手可讀取執行中的 tty7 服務裡的窗格畫面、程序與工作區（包含已連線的 SSH 遠端機），並在你每次確認後向指定窗格執行命令、傳送按鍵、分割或關閉窗格。唯讀檢視不打擾；所有寫入、執行、發鍵與窗格變更操作均須審批。本外掛不會擅自啟動 tty7-server，也不使用錄影或鍵鼠模擬。"
+    }
+  },
+  "safetyNotes": "When enabled, the agent can read panes from your running tty7 server (local and linked SSH machines) and, with your approval, execute commands, send keystrokes, split, or close panes. Reading panes does not ask; every write, send, exec, split, new, or close action asks for approval. The plugin never starts tty7-server on its own and never uses screen capture or mouse/keyboard injection.",
+  "author": "mc-agent",
+  "categories": ["productivity", "official"],
+  "enabledByDefault": false,
+  "main": "main.js",
+  "contributes": {
+    "mcpServers": [
+      {
+        "id": "tty7",
+        "label": "tty7 Terminal",
+        "transport": "stdio",
+        "command": "node",
+        "args": ["mcp-server.mjs"],
+        "toolRisk": {
+          "doctor": "low",
+          "list_machines": "low",
+          "list_workspaces": "low",
+          "list_panes": "low",
+          "capture_pane": "low",
+          "pane_procs": "low",
+          "list_agents": "low",
+          "wait_pane": "low"
+        }
+      }
+    ],
+    "skills": [
+      {
+        "id": "tty7",
+        "path": "skills/tty7.md"
+      }
+    ]
+  },
+  "permissions": ["mcp.server.local", "agent.prompt.inject"],
+  "engines": {
+    "piDesktop": ">=0.8.0"
+  }
+}

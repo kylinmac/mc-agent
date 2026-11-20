@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.88",
+    date: "2026-11-20",
+    features: [
+      "Added an optional built-in tty7 Terminal plugin (off by default; toggle anytime on the Plugins page): once enabled, only when you explicitly mention tty7, an external terminal, or a %pane id does the agent inspect local and SSH panes directly via tty7-server and run commands, send keystrokes, or split panes after your approval—without screenshots or mouse/keyboard emulation.",
+    ],
+  },
+  {
     version: "1.0.87",
     date: "2026-11-20",
     features: [

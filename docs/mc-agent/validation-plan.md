@@ -449,3 +449,7 @@ V85 云端补充：PR #114 的 CI `42827535202` 全部通过，含 Linux Electro
 ## V104 炼丹炉：内部引用解析与技能／模板提案卡片（R41；P8）
 
 2026-11-20：`@pi-desktop/shared`（`mc-alchemy.test.ts` 6/6）、`@pi-desktop/i18n`（9 语言同步与 32 项测试）与 `node --test apps/desktop/test/mc-alchemy.test.mjs`（4/4）通过，覆盖：`parseMcRefUri` 对 6 类 `mc://` 引用解析与路径穿越拦截、`ResolveRef` 实际读取工作区／资料目录／模板／技能／历史会话／记忆并拦截符号链接逃逸、`ProposeAlchemyArtifact` 经 Broker 挂起与 `AbortSignal` 自动清理、`saveAlchemyArtifact` 走既有 `skills.create`（区分项目与全局作用域）与 `mcPrompts` 追加保存不覆盖既有模板，以及内置技能 `programmatic-tools` / `alchemy` 按本地与远程条件暴露。`pnpm lint`（含 Biome 与样式 token 检查）、`pnpm release:check-notes 1.0.87`、`docs` 文档检查与 `electron-vite build` 通过。未验证：安装版实机弹窗交互与连接真实模型端到端提炼会话。
+
+## V105 tty7 外部终端内置 MCP 插件（R42；P8、P11）
+
+2026-11-20：`apps/desktop/test/mc-tty7-plugin.test.mjs`（5/5）与 `bundled-plugins.test.mjs`、`mc-mcp-tool-risk.test.mjs`、`packaging-footprint.test.mjs`（合计 27/27）通过，验证 `validateManifest` 与 `validateMcpServer` 合法、`enabledByDefault: false`、8 个只读工具 `low` 风险与 5 个写／控工具走审批、`buildCliArgs` 防 flag 注入与多行命令拦截、`send_to_pane` 经 `--stdin` 传文本不进 argv、`McpServerClient` 真实 stdio 连接并发现全部 13 个工具；另已对本机运行中的 `tty7 26.10.0` 执行只读 `initialize` → `doctor` → `list_panes` 实机冒烟通过。`pnpm lint`、`node scripts/check-architecture.mjs`、`cd docs && node scripts/check-docs.mjs` 与 `pnpm release:check-notes 1.0.88` 通过。未验证：安装版在插件页启用后经真实付费模型完成 `exec_in_pane` / `send_to_pane` 审批弹窗的端到端交互。
