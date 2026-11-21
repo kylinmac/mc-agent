@@ -1063,6 +1063,16 @@ fn validate_settings_value(value: &Value) -> Result<(), JsonRpcError> {
     let Some(object) = value.as_object() else {
         return Ok(());
     };
+    if let Some(model) = object.get("scheduledDefaultModel").filter(|v| !v.is_null()) {
+        scheduled_tools::approved_model(Some(model))?;
+        if !model["providerId"].is_string() || !model["modelId"].is_string() {
+            return Err(rpc_err(
+                1002,
+                "scheduled default requires a provider and model",
+                "INVALID_PARAMS",
+            ));
+        }
+    }
     if let Some(policy) = object.get("networkPolicy").filter(|v| !v.is_null()) {
         let Some(policy) = policy.as_object() else {
             return Err(rpc_err(
@@ -4670,7 +4680,9 @@ async fn handle_request(
                     return Ok(denied_result);
                 }
 
-                if matches!(final_decision, PermissionDecision::AllowSession) {
+                if matches!(final_decision, PermissionDecision::AllowSession)
+                    && p.tool_name != "ScheduledTaskCreate"
+                {
                     let mut st = state.lock().await;
                     st.session_grants
                         .entry(p.session_id.clone())
@@ -4867,7 +4879,7 @@ async fn handle_request(
                     .await
                 } else if scheduled_tools::recognizes(&p.tool_name) {
                     let st = state.lock().await;
-                    scheduled_tools::execute(&st, &p)
+                    scheduled_tools::execute(&st, &p, &final_decision)
                 } else if p.tool_name == "Bash" && tools::background::requested(&p.args) {
                     // mc-agent (MC-ADR-0006): approved like any Bash call,
                     // then left running instead of awaited.
@@ -5185,6 +5197,19 @@ async fn handle_request(
                 .and_then(|v| v.as_str())
                 .unwrap_or("deny");
             let decision = match decision_raw {
+                "allow-once" if params.get("scheduledPermissionMode").is_some() => {
+                    let mode = params["scheduledPermissionMode"]
+                        .as_str()
+                        .filter(|mode| matches!(*mode, "ask" | "accept-edits" | "auto"))
+                        .ok_or_else(|| {
+                            rpc_err(1002, "invalid scheduled permission mode", "INVALID_PARAMS")
+                        })?;
+                    let model = scheduled_tools::approved_model(params.get("scheduledModel"))?;
+                    PermissionDecision::CreateScheduledTask {
+                        permission_mode: mode.to_owned(),
+                        model,
+                    }
+                }
                 "allow-once" => PermissionDecision::AllowOnce,
                 "allow-session" => PermissionDecision::AllowSession,
                 _ => PermissionDecision::Deny,

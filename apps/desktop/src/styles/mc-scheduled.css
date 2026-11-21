@@ -64,6 +64,13 @@
   gap: 28px;
 }
 
+.mc-sched-default-model {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
 .mc-sched-overview .page-header .btn {
   display: inline-flex;
   align-items: center;

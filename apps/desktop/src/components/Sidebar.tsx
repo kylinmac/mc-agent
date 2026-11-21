@@ -38,7 +38,6 @@ import {
   getVisibleProjectSessions,
   updateProjectSessionExpansion,
 } from "../lib/sidebar-project-sessions";
-import { listableSessions } from "../lib/session-origin";
 import { mergeProjectEntries, sessionFolderLabel } from "../features/project-sidebar/project-merge";
 import { useProjectFolderIndex } from "../features/project-sidebar/useProjectFolderIndex";
 import { SidebarAttentionFeed } from "../features/attention-feed/SidebarAttentionFeed";
@@ -689,19 +688,10 @@ export function Sidebar({
     return isDefaultSessionTitle(value) ? t("chat.untitledTask") : value;
   }, [t]);
 
-  const filtered = useMemo(() => {
-    // A scheduled run's transcript belongs to the Scheduled page, not to the
-    // project groups: that page's task column and run history are its entry
-    // point (issue #1291). The session stays in the store so the chat surface
-    // can still resolve its title, source, and capabilities when it is opened
-    // from there.
-    const candidates = listableSessions(sessions)
-      .filter((session) => showArchived || !sessionArchived(session, sessionMeta[session.id]));
-    // Empty sessions are durable sidebar rows now. Their message count, not
-    // their title, controls New Task reuse, so a manual rename never changes
-    // the empty-slot behavior.
-    return candidates;
-  }, [sessions, showArchived, sessionMeta]);
+  const filtered = useMemo(
+    () => sessions.filter((session) => showArchived || !sessionArchived(session, sessionMeta[session.id])),
+    [sessions, showArchived, sessionMeta],
+  );
 
   const compareSessions = useCallback((a: SessionSummary, b: SessionSummary) => {
     const aMeta = sessionMeta[a.id] ?? {};

@@ -248,7 +248,9 @@ impl AppState {
         decision: crate::permissions::PermissionDecision,
     ) -> Result<(), String> {
         let result = self.permissions.resolve(request_id, decision);
-        self.clear_pending_permission(request_id);
+        if result.is_ok() {
+            self.clear_pending_permission(request_id);
+        }
         result
     }
 

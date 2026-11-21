@@ -288,7 +288,45 @@ test("a run with no stored transcript says so instead of showing an empty pane",
   });
 });
 
-test("automation ownership keeps run transcripts out of the lists", async () => {
+test("AI task creation offers all run permissions and defaults to asking", async () => {
+  await withVite(async (server) => {
+    const html = await render(server, "/src/components/PermissionCard.tsx", "PermissionCard", {
+      permission: { requestId: "req", sessionId: "session", toolCallId: "call", toolName: "ScheduledTaskCreate",
+        risk: "medium", argsPreview: { title: "Weekly review" } },
+    });
+    assert.match(html, /composer-model-thinking-model">Default model</);
+    assert.match(html, /<option value="ask" selected=""/);
+    assert.match(html, /<option value="accept-edits"/);
+    assert.match(html, /<option value="auto"/);
+    assert.match(html, /Create task/);
+    assert.doesNotMatch(html, /Allow for session/i);
+  });
+});
+
+test("manual and AI creation preselect the saved task model", async () => {
+  await withVite(async (server) => {
+    const { useAppStore } = await server.ssrLoadModule("/src/stores/app-store.ts");
+    const state = useAppStore.getInitialState();
+    const originalSettings = state.settings;
+    state.settings = { ...originalSettings, scheduledDefaultModel: {
+      providerId: "preset-provider", modelId: "preset-model", thinkingLevel: "high",
+    } };
+    try {
+      for (const [path, name, props] of [
+        ["/src/features/scheduled/ScheduledEditor.tsx", "ScheduledEditor", { projects: [], currentWorkspacePath: "", busy: false }],
+        ["/src/components/PermissionCard.tsx", "PermissionCard", { permission: {
+          requestId: "req", sessionId: "session", toolName: "ScheduledTaskCreate", risk: "medium", argsPreview: {},
+        } }],
+      ]) {
+        assert.match(await render(server, path, name, props), /preset-model/);
+      }
+    } finally {
+      state.settings = originalSettings;
+    }
+  });
+});
+
+test("automation ownership follows the scheduledRun flag", async () => {
   await withVite(async (server) => {
     const { isAutomationSession } = await server.ssrLoadModule("/src/lib/session-origin.ts");
     assert.equal(isAutomationSession({ scheduledRun: true }), true);
@@ -299,15 +337,7 @@ test("automation ownership keeps run transcripts out of the lists", async () => 
   });
 });
 
-test("the session list and search both consume the ownership rule", async () => {
-  const { readFile } = await import("node:fs/promises");
-  const sidebar = await readFile(new URL("../src/components/Sidebar.tsx", import.meta.url), "utf8");
-  assert.match(sidebar, /import \{ listableSessions \} from "\.\.\/lib\/session-origin";/);
-  assert.match(
-    sidebar,
-    /listableSessions\(sessions\)/,
-    "the sidebar drops automation transcripts before grouping",
-  );
+test("global search filters automation transcripts from hits and recents", async () => {
   const search = await readFile(new URL("../src/hooks/use-session-search.ts", import.meta.url), "utf8");
   assert.match(
     search,
@@ -468,7 +498,7 @@ test("the task column reads one newest run per task, not a global window", async
   assert.match(api, /latestPerTask\?: boolean/);
 });
 
-test("every session list the user can enter drops a run's transcript", async () => {
+test("automation-filtered lists and the tray omit run transcripts", async () => {
   await withVite(async (server) => {
     const origin = await server.ssrLoadModule("/src/lib/session-origin.ts");
     const listed = [

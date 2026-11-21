@@ -39,6 +39,10 @@ fn preview_value(value: &serde_json::Value) -> serde_json::Value {
 pub enum PermissionDecision {
     AllowOnce,
     AllowSession,
+    CreateScheduledTask {
+        permission_mode: String,
+        model: serde_json::Map<String, serde_json::Value>,
+    },
     Deny,
 }
 
@@ -251,6 +255,10 @@ impl PermissionManager {
             }
         }
 
+        if tool_name == "ScheduledTaskCreate" {
+            return None;
+        }
+
         if requires_external_path_permission {
             if permission_mode == "auto" {
                 return Some(PermissionDecision::AllowOnce);
@@ -375,6 +383,14 @@ impl PermissionManager {
         request_id: &str,
         decision: PermissionDecision,
     ) -> Result<(), String> {
+        if matches!(decision, PermissionDecision::CreateScheduledTask { .. })
+            && self
+                .pending
+                .get(request_id)
+                .is_some_and(|p| p.request.tool_name != "ScheduledTaskCreate")
+        {
+            return Err("INVALID_PARAMS".into());
+        }
         let Some(mut pending) = self.pending.remove(request_id) else {
             return Err("NOT_FOUND".into());
         };

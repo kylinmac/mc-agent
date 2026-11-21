@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Exercise the public tool path through a real host and SQLite, without a model.
+import { confirmScheduledCreation } from "./e2e/scheduled-approval.mjs";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { mkdtemp } from "node:fs/promises";
@@ -15,11 +16,25 @@ try {
   const tool = (toolName, args) => host.call("tools.execute", {
     sessionId: session.id, toolCallId: randomUUID(), toolName, args, mode: "agent",
   });
-  const created = await tool("ScheduledTaskCreate", {
+  const preset = { providerId: "test-provider", modelId: "test-model", thinkingLevel: "high" };
+  await host.call("settings.set", { scheduledDefaultModel: preset });
+  await host.restart();
+  assert.deepEqual((await host.call("settings.get")).scheduledDefaultModel, preset);
+  const created = await confirmScheduledCreation(host, tool("ScheduledTaskCreate", {
     title: "Review", prompt: "Reply OK", cadence: "manual", enabled: false,
-  });
+  }), "ask");
   assert.equal(created.ok, true);
   const id = created.content.task.id;
+  assert.equal(created.content.task.modelId, preset.modelId);
+  const override = await host.call("scheduled.create", {
+    title: "Override", prompt: "Review", cadence: "manual", providerId: "other", modelId: "other-model",
+  });
+  assert.equal(override.task.modelId, "other-model");
+  const globalDefault = await host.call("scheduled.create", {
+    title: "App default", prompt: "Review", cadence: "manual", providerId: null, modelId: null,
+  });
+  assert.equal(globalDefault.task.modelId, undefined);
+  await host.call("settings.set", { scheduledDefaultModel: null });
   console.log("Created a paused Manual task.");
   const before = Date.now();
   const updated = await tool("ScheduledTaskUpdate", { id, cadence: "hourly" });
@@ -40,6 +55,7 @@ try {
   assert.equal(restored.cadence, "hourly");
   assert.equal(restored.enabled, false);
   assert.equal(restored.title, "Renamed");
+  assert.equal(restored.modelId, preset.modelId);
   console.log("PASS: hourly conversion, one-hour interval, pause preservation, rename and restart.");
 } finally {
   await host.stop();

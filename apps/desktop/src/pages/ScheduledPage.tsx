@@ -19,6 +19,7 @@ import {
 } from "../components/icons";
 import { IntoSidebarSlot } from "../features/sidebar-slot/SidebarSlot";
 import { ScheduledEditor, type ScheduledDraft } from "../features/scheduled/ScheduledEditor";
+import { ScheduledDefaultModel } from "../features/scheduled/ScheduledDefaultModel";
 import { ScheduledTaskDetail } from "../features/scheduled/ScheduledTaskDetail";
 import { useScheduledWorkspace } from "../features/scheduled/use-scheduled-workspace";
 import { peekScheduledReturn, rememberScheduledReturn } from "../features/scheduled/scheduled-return";
@@ -276,6 +277,8 @@ export function ScheduledPage() {
                 {t("scheduled.create")}
               </Button>
             </div>
+
+            <ScheduledDefaultModel />
 
             {tasks.length === 0 ? (
               <div className="mc-sched-empty">

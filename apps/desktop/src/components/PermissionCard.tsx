@@ -4,7 +4,11 @@ import type { PendingPermission } from "../lib/pending-permissions";
 import { useAppStore } from "../stores/app-store";
 import { buildToolPresentation } from "../lib/tool-presentation";
 import { ToolDetailBlocks } from "./ToolDetails";
-import { Button } from "./ui";
+import { Button, Field, Select } from "./ui";
+import { isGlobalPermissionMode, type GlobalPermissionMode } from "@pi-desktop/shared";
+import { ScheduledModelPicker } from "../features/scheduled/ScheduledModelPicker";
+import type { ScheduledModelSelection } from "../features/scheduled/ScheduledExecutionSettings";
+import { PERMISSION_MODE_I18N_KEYS } from "../lib/permission-mode-labels";
 
 export function PermissionCard({
   permission,
@@ -20,6 +24,11 @@ export function PermissionCard({
   const workspace = useAppStore((state) =>
     state.sessions.find((session) => session.id === permission.sessionId)?.projectPath,
   );
+  const creatingTask = permission.toolName === "ScheduledTaskCreate" && !permission.sessionId.startsWith("remote:");
+  const defaultModel = useAppStore((s) => s.settings?.scheduledDefaultModel);
+  const [modelOverride, setTaskModel] = useState<ScheduledModelSelection>();
+  const taskModel = modelOverride ?? defaultModel ?? {};
+  const [taskMode, setTaskMode] = useState<GlobalPermissionMode>("ask");
   const [resolving, setResolving] = useState(false);
 
   const restoreComposerFocus = () => {
@@ -34,7 +43,8 @@ export function PermissionCard({
     if (resolving) return;
     setResolving(true);
     try {
-      await resolvePermission(permission.sessionId, permission.requestId, decision);
+      await resolvePermission(permission.sessionId, permission.requestId, decision,
+        creatingTask && decision === "allow-once" ? { scheduledPermissionMode: taskMode, scheduledModel: taskModel } : undefined);
     } catch (error) {
       showToast(error instanceof Error ? error.message : String(error), {
         variant: "error",
@@ -88,7 +98,7 @@ export function PermissionCard({
           components={{ highlight: <span className="text-text-primary" /> }}
         />
       </div>
-      {permission.reason ? (
+      {permission.reason && !creatingTask ? (
         <div className="permission-card-reason">
           {permission.toolName === "WorkPanelAction" && permission.reason === "Interactive terminal actions require approval because the pending command and program state are unknown."
             ? t("mcProject.terminalApprovalReason")
@@ -107,6 +117,22 @@ export function PermissionCard({
           })}
         </span>
       </div>
+      {creatingTask && (
+        <Field label={t("scheduled.detailPermission")}>
+          <Select value={taskMode} disabled={resolving}
+            onChange={(event) => {
+              if (isGlobalPermissionMode(event.target.value)) setTaskMode(event.target.value);
+            }}>
+            {(["ask", "accept-edits", "auto"] as const).map((mode) => (
+              <option key={mode} value={mode}>{t(PERMISSION_MODE_I18N_KEYS[mode])}</option>
+            ))}
+          </Select>
+          {taskMode === "auto" && <span>{t("scheduled.autoPermissionHint")}</span>}
+        </Field>
+      )}
+      {creatingTask && (
+        <ScheduledModelPicker value={taskModel} disabled={resolving} onChange={setTaskModel} />
+      )}
       <div className="permission-card-actions">
         <Button
           variant="ghost"
@@ -115,19 +141,19 @@ export function PermissionCard({
         >
           {t("permission.deny")}
         </Button>
-        <Button
+        {!creatingTask && <Button
           variant="secondary"
           disabled={resolving}
           onClick={() => void resolve("allow-session")}
         >
           {t("permission.allowSession")}
-        </Button>
+        </Button>}
         <Button
           variant="primary"
           disabled={resolving}
           onClick={() => void resolve("allow-once")}
         >
-          {t("permission.allowOnce")}
+          {t(creatingTask ? "scheduled.create" : "permission.allowOnce")}
         </Button>
       </div>
     </section>

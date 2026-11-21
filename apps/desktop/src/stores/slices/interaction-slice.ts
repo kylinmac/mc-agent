@@ -133,11 +133,11 @@ export function createInteractionSlice({
       }
     },
 
-    resolvePermission: async (sessionId, requestId, decision) => {
+    resolvePermission: async (sessionId, requestId, decision, taskOptions) => {
       const permission = headPermission(get().pendingPermissions, sessionId);
       if (!permission || permission.requestId !== requestId) return;
       try {
-        await api.resolvePermission({ requestId, decision });
+        await api.resolvePermission({ requestId, decision, ...taskOptions });
       } finally {
         set((state) => ({
           pendingPermissions: removePermission(

@@ -3891,6 +3891,7 @@ importConfirm: "Imported extensions run inside the agent process with the same a
     schedExactTime: "Exact time",
     schedExactTimeHint: "Pick a time of day, or type an exact time such as 09:30.",
     schedTimeInvalid: "Enter a time between 00:00 and 23:59.",
+    schedDefaultModel: "Default model for new tasks",
     schedTaskName: "Task name",
     taskRunTitle: "{{title}} · run {{n}}",
     projectPromptLabel: "System prompt template",

@@ -457,3 +457,9 @@ V85 云端补充：PR #114 的 CI `42827535202` 全部通过，含 Linux Electro
 ## V106 手机远程操作网关与配对控制平面（R43；P9）
 
 2026-11-21：`cargo fmt -p mc-mobile-gateway --check`、`cargo clippy -p mc-mobile-gateway --all-targets --locked -- -D warnings` 与 `cargo test -p mc-mobile-gateway --locked`（1/1，真实 `iroh` QUIC 配对 → 重放拦截 → 未配对拒绝 → 鉴权 RPC 与事件广播 → 吊销踢断并拒绝对方重连）通过；`@pi-desktop/shared`（121 个文件 1,449 项，含 `mc-mobile.test.ts`）、`@pi-desktop/i18n`（9 语言同步与 32 项测试）、`apps/desktop/test/mc-mobile-bridge.test.mjs`（3/3，含拉起真实 `mc-mobile-gateway` 生成 `mc-pair://v1?...` 二维码与停止、20 方法白名单放行与非白名单 `FORBIDDEN` 拦截、游标重放、图片附件落盘、`session.configure` 权限切换与 `effectivePermissionMode` 返回、Diff 与白板 `upsertedFiles`/`previewPngBase64` 双向同步）与 `packaging-footprint.test.mjs`（9/9）通过；跨仓独立手机端 `kylinmac/mc-agent-mobile`（Tauri 2 + React + 离线通用 Excalidraw 白板）通过前端构建（8 套离线字体打包）与真实 `iroh` 端到端联调测试（`e2e_mobile_client_pairs_calls_rpc_receives_events_and_gets_revoked` 拉起真实 `mc-mobile-gateway` 完成配对、白板 RPC、`canvas.changed` 推送与吊销拦截）；`@pi-desktop/desktop` 类型检查、`electron-vite build`、`pnpm lint`、`node scripts/check-architecture.mjs`、`cd docs && node scripts/check-docs.mjs` 与 `pnpm release:check-notes 1.0.90` 通过。未验证：物理 Android 手机升级 `v0.1.4` 后的实机白板同步、权限切换及跨运营商弱网切换。
+
+### V44 定时任务创建权限
+
+在全自动会话中请求 AI 创建任务。分别验证跟随默认模型和指定模型，固定模型时核对首次运行会话的服务商、模型及推理等级。确认前任务列表为空，选择运行权限并确认后检查任务配置；拒绝时不创建。检查非交互调用无法跳过确认。
+
+V44.1 在定时任务总览保存默认模型后重新打开应用，验证手动表单和 AI 确认卡均带入。单次覆盖及清除默认值应保留已保存任务与普通聊天的模型配置。

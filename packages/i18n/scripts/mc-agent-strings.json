@@ -3731,6 +3731,17 @@
     "zh-CN": "请输入 00:00 到 23:59 之间的时间。",
     "zh-TW": "請輸入 00:00 到 23:59 之間的時間。"
   },
+  "schedDefaultModel": {
+    "en": "Default model for new tasks",
+    "zh-CN": "新建定时任务的默认模型",
+    "zh-TW": "新建排程任務的預設模型",
+    "de": "Standardmodell für neue Aufgaben",
+    "es": "Modelo predeterminado para nuevas tareas",
+    "fr": "Modèle par défaut des nouvelles tâches",
+    "ko": "새 작업의 기본 모델",
+    "pt-BR": "Modelo padrão para novas tarefas",
+    "tr": "Yeni görevler için varsayılan model"
+  },
   "schedTaskName": {
     "en": "Task name",
     "zh-CN": "任务名称",

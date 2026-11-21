@@ -1,9 +1,10 @@
 use super::{rpc_err, scheduled_rpc, AppState, JsonRpcError};
+use crate::permissions::PermissionDecision;
 use crate::{
     scheduled, sessions,
     tools::{ToolsExecuteParams, ToolsExecuteResult},
 };
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 
 #[cfg(test)]
 #[path = "scheduled_calendar_tests.rs"]
@@ -42,7 +43,34 @@ fn invalid(message: &str) -> JsonRpcError {
     rpc_err(1002, message, "INVALID_PARAMS")
 }
 
-fn execute_inner(st: &AppState, p: &ToolsExecuteParams) -> Result<Value, JsonRpcError> {
+pub(super) fn approved_model(value: Option<&Value>) -> Result<Map<String, Value>, JsonRpcError> {
+    let Some(value) = value else {
+        return Ok(Map::new());
+    };
+    let model = value
+        .as_object()
+        .ok_or_else(|| invalid("scheduledModel must be an object"))?;
+    if model
+        .keys()
+        .any(|key| !matches!(key.as_str(), "providerId" | "modelId" | "thinkingLevel"))
+    {
+        return Err(invalid("unsupported scheduled model field"));
+    }
+    scheduled::automation::validate_execution_input(value).map_err(|e| invalid(&e.to_string()))?;
+    let mut model = model.clone();
+    // An explicit choice of the application default overrides the task preset.
+    if !model.contains_key("providerId") {
+        model.insert("providerId".into(), Value::Null);
+        model.insert("modelId".into(), Value::Null);
+    }
+    Ok(model)
+}
+
+fn execute_inner(
+    st: &AppState,
+    p: &ToolsExecuteParams,
+    decision: &PermissionDecision,
+) -> Result<Value, JsonRpcError> {
     // The index row answers both questions this needs — does the session exist,
     // and what is its project? — so no transcript is materialized here.
     let summary = sessions::session_summary(&st.db, &p.session_id)
@@ -127,6 +155,19 @@ fn execute_inner(st: &AppState, p: &ToolsExecuteParams) -> Result<Value, JsonRpc
         parsed.validate().map_err(|e| invalid(&e.to_string()))?;
     }
     if p.tool_name == "ScheduledTaskCreate" {
+        let permission = match decision {
+            PermissionDecision::CreateScheduledTask {
+                permission_mode,
+                model,
+            } => {
+                for (key, value) in model {
+                    input[key] = value.clone();
+                }
+                permission_mode.as_str()
+            }
+            _ => "ask",
+        };
+        input["permissionMode"] = json!(permission);
         if !args.contains_key("cadence") {
             return Err(invalid("cadence required"));
         }
@@ -174,9 +215,13 @@ fn execute_inner(st: &AppState, p: &ToolsExecuteParams) -> Result<Value, JsonRpc
     scheduled_rpc::handle_in_workspace(st, method, input, workspace)
 }
 
-pub fn execute(st: &AppState, p: &ToolsExecuteParams) -> ToolsExecuteResult {
+pub fn execute(
+    st: &AppState,
+    p: &ToolsExecuteParams,
+    decision: &PermissionDecision,
+) -> ToolsExecuteResult {
     let started = std::time::Instant::now();
-    let result = execute_inner(st, p);
+    let result = execute_inner(st, p, decision);
     let (ok, content, error_code) = match result {
         Ok(content) => (true, content, None),
         Err(error) => {
@@ -362,17 +407,41 @@ mod tests {
     }
 
     async fn call(state: &Arc<Mutex<AppState>>, session: &str, name: &str, args: Value) -> Value {
-        super::super::handle_request(
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let run = super::super::handle_request(
             state.clone(),
             "tools.execute",
             json!({
                 "sessionId":session,"toolCallId":uuid::Uuid::new_v4().to_string(),
                 "toolName":name,"args":args,"mode":"agent"
             }),
-            mpsc::unbounded_channel().0,
-        )
+            tx.clone(),
+        );
+        if name != "ScheduledTaskCreate" {
+            return run.await.unwrap();
+        }
+        let confirm = async {
+            let event: Value = serde_json::from_str(&rx.recv().await.unwrap()).unwrap();
+            assert_eq!(event["method"], "permissions.request");
+            assert!(scheduled::list_tasks(&state.lock().await.db)
+                .unwrap()
+                .is_empty());
+            super::super::handle_request(
+                state.clone(),
+                "permissions.resolve",
+                json!({"requestId":event["params"]["requestId"], "decision":"allow-once",
+                    "scheduledPermissionMode":"accept-edits","scheduledModel":{"providerId":"fixture","modelId":"review","thinkingLevel":"high"}}),
+                tx,
+            )
+            .await
+            .unwrap();
+        };
+        let (result, ()) = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            tokio::join!(run, confirm)
+        })
         .await
-        .unwrap()
+        .unwrap();
+        result.unwrap()
     }
 
     #[tokio::test]
@@ -428,7 +497,25 @@ mod tests {
         .await;
         assert_eq!(created["ok"], true, "{created}");
         assert_eq!(created["content"]["task"]["enabled"], false);
+        assert_eq!(created["content"]["task"]["permissionMode"], "accept-edits");
         let id = created["content"]["task"]["id"].as_str().unwrap();
+        assert_eq!(created["content"]["task"]["modelId"], "review");
+        {
+            let st = state.lock().await;
+            let launch = scheduled_rpc::handle(&st, "scheduled.run", json!({"id":id})).unwrap();
+            let run = sessions::session_summary(&st.db, launch["sessionId"].as_str().unwrap())
+                .unwrap()
+                .unwrap();
+            assert_eq!(run.provider_id.as_deref(), Some("fixture"));
+            assert_eq!(run.model_id.as_deref(), Some("review"));
+            assert_eq!(run.thinking_level, "high");
+            scheduled_rpc::handle(
+                &st,
+                "scheduled.finishRun",
+                json!({"runId":launch["runId"],"status":"completed"}),
+            )
+            .unwrap();
+        }
         assert_eq!(created["content"]["task"]["workspacePath"], path);
         let listed = call(&state, &session.id, "ScheduledTaskList", json!({})).await;
         assert_eq!(listed["content"]["tasks"][0]["id"], id);
@@ -560,6 +647,56 @@ mod tests {
         )
         .await;
         assert_eq!(hourly["content"]["task"]["schedule"], custom);
+    }
+
+    #[tokio::test]
+    async fn declined_or_noninteractive_create_leaves_no_task() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut st = AppState::open(dir.path()).unwrap();
+        st.handshook = true;
+        st.db
+            .set_setting("app", &json!({"defaultPermissionMode":"auto"}))
+            .unwrap();
+        let session =
+            sessions::create_session(&st.db, None, Some("agent".into()), None, None, None).unwrap();
+        let state = Arc::new(Mutex::new(st));
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let mut params = json!({
+            "sessionId":session.id, "toolCallId":"create", "toolName":"ScheduledTaskCreate", "mode":"agent",
+            "args":{"title":"Review","prompt":"Review project","cadence":"manual"}, "nonInteractive":true
+        });
+        let skipped = super::super::handle_request(
+            state.clone(),
+            "tools.execute",
+            params.clone(),
+            tx.clone(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(skipped["errorCode"], "APPROVAL_REQUIRED");
+        params["nonInteractive"] = json!(false);
+        let run = super::super::handle_request(state.clone(), "tools.execute", params, tx.clone());
+        let decline = async {
+            let event: Value = serde_json::from_str(&rx.recv().await.unwrap()).unwrap();
+            assert_eq!(event["method"], "permissions.request");
+            super::super::handle_request(
+                state.clone(),
+                "permissions.resolve",
+                json!({"requestId":event["params"]["requestId"], "decision":"deny"}),
+                tx,
+            )
+            .await
+            .unwrap();
+        };
+        let (result, ()) = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            tokio::join!(run, decline)
+        })
+        .await
+        .unwrap();
+        assert_eq!(result.unwrap()["errorCode"], "TOOL_DENIED");
+        assert!(scheduled::list_tasks(&state.lock().await.db)
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
