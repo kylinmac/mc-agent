@@ -99,11 +99,8 @@ test("every path that loads a dev plugin arms the watcher", () => {
   // A reviewed load (folder picker, template scaffold) and the paths that load
   // without a review (agent tool import, startup restore, re-enable) all end in
   // the same watch call, so none of them can be hot-reloaded unapproved.
-  assert.match(pluginIpcSrc, /if \(loaded\.plugin\?\.id\) plugins\.watchDevPlugin\(loaded\.plugin\.id\)/);
-  assert.match(
-    pluginIpcSrc,
-    /const loadDevPlugin = async \(\s*path: string,\s*grantedPermissions: string\[\] = \[\],\s*reason: "loadDev" \| "reload",\s*\)/,
-  );
+  const loader = slice(pluginIpcSrc, "const loadDevPlugin = async (", "/** A development plugin folder as a review");
+  assert.match(loader, /if \(loaded\.plugin\?\.id\) plugins\.watchDevPlugin\(loaded\.plugin\.id\)/);
   assert.match(sidecarSrc, /plugins\.watchDevPlugin\(manifest\.id\)/);
   assert.match(lifecycleSrc, /if \(plugin\.source === "dev"\) plugins\.watchDevPlugin\(plugin\.id\)/);
   assert.match(pluginIpcSrc, /if \(res\.plugin\.source === "dev"\) plugins\.watchDevPlugin\(id\)/);
