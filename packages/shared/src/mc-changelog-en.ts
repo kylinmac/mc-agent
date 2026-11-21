@@ -9,6 +9,16 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.90",
+    date: "2026-11-21",
+    features: [
+      "Added session.configure to the mobile remote access bridge so mc-agent Mobile can inspect and switch a desktop session's permission mode (inherit / ask / accept-edits / auto) in real time.",
+    ],
+    fixes: [
+      "Fixed field names when saving Excalidraw whiteboards from mobile (upsertedFiles and previewPngBase64) so strokes and previews stay synced with desktop whiteboards.",
+    ],
+  },
+  {
     version: "1.0.89",
     date: "2026-11-21",
     features: [

@@ -16,6 +16,7 @@ export const MC_MOBILE_METHODS = [
   "projects.list",
   "sessions.list",
   "session.create",
+  "session.configure",
   "session.history",
   "session.subscribe",
   "session.unsubscribe",
