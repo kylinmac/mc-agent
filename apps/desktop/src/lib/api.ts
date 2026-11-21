@@ -2421,4 +2421,30 @@ export const api = {
     if (!window.piDesktop?.on) return () => undefined;
     return window.piDesktop.on(IPC.event.pluginLauncherShown, () => listener());
   },
+  mcMobile: {
+    status: () =>
+      invoke<import("@pi-desktop/shared").MobileGatewayStatus>(IPC.invoke.mcMobileStatus),
+    setEnabled: (enabled: boolean) =>
+      invoke<import("@pi-desktop/shared").MobileGatewayStatus>(IPC.invoke.mcMobileSetEnabled, {
+        enabled,
+      }),
+    createPair: (ttlSecs?: number) =>
+      invoke<import("@pi-desktop/shared").MobilePairingOffer>(
+        IPC.invoke.mcMobileCreatePair,
+        ttlSecs === undefined ? {} : { ttlSecs },
+      ),
+    revokeDevice: (deviceId: string) =>
+      invoke<{
+        removed: boolean;
+        status: import("@pi-desktop/shared").MobileGatewayStatus;
+      }>(IPC.invoke.mcMobileRevokeDevice, { deviceId }),
+    onStatusChanged: (
+      listener: (status: import("@pi-desktop/shared").MobileGatewayStatus) => void,
+    ) => {
+      if (!window.piDesktop?.on) return () => undefined;
+      return window.piDesktop.on(IPC.event.mcMobileStatusChanged, (payload) =>
+        listener(payload as import("@pi-desktop/shared").MobileGatewayStatus),
+      );
+    },
+  },
 };

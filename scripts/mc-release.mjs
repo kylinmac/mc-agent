@@ -183,6 +183,16 @@ if (!helperArch.split(/\s+/).includes(arch === "arm64" ? "arm64" : "x86_64")) {
 run("codesign", ["--verify", "--strict", helper]);
 const helperVersion = run(helper, ["--version"], { capture: true }).trim();
 if (!helperVersion.startsWith("mc-computer ")) fail(`the Computer Use helper did not run: ${helperVersion}`);
+// The mobile gateway sidecar (R43): present, built for this arch, signed, runnable.
+const mobileGateway = join(appDir, "Contents/Resources/bin/mc-mobile-gateway");
+if (!existsSync(mobileGateway)) fail("mc-mobile-gateway is missing from the app");
+const mobileArch = run("lipo", ["-archs", mobileGateway], { capture: true }).trim();
+if (!mobileArch.split(/\s+/).includes(arch === "arm64" ? "arm64" : "x86_64")) {
+  fail(`mc-mobile-gateway is built for ${mobileArch}, not ${arch}`);
+}
+run("codesign", ["--verify", "--strict", mobileGateway]);
+const mobileVersion = run(mobileGateway, ["--version"], { capture: true }).trim();
+if (!mobileVersion.startsWith("mc-mobile-gateway ")) fail(`mc-mobile-gateway did not run: ${mobileVersion}`);
 // The version and delivery mode the app itself will report to the updater.
 const asar = createRequire(join(DESKTOP, "package.json"))("@electron/asar");
 const packaged = JSON.parse(

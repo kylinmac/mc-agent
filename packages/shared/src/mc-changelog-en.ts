@@ -9,6 +9,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.89",
+    date: "2026-11-21",
+    features: [
+      "Added Settings → Mobile access remote gateway (off by default): powered by iroh (direct P2P with automatic Relay fallback and Ed25519 end-to-end encryption), generating one-time pairing QR codes for the companion mc-agent Mobile app to handle cross-project approvals, live streaming chats, diff review, and bidirectional Excalidraw whiteboard sync, with instant device revocation.",
+    ],
+  },
+  {
     version: "1.0.88",
     date: "2026-11-20",
     features: [

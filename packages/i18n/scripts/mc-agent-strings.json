@@ -5090,5 +5090,150 @@
     "en": "Saved “{{name}}”",
     "zh-CN": "已保存「{{name}}」",
     "zh-TW": "已儲存「{{name}}」"
+  },
+  "mobileNavLabel": {
+    "en": "Mobile access",
+    "zh-CN": "手机访问",
+    "zh-TW": "手機存取"
+  },
+  "mobileTitle": {
+    "en": "Mobile Remote Access",
+    "zh-CN": "手机远程操作",
+    "zh-TW": "手機遠端操作"
+  },
+  "mobileEnableTitle": {
+    "en": "Allow mobile connections",
+    "zh-CN": "允许手机连接",
+    "zh-TW": "允許手機連線"
+  },
+  "mobileEnableDesc": {
+    "en": "Start the encrypted peer-to-peer mobile gateway while mc-agent is running (direct P2P with Relay fallback).",
+    "zh-CN": "在 mc-agent 运行期间启动端到端加密手机网关（优先局域网/P2P 直连，自动降级 Relay 中继）。",
+    "zh-TW": "在 mc-agent 執行期間啟動端對端加密手機閘道（優先區域網路/P2P 直連，自動降級 Relay 中繼）。"
+  },
+  "mobileStatusTitle": {
+    "en": "Gateway status",
+    "zh-CN": "网关状态",
+    "zh-TW": "閘道狀態"
+  },
+  "mobileStatusIdleDesc": {
+    "en": "Disabled by default. Turn on above or generate a pairing code to start.",
+    "zh-CN": "默认关闭。开启上方开关或生成配对码后启动。",
+    "zh-TW": "預設關閉。開啟上方開關或產生配對碼後啟動。"
+  },
+  "mobileNodeSummary": {
+    "en": "Node {{nodeId}} · {{transport}}",
+    "zh-CN": "节点 {{nodeId}} · {{transport}}",
+    "zh-TW": "節點 {{nodeId}} · {{transport}}"
+  },
+  "mobileTransportRelayReady": {
+    "en": "P2P + Relay ready",
+    "zh-CN": "P2P + Relay 就绪",
+    "zh-TW": "P2P + Relay 就緒"
+  },
+  "mobileTransportLanOnly": {
+    "en": "Local network ready",
+    "zh-CN": "局域网就绪",
+    "zh-TW": "區域網路就緒"
+  },
+  "mobileStateRunning": {
+    "en": "Running",
+    "zh-CN": "运行中",
+    "zh-TW": "執行中"
+  },
+  "mobileStateStarting": {
+    "en": "Starting…",
+    "zh-CN": "启动中…",
+    "zh-TW": "啟動中…"
+  },
+  "mobileStateStopped": {
+    "en": "Stopped",
+    "zh-CN": "已停止",
+    "zh-TW": "已停止"
+  },
+  "mobileStateError": {
+    "en": "Error",
+    "zh-CN": "异常",
+    "zh-TW": "異常"
+  },
+  "mobilePairTitle": {
+    "en": "Pair a phone",
+    "zh-CN": "配对手机",
+    "zh-TW": "配對手機"
+  },
+  "mobilePairDesc": {
+    "en": "Scan the one-time QR code or paste the pairing URI in the mc-agent Mobile app.",
+    "zh-CN": "在 mc-agent Mobile 手机端扫描一次性二维码或粘贴配对码。",
+    "zh-TW": "在 mc-agent Mobile 手機端掃描一次性二維碼或貼上配對碼。"
+  },
+  "mobilePairGenerate": {
+    "en": "Generate pairing QR",
+    "zh-CN": "生成配对二维码",
+    "zh-TW": "產生配對二維碼"
+  },
+  "mobilePairRefresh": {
+    "en": "Refresh QR",
+    "zh-CN": "重新生成",
+    "zh-TW": "重新產生"
+  },
+  "mobilePairQrAlt": {
+    "en": "Mobile pairing QR code",
+    "zh-CN": "手机配对二维码",
+    "zh-TW": "手機配對二維碼"
+  },
+  "mobilePairExpiresIn": {
+    "en": "One-time code · expires in {{time}}",
+    "zh-CN": "一次性配对码 · {{time}} 后过期",
+    "zh-TW": "一次性配對碼 · {{time}} 後過期"
+  },
+  "mobileCopyCode": {
+    "en": "Copy pairing URI",
+    "zh-CN": "复制配对码",
+    "zh-TW": "複製配對碼"
+  },
+  "mobileCopied": {
+    "en": "Copied",
+    "zh-CN": "已复制",
+    "zh-TW": "已複製"
+  },
+  "mobileCopyFailed": {
+    "en": "Could not copy pairing URI to clipboard.",
+    "zh-CN": "无法复制配对码到剪贴板。",
+    "zh-TW": "無法複製配對碼到剪貼簿。"
+  },
+  "mobileDevicesTitle": {
+    "en": "Paired devices",
+    "zh-CN": "已配对设备",
+    "zh-TW": "已配對裝置"
+  },
+  "mobileDevicesDesc": {
+    "en": "Revoking a device disconnects it immediately and blocks future connections.",
+    "zh-CN": "吊销设备会立即断开当前连接并阻止再次接入。",
+    "zh-TW": "撤銷裝置會立即中斷目前連線並阻止再次接入。"
+  },
+  "mobileDevicesEmpty": {
+    "en": "No mobile devices paired yet.",
+    "zh-CN": "尚未配对任何手机设备。",
+    "zh-TW": "尚未配對任何手機裝置。"
+  },
+  "mobileDeviceOnline": {
+    "en": "Connected now",
+    "zh-CN": "当前在线",
+    "zh-TW": "目前線上"
+  },
+  "mobileDeviceLastSeen": {
+    "en": "Last seen {{time}}",
+    "zh-CN": "上次活跃 {{time}}",
+    "zh-TW": "上次活躍 {{time}}"
+  },
+  "mobileRevoke": {
+    "en": "Revoke",
+    "zh-CN": "吊销",
+    "zh-TW": "撤銷"
+  },
+  "mobileSecurityNote": {
+    "en": "End-to-end encrypted via iroh (Ed25519). Mobile access is limited to sessions, approvals, diffs, and whiteboards — never secrets, settings, or project deletion.",
+    "zh-CN": "基于 iroh（Ed25519）端到端加密。手机端仅限对话、审批、变更查看与白板协作，不能修改设置、导出密钥或删除项目。",
+    "zh-TW": "基於 iroh（Ed25519）端對端加密。手機端僅限對話、審批、變更檢視與白板協作，不能修改設定、匯出金鑰或刪除專案。"
   }
 }

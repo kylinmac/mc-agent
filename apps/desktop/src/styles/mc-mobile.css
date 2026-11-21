@@ -1,0 +1,147 @@
+/* mc-agent (R43): Settings → Mobile access (features/settings/MobileAccessPage). */
+
+.mc-mobile-pill {
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  background: var(--ds-bg-hover);
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.mc-mobile-pill.is-running {
+  color: var(--ds-success);
+}
+
+.mc-mobile-pill.is-starting {
+  color: var(--ds-warning);
+}
+
+.mc-mobile-pill.is-error {
+  color: var(--ds-error);
+}
+
+.mc-mobile-error {
+  padding: 0 16px 12px;
+  color: var(--ds-error);
+  font-size: var(--text-xs);
+}
+
+.mc-mobile-pair-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-top: 1px solid var(--ds-border-subtle);
+}
+
+.mc-mobile-qr-frame {
+  flex: none;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  border: 1px solid var(--ds-border-subtle);
+}
+
+.mc-mobile-qr-img {
+  display: block;
+  width: 176px;
+  height: 176px;
+}
+
+.mc-mobile-pair-info {
+  display: flex;
+  flex: 1;
+  min-width: 220px;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mc-mobile-pair-meta {
+  color: var(--ds-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.mc-mobile-pair-uri {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--ds-bg-hover);
+  color: var(--ds-text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.mc-mobile-pair-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.mc-mobile-empty {
+  padding: 12px 16px 16px;
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+}
+
+.mc-mobile-device-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.mc-mobile-device-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--ds-border-subtle);
+}
+
+.mc-mobile-device-info {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mc-mobile-device-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ds-text-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.mc-mobile-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--ds-text-faint);
+}
+
+.mc-mobile-dot.is-online {
+  background: var(--ds-success);
+}
+
+.mc-mobile-platform {
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: var(--ds-bg-hover);
+  color: var(--ds-text-muted);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-normal);
+}
+
+.mc-mobile-device-meta {
+  color: var(--ds-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.mc-mobile-security-note {
+  color: var(--ds-text-faint);
+  font-size: var(--text-xs);
+  padding: 0 4px;
+}

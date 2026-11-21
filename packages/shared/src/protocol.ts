@@ -272,6 +272,11 @@ export const IPC = {
     // mc-agent alchemy artifact proposals (R41).
     mcAlchemyProposals: "pi-desktop/mc-alchemy/proposals",
     mcAlchemyProposalResolve: "pi-desktop/mc-alchemy/resolve",
+    // mc-agent mobile remote access gateway (R43).
+    mcMobileStatus: "pi-desktop/mc-mobile/status",
+    mcMobileSetEnabled: "pi-desktop/mc-mobile/set-enabled",
+    mcMobileCreatePair: "pi-desktop/mc-mobile/create-pair",
+    mcMobileRevokeDevice: "pi-desktop/mc-mobile/revoke-device",
     projectFoldersMissing: "pi-desktop/project-resources/missing-folders",
     projectResourcesTemplateSave: "pi-desktop/project-resources/templates/save",
     projectResourcesTemplateDelete: "pi-desktop/project-resources/templates/delete",
@@ -547,6 +552,8 @@ export const IPC = {
     mcProjectProposalsChanged: "pi-desktop/mc-project-create/event/proposals",
     // mc-agent: the alchemy artifact proposals waiting for the user (R41).
     mcAlchemyProposalsChanged: "pi-desktop/mc-alchemy/event/proposals",
+    // mc-agent: mobile remote access gateway status changed (R43).
+    mcMobileStatusChanged: "pi-desktop/mc-mobile/event/status",
     /** Progress of an install or update, while it is still running. */
     pluginInstallProgress: "pi-desktop/plugin/event/installProgress",
     /** Host-originated app settings mutation (e.g. plugin `app.setTheme`). */

@@ -13,6 +13,13 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.89",
+    date: "2026-11-21",
+    features: [
+      "新增「设置 → 手机访问」远程操作网关（默认关闭）：基于 iroh（P2P 直连 + Relay 自动降级，Ed25519 端到端加密），可生成一次性配对二维码供独立手机客户端 mc-agent Mobile 扫码连接，在手机上查看跨项目待审批与运行动态、收发流式对话、审阅变更 Diff、绘制并双向同步 Excalidraw 白板，并可随时一键吊销设备并立即断开。",
+    ],
+  },
+  {
     version: "1.0.88",
     date: "2026-11-20",
     features: [

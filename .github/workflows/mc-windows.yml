@@ -84,7 +84,7 @@ jobs:
       - name: Build host-core and workspace packages
         run: |
           set -euo pipefail
-          cargo build --release --locked -p host-core &
+          cargo build --release --locked -p host-core -p mc-mobile-gateway &
           host_build_pid=$!
           trap 'kill "$host_build_pid" 2>/dev/null || true' EXIT
           pnpm install --frozen-lockfile
@@ -128,6 +128,8 @@ jobs:
           grep -q "^version: $VERSION$" latest.yml || { echo "::error::latest.yml is not at $VERSION"; exit 1; }
           [[ -f win-unpacked/mc-agent.exe ]] || { echo "::error::win-unpacked/mc-agent.exe missing"; exit 1; }
           [[ -f win-unpacked/resources/bin/pi-desktop-host-core.exe ]] || { echo "::error::host-core missing"; exit 1; }
+          [[ -f win-unpacked/resources/bin/mc-mobile-gateway.exe ]] || { echo "::error::mc-mobile-gateway missing"; exit 1; }
+          win-unpacked/resources/bin/mc-mobile-gateway.exe --version
           [[ -f win-unpacked/resources/plugins/mc.computer-use/bin/mc-computer.exe ]] || { echo "::error::Computer Use helper missing"; exit 1; }
           win-unpacked/resources/plugins/mc.computer-use/bin/mc-computer.exe --version
           node -e '

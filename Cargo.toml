@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/host-core", "crates/mc-computer"]
+members = ["crates/host-core", "crates/mc-computer", "crates/mc-mobile-gateway"]
 resolver = "2"
 
 [workspace.package]
