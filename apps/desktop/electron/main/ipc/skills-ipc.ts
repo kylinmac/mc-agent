@@ -103,18 +103,10 @@ export function registerSkillsIpc({
       kind: kind === "policy" || kind === "fake-ip" || kind === "unresolved" ? kind : "network",
     };
   };
-  let host: HostProcess | null = null;
-  const handle = (channel: string, fn: (...args: any[]) => Promise<any>) => {
-    registrar.handle(channel, async (...args) => {
-      host = getHost();
-      return fn(...args);
-    });
-  };
-// --- Skill market: catalog sources and document fetch -----------------------
+  const { handle } = registrar;
 
-  // The market's catalog aggregator never touches the host process, so it
-  // registers outside the host-bound wrapper.
-  registrar.handle(
+  // Skill market catalog and document fetch.
+  handle(
     IPC.invoke.skillMarketSearch,
     async ({ query, sources }: { query?: string; sources?: { id: string; name: string; url: string }[] } = {}) => {
       const requested = Array.isArray(sources) ? sources : [];
@@ -150,11 +142,13 @@ export function registerSkillsIpc({
 // --- Skills the user owns -------------------------------------------------
 
   handle(IPC.invoke.skillList, async (query: Partial<AgentCapabilityQuery> = {}) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     return host.call("skills.list", query);
   });
 
   handle(IPC.invoke.skillBuiltinList, async () => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const disabled = await disabledBuiltinSkills();
     const off = new Set(disabled);
@@ -170,6 +164,7 @@ export function registerSkillsIpc({
   handle(
     IPC.invoke.skillBuiltinSetEnabled,
     async (payload: { id?: unknown; enabled?: unknown } = {}) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       if (typeof payload.id !== "string" || typeof payload.enabled !== "boolean") {
         throw new Error("invalid builtin skill activation request");
@@ -187,6 +182,7 @@ export function registerSkillsIpc({
   );
 
   handle(IPC.invoke.skillCreate, async (skill: Record<string, unknown>) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const res = await host.call("skills.create", { skill });
     sendToRenderer(IPC.event.pluginChanged,{ reason: "skill" });
@@ -206,6 +202,7 @@ export function registerSkillsIpc({
         mode?: "copy" | "link";
       } = {},
     ) => {
+      const host = getHost();
       const currentHost = host;
       if (!currentHost) throw new Error("host unavailable");
       const { sourceKind, mode, ...rest } = query;
@@ -255,6 +252,7 @@ export function registerSkillsIpc({
   handle(
     IPC.invoke.skillUpdate,
     async (payload: { id: string } & Record<string, unknown>) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const { id, ...skill } = payload;
       const res = await host.call("skills.update", { id, skill });
@@ -266,6 +264,7 @@ export function registerSkillsIpc({
   handle(
     IPC.invoke.skillRead,
     async (payload: string | ({ id: string } & Partial<AgentCapabilityQuery>)) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const request = typeof payload === "string" ? { id: payload } : payload;
       return host.call("skills.read", request);
@@ -275,6 +274,7 @@ export function registerSkillsIpc({
   handle(
     IPC.invoke.skillRemove,
     async (payload: string | ({ id: string } & Partial<AgentCapabilityQuery>)) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const request = typeof payload === "string" ? { id: payload } : payload;
       const res = await host.call("skills.remove", request);
@@ -286,6 +286,7 @@ export function registerSkillsIpc({
   handle(
     IPC.invoke.skillSetEnabled,
     async (payload: { id: string; enabled: boolean } & Partial<AgentCapabilityQuery>) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const res = await host.call("skills.setEnabled", payload);
       sendToRenderer(IPC.event.pluginChanged,{ reason: "skill" });
@@ -296,6 +297,7 @@ export function registerSkillsIpc({
   handle(
     IPC.invoke.skillSetScope,
     async (payload: { id: string; scope: ActivationScope }) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const res = await host.call("skills.setScope", payload);
       sendToRenderer(IPC.event.pluginChanged,{ reason: "skill" });
@@ -310,6 +312,7 @@ export function registerSkillsIpc({
    * skill ended up under, because a move into an occupied destination renames it.
    */
   handle(IPC.invoke.skillTransfer, async (payload: AgentCapabilityMove) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const res = await host.call<{ skill: UserSkillRecord }>("skills.transfer", payload);
     sendToRenderer(IPC.event.pluginChanged,{ reason: "skill" });
@@ -324,6 +327,7 @@ export function registerSkillsIpc({
   handle(
     IPC.invoke.skillReveal,
     async (payload: string | ({ id: string } & Partial<AgentCapabilityQuery>)) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const request = typeof payload === "string" ? { id: payload } : payload;
       const res = await host.call<{ skill: UserSkillRecord | null }>("skills.read", request);
@@ -337,6 +341,7 @@ export function registerSkillsIpc({
   // --- Subagents the user owns ----------------------------------------------
 
   handle(IPC.invoke.subagentList, async () => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     return host.call("agents.list");
   });
@@ -373,6 +378,7 @@ export function registerSkillsIpc({
   });
 
   handle(IPC.invoke.subagentCreate, async (subagent: Record<string, unknown>) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const res = await host.call("agents.create", { subagent });
     sendToRenderer(IPC.event.pluginChanged,{ reason: "subagent" });
@@ -382,6 +388,7 @@ export function registerSkillsIpc({
   handle(
     IPC.invoke.subagentUpdate,
     async (payload: { id: string } & Record<string, unknown>) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const { id, ...subagent } = payload;
       const res = await host.call("agents.update", { id, subagent });
@@ -391,11 +398,13 @@ export function registerSkillsIpc({
   );
 
   handle(IPC.invoke.subagentRead, async (id: string) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     return host.call("agents.read", { id });
   });
 
   handle(IPC.invoke.subagentRemove, async (id: string) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const res = await host.call("agents.remove", { id });
     sendToRenderer(IPC.event.pluginChanged,{ reason: "subagent" });
@@ -405,6 +414,7 @@ export function registerSkillsIpc({
   handle(
     IPC.invoke.subagentSetEnabled,
     async (payload: { id: string; enabled: boolean }) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const res = await host.call("agents.setEnabled", payload);
       sendToRenderer(IPC.event.pluginChanged,{ reason: "subagent" });
@@ -420,6 +430,7 @@ export function registerSkillsIpc({
   handle(
     IPC.invoke.subagentSetBuiltinEnabled,
     async (payload: { id: string; enabled: boolean }) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const res = await host.call("agents.setBuiltinEnabled", payload);
       sendToRenderer(IPC.event.pluginChanged, { reason: "subagent" });
@@ -430,6 +441,7 @@ export function registerSkillsIpc({
   handle(
     IPC.invoke.subagentSetScope,
     async (payload: { id: string; scope: ActivationScope }) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const res = await host.call("agents.setScope", payload);
       sendToRenderer(IPC.event.pluginChanged,{ reason: "subagent" });
@@ -443,6 +455,7 @@ export function registerSkillsIpc({
    * shell, so this channel cannot be used to reveal arbitrary locations.
    */
   handle(IPC.invoke.subagentReveal, async (payload: { id?: string; path?: string }) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     if (!payload.id) throw new Error("subagent id required");
     const res = await host.call<{ subagent: UserSubagentRecord | null }>(

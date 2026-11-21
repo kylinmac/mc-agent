@@ -11,44 +11,16 @@ import os from "node:os";
 import path from "node:path";
 import { mcpImportId } from "@pi-desktop/shared";
 
-export type McpSourceKind =
-  | "claude-desktop"
-  | "claude-code"
-  | "cursor-global"
-  | "cursor-project"
-  | "codex"
-  | "opencode"
-  | "chatgpt-desktop";
+import type {
+  ExternalMcpCandidate as McpCandidate,
+  ExternalMcpSourceKind as McpSourceKind,
+  ExternalImportScanResult,
+  ExternalImportSourceReport,
+} from "@pi-desktop/shared";
 
-export interface McpCandidate {
-  source: McpSourceKind;
-  sourcePath: string;
-  id: string;
-  rawKey: string;
-  label?: string;
-  description?: string;
-  transport: "stdio" | "http";
-  command?: string;
-  args?: string[];
-  env?: Record<string, string>;
-  url?: string;
-  headers?: Record<string, string>;
-  disabled?: boolean;
-  warnings: string[];
-}
-
-export interface McpSourceReport {
-  kind: McpSourceKind;
-  path: string;
-  exists: boolean;
-  error?: string;
-  count: number;
-}
-
-export interface McpScanResult {
-  candidates: McpCandidate[];
-  sources: McpSourceReport[];
-}
+export type { McpCandidate, McpSourceKind };
+export type McpSourceReport = ExternalImportSourceReport<McpSourceKind>;
+export type McpScanResult = ExternalImportScanResult<McpCandidate, McpSourceKind>;
 
 export interface McpScanOptions {
   projectPath?: string;

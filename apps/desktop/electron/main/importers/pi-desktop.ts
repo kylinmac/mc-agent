@@ -1,3 +1,4 @@
+import type { ImportRunResult, SessionImportCandidate } from "@pi-desktop/shared";
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -14,15 +15,7 @@ export const PI_DESKTOP_SOURCE_DIR = path.join(os.homedir(), ".pi-desktop");
 
 type HostCaller = { call<T>(method: string, params?: unknown): Promise<T> };
 
-type HostCandidate = {
-  externalId: string;
-  title: string;
-  projectPath: string | null;
-  model: string | null;
-  createdAt: string;
-  updatedAt: string;
-  messageCount: number;
-};
+type HostCandidate = Omit<SessionImportCandidate, "source"> & { messageCount: number };
 
 /**
  * PI-Desktop's conversations, or none when it is absent or is this app's own
@@ -56,7 +49,7 @@ export async function importPiDesktop(
   host: HostCaller,
   externalIds: string[],
   sourceDir: string = PI_DESKTOP_SOURCE_DIR,
-): Promise<{ imported: number; skipped: number; failed: number }> {
+): Promise<ImportRunResult> {
   if (externalIds.length === 0) return { imported: 0, skipped: 0, failed: 0 };
   return host.call("mcImport.piDesktopRun", { sourceDir, ids: externalIds });
 }

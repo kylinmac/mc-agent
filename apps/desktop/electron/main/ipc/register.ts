@@ -528,7 +528,6 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     registrar,
     getMainWindow,
     getHost,
-    getSidecar,
     dataDir,
     isDevelopmentBuild,
     plugins,

@@ -1,4 +1,10 @@
-import type { ImportCandidate, ImportSource } from "../../lib/api";
+import {
+  importedSessionId as sessionIdForSource,
+  sessionImportKey as candidateKey,
+  type SessionImportCandidate as ImportCandidate,
+  type SessionImportSelection,
+  type SessionImportSource as ImportSource,
+} from "@pi-desktop/shared";
 
 /*
   mc-agent: importing projects and their conversations from other agents
@@ -30,14 +36,9 @@ export type ImportGroup = {
   latest: string;
 };
 
-export function candidateKey(candidate: Pick<ImportCandidate, "source" | "externalId">): string {
-  return `${candidate.source}:${candidate.externalId}`;
-}
-
-/** The session id host-core gives an imported conversation (stable across imports). */
-export function importedSessionId(candidate: Pick<ImportCandidate, "source" | "externalId">): string {
-  if (candidate.source === "codex" || candidate.source === "claude-code") return `import-${candidate.source}-v2-${candidate.externalId}`;
-  return `import-${candidate.source}-${candidate.externalId}`;
+export { candidateKey };
+export function importedSessionId({ source, externalId }: SessionImportSelection): string {
+  return sessionIdForSource(source, externalId);
 }
 
 function folderName(path: string): string {

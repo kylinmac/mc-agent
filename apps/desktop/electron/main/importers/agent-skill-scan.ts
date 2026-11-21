@@ -10,32 +10,16 @@ import { promises as fs, type Stats } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-export type SkillSourceKind = "claude-user" | "claude-project" | "pi-user" | "pi-project";
+import type {
+  ExternalSkillCandidate as SkillCandidate,
+  ExternalSkillSourceKind as SkillSourceKind,
+  ExternalImportScanResult,
+  ExternalImportSourceReport,
+} from "@pi-desktop/shared";
 
-export interface SkillCandidate {
-  source: SkillSourceKind;
-  sourcePath: string;
-  rootDir?: string;
-  shape: "file" | "dir";
-  id: string;
-  name: string;
-  description: string;
-  bytes: number;
-  warnings: string[];
-}
-
-export interface SkillSourceReport {
-  kind: SkillSourceKind;
-  path: string;
-  exists: boolean;
-  error?: string;
-  count: number;
-}
-
-export interface SkillScanResult {
-  candidates: SkillCandidate[];
-  sources: SkillSourceReport[];
-}
+export type { SkillCandidate, SkillSourceKind };
+export type SkillSourceReport = ExternalImportSourceReport<SkillSourceKind>;
+export type SkillScanResult = ExternalImportScanResult<SkillCandidate, SkillSourceKind>;
 
 export interface SkillScanOptions {
   projectPath?: string;

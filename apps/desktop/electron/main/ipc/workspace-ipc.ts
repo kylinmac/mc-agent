@@ -50,7 +50,6 @@ import {
   workspaceRootsFor,
 } from "../workspace-roots";
 import { BROWSER_PLUGIN_ID, type BrowserHost } from "../browser-host";
-import type { AgentSidecar } from "../agent-sidecar";
 import type { HostProcess } from "../host-process";
 import type { Logger } from "../logger";
 import type { ClipboardHistory } from "../clipboard-history";
@@ -83,7 +82,6 @@ export type WorkspaceIpcDependencies = {
   registrar: IpcRegistrar;
   getMainWindow: () => Electron.BrowserWindow | null;
   getHost: () => HostProcess | null;
-  getSidecar: () => AgentSidecar | null;
   dataDir: string;
   isDevelopmentBuild: boolean;
   plugins: PluginRuntime;
@@ -101,7 +99,6 @@ export function registerWorkspaceIpc({
   registrar,
   getMainWindow,
   getHost,
-  getSidecar,
   dataDir,
   isDevelopmentBuild,
   plugins,
@@ -114,24 +111,7 @@ export function registerWorkspaceIpc({
   stripWinLongPrefix,
   logger,
 }: WorkspaceIpcDependencies): void {
-  let host: HostProcess | null = null;
-  const handle = (channel: string, fn: (...args: any[]) => Promise<any>) => {
-    registrar.handle(channel, async (...args) => {
-      host = getHost();
-      getSidecar();
-      return fn(...args);
-    });
-  };
-  const handleWithEvent = (
-    channel: string,
-    fn: (event: Electron.IpcMainInvokeEvent, ...args: any[]) => Promise<any>,
-  ) => {
-    registrar.handleWithEvent(channel, async (event, ...args) => {
-      host = getHost();
-      getSidecar();
-      return fn(event, ...args);
-    });
-  };
+  const { handle, handleWithEvent } = registrar;
   const assertMainWindowSender = registrar.assertMainWindowSender;
   let composerPickerActive = false;
   let projectPickerActive = false;
@@ -174,7 +154,7 @@ export function registerWorkspaceIpc({
     }
   };
 
-  const managedProjectPath = async (input: unknown): Promise<string> => {
+  const managedProjectPath = async (host: HostProcess | null, input: unknown): Promise<string> => {
     if (!host) throw new Error("host unavailable");
     const requestedPath = typeof input === "string" ? input.trim() : "";
     if (!requestedPath) {
@@ -204,6 +184,7 @@ export function registerWorkspaceIpc({
   };
 
   handle(IPC.invoke.projectGet, async () => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     let res = (await host.call("workspace.get")) as {
       workspace: { path: string; name: string } | null;
@@ -228,6 +209,7 @@ export function registerWorkspaceIpc({
     return { workspace: await withGitBranch(res.workspace) };
   });
   handle(IPC.invoke.projectGroupCreateRemote, async (input: { name?: unknown; hostKey?: unknown; path?: unknown } = {}) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const name = typeof input.name === "string" ? input.name.trim() : "";
     const hostKey = typeof input.hostKey === "string" ? input.hostKey.trim() : "";
@@ -244,10 +226,12 @@ export function registerWorkspaceIpc({
     return created;
   });
   handle(IPC.invoke.projectList, async () => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     return host.call("projects.list");
   });
   handle(IPC.invoke.projectGroupList, async () => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const result = (await host.call("project.groups.list")) as {
       groups?: ProjectGroupRecord[];
@@ -260,6 +244,7 @@ export function registerWorkspaceIpc({
   handle(
     IPC.invoke.projectGroupCreate,
     async (input: { name?: unknown; folders?: unknown } = {}) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const name = typeof input.name === "string" ? input.name.trim() : "";
       const folders = Array.isArray(input.folders)
@@ -299,6 +284,7 @@ export function registerWorkspaceIpc({
       folders?: unknown;
       primary?: unknown;
     } = {}) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const groupId = typeof input.groupId === "string" ? input.groupId.trim() : "";
       const name = typeof input.name === "string" ? input.name.trim() : "";
@@ -354,6 +340,7 @@ export function registerWorkspaceIpc({
   handle(
     IPC.invoke.projectGroupRename,
     async (input: { groupId?: unknown; name?: unknown } = {}) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const groupId = typeof input.groupId === "string" ? input.groupId.trim() : "";
       const name = typeof input.name === "string" ? input.name.trim() : "";
@@ -368,6 +355,7 @@ export function registerWorkspaceIpc({
     },
   );
   handle(IPC.invoke.projectGroupMemoryGet, async (input: { groupId?: unknown } = {}) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const groupId = typeof input.groupId === "string" ? input.groupId.trim() : "";
     if (!groupId) throw new Error("project group id required");
@@ -376,6 +364,7 @@ export function registerWorkspaceIpc({
   handle(
     IPC.invoke.projectGroupMemorySave,
     async (input: { groupId?: unknown; entries?: unknown } = {}) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const groupId = typeof input.groupId === "string" ? input.groupId.trim() : "";
       if (!groupId || !Array.isArray(input.entries)) {
@@ -390,6 +379,7 @@ export function registerWorkspaceIpc({
   handle(
     IPC.invoke.projectGroupInstructionsGet,
     async (input: { groupId?: unknown } = {}) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const groupId = typeof input.groupId === "string" ? input.groupId.trim() : "";
       if (!groupId) throw new Error("project group id required");
@@ -399,6 +389,7 @@ export function registerWorkspaceIpc({
   handle(
     IPC.invoke.projectGroupInstructionsSave,
     async (input: { groupId?: unknown; content?: unknown } = {}) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const groupId = typeof input.groupId === "string" ? input.groupId.trim() : "";
       const content = typeof input.content === "string" ? input.content : "";
@@ -407,6 +398,7 @@ export function registerWorkspaceIpc({
     },
   );
   handle(IPC.invoke.projectOpenFolder, async (path: string) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const requestedPath = String(path ?? "").trim();
     if (!requestedPath) {
@@ -439,6 +431,7 @@ export function registerWorkspaceIpc({
     return { ok: true, path: projectPath };
   });
   handle(IPC.invoke.projectOpen, async () => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const result = await openProjectPicker({
       properties: ["openDirectory", "createDirectory"],
@@ -505,6 +498,7 @@ export function registerWorkspaceIpc({
     },
   );
   handle(IPC.invoke.projectSet, async (path: string) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const res = (await host.call("workspace.set", { path })) as {
       workspace: { path: string; name: string } | null;
@@ -513,11 +507,13 @@ export function registerWorkspaceIpc({
     return { workspace: await withGitBranch(res.workspace) };
   });
   handle(IPC.invoke.projectClear, async () => {
+    const host = getHost();
     setCurrentWorkspacePath(null);
     if (!host) throw new Error("host unavailable");
     return host.call("workspace.clear");
   });
   handle(IPC.invoke.projectRemove, async (input: { path?: unknown } = {}) => {
+    const host = getHost();
     const requestedPath =
       typeof input.path === "string" ? input.path.trim() : "";
     if (!requestedPath) {
@@ -548,7 +544,8 @@ export function registerWorkspaceIpc({
   handle(
     IPC.invoke.projectMemoryGet,
     async (input: { projectPath?: unknown } = {}) => {
-      const projectPath = await managedProjectPath(input.projectPath);
+      const host = getHost();
+      const projectPath = await managedProjectPath(host, input.projectPath);
       if (!host) throw new Error("host unavailable");
       return host.call("project.memory.get", { path: projectPath });
     },
@@ -561,7 +558,8 @@ export function registerWorkspaceIpc({
       content?: unknown;
       entries?: unknown;
     } = {}) => {
-      const projectPath = await managedProjectPath(input.projectPath);
+      const host = getHost();
+      const projectPath = await managedProjectPath(host, input.projectPath);
       if (!host) throw new Error("host unavailable");
       if (Array.isArray(input.entries)) {
         return host.call("project.memory.set", {
@@ -595,6 +593,7 @@ export function registerWorkspaceIpc({
       event,
       input: { sessionId?: unknown; token?: unknown } = {},
     ) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const sessionId =
         typeof input.sessionId === "string" ? input.sessionId.trim() : "";
@@ -639,6 +638,7 @@ export function registerWorkspaceIpc({
   handleWithEvent(
     IPC.invoke.composerPasteFiles,
     async (event, input: { sessionId?: unknown; files?: unknown } = {}) => {
+      const host = getHost();
       assertMainWindowSender(event);
       if (!host) throw new Error("host unavailable");
       const sessionId =
@@ -678,6 +678,7 @@ export function registerWorkspaceIpc({
   const isLocalStoredFile = async (ref: string) => isAttachmentBlobRef(ref) || !!(await resolveRealOpenablePath(ref, null, localFileStores));
 
   handle(IPC.invoke.workspaceDiff, async (input: { sessionId?: string } = {}) => {
+    const host = getHost();
     const remote = await remoteFileWorkspace(input.sessionId);
     if (remote) return readRemoteFiles(remote, "diff");
     if (!host) throw new Error("host unavailable");
@@ -696,6 +697,7 @@ export function registerWorkspaceIpc({
     [IPC.invoke.workspaceReviewContext, "review.context"],
   ] as const) {
     handle(channel, async (input: unknown) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       return host.call(method, input);
     });
@@ -703,12 +705,14 @@ export function registerWorkspaceIpc({
   handle(
     IPC.invoke.workspaceReviewRollback,
     async (input: { sessionId: string; snapshotId: string }) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       return host.call("review.rollback", input);
     },
   );
 
   handle(IPC.invoke.workspaceReviewRollbackFile, async (input: unknown) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     return host.call("review.rollbackFile", input);
   });
@@ -728,6 +732,7 @@ export function registerWorkspaceIpc({
   handle(
     IPC.invoke.statsGetTokenUsageHistory,
     async (input?: { startDate?: number; endDate?: number; bucket?: string }) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       return host.call("stats.getTokenUsageHistory", input ?? {});
     },
@@ -907,6 +912,7 @@ export function registerWorkspaceIpc({
    * re-derived here.
    */
   const sessionScratchRoot = async (
+    host: HostProcess | null,
     sessionId: string | undefined,
   ): Promise<string | null> => {
     const id = String(sessionId ?? "").trim();
@@ -1074,6 +1080,7 @@ export function registerWorkspaceIpc({
     async (
       input: { ref?: string; sessionId?: string } = {},
     ): Promise<FsChatRefResolveResult> => {
+      const host = getHost();
       const rawRef = String(input.ref ?? "").trim();
       if (!rawRef) return { match: null };
       const remote = await remoteFileWorkspace(input.sessionId);
@@ -1099,7 +1106,7 @@ export function registerWorkspaceIpc({
       const workspaceRoot = rootInfo?.root ?? null;
       const roots = {
         project: projectRootsFor(workspaceRoot),
-        scratch: await sessionScratchRoot(input.sessionId),
+        scratch: await sessionScratchRoot(host, input.sessionId),
         // The read guards accept the whole scratch store, so an absolute image
         // path from an earlier conversation completes instead of reporting a
         // restriction; shorthands still search the session's own store alone.

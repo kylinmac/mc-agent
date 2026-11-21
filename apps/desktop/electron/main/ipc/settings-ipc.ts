@@ -49,15 +49,10 @@ export function registerSettingsIpc({
   resolveEffectiveCommandShell,
   liveCallService,
 }: SettingsIpcDependencies): void {
-  let host: HostProcess | null = null;
-  const handle = (channel: string, fn: (...args: any[]) => Promise<any>) => {
-    registrar.handle(channel, async (...args) => {
-      host = getHost();
-      return fn(...args);
-    });
-  };
+  const { handle } = registrar;
 
   handle(IPC.invoke.settingsGet, async () => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const settings = await host.call("settings.get");
     return normalizeSettings(settings);

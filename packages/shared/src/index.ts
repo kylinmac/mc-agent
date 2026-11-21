@@ -12,6 +12,7 @@ export * from "./mc-changelog.js";
 export * from "./composer-trigger.js";
 export * from "./inline-attachments.js";
 export * from "./session-link.js";
+export * from "./session-import.js";
 export * from "./fuzzy.js";
 export * from "./mcp-import.js";
 export * from "./mcp-catalog.js";

@@ -115,7 +115,7 @@ import type {
   ProviderPublic,
   ProviderReorderInput,
   ProviderUpdateInput,
-  Result,
+  DesktopPreloadBridge,
   SessionDetail,
   SessionSearchPage,
   SessionSearchContext,
@@ -199,15 +199,19 @@ import {
   JEV_API_KEY_SECRET_REF,
 } from "@pi-desktop/shared";
 
-// mc-agent (MC-ADR-0009): "pi-desktop" is an installed PI-Desktop.
-export type ImportSource = "claude-code" | "opencode" | "codex" | "pi" | "pi-desktop" | "grok" | "hermes";
-// One definition, owned by the shared package (the host and sidecar use the
-// same shape); re-exported so existing renderer imports keep working.
 import type {
+  ImportRunResult,
+  ModelConfigImportCandidate,
+  SessionImportScanResult,
+  SessionImportSelection,
+} from "@pi-desktop/shared";
+export type {
+  ImportRunResult,
   ModelConfigImportCandidate,
   ModelConfigImportSource,
+  SessionImportCandidate as ImportCandidate,
+  SessionImportSource as ImportSource,
 } from "@pi-desktop/shared";
-export type { ModelConfigImportCandidate, ModelConfigImportSource };
 import type {
   ProjectLocationCheck,
   ProjectLocationPreference,
@@ -217,164 +221,34 @@ import type {
   AlchemyProposalDecision,
 } from "@pi-desktop/shared";
 
-export interface ImportCandidate {
-  source: ImportSource;
-  externalId: string;
-  title: string;
-  projectPath: string | null;
-  model: string | null;
-  createdAt: string;
-  updatedAt: string;
-  /** null when the source file was too large to scan without sampling. */
-  messageCount: number | null;
-}
-
-export interface ImportRunResult {
-  imported: number;
-  skipped: number;
-  failed: number;
-}
-
-// --- External skill / MCP scan-and-import ---------------------------------
-// Renderer-side mirrors of the electron-main scanner output so the panel does
-// not have to import from `electron/`. Keep the field names in sync with
-// `apps/desktop/electron/main/importers/agent-*-scan.ts`.
-
-export type ExternalSkillSourceKind =
-  | "claude-user"
-  | "claude-project"
-  | "pi-user"
-  | "pi-project";
-
-export interface ExternalSkillCandidate {
-  source: ExternalSkillSourceKind;
-  sourcePath: string;
-  rootDir?: string;
-  shape: "file" | "dir";
-  id: string;
-  name: string;
-  description: string;
-  bytes: number;
-  warnings: string[];
-}
-
-export interface ExternalSkillSourceReport {
-  kind: ExternalSkillSourceKind | "error";
-  path: string;
-  exists: boolean;
-  error?: string;
-  count: number;
-}
-
-export interface ExternalSkillScanResult {
-  candidates: ExternalSkillCandidate[];
-  sources: ExternalSkillSourceReport[];
-}
-
-export interface ExternalSkillImportItem {
-  source: ExternalSkillSourceKind;
-  sourcePath: string;
-  shape: "file" | "dir";
-  rootDir?: string;
-  id: string;
-  name: string;
-  description?: string;
-}
-
-export interface ExternalSkillImportPayload {
-  level: "global" | "project";
-  projectPath?: string;
-  mode?: "copy" | "link";
-  items: ExternalSkillImportItem[];
-}
-
-export interface ExternalSkillImportRunResult {
-  imported: Array<{ item: ExternalSkillImportItem; skill: UserSkillRecord }>;
-  skipped: Array<{ item: ExternalSkillImportItem; reason: string }>;
-  failed: Array<{ item: ExternalSkillImportItem; error: string }>;
-}
-
-export type ExternalMcpSourceKind =
-  | "claude-desktop"
-  | "claude-code"
-  | "cursor-global"
-  | "cursor-project"
-  | "codex"
-  | "opencode"
-  | "chatgpt-desktop";
-
-export interface ExternalMcpCandidate {
-  source: ExternalMcpSourceKind;
-  sourcePath: string;
-  id: string;
-  rawKey: string;
-  label?: string;
-  description?: string;
-  transport: "stdio" | "http";
-  command?: string;
-  args?: string[];
-  env?: Record<string, string>;
-  url?: string;
-  headers?: Record<string, string>;
-  disabled?: boolean;
-  warnings: string[];
-}
-
-export interface ExternalMcpSourceReport {
-  kind: ExternalMcpSourceKind | "error";
-  path: string;
-  exists: boolean;
-  error?: string;
-  count: number;
-}
-
-export interface ExternalMcpScanResult {
-  candidates: ExternalMcpCandidate[];
-  sources: ExternalMcpSourceReport[];
-}
-
-export interface ExternalMcpImportItem {
-  source: ExternalMcpSourceKind;
-  sourcePath: string;
-  id: string;
-  rawKey: string;
-  label?: string;
-  description?: string;
-  transport: "stdio" | "http";
-  command?: string;
-  args?: string[];
-  env?: Record<string, string>;
-  url?: string;
-  headers?: Record<string, string>;
-  disabled?: boolean;
-}
-
-export interface ExternalMcpImportPayload {
-  /** Defaults to global for existing callers. */
-  level?: "global" | "project";
-  projectPath?: string;
-  items: ExternalMcpImportItem[];
-}
-
-export interface ExternalMcpImportRunResult {
-  imported: Array<{ item: ExternalMcpImportItem; server: McpServerRecord }>;
-  skipped: Array<{ item: ExternalMcpImportItem; reason: string }>;
-  failed: Array<{ item: ExternalMcpImportItem; error: string }>;
-}
+import type {
+  ExternalSkillScanResult,
+  ExternalSkillImportPayload,
+  ExternalSkillImportRunResult,
+  ExternalMcpScanResult,
+  ExternalMcpImportPayload,
+  ExternalMcpImportRunResult,
+} from "@pi-desktop/shared";
+export type {
+  ExternalSkillSourceKind,
+  ExternalSkillCandidate,
+  ExternalSkillSourceReport,
+  ExternalSkillScanResult,
+  ExternalSkillImportItem,
+  ExternalSkillImportPayload,
+  ExternalSkillImportRunResult,
+  ExternalMcpSourceKind,
+  ExternalMcpCandidate,
+  ExternalMcpSourceReport,
+  ExternalMcpScanResult,
+  ExternalMcpImportItem,
+  ExternalMcpImportPayload,
+  ExternalMcpImportRunResult,
+} from "@pi-desktop/shared";
 
 declare global {
   interface Window {
-    piDesktop?: {
-      invoke: <T = unknown>(channel: string, ...args: unknown[]) => Promise<Result<T>>;
-      on: (channel: string, listener: (...args: unknown[]) => void) => () => void;
-      onLiveVoicePort?: () => () => void;
-      channels: typeof IPC;
-      platform: NodeJS.Platform;
-      /** Authoritative OS locale passed from the main process at window creation. */
-      locale?: string;
-      /** Resolve a native dropped File to its source path. */
-      getDroppedFilePath?: (file: File) => string | null;
-    };
+    piDesktop?: DesktopPreloadBridge;
   }
 }
 
@@ -846,14 +720,9 @@ export const api = {
       id,
       config,
     ).then((result) => ({ ...result, session: normalizeSession(result.session) })),
-  scanImportSessions: () =>
-    invoke<{
-      sessions: ImportCandidate[];
-      truncated?: Partial<Record<ImportSource, number>>;
-    }>(IPC.invoke.sessionImportScan),
-
-  runImportSessions: (items: ImportCandidate[]) =>
-    invoke<ImportRunResult>(IPC.invoke.sessionImportRun, items),
+  scanImportSessions: () => invoke<SessionImportScanResult>(IPC.invoke.sessionImportScan),
+  runImportSessions: (items: SessionImportSelection[]) =>
+    invoke<ImportRunResult>(IPC.invoke.sessionImportRun, items.map(({ source, externalId }) => ({ source, externalId }))),
   scanImportModelConfigs: () =>
     invoke<{ providers: ModelConfigImportCandidate[] }>(
       IPC.invoke.modelConfigImportScan,
@@ -1495,9 +1364,7 @@ export const api = {
   scanExternalMcp: (query?: { projectPath?: string }) =>
     invoke<ExternalMcpScanResult>(IPC.invoke.mcpImportScan, query ?? {}),
   /**
-   * Import each candidate through `mcp.upsert` one at a time; a `disabled`
-   * item is turned off with `mcp.setEnabled` after it is written. One failure
-   * never aborts the batch.
+   * Import each server together with its requested disabled state.
    */
   runExternalMcpImport: (payload: ExternalMcpImportPayload) =>
     invoke<ExternalMcpImportRunResult>(IPC.invoke.mcpImportRun, payload),

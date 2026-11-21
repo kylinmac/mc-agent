@@ -17,6 +17,35 @@ register(pathToFileURL(join(here, "..", "..", "test", "helpers", "ts-import-hook
 const { runSkillImport, runMcpImport } = await import(
   "../main/ipc/agent-import-ipc.ts"
 );
+const { registerMcpIpc } = await import("../main/ipc/mcp-ipc.ts");
+const { IPC } = await import("@pi-desktop/shared");
+
+test("a pasted batch keeps its host when a second IPC arrives after restart", async () => {
+  const handlers = new Map();
+  const calls = [];
+  const queued = Promise.withResolvers();
+  const resume = Promise.withResolvers();
+  let host = { call: async (_method, { server }) => {
+    calls.push(server.id);
+    queued.resolve();
+    await resume.promise;
+    return { server };
+  } };
+  registerMcpIpc({
+    registrar: { handle: (channel, fn) => handlers.set(channel, fn) },
+    getHost: () => host, refreshUserMcp: async () => [], currentWorkspacePath: () => null,
+    sendToRenderer() {}, describeError: String,
+  });
+  const paste = handlers.get(IPC.invoke.mcpImport)({
+    text: JSON.stringify({ servers: { first: { command: "one" }, second: { command: "two" } } }),
+  });
+  await queued.promise;
+  host = null;
+  await assert.rejects(handlers.get(IPC.invoke.mcpList)(), /host unavailable/);
+  resume.resolve();
+  assert.deepEqual((await paste).failed, []);
+  assert.deepEqual(calls, ["first", "second"]);
+});
 
 /** Build a host-call stub whose responses are queued per method. */
 function stubHost(responsesByMethod) {
@@ -111,10 +140,9 @@ test("runSkillImport for a dir shape sends rootDir as `path`, not sourcePath", a
   assert.equal(params.projectPath, "/proj");
 });
 
-test("runMcpImport disables a server after upsert when the item asks for it", async () => {
+test("runMcpImport returns the disabled server in one host call", async () => {
   const host = stubHost({
-    "mcp.upsert": [{ server: { id: "off" } }],
-    "mcp.setEnabled": [{ ok: true }],
+    "mcp.upsert": [({ server }) => ({ server: { id: server.id, enabled: server.enabled ?? true } })],
   });
   const items = [
     {
@@ -129,25 +157,20 @@ test("runMcpImport disables a server after upsert when the item asks for it", as
   ];
   const result = await runMcpImport(host.call, { items });
   assert.equal(result.imported.length, 1);
-  assert.equal(host.calls.length, 2, "one upsert plus one setEnabled");
+  assert.equal(result.imported[0].server.enabled, false);
+  assert.equal(host.calls.length, 1);
   assert.equal(host.calls[0].method, "mcp.upsert");
   const server = host.calls[0].params.server;
   assert.equal(server.id, "off");
   assert.equal(server.level, "global", "legacy callers default to global scope");
   assert.equal(server.command, "npx");
   assert.equal(server.disabled, undefined, "disabled is stripped from the payload");
-  assert.equal(host.calls[1].method, "mcp.setEnabled");
-  assert.deepEqual(host.calls[1].params, {
-    id: "off",
-    level: "global",
-    enabled: false,
-  });
+  assert.equal(server.enabled, false);
 });
 
-test("runMcpImport applies project scope to both upsert and disabled state", async () => {
+test("runMcpImport sets disabled state in the owning project's upsert", async () => {
   const host = stubHost({
     "mcp.upsert": [{ server: { id: "project-server" } }],
-    "mcp.setEnabled": [{ ok: true }],
   });
   const result = await runMcpImport(host.call, {
     level: "project",
@@ -172,13 +195,9 @@ test("runMcpImport applies project scope to both upsert and disabled state", asy
     projectPath: "/project",
     transport: "stdio",
     command: "node",
-  });
-  assert.deepEqual(host.calls[1].params, {
-    id: "project-server",
-    level: "project",
-    projectPath: "/project",
     enabled: false,
   });
+  assert.equal(host.calls.length, 1);
 });
 
 test("runMcpImport reports an `already exists` upsert as skipped, not failed", async () => {
@@ -211,4 +230,5 @@ test("runMcpImport reports an `already exists` upsert as skipped, not failed", a
   assert.equal(result.skipped[0].reason, "exists");
   assert.equal(result.imported.length, 1);
   assert.equal(result.failed.length, 0);
+  assert.equal(Object.hasOwn(host.calls[1].params.server, "enabled"), false);
 });
