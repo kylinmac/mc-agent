@@ -38,6 +38,7 @@ import {
   type UiMessage,
 } from "@pi-desktop/shared";
 import { isRecord, timestampMs, toJsonObject, toJsonValue, usageToPi } from "./agent-messages.js";
+import { restoredToolContent } from "./tool-result-content.js";
 import type { ContextBudgetLimits } from "./context-budget.js";
 import {
   apiBindingForProviderModel,
@@ -81,7 +82,6 @@ export type ResumableChain = DelegationChain & {
 };
 
 const READ_TOOLS = new Set(["Read", "Glob", "Grep", "BrowserPreview"]);
-const MISSING_TOOL_RESULT_PLACEHOLDER = "[no tool result recorded]";
 
 export function isReadOnlyToolName(name: string): boolean {
   return READ_TOOLS.has(name);
@@ -428,40 +428,6 @@ export function truncateSeededMessages(
 
 function toolResultFromUi(m: UiMessage, timestamp: number): ToolResultMessage {
   const raw = m.toolResult;
-  const blocks: ToolResultMessage["content"] = [];
-  const rawBlocks =
-    isRecord(raw) && Array.isArray(raw.content) ? raw.content : undefined;
-  if (rawBlocks) {
-    for (const block of rawBlocks) {
-      if (!isRecord(block)) continue;
-      if (block.type === "text" && typeof block.text === "string") {
-        blocks.push({ type: "text", text: block.text });
-      } else if (
-        block.type === "image" &&
-        typeof block.data === "string" &&
-        typeof block.mimeType === "string"
-      ) {
-        blocks.push({
-          type: "image",
-          data: block.data,
-          mimeType: block.mimeType,
-        });
-      }
-    }
-  } else if (typeof raw === "string" && raw.trim()) {
-    blocks.push({ type: "text", text: raw });
-  } else if (raw !== undefined && raw !== null) {
-    blocks.push({ type: "text", text: safeJson(raw) });
-  }
-  if (blocks.length === 0) {
-    blocks.push({
-      type: "text",
-      text:
-        m.toolStatus === "running"
-          ? "[tool call was interrupted before a result was recorded]"
-          : MISSING_TOOL_RESULT_PLACEHOLDER,
-    });
-  }
   const rawRecord = isRecord(raw) ? raw : undefined;
   const rawDetails = toJsonValue(rawRecord?.details);
   const legacyAddedToolNames =
@@ -489,7 +455,7 @@ function toolResultFromUi(m: UiMessage, timestamp: number): ToolResultMessage {
     role: "toolResult",
     toolCallId: m.toolCallId ?? "",
     toolName: m.toolName ?? "",
-    content: blocks,
+    content: restoredToolContent(raw, m.toolStatus === "running"),
     ...(details !== undefined ? { details } : {}),
     isError:
       m.toolStatus === "running" ||
@@ -498,14 +464,6 @@ function toolResultFromUi(m: UiMessage, timestamp: number): ToolResultMessage {
       m.isError === true,
     timestamp,
   };
-}
-
-function safeJson(value: unknown): string {
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
 }
 
 export type RebuiltTaskCall = {

@@ -1,3 +1,6 @@
+export type { DesktopPreloadBridge } from "./types/desktop-bridge.js";
+export type { Result } from "./errors.js";
+
 export const PROTOCOL_VERSION = 11 as const;
 export const SCHEMA_VERSION = 16 as const;
 export const APP_ID = "com.kylinmac.mc-agent";

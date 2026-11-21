@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 test("composer dictation recording user paths", async (t) => {
-  const server = await createServer({ root: fileURLToPath(new URL("..", import.meta.url)), configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false }, appType: "custom", optimizeDeps: { noDiscovery: true, include: [] } });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   const { DictationSession } = await server.ssrLoadModule("/src/features/voice/dictation/session.ts");
   const originals = new Map(["window", "navigator", "MediaRecorder", "OfflineAudioContext", "RTCPeerConnection"].map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));

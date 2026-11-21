@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
-import { IPC, IPC_WHITELIST } from "@pi-desktop/shared/protocol";
+import { IPC, IPC_WHITELIST, type DesktopPreloadBridge, type Result } from "@pi-desktop/shared/protocol";
 
 const LOCALE_ARGUMENT_PREFIX = "--pi-desktop-locale=";
 
@@ -16,9 +16,9 @@ function assertChannel(channel: string) {
 }
 
 const api = {
-  invoke: async <T = unknown>(channel: string, ...args: unknown[]): Promise<T> => {
+  invoke: async <T = unknown>(channel: string, ...args: unknown[]): Promise<Result<T>> => {
     assertChannel(channel);
-    return ipcRenderer.invoke(channel, ...args) as Promise<T>;
+    return ipcRenderer.invoke(channel, ...args);
   },
   on: (channel: string, listener: (...args: unknown[]) => void) => {
     assertChannel(channel);
@@ -54,7 +54,7 @@ const api = {
       return null;
     }
   },
-};
+} satisfies DesktopPreloadBridge;
 
 contextBridge.exposeInMainWorld("piDesktop", api);
 

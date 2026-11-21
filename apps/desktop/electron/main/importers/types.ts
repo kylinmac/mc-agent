@@ -1,22 +1,11 @@
 import { redactValue } from "../logger";
 
-// mc-agent (MC-ADR-0009): "pi-desktop" is an installed PI-Desktop.
-export type ExternalSource = "claude-code" | "opencode" | "codex" | "pi" | "pi-desktop" | "grok" | "hermes";
+import type { SessionImportCandidate, SessionImportSource } from "@pi-desktop/shared";
 
-export interface ExternalSessionSummary {
-  source: ExternalSource;
-  externalId: string;
-  title: string;
-  projectPath: string | null;
-  model: string | null;
-  createdAt: string;
-  updatedAt: string;
-  /**
-   * Exact item count for fully scanned files; null when the file was too
-   * large to scan without sampling (the UI renders an em dash). Transient
-   * scan metadata only — imported sessions always know their real count.
-   */
-  messageCount: number | null;
+export type ExternalSource = SessionImportSource;
+export { importedSessionId } from "@pi-desktop/shared";
+
+export interface ExternalSessionSummary extends SessionImportCandidate {
   filePath: string;
   /** Main-process-only ordered segments; never supplied by the renderer. */
   filePaths?: string[];
@@ -56,12 +45,6 @@ export interface SessionImporter {
   source: ExternalSource;
   scan(): Promise<ExternalSessionSummary[]>;
   convert(summary: ExternalSessionSummary): Promise<ImportedSession>;
-}
-
-/** Deterministic session id so re-importing the same source session is a no-op. */
-export function importedSessionId(source: ExternalSource, externalId: string): string {
-  if (source === "codex" || source === "claude-code") return `import-${source}-v2-${externalId}`;
-  return `import-${source}-${externalId}`;
 }
 
 export function toIso(value: string | number | undefined | null, fallback?: string): string {

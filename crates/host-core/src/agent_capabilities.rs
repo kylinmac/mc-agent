@@ -118,31 +118,18 @@ impl CapabilityState {
     ) -> Result<()> {
         let path = project_path.map(normalize_project_path);
         let key = Self::key(kind, level, id, path.as_deref());
-        match level {
-            CapabilityLevel::Global if path.is_some() => {
-                let global_default = self.get(kind, level, id, None).unwrap_or(true);
-                if enabled == global_default {
-                    self.values.remove(&key);
-                } else {
-                    self.values.insert(key, enabled);
-                }
-            }
-            CapabilityLevel::Global => {
-                if enabled {
-                    self.values.remove(&key);
-                } else {
-                    self.values.insert(key, false);
-                }
-            }
-            CapabilityLevel::Project => {
-                if enabled {
-                    self.values.remove(&key);
-                } else {
-                    self.values.insert(key, false);
-                }
-            }
+        let inherited = if level == CapabilityLevel::Global && path.is_some() {
+            self.get(kind, level, id, None).unwrap_or(true)
+        } else {
+            true
+        };
+        let mut next = self.values.clone();
+        if enabled == inherited {
+            next.remove(&key);
+        } else {
+            next.insert(key, enabled);
         }
-        self.save()
+        self.persist(next)
     }
 
     /// Every id of `kind` at `level` whose stored value is an explicit `false`.
@@ -177,8 +164,7 @@ impl CapabilityState {
         ids: &std::collections::HashSet<String>,
     ) -> Result<()> {
         let normalized_project = project_path.map(normalize_project_path);
-        let before = self.values.len();
-        self.values.retain(|raw_key, _| {
+        self.retain(|raw_key| {
             let Ok(key) = serde_json::from_str::<StateKey>(raw_key) else {
                 return false;
             };
@@ -196,11 +182,7 @@ impl CapabilityState {
                     _ => false,
                 },
             }
-        });
-        if before != self.values.len() {
-            self.save()?;
-        }
-        Ok(())
+        })
     }
 
     /// Drop the stored state of one document at its source level.
@@ -218,8 +200,7 @@ impl CapabilityState {
         id: &str,
         project_path: Option<&str>,
     ) -> Result<()> {
-        let before = self.values.len();
-        self.values.retain(|raw_key, _| {
+        self.retain(|raw_key| {
             let Ok(key) = serde_json::from_str::<StateKey>(raw_key) else {
                 return false;
             };
@@ -234,21 +215,32 @@ impl CapabilityState {
                     _ => true,
                 },
             }
-        });
-        if before != self.values.len() {
-            self.save()?;
-        }
-        Ok(())
+        })
     }
 
-    fn save(&self) -> Result<()> {
-        if let Some(parent) = self.path.parent() {
-            fs::create_dir_all(parent)?;
+    fn retain(&mut self, keep: impl Fn(&str) -> bool) -> Result<()> {
+        let removed: Vec<_> = self.values.keys().filter(|key| !keep(key)).collect();
+        if removed.is_empty() {
+            return Ok(());
         }
-        let file = StateFile {
-            values: self.values.clone(),
-        };
-        fs::write(&self.path, serde_json::to_string_pretty(&file)?)?;
+        let mut next = self.values.clone();
+        for key in removed {
+            next.remove(key);
+        }
+        self.persist(next)
+    }
+
+    fn persist(&mut self, values: BTreeMap<String, bool>) -> Result<()> {
+        let parent = self
+            .path
+            .parent()
+            .context("missing capability state directory")?;
+        fs::create_dir_all(parent)?;
+        let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
+        let file = StateFile { values };
+        serde_json::to_writer_pretty(temporary.as_file_mut(), &file)?;
+        temporary.persist(&self.path)?;
+        self.values = file.values;
         Ok(())
     }
 }

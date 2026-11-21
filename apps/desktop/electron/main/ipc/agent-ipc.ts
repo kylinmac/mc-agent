@@ -107,18 +107,10 @@ export function registerAgentIpc({
   composerCommandService,
   loadComposerTemplatesCached,
 }: AgentIpcDependencies): void {
-  let host: HostProcess | null = null;
-  let sidecar: AgentSidecar | null = null;
-  let agentHostBridge: AgentHostBridge | null = null;
-  const handle = (channel: string, fn: (...args: any[]) => Promise<any>) => {
-    registrar.handle(channel, async (...args) => {
-      host = getHost();
-      sidecar = getSidecar();
-      agentHostBridge = getAgentHostBridge();
-      return fn(...args);
-    });
-  };
+  const { handle } = registrar;
   handle(IPC.invoke.agentSteer, async (req: AgentSteerRequest) => {
+    const host = getHost();
+    const sidecar = getSidecar();
     if (!host || !sidecar) throw new Error("backend unavailable");
     if (
       !req?.sessionId || typeof req.content !== "string" || !req.expectedTurnId ||
@@ -185,6 +177,8 @@ export function registerAgentIpc({
   });
 
   handle(IPC.invoke.agentPrompt, async (req: AgentPromptRequest) => {
+    const host = getHost();
+    const sidecar = getSidecar();
     if (!sidecar) throw new Error("sidecar unavailable");
     const voiceOrigin = parseVoiceOrigin(req.voiceOrigin);
     if (req.sessionId.startsWith("native-pi:")) {
@@ -592,6 +586,8 @@ export function registerAgentIpc({
   });
 
   handle(IPC.invoke.agentCompact, async (req: { sessionId: string }) => {
+    const host = getHost();
+    const sidecar = getSidecar();
     rejectNativeAgentOperation(req.sessionId);
     if (!host || !sidecar) throw new Error("backend unavailable");
     if (activeTurns.has(req.sessionId)) {
@@ -642,6 +638,8 @@ export function registerAgentIpc({
   });
 
   handle(IPC.invoke.agentAbort, async (req: { sessionId: string; turnId?: string }) => {
+    const sidecar = getSidecar();
+    const agentHostBridge = getAgentHostBridge();
     if (!sidecar) throw new Error("sidecar unavailable");
     // Prompt admission holds this same session operation until the sidecar has
     // accepted the turn. Waiting here closes the startup window where the
@@ -695,6 +693,7 @@ export function registerAgentIpc({
   });
 
   handle(IPC.invoke.agentStopSubagents, async (req: AgentStopSubagentsRequest) => {
+    const sidecar = getSidecar();
     if (!req || typeof req.sessionId !== "string" || !req.sessionId.trim() ||
       (req.delegationIds !== undefined && (!Array.isArray(req.delegationIds) ||
         req.delegationIds.length === 0 || req.delegationIds.length > 100 ||
@@ -707,6 +706,7 @@ export function registerAgentIpc({
   });
 
   handle(IPC.invoke.agentStop, async (req: AgentStopRequest) => {
+    const sidecar = getSidecar();
     if (!sidecar) throw new Error("sidecar unavailable");
     const activeTurnId = activeTurns.get(req.sessionId);
     if (req.turnId && activeTurnId !== req.turnId) {
@@ -723,6 +723,7 @@ export function registerAgentIpc({
   });
 
   handle(IPC.invoke.agentGetStatus, async (sessionId: string) => {
+    const sidecar = getSidecar();
     if (!sidecar) throw new Error("sidecar unavailable");
     return sidecar.call("agent.getStatus", { sessionId });
   });
@@ -730,21 +731,25 @@ export function registerAgentIpc({
   // The Host-owned turn queue (D375 / D386). The renderer mirrors it; the
   // headless module admits, orders, and drains it.
   handle(IPC.invoke.agentQueuePush, async (req: AgentQueuePushRequest) => {
+    const agentHostBridge = getAgentHostBridge();
     rejectNativeAgentOperation(req.sessionId);
     if (!agentHostBridge) throw new Error("agent host unavailable");
     return agentHostBridge.queue.push(req);
   });
   handle(IPC.invoke.agentQueueList, async (req: { sessionId: string }) => {
+    const agentHostBridge = getAgentHostBridge();
     rejectNativeAgentOperation(req.sessionId);
     if (!agentHostBridge) throw new Error("agent host unavailable");
     return { entries: agentHostBridge.queue.list(req.sessionId) };
   });
   handle(IPC.invoke.agentQueueRemove, async (req: { turnId: string }) => {
+    const agentHostBridge = getAgentHostBridge();
     if (!agentHostBridge) throw new Error("agent host unavailable");
     await agentHostBridge.queue.remove(req.turnId);
     return { ok: true };
   });
   handle(IPC.invoke.agentQueuePrioritize, async (req: { turnId: string }) => {
+    const agentHostBridge = getAgentHostBridge();
     if (!agentHostBridge) throw new Error("agent host unavailable");
     await agentHostBridge.queue.prioritize(req.turnId);
     return { ok: true };
@@ -753,6 +758,7 @@ export function registerAgentIpc({
   handle(
     IPC.invoke.agentQueueReorder,
     async (req: { turnId: string; direction: "up" | "down" }) => {
+      const agentHostBridge = getAgentHostBridge();
       if (!agentHostBridge) throw new Error("agent host unavailable");
       if (req.direction !== "up" && req.direction !== "down") {
         throw new Error(`unknown queue reorder direction: ${String(req.direction)}`);
@@ -762,6 +768,8 @@ export function registerAgentIpc({
   );
 
   handle(IPC.invoke.toolResolvePermission, async (resolution: ToolPermissionResolution) => {
+    const host = getHost();
+    const agentHostBridge = getAgentHostBridge();
     if (!host) throw new Error("host unavailable");
     logger.app("permission", "info", "permission resolved", {
       data: { requestId: resolution.requestId, decision: resolution.decision },
@@ -778,6 +786,8 @@ export function registerAgentIpc({
   });
 
   handle(IPC.invoke.askToolResolve, async (resolution: AskToolResolution) => {
+    const sidecar = getSidecar();
+    const agentHostBridge = getAgentHostBridge();
     if (!sidecar) throw new Error("sidecar unavailable");
     const sessionId = String(resolution?.sessionId ?? "").trim();
     const requestId = String(resolution?.requestId ?? "").trim();
@@ -817,6 +827,7 @@ export function registerAgentIpc({
   });
 
   handle(IPC.invoke.plansPending, async (input: { sessionId?: string } = {}) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     return host.call("plans.pending", {
       ...(typeof input.sessionId === "string" && input.sessionId.trim()
@@ -826,6 +837,8 @@ export function registerAgentIpc({
   });
 
   handle(IPC.invoke.plansResolve, async (resolution: PlanResolveRequest) => {
+    const host = getHost();
+    const agentHostBridge = getAgentHostBridge();
     if (!host) throw new Error("host unavailable");
     const proposalId = String(resolution?.proposalId ?? "").trim();
     if (!proposalId) throw new Error("proposalId required");

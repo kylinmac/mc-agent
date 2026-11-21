@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 // The widget window draws the bar; the owner frame (the main window) runs the
 // actions and owns the toast surface, so both sources are read here.
@@ -46,13 +45,7 @@ test("Live Voice separates idle entry and compact call presentation", async (t) 
     else delete globalThis.window;
   });
 
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   const React = await import("react");
   const { renderToStaticMarkup } = await import("react-dom/server");

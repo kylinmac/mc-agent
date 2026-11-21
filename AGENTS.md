@@ -6,7 +6,7 @@ mc-agent 是 kylinmac 个人维护的 PI-Desktop Fork。本文件统一规定所
 
 ## 当前阶段
 
-- **开发阶段。** 已确认的需求 R1–R11 已实现并合入 `main`；新需求先在文档里确认编号（R 已确认、X 待评审），再动代码。
+- **持续迭代。** 产品需求先在需求文档确认编号（R 已确认、X 待评审）。长期工程约束记录在 MC-ADR；纯重构按原功能验收。
 - 规划文档入口：[`docs/mc-agent/README.md`](docs/mc-agent/README.md)。架构决定：[MC-ADR-0002](docs/mc-agent/adr/mc-0002-fork-pi-desktop.md)（Fork）、[MC-ADR-0003](docs/mc-agent/adr/mc-0003-equal-workspaces-and-project-home.md)（项目结构）、[MC-ADR-0004](docs/mc-agent/adr/mc-0004-app-rail-and-title-tabs.md)（界面外壳）、[MC-ADR-0005](docs/mc-agent/adr/mc-0005-work-panel-terminal-and-tools.md)（工作面板终端）、[MC-ADR-0006](docs/mc-agent/adr/mc-0006-background-commands.md)（后台命令）、[MC-ADR-0007](docs/mc-agent/adr/mc-0007-split-view.md)（并列对话）、[MC-ADR-0008](docs/mc-agent/adr/mc-0008-installed-identity.md)（安装版身份）、[MC-ADR-0009](docs/mc-agent/adr/mc-0009-import-from-other-agents.md)（导入）、[MC-ADR-0010](docs/mc-agent/adr/mc-0010-system-prompt-templates.md)（系统提示词）、[MC-ADR-0011](docs/mc-agent/adr/mc-0011-usage-statistics.md)（用量统计）。
 - 验证状态见 [`docs/mc-agent/validation-plan.md`](docs/mc-agent/validation-plan.md) 第 2.1 节；开发版实例可随时停，不碰已安装的 PI-Desktop（`~/.pi-desktop`）；mc-agent 安装版用 `~/.mc-agent`。
 
@@ -35,25 +35,13 @@ mc-agent 是 kylinmac 个人维护的 PI-Desktop Fork。本文件统一规定所
 - 提交信息：英文 Conventional Commits，subject + 空行 + body，body 写为什么。
 - 遇到 `.git/index.lock` 等残留锁，先告诉我，不要自己删。
 
-## 尽量少碰上游文件
+## 按功能职责演进
 
-Fork 的长期成本是跟上游合并，所以：
-
-- 新功能放新模块（如 `crates/host-core/src/project_*`、`apps/desktop/src/features/project-*`），上游文件只做必要的接线。
-- 不做顺手重构、改名、格式化、依赖升级。
-- 未明确要求时，保留已有功能、默认行为、数据语义及 IPC/RPC、插件契约。必要的不兼容变更须说明影响和迁移方式；架构或安全边界变化记录 MC-ADR。
-- 下面这些上游大文件尽量不往里加逻辑，冲突概率最高：
-
-```text
-apps/desktop/electron/main/index.ts
-apps/desktop/src/stores/app-store.ts
-apps/desktop/src/components/ChatTranscript.tsx
-apps/desktop/src/components/Composer.tsx
-crates/host-core/src/db.rs
-crates/host-core/src/plugins.rs
-crates/host-core/src/providers.rs
-crates/host-core/src/plans.rs
-```
+- 模块归属以 mc-agent 当前调用链、数据所有权和测试边界为准。可以直接整理继承代码；同步上游时再评估冲突成本。
+- 业务规则归拥有该数据或执行权限的模块；页面、IPC 注册和 RPC 路由保留参数转换与编排。同一跨进程数据结构由生产方与消费方引用共享契约，保留原入口以便逐步迁移。
+- 每次重构选一条可以独立验证的用户路径。修复某个入口时，检查相同规则是否也用于其他入口。并行任务涉及同一工作区时，用独立分支或 worktree 分开交付。
+- 有界面变化时，在隔离开发实例复现受影响的交互；布局改动检查窄窗口、长文本或键盘等相关状态。在 PR 写清实测步骤和未覆盖的平台。
+- 保留默认行为、数据语义、IPC/RPC 与插件契约。需要改变时说明迁移方式；权限边界与长期架构决定写入 MC-ADR。工程取舍见 [MC-ADR-0032](docs/mc-agent/adr/mc-0032-domain-contracts.md)。
 
 ## 技术边界（进入开发后必须守住）
 
@@ -62,7 +50,7 @@ Renderer → Preload IPC → Electron Main → Rust host-core / Node agent-runti
 ```
 
 - Renderer 只做界面，不碰 SQLite、不拿密钥、不直接跑特权工具。
-- SQLite 只由 Rust `host-core` 读写；Electron Main 只做编排。
+- mc-agent 自有 SQLite 由 Rust `host-core` 读写。Electron Main 的外部导入器可以只读打开来源数据库，导入结果经宿主写入。
 - Agent 循环不进渲染进程；工具执行和审批走既有 host-core 路径。
 - 不为了让功能能用而放宽权限、沙箱、路径或 URL 检查。
 - 改数据库：迁移 + schema 版本 + 升级兼容 + 测试，不假设空库。改 IPC/RPC 契约要同时改生产方和消费方。
@@ -80,11 +68,14 @@ Renderer → Preload IPC → Electron Main → Rust host-core / Node agent-runti
 | 范围 | 命令 |
 | --- | --- |
 | JS | `pnpm --filter <pkg> typecheck`、`pnpm lint`、相关包的 `test` |
+| 进程边界、模块拆分 | `pnpm check:architecture` 与 CI 执行同一组依赖和文件大小检查 |
 | Rust | `cargo fmt --check`、`cargo test -p host-core --locked`、`cargo clippy -p host-core --all-targets` |
 | 跨进程行为 | 相关的 `pnpm test:e2e:*` |
 | 文档 | 见上面“文档”一节 |
 
 修 bug 先复现或写失败用例；新功能要有用户路径测试。新 UI 文案进 `packages/i18n`（至少 en、zh-CN）。
+
+桌面单测只用 Vite 加载源码时，复用 `apps/desktop/test/helpers/ssr-server.mjs`。需要测试文件变更或热重载的用例自行创建监听器，并在结束时关闭。
 
 没跑的就说没跑，写清原因和风险；不把“存在测试”说成“测试通过”。
 

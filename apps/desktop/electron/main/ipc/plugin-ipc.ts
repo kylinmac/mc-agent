@@ -41,13 +41,7 @@ export function registerPluginIpc({
   sendToRenderer,
   logger,
 }: PluginIpcDependencies): void {
-  let host: HostProcess | null = null;
-  const handle = (channel: string, fn: (...args: any[]) => Promise<any>) => {
-    registrar.handle(channel, async (...args) => {
-      host = getHost();
-      return fn(...args);
-    });
-  };
+  const { handle } = registrar;
 
   /**
    * Register a development plugin folder, load it with the permissions the user
@@ -58,6 +52,7 @@ export function registerPluginIpc({
    * through that declaration, so an answer can never exceed the request.
    */
   const loadDevPlugin = async (
+    host: HostProcess | null,
     path: string,
     grantedPermissions: string[] = [],
     reason: "loadDev" | "reload",
@@ -114,6 +109,7 @@ export function registerPluginIpc({
     };
   };
   handle(IPC.invoke.pluginList, async () => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const result = await host.call<{ plugins: any[] }>("plugins.list");
     rememberPluginScopes(result.plugins ?? []);
@@ -204,6 +200,7 @@ export function registerPluginIpc({
   );
 
   handle(IPC.invoke.pluginLoadDev, async () => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const result = await dialog.showOpenDialog({
       properties: ["openDirectory"],
@@ -219,6 +216,7 @@ export function registerPluginIpc({
   handle(
     IPC.invoke.pluginLoadDevConfirm,
     async (input: { path?: unknown; grantedPermissions?: unknown }) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const path = typeof input?.path === "string" ? input.path : "";
       if (!path) throw new Error("INVALID_PARAMS: path required");
@@ -227,12 +225,13 @@ export function registerPluginIpc({
             (permission): permission is string => typeof permission === "string",
           )
         : [];
-      const loaded = await loadDevPlugin(path, granted, "loadDev");
+      const loaded = await loadDevPlugin(host, path, granted, "loadDev");
       return { ...loaded, grantedPermissions: granted };
     },
   );
 
   handle(IPC.invoke.pluginReload, async (id: string) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const listed = await host.call<{ plugins: any[] }>("plugins.list");
     const plugin = (listed.plugins ?? []).find((candidate) => candidate?.id === id);
@@ -262,6 +261,7 @@ export function registerPluginIpc({
   handle(
     IPC.invoke.pluginReloadConfirm,
     async (input: { id?: unknown; grantedPermissions?: unknown }) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const id = typeof input?.id === "string" ? input.id : "";
       if (!id) throw new Error("INVALID_PARAMS: id required");
@@ -273,7 +273,7 @@ export function registerPluginIpc({
             (permission): permission is string => typeof permission === "string",
           )
         : [];
-      const loaded = await loadDevPlugin(plugin.path, granted, "reload");
+      const loaded = await loadDevPlugin(host, plugin.path, granted, "reload");
       return { ...loaded, grantedPermissions: granted };
     },
   );
@@ -285,6 +285,7 @@ export function registerPluginIpc({
   handle(
     IPC.invoke.pluginCreateFromTemplate,
     async (req: { template?: string }) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const template = req?.template;
       if (!isTemplateName(template)) {
@@ -309,6 +310,7 @@ export function registerPluginIpc({
   );
 
   handle(IPC.invoke.pluginInstallFromPath, async () => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const result = await dialog.showOpenDialog({
       properties: ["openDirectory"],
@@ -338,6 +340,7 @@ export function registerPluginIpc({
   });
 
   handle(IPC.invoke.pluginInstallFromPackage, async () => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const result = await dialog.showOpenDialog({
       properties: ["openFile"],
@@ -370,6 +373,7 @@ export function registerPluginIpc({
   });
 
   handle(IPC.invoke.pluginEnable, async (id: string) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const res = await host.call<{ plugin: any }>("plugins.enable", { id });
     if (res.plugin?.path) {
@@ -384,6 +388,7 @@ export function registerPluginIpc({
   });
 
   handle(IPC.invoke.pluginDisable, async (id: string) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     pluginViews.closePlugin(id);
     if (id === BROWSER_PLUGIN_ID) browserHost.disposeGuest();
@@ -395,6 +400,7 @@ export function registerPluginIpc({
   });
 
   handle(IPC.invoke.pluginUninstall, async (id: string) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     pluginViews.closePlugin(id);
     await plugins.unload(id);
@@ -405,6 +411,7 @@ export function registerPluginIpc({
   });
 
   handle(IPC.invoke.pluginSetAutoUpdate, async (payload: { id: string; enabled: boolean }) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     return host.call("plugins.setAutoUpdate", {
       id: payload.id,
@@ -415,6 +422,7 @@ export function registerPluginIpc({
   handle(
     IPC.invoke.pluginSetScope,
     async (payload: { id: string; scope: ActivationScope }) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const res = await host.call<{ plugin?: { id?: string; scope?: ActivationScope } }>(
         "plugins.setScope",

@@ -1,20 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 import { IPC } from "@pi-desktop/shared";
 
-const here = dirname(fileURLToPath(import.meta.url));
-
 test("AgentHost work controls require explicit structured acknowledgements", async (t) => {
-  const server = await createServer({
-    root: dirname(here),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   const { createAgentHostBridge } = await server.ssrLoadModule("/electron/main/agent-host-bridge.ts");
   let response;

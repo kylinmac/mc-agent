@@ -44,7 +44,7 @@ export async function scanAllSources(): Promise<{
     }),
   );
   return {
-    sessions: results.flat().sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1)),
+    sessions: results.flat(),
     truncated,
   };
 }

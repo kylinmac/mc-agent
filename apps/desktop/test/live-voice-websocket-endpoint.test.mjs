@@ -3,17 +3,10 @@ import { once } from "node:events";
 import { createServer as createHttpServer } from "node:http";
 import { createRequire } from "node:module";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 async function loadEndpoint(t) {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   return server.ssrLoadModule("/electron/main/live-voice/websocket-endpoint.ts");
 }
@@ -31,14 +24,9 @@ async function loadTransport(t, proxyRoute = "DIRECT") {
         export const session = { defaultSession: { resolveProxy: async () => ${JSON.stringify(proxyRoute)} } };`;
     },
   };
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
+  const server = await createDesktopSsrServer({
     plugins: [electronStub],
     ssr: { noExternal: ["electron"] },
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
   });
   t.after(() => server.close());
   return server.ssrLoadModule("/electron/main/live-voice/websocket-transport.ts");

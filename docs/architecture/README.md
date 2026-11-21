@@ -1,8 +1,11 @@
 # Architecture budgets
 
+Run `pnpm check:architecture` to check desktop and headless import boundaries,
+exercise the budget checker, and report the working tree metrics.
+
 The scripts/check-architecture.mjs checker reports the source-file count, total
 physical line count, largest source files, and the >500, >1000, and >2000 LOC
-threshold counts for tracked source under apps/, packages/, crates/, and
+threshold counts for tracked and untracked source under apps/, packages/, crates/, and
 scripts/. Generated output, dependency trees, and build directories are
 excluded.
 
@@ -11,7 +14,8 @@ The checker enforces these limits:
 - apps/desktop/electron/main/index.ts is at most 1500 LOC.
 - apps/desktop/src/stores/app-store.ts is at most 1000 LOC.
 - A newly added ordinary TypeScript or TSX source file is at most 800 LOC,
-  unless it has a reasoned entry under typescript in allowlist.json.
+  unless it has a reasoned entry under typescript in allowlist.json. Local checks
+  include staged and untracked sources and use their current working-tree contents.
 - Every Rust source file above 1000 LOC has a reasoned entry under rust in
   allowlist.json.
 

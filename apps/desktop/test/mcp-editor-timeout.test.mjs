@@ -1,17 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 test("editing an MCP server can set or clear its timeout override", async () => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    esbuild: { jsx: "automatic" },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer({ esbuild: { jsx: "automatic" } });
   try {
     const { draftFromRecord, draftToInput, mcpDraftError } = await server.ssrLoadModule(
       "/src/components/extensions/McpEditorSheet.tsx",

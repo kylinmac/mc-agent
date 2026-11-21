@@ -1,16 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 test("Live prepare IPC keeps the Composer target and context consent as separate inputs", async (t) => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   const { parsePrepare, parseWorkOperationControl } = await server.ssrLoadModule("/electron/main/ipc/live-voice-ipc.ts");
   const request = {
@@ -33,13 +26,7 @@ test("Live prepare IPC keeps the Composer target and context consent as separate
 });
 
 test("Live playback activity IPC accepts only the bounded monitor state", async (t) => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   const { parseMedia } = await server.ssrLoadModule("/electron/main/ipc/live-voice-ipc.ts");
 

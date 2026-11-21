@@ -11,18 +11,29 @@
  * them against a stub host without booting a real sidecar.
  */
 import { IPC } from "@pi-desktop/shared";
+import type {
+  ExternalMcpImportItem as McpImportRunItem,
+  ExternalMcpImportPayload as McpImportRunPayload,
+  ExternalMcpImportRunResult as McpImportRunResult,
+  ExternalSkillImportItem as SkillImportRunItem,
+  ExternalSkillImportPayload as SkillImportRunPayload,
+  ExternalSkillImportRunResult as SkillImportRunResult,
+  ExternalMcpScanResult,
+  ExternalSkillScanResult,
+  McpServerInput,
+  McpServerRecord,
+  UserSkillRecord,
+} from "@pi-desktop/shared";
 import type { HostProcess } from "../host-process";
 import {
   scanExternalMcp,
   type McpCandidate,
   type McpScanResult,
-  type McpSourceKind,
 } from "../importers/agent-mcp-scan";
 import {
   scanExternalSkills,
   type SkillCandidate,
   type SkillScanResult,
-  type SkillSourceKind,
 } from "../importers/agent-skill-scan";
 import type { IpcRegistrar } from "./types";
 
@@ -36,57 +47,14 @@ export type AgentImportIpcDependencies = {
   currentWorkspacePath?: () => string | null;
 };
 
-export interface SkillImportRunItem {
-  source: SkillSourceKind;
-  sourcePath: string;
-  shape: "file" | "dir";
-  rootDir?: string;
-  id: string;
-  name: string;
-  description?: string;
-}
-
-export interface SkillImportRunPayload {
-  level: "global" | "project";
-  projectPath?: string;
-  mode?: "copy" | "link";
-  items: SkillImportRunItem[];
-}
-
-export interface SkillImportRunResult {
-  imported: Array<{ item: SkillImportRunItem; skill: unknown }>;
-  skipped: Array<{ item: SkillImportRunItem; reason: string }>;
-  failed: Array<{ item: SkillImportRunItem; error: string }>;
-}
-
-export interface McpImportRunItem {
-  source: McpSourceKind;
-  sourcePath: string;
-  id: string;
-  rawKey: string;
-  label?: string;
-  description?: string;
-  transport: "stdio" | "http";
-  command?: string;
-  args?: string[];
-  env?: Record<string, string>;
-  url?: string;
-  headers?: Record<string, string>;
-  disabled?: boolean;
-}
-
-export interface McpImportRunPayload {
-  /** Defaults to global for existing callers. */
-  level?: "global" | "project";
-  projectPath?: string;
-  items: McpImportRunItem[];
-}
-
-export interface McpImportRunResult {
-  imported: Array<{ item: McpImportRunItem; server: unknown }>;
-  skipped: Array<{ item: McpImportRunItem; reason: string }>;
-  failed: Array<{ item: McpImportRunItem; error: string }>;
-}
+export type {
+  McpImportRunItem,
+  McpImportRunPayload,
+  McpImportRunResult,
+  SkillImportRunItem,
+  SkillImportRunPayload,
+  SkillImportRunResult,
+};
 
 /** True when a host error message is the "same name/id already imported" case. */
 function isExistsError(message: string): boolean {
@@ -136,7 +104,7 @@ export async function runSkillImport(
       ...(projectPath !== undefined ? { projectPath } : {}),
     };
     try {
-      const res = await hostCall<{ skill: unknown }>("skills.import", params);
+      const res = await hostCall<{ skill: UserSkillRecord }>("skills.import", params);
       result.imported.push({ item, skill: res?.skill });
     } catch (error) {
       const message = describeError(error);
@@ -150,12 +118,7 @@ export async function runSkillImport(
   return result;
 }
 
-/**
- * Assemble each MCP candidate into an `mcp.upsert` server payload. `disabled`
- * is stripped from the payload — host-core's `McpConfig` does not accept it —
- * and applied separately through `mcp.setEnabled` after a successful import so
- * the runtime never briefly starts a server the user asked to keep off.
- */
+/** Send the requested activation state with the config so the host returns the saved record. */
 export async function runMcpImport(
   hostCall: HostCall,
   payload: McpImportRunPayload,
@@ -168,11 +131,12 @@ export async function runMcpImport(
     failed: [],
   };
   for (const item of payload.items) {
-    const server: Record<string, unknown> = {
+    const server: McpServerInput = {
       id: item.id,
       level,
       ...(projectPath ? { projectPath } : {}),
       transport: item.transport,
+      ...(item.disabled === true ? { enabled: false } : {}),
       ...(item.label !== undefined ? { label: item.label } : {}),
       ...(item.description !== undefined ? { description: item.description } : {}),
       ...(item.command !== undefined ? { command: item.command } : {}),
@@ -182,23 +146,7 @@ export async function runMcpImport(
       ...(item.headers !== undefined ? { headers: item.headers } : {}),
     };
     try {
-      const res = await hostCall<{ server: unknown }>("mcp.upsert", { server });
-      if (item.disabled === true) {
-        try {
-          await hostCall("mcp.setEnabled", {
-            id: item.id,
-            level,
-            ...(projectPath ? { projectPath } : {}),
-            enabled: false,
-          });
-        } catch (error) {
-          // Turning off failed after the server was written; report it as a
-          // failure so the user is not left with an enabled server they did
-          // not want, even though the write itself succeeded.
-          result.failed.push({ item, error: describeError(error) });
-          continue;
-        }
-      }
+      const res = await hostCall<{ server: McpServerRecord }>("mcp.upsert", { server });
       result.imported.push({ item, server: res?.server });
     } catch (error) {
       const message = describeError(error);
@@ -250,7 +198,7 @@ export function registerAgentImportIpc({
 }: AgentImportIpcDependencies): void {
   registrar.handle(
     IPC.invoke.skillImportScan,
-    async ({ projectPath }: { projectPath?: string } = {}) => {
+    async ({ projectPath }: { projectPath?: string } = {}): Promise<ExternalSkillScanResult> => {
       try {
         return await scanExternalSkills({ projectPath });
       } catch (error) {
@@ -272,7 +220,7 @@ export function registerAgentImportIpc({
 
   registrar.handle(
     IPC.invoke.mcpImportScan,
-    async ({ projectPath }: { projectPath?: string } = {}) => {
+    async ({ projectPath }: { projectPath?: string } = {}): Promise<ExternalMcpScanResult> => {
       try {
         return await scanExternalMcp({ projectPath });
       } catch (error) {

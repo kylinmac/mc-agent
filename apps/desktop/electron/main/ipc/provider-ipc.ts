@@ -98,14 +98,9 @@ export function registerProviderIpc({
   bindingForModel,
   onProviderInvalidated,
 }: ProviderIpcDependencies): void {
-  let host: HostProcess | null = null;
-  const handle = (channel: string, fn: (...args: any[]) => Promise<any>) => {
-    registrar.handle(channel, async (...args) => {
-      host = getHost();
-      return fn(...args);
-    });
-  };
+  const { handle } = registrar;
   handle(IPC.invoke.providersList, async () => {
+    const host = getHost();
     const result = (await enrichProviderList({ providers: await listRuntimeProviders() })) as {
       providers: Array<RuntimeProvider & { accountImageModels?: string[] | null }>;
     };
@@ -132,6 +127,7 @@ export function registerProviderIpc({
     return result;
   });
   handle(IPC.invoke.providersReorder, async (input: ProviderReorderInput) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     return host.call("providers.reorder", input);
   });
@@ -194,6 +190,7 @@ export function registerProviderIpc({
     },
   );
   handle(IPC.invoke.providersCreate, async (input: unknown) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const result = await host.call<{ provider: RuntimeProvider }>(
       "providers.create",
@@ -203,6 +200,7 @@ export function registerProviderIpc({
     return { ...result, provider: enrichProvider(result.provider) };
   });
   handle(IPC.invoke.providersUpdate, async (input: unknown) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const providerId = input && typeof input === "object" && typeof (input as { id?: unknown }).id === "string"
       ? (input as { id: string }).id
@@ -220,6 +218,7 @@ export function registerProviderIpc({
   handle(
     IPC.invoke.providersSetSecret,
     async (input: { id: string; secretValue?: string }) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const result = await host.call<{ provider?: RuntimeProvider | null }>(
         "providers.setSecret",
@@ -233,6 +232,7 @@ export function registerProviderIpc({
     },
   );
   handle(IPC.invoke.providersDelete, async (id: string) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const result = await host.call("providers.delete", { id });
     modelsDevCatalog.deleteAccount(id);
@@ -240,6 +240,7 @@ export function registerProviderIpc({
     return result;
   });
   handle(IPC.invoke.providersTest, async (id: string) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     // Config-level validation first (secret present etc.)
     const local = await host.call<{ ok: boolean; message?: string }>(
@@ -372,6 +373,7 @@ export function registerProviderIpc({
             source?: "cache" | "refresh";
           },
     ) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const req = typeof input === "string" ? { providerId: input } : input ?? {};
       const providers = req.source === "cache"
@@ -546,7 +548,7 @@ export function registerProviderIpc({
               requestBaseUrl &&
             (latestProvider?.apiStyle ?? "chat_completions") === apiStyle;
           if (endpointStillCurrent) {
-            await host!.call("providers.cacheModels", {
+            await host.call("providers.cacheModels", {
               providerId: provider.id,
               models,
             });
@@ -738,6 +740,7 @@ export function registerProviderIpc({
 
   // Secret material never crosses to the renderer: set/delete/has only.
   handle(IPC.invoke.secretsSet, async (input: { secretRef: string; value: string }) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     return host.call("secrets.set", {
       secretRef: input?.secretRef,
@@ -745,10 +748,12 @@ export function registerProviderIpc({
     });
   });
   handle(IPC.invoke.secretsDelete, async (secretRef: string) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     return host.call("secrets.delete", { secretRef });
   });
   handle(IPC.invoke.secretsHas, async (secretRef: string) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     return host.call("secrets.has", { secretRef });
   });

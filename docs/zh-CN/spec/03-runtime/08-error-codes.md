@@ -57,6 +57,10 @@ type AppError = {
 | `UNAUTHORIZED` | 不 | capability/auth 边界拒绝呼叫 |
 | `NOT_FOUND` | 不 | 未找到实体 |
 | `SESSION_NOT_FOUND` | 不 | 会话作用域的 RPC（包括 `tools.execute`）点名了主机没有的会话；未知 id 永远不会继承全局工作区 |
+| `PROJECT_HISTORY_DENIED` | 不 | 当前本地项目无法访问指定会话 |
+| `HISTORY_READ_FAILED` | 可能 | 宿主读取所选会话的历史记录失败 |
+| `SCHEDULE_ALREADY_RUNNING` | 不 | 该定时任务已有执行中的实例 |
+| `SCHEDULE_NOT_DUE` | 不 | 该定时任务已不满足自动执行的到期条件 |
 | `CONFLICT` | 也许 | 状态冲突/资源繁忙 |
 | `UNSUPPORTED` | 不 | 该操作在此界面上没有实现，例如没有桌面窗口时的受信任扩展提示（规格 16 §9） |
 | `FORBIDDEN` | 不 | RACP：主体的角色不允许该方法（规格 19 §13） |

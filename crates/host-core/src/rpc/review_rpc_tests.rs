@@ -622,8 +622,10 @@ async fn review_rpc_records_workspace_scratch_and_approved_external_write_edit()
     let outside = tempdir().unwrap();
     let scratch = crate::scratch::session_dir(f.data.path(), &f.session).unwrap();
     std::fs::create_dir_all(&scratch).unwrap();
+    // The agent receives the canonical workspace root even when TMPDIR is a symlink.
+    let workspace = crate::workspace::simple_canonicalize(f.root.path()).unwrap();
     let targets = [
-        ("workspace", f.root.path().join("same.txt")),
+        ("workspace", workspace.join("same.txt")),
         ("scratch", scratch.join("same.txt")),
         ("external", outside.path().join("same.txt")),
     ];

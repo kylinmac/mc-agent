@@ -1,13 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 import { KEYBOARD_SHORTCUTS, isAllowedKeybinding, keybindingsConflict } from "@pi-desktop/shared";
 
 test("hold to talk: the key-down starts, any key-up or leaving the window ends", async (t) => {
-  const server = await createServer({ root: fileURLToPath(new URL("..", import.meta.url)), configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false }, appType: "custom", optimizeDeps: { noDiscovery: true, include: [] } });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   const originals = new Map(["window", "document"].map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
   t.after(() => { for (const [name, descriptor] of originals) { if (descriptor) Object.defineProperty(globalThis, name, descriptor); else delete globalThis[name]; } });

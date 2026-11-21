@@ -53,7 +53,7 @@ test("choosing a dev plugin folder reports a review instead of loading it", () =
     "IPC.invoke.pluginLoadDevConfirm",
     "handle(IPC.invoke.pluginReload,",
   );
-  assert.match(confirm, /const loaded = await loadDevPlugin\(path, granted, "loadDev"\)/);
+  assert.match(confirm, /const loaded = await loadDevPlugin\(host, path, granted, "loadDev"\)/);
   assert.match(confirm, /grantedPermissions/);
 });
 
@@ -112,7 +112,7 @@ test("a widening reload is answered in the renderer, never applied on its own", 
   // The path comes from the host's own registry, never from the renderer.
   assert.match(confirm, /const listed = await host\.call<\{ plugins: any\[\] \}>\("plugins\.list"\)/);
   assert.doesNotMatch(confirm, /input\?\.path/);
-  assert.match(confirm, /const loaded = await loadDevPlugin\(plugin\.path, granted, "reload"\)/);
+  assert.match(confirm, /const loaded = await loadDevPlugin\(host, plugin\.path, granted, "reload"\)/);
 });
 
 test("the approval record is what a reload is measured against", () => {

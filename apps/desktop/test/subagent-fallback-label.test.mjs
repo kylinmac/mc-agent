@@ -3,19 +3,14 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 test("fallback rows show provider names and disambiguate equal labels", async () => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
+  const server = await createDesktopSsrServer({
     resolve: { alias: { "@pi-desktop/shared": fileURLToPath(new URL("../../../packages/shared/src/index.ts", import.meta.url)) } },
-    server: { middlewareMode: true, hmr: false, ws: false },
     esbuild: { jsx: "automatic" },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
   });
   try {
     const { SubagentFallbackModels } = await server.ssrLoadModule(

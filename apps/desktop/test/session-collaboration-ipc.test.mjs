@@ -4,23 +4,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import i18n from "i18next";
 import test from "node:test";
-import ts from "typescript";
+import { loadTsModule } from "./helpers/load-ts-module.mjs";
 import { ErrorCodes } from "../../../packages/shared/src/errors.ts";
 import { IPC, IPC_WHITELIST } from "../../../packages/shared/src/protocol.ts";
 
-function load(relative, imports, globals = {}) {
-  const file = new URL(relative, import.meta.url);
-  const { outputText } = ts.transpileModule(fs.readFileSync(file, "utf8"), {
-    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
-    fileName: file.pathname,
-  });
-  const module = { exports: {} };
-  new Function("require", "exports", "module", ...Object.keys(globals), outputText)((id) => {
-    assert.ok(Object.hasOwn(imports, id), `unexpected IPC dependency: ${id}`);
-    return imports[id];
-  }, module.exports, module, ...Object.values(globals));
-  return module.exports;
-}
+const load = (path, ...options) => loadTsModule(new URL(path, import.meta.url), ...options);
 
 const shared = { ErrorCodes, IPC, IPC_WHITELIST };
 const collaboration = load("../electron/main/services/session-collaboration.ts", {
@@ -33,7 +21,7 @@ const { registerSessionIpc } = load("../electron/main/ipc/session-ipc.ts", {
   "node:fs": fs,
   "node:path": path,
   "@pi-desktop/shared": shared,
-  "../importers": {},
+  "./session-import-ipc": { registerSessionImportIpc() {} },
   "../services/session-collaboration": collaboration,
   "../bootstrap/remote-hosts.js": { getActiveRemoteHostsBoot: () => null },
   "../services/session-search": { searchSessionsAcrossSources: async () => ({ hits: [], nextOffset: null }) },
