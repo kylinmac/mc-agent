@@ -334,6 +334,10 @@ test("Windows/Linux explicit minimize paths use the native taskbar", () => {
       to: "bin/pi-desktop-host-core",
     },
     {
+      from: "../../target/release/mc-mobile-gateway",
+      to: "bin/mc-mobile-gateway",
+    },
+    {
       from: "build/tray-icon-mac.png",
       to: "tray-icon-mac.png",
     },

@@ -33,7 +33,7 @@
 }
 
 .mc-canvas-tab-name[aria-invalid="true"] {
-  border-color: var(--ds-danger);
+  border-color: var(--ds-error);
 }
 
 .mc-canvas-tab-spacer {
@@ -98,7 +98,7 @@
 }
 
 .mc-canvas-error {
-  color: var(--ds-danger);
+  color: var(--ds-error);
 }
 
 /* What the canvas adds to the conversation's next message */

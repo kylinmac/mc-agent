@@ -154,7 +154,7 @@
 
 .mc-alchemy-error {
   margin: 0;
-  color: var(--ds-danger);
+  color: var(--ds-error);
   font-size: var(--text-xs);
 }
 
