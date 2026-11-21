@@ -1,13 +1,12 @@
 import assert from "node:assert/strict";
 import test, { after, before } from "node:test";
-import { fileURLToPath } from "node:url";
 import { createElement, Fragment } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import i18n from "i18next";
 import { I18nextProvider } from "react-i18next";
 import { catalogs } from "@pi-desktop/i18n";
 import { IPC } from "@pi-desktop/shared";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 // ADR 0329 renderer surface: badge, menus, create flow, merge failures, and
 // the rule that an ordinary "+" never reuses an empty isolated session.
@@ -44,14 +43,7 @@ const previousDocument = globalThis.document;
 const previousWindow = globalThis.window;
 
 before(async () => {
-  server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    esbuild: { jsx: "automatic" },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  server = await createDesktopSsrServer({ esbuild: { jsx: "automatic" } });
   modules = {
     sidebar: await server.ssrLoadModule("/src/components/Sidebar.tsx"),
     parts: await server.ssrLoadModule("/src/features/worktree/WorktreeSidebarParts.tsx"),

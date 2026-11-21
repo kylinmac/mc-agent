@@ -5,15 +5,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
 import { catalogs } from "@pi-desktop/i18n";
-import { createServer } from "vite";
-import { fileURLToPath } from "node:url";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 test("subtask sidebars include their session's off-page Task without adopting search history", async () => {
-  const vite = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)), configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    esbuild: { jsx: "automatic" }, appType: "custom", optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const vite = await createDesktopSsrServer({ esbuild: { jsx: "automatic" } });
   const previousStorage = globalThis.localStorage;
   globalThis.localStorage = { getItem: (key) => key === "mc.sessionInfoOpen" ? '{"local":true,"other":true}' : null };
   try {

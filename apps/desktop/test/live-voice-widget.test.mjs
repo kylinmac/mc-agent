@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 // The docked Live Voice widget is a desktop-level window: frameless, always on
 // top, transparent, dragged through its own app-region handle. What can be
@@ -11,13 +10,7 @@ import { createServer } from "vite";
 // e2e run against the real app.
 
 async function desktopModules(t) {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   return {
     placement: await server.ssrLoadModule("/electron/main/live-voice/widget-geometry.ts"),
@@ -100,13 +93,7 @@ test("only the widget's own actions and box are accepted on its channels", async
 });
 
 test("widget IPC handlers enforce renderer ownership", async (t) => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   const { registerLiveVoiceIpc } = await server.ssrLoadModule("/electron/main/ipc/live-voice-ipc.ts");
   const handlers = new Map();

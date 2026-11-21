@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
 import { catalogs } from "@pi-desktop/i18n";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 /**
  * The empty home names the project the user is working in. Opening a project
@@ -41,14 +40,9 @@ const emptyStateOf = (html) => ({
 });
 
 test("the empty home names the project even before its first session exists", async (t) => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
+  const server = await createDesktopSsrServer({
     logLevel: "silent",
-    server: { middlewareMode: true, hmr: false, ws: false },
     esbuild: { jsx: "automatic" },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
   });
   t.after(() => server.close());
 

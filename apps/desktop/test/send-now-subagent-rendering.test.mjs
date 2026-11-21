@@ -5,16 +5,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
 import { catalogs } from "@pi-desktop/i18n";
-import { createServer } from "vite";
-import { fileURLToPath } from "node:url";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 test("a steering response keeps the earlier delegation card live until parent settlement", async () => {
-  const vite = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)), configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    esbuild: { jsx: "automatic" }, appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const vite = await createDesktopSsrServer({ esbuild: { jsx: "automatic" } });
   try {
     const { TranscriptHistory } = await vite.ssrLoadModule("/src/features/chat/transcript/AssistantTurn.tsx");
     const { buildTranscriptEntries } = await vite.ssrLoadModule("/src/lib/assistant-turns.ts");

@@ -6,7 +6,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
 const { registerProviderIpc } = await import("../electron/main/ipc/provider-ipc.ts");
@@ -58,11 +58,9 @@ test("refresh removes revoked service rows and preserves configured chat binding
     enrichProviderList: runtime.enrichProviderList,
     bindingForModel: () => undefined,
   });
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)), configFile: false,
-    logLevel: "silent", server: { middlewareMode: true, hmr: false, ws: false },
-    esbuild: { jsx: "automatic" }, appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
+  const server = await createDesktopSsrServer({
+    logLevel: "silent",
+    esbuild: { jsx: "automatic" },
   });
   t.after(() => server.close());
   const { ModelSelectionPanes, useModelSelection } = await server.ssrLoadModule(

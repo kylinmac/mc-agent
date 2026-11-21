@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 import { IPC } from "@pi-desktop/shared";
 import { codexDelegationFeedback, codexWorkFeedbackMessage, parseCodexMessage } from "@pi-desktop/voice-runtime/live";
 import { createProductionWorkHarness, settleUntil, WORK_INSTRUCTION, WORK_RESULT, WORK_SESSION_ID } from "./helpers/live-work-production.mjs";
@@ -9,13 +8,7 @@ import { createProductionWorkHarness, settleUntil, WORK_INSTRUCTION, WORK_RESULT
 const callId = "live-work-production-call";
 
 test("production Live WorkBridge reaches AgentHost admission, explicit queue, and exact terminal result", async (t) => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   const fixture = await createProductionWorkHarness(t, server);
   const { bridge, agentHostBridge, prompts, persistedMessages, updates, invocationLog } = fixture;

@@ -75,6 +75,8 @@ Renderer → Preload IPC → Electron Main → Rust host-core / Node agent-runti
 
 修 bug 先复现或写失败用例；新功能要有用户路径测试。新 UI 文案进 `packages/i18n`（至少 en、zh-CN）。
 
+桌面单测只用 Vite 加载源码时，复用 `apps/desktop/test/helpers/ssr-server.mjs`。需要测试文件变更或热重载的用例自行创建监听器，并在结束时关闭。
+
 没跑的就说没跑，写清原因和风险；不把“存在测试”说成“测试通过”。
 
 ## 收尾汇报

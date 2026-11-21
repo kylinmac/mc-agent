@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 test("renderer and Main complete a Codex Live user path without invoking an Agent", async (t) => {
   const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
@@ -115,13 +114,7 @@ test("renderer and Main complete a Codex Live user path without invoking an Agen
     else globalThis.RTCPeerConnection = originalPeer;
   });
 
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   let controller;
   try {

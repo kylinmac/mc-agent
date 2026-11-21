@@ -1,7 +1,6 @@
 import { EventEmitter } from "node:events";
 import { randomUUID } from "node:crypto";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./ssr-server.mjs";
 import { LIVE_WORK_TOOL_NAME } from "@pi-desktop/voice-runtime/live";
 import { createProductionWorkHarness, WORK_SESSION_ID } from "./live-work-production.mjs";
 
@@ -52,11 +51,7 @@ export async function createAdapterWorkHarness(t, profile) {
     if (profile !== "gemini-live") setImmediate(() => socket.receive({ type: "session.created", session: {} }));
     return socket;
   };
-  const server = await createServer({
-    root: fileURLToPath(new URL("../..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom", optimizeDeps: { noDiscovery: true, include: [] },
+  const server = await createDesktopSsrServer({
     plugins: [{
       name: "live-provider-external-transport-fixture",
       enforce: "pre",
