@@ -393,6 +393,35 @@ export async function dispatchMobileRpc(
       return ctx.invoke(IPC.invoke.sessionCreate, [payload]);
     }
 
+    case "session.configure": {
+      const sessionId = asNonEmptyString(input.sessionId, 128);
+      if (!sessionId) throw rpcError("INVALID_ARGUMENT", "sessionId is required");
+      const allowedPerm = new Set(["inherit", "ask", "accept-edits", "auto"]);
+      const allowedMode = new Set(["agent", "plan", "goal"]);
+      const permissionMode = asNonEmptyString(input.permissionMode, 32);
+      const nextMode = asNonEmptyString(input.mode, 32);
+      if (permissionMode && !allowedPerm.has(permissionMode)) {
+        throw rpcError("INVALID_ARGUMENT", `Invalid permissionMode: ${permissionMode}`);
+      }
+      if (nextMode && !allowedMode.has(nextMode)) {
+        throw rpcError("INVALID_ARGUMENT", `Invalid mode: ${nextMode}`);
+      }
+      if (!permissionMode && !nextMode) {
+        throw rpcError("INVALID_ARGUMENT", "permissionMode or mode is required");
+      }
+      const existing = (await ctx.invoke(IPC.invoke.sessionGet, [
+        { id: sessionId, messageLimit: 1 },
+      ])) as { session?: SessionDetail | null };
+      if (!existing?.session) throw rpcError("NOT_FOUND", `Session not found: ${sessionId}`);
+      const config = {
+        mode: nextMode ?? existing.session.mode ?? "agent",
+        ...(permissionMode ? { permissionMode } : {}),
+      };
+      const updated = await ctx.invoke(IPC.invoke.sessionConfigure, [sessionId, config]);
+      ctx.sendToRenderer(IPC.event.sessionsChanged, { reason: "mobile-configure" });
+      return updated;
+    }
+
     case "session.history": {
       const sessionId = asNonEmptyString(input.sessionId, 128);
       if (!sessionId) throw rpcError("INVALID_ARGUMENT", "sessionId is required");
@@ -400,16 +429,25 @@ export async function dispatchMobileRpc(
         typeof input.messageLimit === "number" && Number.isFinite(input.messageLimit)
           ? Math.max(1, Math.min(500, Math.floor(input.messageLimit)))
           : 120;
-      const [detailRes, pendingInteractive, plansRes] = await Promise.all([
+      const [detailRes, pendingInteractive, plansRes, globalSettings] = await Promise.all([
         ctx.invoke(IPC.invoke.sessionGet, [{ id: sessionId, messageLimit }]) as Promise<{
           session?: SessionDetail | null;
         }>,
         safePendingInteractive(ctx, sessionId),
         safePlansPending(ctx, sessionId),
+        ctx
+          .getHost()
+          ?.call<{ permissionMode?: string }>("settings.get", {})
+          .catch(() => ({ permissionMode: undefined })) ??
+          Promise.resolve({ permissionMode: undefined }),
       ]);
       if (!detailRes?.session) throw rpcError("NOT_FOUND", `Session not found: ${sessionId}`);
+      const rawPerm = detailRes.session.permissionMode ?? "inherit";
+      const effectivePermissionMode =
+        rawPerm === "inherit" ? (globalSettings?.permissionMode ?? "ask") : rawPerm;
       return {
         session: detailRes.session,
+        effectivePermissionMode,
         isRunning: ctx.activeTurns.has(sessionId),
         activeTurnId: ctx.activeTurns.get(sessionId) ?? null,
         cursor: ctx.latestCursorFor(sessionId),
@@ -628,24 +666,31 @@ export async function dispatchMobileRpc(
       if (!input.scene || typeof input.scene !== "object") {
         throw rpcError("INVALID_ARGUMENT", "scene is required");
       }
+      const rawFiles =
+        input.upsertedFiles && typeof input.upsertedFiles === "object"
+          ? input.upsertedFiles
+          : input.files && typeof input.files === "object"
+            ? input.files
+            : undefined;
+      const rawPreview = asNonEmptyString(
+        input.previewPngBase64 ?? input.previewBase64,
+        15_000_000,
+      );
+      let previewPngBase64: string | undefined;
+      if (rawPreview) {
+        const bytes = Buffer.from(rawPreview, "base64");
+        if (bytes.length > 0 && bytes.length <= MC_MOBILE_MAX_IMAGE_BYTES) {
+          previewPngBase64 = rawPreview;
+        }
+      }
       const saved = await host.call<{ canvas: Canvas }>("canvas.whiteboard.save", {
         groupId,
         canvasId,
         scene: input.scene,
-        ...(input.files && typeof input.files === "object" ? { files: input.files } : {}),
+        ...(rawFiles ? { upsertedFiles: rawFiles } : {}),
         ...(typeof input.baseVersion === "number" ? { baseVersion: input.baseVersion } : {}),
+        ...(previewPngBase64 !== undefined ? { previewPngBase64 } : {}),
       });
-      const previewBase64 = asNonEmptyString(input.previewBase64, 15_000_000);
-      if (previewBase64) {
-        const bytes = Buffer.from(previewBase64, "base64");
-        if (bytes.length > 0 && bytes.length <= MC_MOBILE_MAX_IMAGE_BYTES) {
-          await host.call("canvas.whiteboard.savePreview", {
-            groupId,
-            canvasId,
-            dataBase64: previewBase64,
-          });
-        }
-      }
       const change: CanvasChange = { groupId, canvasId };
       ctx.sendToRenderer(IPC.event.canvasChanged, change);
       ctx.pushGatewayEvent("canvas.changed", change);

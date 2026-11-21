@@ -60,16 +60,13 @@ function createMockEnv(dataDir) {
           canvases.set(params.canvasId, next);
           whiteboards.set(params.canvasId, {
             scene: params.scene,
-            files: params.files ?? {},
-            hasPreview: whiteboards.get(params.canvasId)?.hasPreview ?? false,
+            files: params.upsertedFiles ?? {},
+            hasPreview: Boolean(params.previewPngBase64) || Boolean(whiteboards.get(params.canvasId)?.hasPreview),
           });
           return { canvas: next };
         }
-        case "canvas.whiteboard.savePreview": {
-          const wb = whiteboards.get(params.canvasId);
-          if (wb) wb.hasPreview = true;
-          return { ok: true };
-        }
+        case "settings.get":
+          return { permissionMode: "ask" };
         default:
           return {};
       }
@@ -89,7 +86,9 @@ function createMockEnv(dataDir) {
       case IPC.invoke.sessionCreate:
         return { session: { id: "s-new", title: args[0]?.title ?? "New" } };
       case IPC.invoke.sessionGet:
-        return { session: { id: args[0]?.id, title: "Alpha", messages: [] } };
+        return { session: { id: args[0]?.id, title: "Alpha", mode: "agent", permissionMode: "inherit", messages: [] } };
+      case IPC.invoke.sessionConfigure:
+        return { session: { id: args[0], title: "Alpha", ...args[1] } };
       case IPC.invoke.pendingInteractive:
         return {
           permissions: args[0]?.sessionId === "s1" ? [{ requestId: "perm-1", toolName: "bash" }] : [],
@@ -243,6 +242,19 @@ test("MobileBridge serves allowlisted RPCs, cursor replay, images, diffs, and wh
     });
     assert.equal(loaded.scene.elements.length, 1);
     assert.equal(loaded.hasPreview, true);
+
+    // Session permissionMode inspection and remote configuration
+    const history = await bridge.dispatchRpc("c1", "session.history", { sessionId: "s1" });
+    assert.equal(history.effectivePermissionMode, "ask");
+    const configured = await bridge.dispatchRpc("c1", "session.configure", {
+      sessionId: "s1",
+      permissionMode: "auto",
+    });
+    assert.equal(configured.session.permissionMode, "auto");
+    await assert.rejects(
+      () => bridge.dispatchRpc("c1", "session.configure", { sessionId: "s1", permissionMode: "root" }),
+      (err) => err?.rpcCode === "INVALID_ARGUMENT",
+    );
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

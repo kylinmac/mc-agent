@@ -13,6 +13,16 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.90",
+    date: "2026-11-21",
+    features: [
+      "手机远程操作网关新增 session.configure 支持：手机端可在对话顶栏实时查看并切换桌面端会话的权限模式（继承默认／每次询问／自动编辑／全自动）。",
+    ],
+    fixes: [
+      "修复手机端保存 Excalidraw 白板时预览图与嵌入文件字段名不匹配导致保存报错、笔画未能与桌面端白板同步的问题。",
+    ],
+  },
+  {
     version: "1.0.89",
     date: "2026-11-21",
     features: [
