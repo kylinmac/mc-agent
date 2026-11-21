@@ -2,7 +2,7 @@
 
 R17 增量：[语音输入](voice-input.md)由 Renderer 采集麦克风，Main 持有凭据并发起转写请求。Codex 仅由 Main 协商 SDP，媒体走 WebRTC；不挂载 Agent 工具。与实时通话共用麦克风租约，录音不落盘。
 
-本文描述仓库里已经在的代码。上游基线与 mc-agent 当前状态分开写：下面的进程与模块图是上游 0.20.1 的结构；mc-agent 新增的模块按功能列在[代码索引](code-index.md)，增量设计见[架构文档](architecture.md)和 [MC-ADR-0002](adr/mc-0002-fork-pi-desktop.md)。
+下图按 mc-agent 当前的进程入口核对。上游 0.20.1 是 Fork 的历史基线。各功能的实现位置见[代码索引](code-index.md)，本轮审查和后续切入点见[架构审查](architecture-review-2026-11-22.md)。
 
 许可 LGPL-3.0-or-later。目录（2026-10-22 核对，见[工程结构评审](engineering-structure-review.md) 7.1）：
 
@@ -23,9 +23,12 @@ Electron Main            apps/desktop/electron/main
     ├─ stdio JSON-RPC ── Rust host-core     crates/host-core
     │                      二进制 pi-desktop-host-core
     │                      SQLite、权限、工具、插件登记、凭据
-    └─ stdio NDJSON ──── Node agent sidecar  packages/agent-runtime
-                           pi-ai + pi-agent-core + pi-coding-agent
-                           调模型；工具请求经 Main 转回 host-core
+    ├─ stdio NDJSON ──── Node agent sidecar  packages/agent-runtime
+    │                      pi-ai + pi-agent-core + pi-coding-agent
+    │                      调模型，宿主工具请求经 Main 转回 host-core
+    ├─ utilityProcess ── 已加载插件的独立进程
+    └─ 可选手机接入 ──── mc-mobile-gateway（iroh）
+                           已配对设备的请求经 Main 手机桥转到支持的操作
 
 可选，远程实验：
 apps/pi-host
@@ -51,14 +54,14 @@ apps/pi-host
 | 特权后端 | `crates/host-core` | 持久化与工具执行 |
 | 远程进程 | `apps/pi-host` | 无头 Host：RACP + agent-host + runtime + host-core |
 | 插件 | `packages/plugin-sdk`、`plugin-devkit` | 作者类型、打包、校验 |
-| 文案 | `packages/i18n` | 英文源目录 |
+| 文案 | `packages/i18n` | 界面多语言词条及目录生成 |
 | 语音 | `packages/voice-runtime` | 本地转写，与实时通话适配器分开 |
 
 ## 两条通道
 
-Host RPC：`crates/host-core/src/rpc/mod.rs` 读 stdin 上的 JSON-RPC。Electron 侧启动在 `apps/desktop/electron/main/host-process.ts`。只有 Rust 写 SQLite 和 provider 持久化。
+Host RPC 经 stdin 传输 JSON-RPC。Electron 启动入口在 `apps/desktop/electron/main/host-process.ts`。Rust 总路由 `crates/host-core/src/rpc/mod.rs` 管握手和关闭，按功能分发请求。mc-agent 自有数据库和 provider 记录由 Rust 写入。Main 的来源导入器可以只读打开外部数据库。
 
-Agent sidecar：`packages/agent-runtime/src/sidecar.ts` 注明协议是与 Electron main 之间的 NDJSON JSON-RPC。Host 访问经 `parent-host-proxy.ts` 转回 Main，再进唯一的 host-core。循环入口在 `runtime.ts`，底层是 `@earendil-works/pi-agent-core` 1.1.0，并依赖 `pi-ai`、`pi-coding-agent`。补丁在 `patches/`。
+Agent sidecar 在 `packages/agent-runtime/src/sidecar.ts` 接收 NDJSON JSON-RPC，Host 访问经 `parent-host-proxy.ts` 转给拥有它的进程。循环入口在 `runtime.ts`，Pi 的三个包和版本以 `packages/agent-runtime/package.json` 为准。补丁在 `patches/`。
 
 这不是 MC-ADR-0001 里那套自建 `thread/start` 协议，也不使用 Pi 自己未完成的 CBOR server。
 
@@ -67,8 +70,8 @@ Agent sidecar：`packages/agent-runtime/src/sidecar.ts` 注明协议是与 Elect
 - 执行目录属于会话或 worktree，不跟界面当前选中的项目组漂移。
 - 项目组 ID（字符串）和 `projects` 表 ID（整数）不是同一个东西。legacy 项目还有按路径的映射。见规划架构文档第 4 节。
 - 远程断开时工具失败，不回退到本机文件系统。重连不重放写操作。
-- 插件运行时目标是独立进程（ADR 0008）。渲染进程只拿 preload 允许的 IPC。
+- Main 里的 `PluginRuntime` 用 `utilityProcess.fork` 启动插件，按宿主授权提供能力。渲染进程只拿 preload 允许的 IPC。
 
 ## 和规划文档的关系
 
-[architecture.md](architecture.md) 写的是项目管理增量该接在哪；这些模块已经建好（R1–R14），文件位置见[代码索引](code-index.md)。本文的进程与模块图仍以上游结构为准。
+[项目管理架构](architecture.md)记录 R1–R14 的设计，实际模块位置见[代码索引](code-index.md)。

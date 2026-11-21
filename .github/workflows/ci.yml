@@ -54,12 +54,12 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Check architecture budgets
+      - name: Check process boundaries and architecture budgets
         env:
           ARCHITECTURE_BASE: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD^' }}
-        run: node scripts/check-architecture.mjs
+        run: pnpm check:architecture
 
-      - name: Unit-test the Pi patch checks
+      - name: Test Pi patch checks
         run: node --test scripts/pi-patch-hash.test.mjs
 
       # apps/desktop's node --test suite runs in the sharded desktop-tests job.
@@ -95,7 +95,7 @@ jobs:
 
       - name: Unit tests (apps/desktop)
         working-directory: apps/desktop
-        run: node --test --test-shard=${{ matrix.shard }}/3 test/*.test.mjs
+        run: node --test --test-shard=${{ matrix.shard }}/3 test/*.test.mjs electron/test/*.test.mjs
 
   rust:
     name: Rust host-core (${{ matrix.suite }})
@@ -240,6 +240,11 @@ jobs:
           while [ ! -f "$RUNNER_TEMP/apt-display.status" ]; do sleep 2; done
           cat "$RUNNER_TEMP/apt-display.log"
           exit "$(cat "$RUNNER_TEMP/apt-display.status")"
+
+      - name: Test capability transfers and settings import
+        run: |
+          pnpm test:e2e:capability-move
+          xvfb-run --auto-servernum pnpm test:e2e:settings-inline-import
 
       - name: Run inline GenUI interaction and isolation E2E
         run: xvfb-run --auto-servernum pnpm test:e2e:gen-ui

@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -154,7 +154,7 @@ describe("pi-host packaging", () => {
     expect(readFileSync(join(f.out, "bin/node")).equals(readFileSync(selected))).toBe(true);
     const launched = spawnSync(join(f.out, "bin/pi-host"), ["hello world"], { env: { ...process.env, PATH: "/usr/bin:/bin", NODE_OPTIONS: "" }, encoding: "utf8" });
     expect(launched.status, launched.stderr).toBe(0);
-    expect(JSON.parse(launched.stdout)).toEqual({ exec: join(f.out, "bin/node"), args: ["hello world"] });
+    expect(JSON.parse(launched.stdout)).toEqual({ exec: realpathSync(join(f.out, "bin/node")), args: ["hello world"] });
   });
 
   it.each(["old", "wrong-platform", "wrong-arch", "missing"])("rejects %s Node before destroying existing output", (kind) => {
