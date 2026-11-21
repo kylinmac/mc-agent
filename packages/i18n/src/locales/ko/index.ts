@@ -3766,6 +3766,7 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
     schedExactTime: "Exact time",
     schedExactTimeHint: "Pick a time of day, or type an exact time such as 09:30.",
     schedTimeInvalid: "Enter a time between 00:00 and 23:59.",
+    schedDefaultModel: "새 작업의 기본 모델",
     schedTaskName: "Task name",
     taskRunTitle: "{{title}} · run {{n}}",
     projectPromptLabel: "System prompt template",

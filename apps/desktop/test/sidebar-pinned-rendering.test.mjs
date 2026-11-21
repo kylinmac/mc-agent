@@ -181,6 +181,16 @@ test("sidebar renders global pins once, outside project folding and history limi
       assert.match(selected, /sidebar-project-active-dot/);
       assert.doesNotMatch(selected, /class="sidebar-session-group project-group [^"]*\bactive\b/);
     }
+    const scheduled = { ...session("scheduled-run", "/open"), scheduledRun: true };
+    const withScheduled = render({
+      sessions: [normal[0], scheduled],
+      activeSessionId: scheduled.id,
+      activeProjectPath: "/open",
+    });
+    const scheduledGroup = withScheduled.match(/data-sidebar-project-group="\/open"[\s\S]*?<\/section>/)?.[0] ?? "";
+    assert.deepEqual(rows(scheduledGroup), [normal[0].id, scheduled.id]);
+    assert.deepEqual(selectedRows(withScheduled), [scheduled.id]);
+
     const selecting = render({
       activeProjectPath: "/open", activeSessionId: "normal-00", selectingSessionId: "open-pin",
     });

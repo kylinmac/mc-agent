@@ -13,6 +13,16 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcZhCNEntries: McReleaseNotes[] = [
   {
+    version: "1.0.91",
+    date: "2026-11-21",
+    features: [
+      "AI 创建定时任务时可先选权限和模型，再确认创建。在定时任务总览可设置新任务的默认模型和推理等级。",
+    ],
+    fixes: [
+      "定时任务会话现在显示在项目侧栏；复用已有会话时，修改后的任务权限会在下一次运行生效。",
+    ],
+  },
+  {
     version: "1.0.90",
     date: "2026-11-21",
     features: [

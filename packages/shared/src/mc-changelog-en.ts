@@ -9,6 +9,16 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.91",
+    date: "2026-11-21",
+    features: [
+      "Choose permissions and a model before confirming a scheduled task created by the assistant. Save a default model for new tasks on the Scheduled overview.",
+    ],
+    fixes: [
+      "Scheduled conversations appear in the project sidebar. Reused conversations apply permission changes on the next run.",
+    ],
+  },
+  {
     version: "1.0.90",
     date: "2026-11-21",
     features: [

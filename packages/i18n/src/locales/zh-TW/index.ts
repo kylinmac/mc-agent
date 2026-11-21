@@ -3750,6 +3750,7 @@ sklm: {
     schedExactTime: "具體時間",
     schedExactTimeHint: "可以選時段，也可以直接輸入具體時間，例如 09:30。",
     schedTimeInvalid: "請輸入 00:00 到 23:59 之間的時間。",
+    schedDefaultModel: "新建排程任務的預設模型",
     schedTaskName: "任務名稱",
     taskRunTitle: "{{title}} · 第 {{n}} 次",
     projectPromptLabel: "系統提示詞範本",

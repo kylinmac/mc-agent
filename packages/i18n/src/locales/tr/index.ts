@@ -3759,6 +3759,7 @@ importConfirm: "İçe aktarılan uzantılar ajan sürecinde, ajanın kendi araç
     schedExactTime: "Exact time",
     schedExactTimeHint: "Pick a time of day, or type an exact time such as 09:30.",
     schedTimeInvalid: "Enter a time between 00:00 and 23:59.",
+    schedDefaultModel: "Yeni görevler için varsayılan model",
     schedTaskName: "Task name",
     taskRunTitle: "{{title}} · run {{n}}",
     projectPromptLabel: "System prompt template",

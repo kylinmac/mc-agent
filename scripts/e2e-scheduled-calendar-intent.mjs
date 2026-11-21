@@ -1,3 +1,4 @@
+import { confirmScheduledCreation } from "./e2e/scheduled-approval.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -10,7 +11,7 @@ try {
   const {session}=await host.call("session.create",{mode:"agent"});
   const tool=(toolName,args)=>host.call("tools.execute",{sessionId:session.id,toolName,args,mode:"agent",toolCallId:randomUUID()});
   for(const cadence of ["daily","weekly"]) {
-    const created=await tool("ScheduledTaskCreate",{title:"Review",prompt:"Reply OK",cadence:"manual",enabled:false});
+    const created=await confirmScheduledCreation(host, tool("ScheduledTaskCreate",{title:"Review",prompt:"Reply OK",cadence:"manual",enabled:false}), "accept-edits");
     const id=created.content.task.id;
     assert.equal((await tool("ScheduledTaskUpdate",{id,cadence:"hourly"})).ok,true);
     await host.restart();

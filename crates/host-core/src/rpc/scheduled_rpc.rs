@@ -39,7 +39,26 @@ fn handle_with_workspace_policy(
         }
         "scheduled.create" => {
             let mut params = params;
+            if !params.is_object() {
+                return Err(rpc_err(1002, "task must be an object", "INVALID_PARAMS"));
+            }
             validate_schedule_input(&params)?;
+            if params.get("providerId").is_none() && params.get("modelId").is_none() {
+                let settings = st
+                    .db
+                    .get_setting("app")
+                    .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
+                if let Some(model) = settings
+                    .as_ref()
+                    .and_then(|s| s["scheduledDefaultModel"].as_object())
+                {
+                    for key in ["providerId", "modelId", "thinkingLevel"] {
+                        if let Some(value) = model.get(key).filter(|_| params.get(key).is_none()) {
+                            params[key] = value.clone();
+                        }
+                    }
+                }
+            }
             validate_execution_input(&params)?;
             if !allow_workspace_override {
                 if let Some(object) = params.as_object_mut() {
@@ -208,7 +227,28 @@ fn handle_with_workspace_policy(
             };
             let starting_fresh = reused.is_none();
             let session_id = match reused {
-                Some(session_id) => session_id,
+                Some(session_id) => {
+                    if let Some(permission) = options.permission_mode.as_deref() {
+                        let mode = sessions::session_mode(&st.db, &session_id)
+                            .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
+                            .ok_or_else(|| rpc_err(1007, "session not found", "NOT_FOUND"))?;
+                        if sessions::is_contract_mode(&mode) {
+                            return Err(plan_rpc_err("PLAN_REQUIRES_INTERACTIVE_SESSION"));
+                        }
+                        sessions::configure_session_with_thinking(
+                            &st.db,
+                            &session_id,
+                            &mode,
+                            None,
+                            None,
+                            None,
+                            Some(permission),
+                        )
+                        .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?
+                        .ok_or_else(|| rpc_err(1007, "session not found", "NOT_FOUND"))?;
+                    }
+                    session_id
+                }
                 None => {
                     let session = if automatic || uses_task_execution_settings {
                         sessions::create_session_with_options(&st.db, options)
@@ -461,6 +501,24 @@ mod tests {
             first["sessionId"], second["sessionId"],
             "a reuse task continues the conversation its previous run used"
         );
+
+        for permission in ["auto", "ask"] {
+            handle(
+                &st,
+                "scheduled.update",
+                json!({"id":reuse_id,"permissionMode":permission}),
+            )
+            .unwrap();
+            let next = dispatch(reuse_id);
+            assert_eq!(next["sessionId"], first["sessionId"]);
+            assert_eq!(
+                sessions::session_permission_mode(&st.db, next["sessionId"].as_str().unwrap())
+                    .unwrap()
+                    .as_deref(),
+                Some(permission)
+            );
+            settle(&next);
+        }
 
         // Deleting that conversation starts a fresh one instead of failing.
         sessions::delete_session(&st.db, first["sessionId"].as_str().unwrap()).unwrap();

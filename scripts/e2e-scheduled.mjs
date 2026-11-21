@@ -223,6 +223,24 @@ try {
     10_000,
     "scheduled page",
   );
+  const selectAlternateTaskModel = async (surface) => {
+    await click(await evaluate(`document.querySelector('${surface} .composer-model-thinking-chip').getAttribute('aria-label')`), `${surface} button[aria-haspopup]`, true);
+    await waitFor(() => evaluate(`!!document.querySelector('.composer-model-menu.is-open .composer-menu-root')`), 5000, "measured root menu");
+    await evaluate(`document.querySelector('.composer-menu-root .composer-menu-entry').click()`);
+    await waitFor(() => evaluate(`document.activeElement?.getAttribute('aria-label') === 'Search models'`), 5000, "model search focus");
+    await fill('.composer-model-search input', 'fixture-alt');
+    await waitFor(() => evaluate(`document.querySelectorAll('.composer-model-option').length === 1`), 5000, "filtered model");
+    await key("ArrowDown", 40);
+    await key("Enter", 13);
+    await waitFor(() => evaluate(`!!document.querySelector('.composer-menu-root')`), 5000, "task model selection returns to root");
+    // The reasoning level is an inline slider on the measured root menu (issue
+    // #417); there is no separate reasoning view left to open.
+    await click("high", ".composer-thinking-tick");
+    await key("Escape", 27);
+  };
+  await selectAlternateTaskModel(".mc-sched-default-model");
+  await click("Save", ".mc-sched-default-model button");
+  await waitFor(async () => (await invoke("settingsGet")).scheduledDefaultModel?.modelId === "fixture-alt", 5000, "saved scheduled default");
   await click("Create task");
   await fill("form input", "Daily project review");
   await fill("form textarea", "Summarize the current project status.");
@@ -233,19 +251,7 @@ try {
   await waitFor(() => evaluate(`!!document.querySelector('.composer-permission-menu.is-open')`), 5000, "shared permission menu");
   await click("Auto", '.composer-permission-menu [role="menuitemradio"]');
   assert.ok(await evaluate(`document.body.innerText.includes('Auto can run restricted actions')`));
-  await click(await evaluate(`document.querySelector('.scheduled-execution-toolbar .composer-model-thinking-chip').getAttribute('aria-label')`), 'button[aria-haspopup]', true);
-  await waitFor(() => evaluate(`!!document.querySelector('.composer-model-menu.is-open .composer-menu-root')`), 5000, "measured root menu");
-  await evaluate(`document.querySelector('.composer-menu-root .composer-menu-entry').click()`);
-  await waitFor(() => evaluate(`document.activeElement?.getAttribute('aria-label') === 'Search models'`), 5000, "model search focus");
-  await fill('.composer-model-search input', 'fixture-alt');
-  await waitFor(() => evaluate(`document.querySelectorAll('.composer-model-option').length === 1`), 5000, "filtered model");
-  await key("ArrowDown", 40);
-  await key("Enter", 13);
-  await waitFor(() => evaluate(`!!document.querySelector('.composer-menu-root')`), 5000, "task model selection returns to root");
-  // The reasoning level is an inline slider on the measured root menu (issue
-  // #417); there is no separate reasoning view left to open.
-  await click("high", ".composer-thinking-tick");
-  await key("Escape", 27);
+  assert.equal(await evaluate('document.querySelector(".scheduled-execution-toolbar .composer-model-thinking-level").textContent.trim()'), "high");
   const unchangedDefaults = await invoke("settingsGet");
   assert.equal(unchangedDefaults.defaultProviderId, provider.id, "task selection cannot change the conversation default provider");
   assert.equal(unchangedDefaults.defaultModelId, "fixture", "task selection cannot change the conversation default model");
@@ -435,11 +441,30 @@ try {
   for (const scenario of ["create", "read", "update", "delete"]) {
     model.setScenario(scenario);
     await invoke("agentPrompt", { sessionId: chat.id, content: `${scenario} the scheduled task; for update use 15:30.`, viewingSessionId: chat.id });
+    if (scenario === "create") {
+      await waitFor(() => evaluate(`!!document.querySelector('[data-sidebar-session-row="${chat.id}"]')`), 5000, "AI conversation");
+      await evaluate(`document.querySelector('[data-sidebar-session-row="${chat.id}"]').click()`);
+      await waitFor(() => evaluate("!!document.querySelector('.permission-card select')"), 5000, "task permission picker");
+      assert.equal((await invoke("scheduledList")).tasks.length, 0);
+      await evaluate(`(() => {
+        const select = document.querySelector('.permission-card select');
+        select.value = 'accept-edits';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+      })()`);
+      assert.equal(await evaluate('document.querySelector(".permission-card .composer-model-thinking-model").textContent.includes("fixture-alt")'), true);
+      await click("Create task", ".permission-card button");
+    }
     await waitFor(async () => {
       const session = (await invoke("sessionGet", chat.id)).session;
       return session.messages.some(message => message.role === "assistant" && JSON.stringify(message).includes(`SCHEDULE_AI_${scenario.toUpperCase()}_OK`));
     }, 60_000, `AI ${scenario} turn`);
     const tasks = (await invoke("scheduledList")).tasks;
+    if (scenario === "create") {
+      assert.equal(tasks[0].permissionMode, "accept-edits");
+      assert.equal(tasks[0].providerId, alternateProvider.id);
+      assert.equal(tasks[0].modelId, "fixture-alt");
+      assert.equal(tasks[0].thinkingLevel, "high");
+    }
     if (scenario === "delete") assert.equal(tasks.length, 0);
     else { assert.equal(tasks[0].id, model.taskId); assert.equal(tasks[0].enabled, false); }
     if (scenario === "update") {

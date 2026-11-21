@@ -99,12 +99,11 @@ export function ScheduledEditor({
   const defaultModel = !task && settings?.defaultProviderId && settings.defaultModelId
     ? { providerId: settings.defaultProviderId, modelId: settings.defaultModelId }
     : {};
-  const [modelSelection, setModelSelection] = useState<ScheduledModelSelection>(
-    task?.providerId && task.modelId
-      ? { providerId: task.providerId, modelId: task.modelId, thinkingLevel: task.thinkingLevel }
-      : { ...defaultModel, thinkingLevel: task?.thinkingLevel },
-  );
-  const [modelTouched, setModelTouched] = useState(false);
+  const [modelOverride, setModelOverride] = useState<ScheduledModelSelection>();
+  const modelTouched = modelOverride !== undefined;
+  const modelSelection: ScheduledModelSelection = modelOverride ?? (task
+    ? { providerId: task.providerId, modelId: task.modelId, thinkingLevel: task.thinkingLevel }
+    : settings?.scheduledDefaultModel ?? defaultModel);
   useEffect(() => {
     if (workspacePath) return;
     const fallback = currentWorkspacePath || projects[0]?.path;
@@ -173,7 +172,7 @@ export function ScheduledEditor({
           executionSettings.providerId = modelSelection.providerId ?? null;
           executionSettings.modelId = modelSelection.modelId ?? null;
         }
-        if (modelTouched || task?.thinkingLevel) {
+        if (modelTouched || task?.thinkingLevel || (!task && modelSelection.thinkingLevel)) {
           executionSettings.thinkingLevel = modelSelection.thinkingLevel ?? null;
         }
         // The mode always has a value, so it is saved with every draft.
@@ -224,10 +223,7 @@ export function ScheduledEditor({
               setPermissionMode(mode);
               setPermissionTouched(true);
             }}
-            onModelChange={(selection) => {
-              setModelSelection(selection);
-              setModelTouched(true);
-            }}
+            onModelChange={setModelOverride}
             onSessionModeChange={setSessionMode}
           />
         </div>

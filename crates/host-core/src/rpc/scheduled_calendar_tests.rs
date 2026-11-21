@@ -2,7 +2,7 @@ use super::*;
 
 fn invoke(st: &AppState, session: &str, name: &str, args: Value) -> Value {
     let params = serde_json::from_value(json!({"sessionId":session,"toolCallId":"calendar-test","toolName":name,"args":args,"mode":"agent"})).unwrap();
-    serde_json::to_value(execute(st, &params)).unwrap()
+    serde_json::to_value(execute(st, &params, &PermissionDecision::AllowOnce)).unwrap()
 }
 
 fn session(st: &AppState) -> String {

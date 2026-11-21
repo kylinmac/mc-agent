@@ -3822,6 +3822,7 @@ sklm: {
     schedExactTime: "具体时间",
     schedExactTimeHint: "可以选时段，也可以直接输入具体时间，例如 09:30。",
     schedTimeInvalid: "请输入 00:00 到 23:59 之间的时间。",
+    schedDefaultModel: "新建定时任务的默认模型",
     schedTaskName: "任务名称",
     taskRunTitle: "{{title}} · 第 {{n}} 次",
     projectPromptLabel: "系统提示词模板",

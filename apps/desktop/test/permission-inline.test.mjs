@@ -310,7 +310,7 @@ test("background permission events update only session-scoped state", () => {
   );
   assert.match(
     interactionSource,
-    /resolvePermission: async \(sessionId, requestId, decision\)/,
+    /resolvePermission: async \(sessionId, requestId, decision, taskOptions\)/,
   );
   // Only the request on screen is answerable, and a late answer clears that
   // request alone rather than whatever now sits at the head.

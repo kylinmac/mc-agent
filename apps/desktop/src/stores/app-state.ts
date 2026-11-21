@@ -13,6 +13,7 @@ import type {
   Mode,
   ModelInfo,
   OnboardingState,
+  ToolPermissionResolution,
   PermissionMode,
   PlanProposal,
   PlanResolveRequest,
@@ -389,6 +390,7 @@ export type AppState = {
     sessionId: string,
     requestId: string,
     decision: "allow-once" | "allow-session" | "deny",
+    taskOptions?: Pick<ToolPermissionResolution, "scheduledPermissionMode" | "scheduledModel">,
   ) => Promise<void>;
   resolveAsk: (
     sessionId: string,

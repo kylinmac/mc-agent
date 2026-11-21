@@ -62,6 +62,8 @@
 | B-054 | 已修（源码与自动测试） | 后台预生成摘要在途时切换模型或思考档位未立即取消请求；到线等待时先 `await` 构建再检查作废原因 | 模型与思考档位切换立即调用 `discardPreparedSummary("model_changed")`；`installPreparedSummary` 在 `await` 前先验作废原因 | [#147](https://github.com/kylinmac/mc-agent/issues/147) / [#148](https://github.com/kylinmac/mc-agent/issues/148)；`mc-quality-context-handoff.test.ts`（Q03）通过；安装版未实测 |
 | B-055 | 已修（源码与自动测试） | 批准 Plan / Goal 进入执行轮次时沿用规划轮次的父级重复工具调用计数与残留终止标记 | `executeApprovedPlanTurn` 重置 `turnSubagentUsage`、`repeatedToolCalls` 父级计数与 `pendingRepeatedCallTermination` | [#147](https://github.com/kylinmac/mc-agent/issues/147) / [#148](https://github.com/kylinmac/mc-agent/issues/148)；`mc-quality-stop-hooks.test.ts`（Q12）覆盖 Plan 与 Goal；安装版未实测 |
 | B-056 | 已修（源码与自动测试） | `session.response.end` 的 `*Tokens` 数值字段命中 `logger.ts` `/token/i` 脱敏规则被写成 `"***REDACTED***"`，导致缓存基线脚本普通请求表为空 | 诊断落盘前映射为 `input / output / reasoning / cacheRead / cacheWrite`，不放宽 `logger.ts` 密钥脱敏规则；汇总脚本兼容读取 | [#122](https://github.com/kylinmac/mc-agent/issues/122) / [#148](https://github.com/kylinmac/mc-agent/issues/148)；本机日志只读核对发现；`mc-context-diagnostics.test.mjs`、`mc-compaction-cache-report.test.mjs` 7 项通过；安装版待发版后验证 |
+| B-057 | 已修 | 顶部项目菜单能打开定时任务会话，左侧项目分组却缺少该行 | 定时任务会话和普通会话按相同规则显示在左侧，打开后高亮当前行 | 侧栏组件渲染回归测试 |
+| B-058 | 已修 | 定时任务复用会话时，编辑后的权限模式没有生效 | 下次运行沿用原会话并应用任务的权限配置，包括调低权限 | 调度 RPC 回归测试覆盖切换到全自动及切回询问 |
 
 ## B-048–B-056 可靠性与运行时收口（#148–#152）
 

@@ -1,10 +1,11 @@
 /** Shared public types grouped by the owning application domain. */
+import type { ScheduledTask } from "./platform.js";
 import type { AppError } from "../errors.js";
 import type { PlanExecution, PlanningStateEvent } from "./plans.js";
 import type { ContextCompactionFallback, ContextCompactionMark, ContextCompactionReason } from "./sessions.js";
 import type { AgentStatus } from "./sessions.js";
 import type { MessageUsage, ToolTokenUsage, UiMessage, VoiceOrigin } from "./messages.js";
-import type { PermissionDecision, Risk } from "./permissions.js";
+import type { GlobalPermissionMode, PermissionDecision, Risk } from "./permissions.js";
 import type { ThinkingLevel } from "./models.js";
 import type { RacpPermissionMode } from "../racp.js";
 
@@ -170,6 +171,8 @@ export type ToolPermissionRequest = {
 export type ToolPermissionResolution = {
   requestId: string;
   decision: PermissionDecision;
+  scheduledPermissionMode?: GlobalPermissionMode;
+  scheduledModel?: Pick<ScheduledTask, "providerId" | "modelId" | "thinkingLevel">;
 };
 
 /** A selectable asktool answer: a plain label or a label with supporting copy. */

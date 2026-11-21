@@ -568,3 +568,9 @@ P9；V106：在不暴露本地明文端口、不依赖公网 IP 的前提下，�
 | 默认关闭与配对管理 | 默认 `enabled: false`（`<数据目录>/mobile/config.json`）；在「设置 → 手机访问」（`MobileAccessPage.tsx`）开关网关、生成带倒计时的一次性 `mc-pair://v1?...` 二维码与配对码、查看设备在线状态并即时吊销（吊销立即踢断当前连接并拒绝对方重连） |
 | 小词汇表权限边界 | `apps/desktop/electron/main/mobile-bridge/` 仅开放 `MC_MOBILE_METHODS` 白名单内的 20 个方法（`host.info`、`attention.list`、`projects.list`、`sessions.list`、`session.create`、`session.configure`、`session.history`、`session.subscribe`/`unsubscribe`、`turn.send`/`stop`、`approval.respond`、`ask.respond`、`proposal.respond`、`diff.summary`/`file`、`canvas.list`/`get`/`createWhiteboard`/`saveWhiteboard`），非白名单调用一律返回 `FORBIDDEN`；手机端绝不接触全局设置写入、密钥导出、删项目或任意文件读写 |
 | 流式事件与白板实时同步 | 通过 `sendToRenderer` 单行观察挂钩向已订阅手机连接推送带单调游标（断线可按 `afterCursor` 重放，单会话上限 300 条）的流式事件、`attention.updated` 与 `canvas.changed`；手机端白板保存后即时同步桌面端 R38 `canvas.whiteboard.*` 并刷新桌面画布 |
+
+## R44 定时任务创建时确认运行权限（2026-11-21 已确认）
+
+手动创建沿用表单权限选择。AI 在本地对话创建任务时，P44 审批卡展示任务参数，可选择跟随运行时默认模型，或指定服务商、模型及推理等级，让用户选择每次询问、自动接受编辑或全自动后确认创建。即使当前会话为全自动也需要确认。取消后不保存任务。首次运行时创建会话，按任务保存的权限执行。
+
+R44.1 已确认。定时任务总览可保存或清除新任务的默认模型和推理等级。手动创建与 AI 确认卡自动带入，可为当前任务改选。保存任务时记录最终选择；之后修改默认值只影响新建任务。
