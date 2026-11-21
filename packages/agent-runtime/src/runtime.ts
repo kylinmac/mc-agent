@@ -196,6 +196,7 @@ import {
   assistantContent,
   isRecord,
   nowIso,
+  safeJson,
   timestampMs,
   toJsonObject,
   toJsonValue,
@@ -203,6 +204,7 @@ import {
   usageFromPi,
   usageToPi,
 } from "./agent-messages.js";
+import { isMissingToolResultPlaceholder, liveToolResultContent, restoredToolContent } from "./tool-result-content.js";
 import { withExplicitRequired } from "./tool-schema.js";
 import { buildSessionContext } from "./session-context.js";
 import {
@@ -491,9 +493,6 @@ export function sessionReferenceBlock(attachment: RuntimePromptAttachment): stri
 // one runtime-owned budget instead of multiplying nested retry loops.
 const PROVIDER_REQUEST_MAX_RETRIES = 0;
 export const TOOL_SEARCH_NAME = "ToolSearch";
-/** Stands in for a persisted tool row that never recorded a result. */
-const MISSING_TOOL_RESULT_PLACEHOLDER = "[no tool result recorded]";
-
 function toolNameList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return [
@@ -522,16 +521,6 @@ function toolSearchActivatedNames(
     if (names.length > 0) return names;
   }
   return [];
-}
-
-function isMissingToolResultPlaceholder(
-  content: ToolResultMessage["content"],
-): boolean {
-  return (
-    content.length === 1 &&
-    content[0].type === "text" &&
-    content[0].text === MISSING_TOOL_RESULT_PLACEHOLDER
-  );
 }
 
 /** Narrow view of the `tool_end` agent event; the envelope carries the rest. */
@@ -1371,14 +1360,6 @@ function retainedTailForContext(
   return latestUser ? [latestUser] : [];
 }
 
-function safeJson(value: unknown): string {
-  try {
-    return JSON.stringify(value) ?? String(value);
-  } catch {
-    return String(value);
-  }
-}
-
 const MIN_COMMAND_TIMEOUT_SECONDS = 1;
 /** Host safety bound so every spawn still has a finite deadline (D329). */
 const MAX_COMMAND_TIMEOUT_SECONDS = 21_600;
@@ -1688,58 +1669,6 @@ function selectRetainedUserMessages(
   return selected.reverse();
 }
 
-/**
- * Model-visible text for one host tool content block. Besides plain `text`
- * blocks, MCP servers return file bodies as embedded text resources and large
- * payloads as resource links (github-mcp-server `get_file_contents` sends a
- * status line plus one of these), so dropping them next to a sibling text
- * block hides the actual result from the model. Binary resources and other
- * block kinds have no text to show and stay out of the text channel.
- */
-function hostContentBlockText(block: unknown): string | undefined {
-  if (!isRecord(block)) return undefined;
-  if (block.type === "text" && typeof block.text === "string") return block.text;
-  if (
-    block.type === "resource" &&
-    isRecord(block.resource) &&
-    typeof block.resource.text === "string"
-  ) {
-    return block.resource.text;
-  }
-  if (block.type === "resource_link" && typeof block.uri === "string") {
-    const name = typeof block.name === "string" && block.name.trim()
-      ? `${block.name.trim()}: `
-      : "";
-    return `[resource link] ${name}${block.uri}`;
-  }
-  return undefined;
-}
-
-/**
- * JSON text fallback for a host result that produced no text blocks. Image
- * `data` and resource `blob` bytes stay off the text channel; type, mimeType,
- * and uri remain so the model still sees what was attached.
- */
-function withoutInlineBinary(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map((entry) => withoutInlineBinary(entry));
-  if (!isRecord(value)) return value;
-  const next: Record<string, unknown> = {};
-  for (const [key, entry] of Object.entries(value)) {
-    if (key === "data" && value.type === "image") continue;
-    if (key === "resource" && value.type === "resource" && isRecord(entry)) {
-      const resource: Record<string, unknown> = {};
-      for (const [resourceKey, resourceValue] of Object.entries(entry)) {
-        if (resourceKey === "blob") continue;
-        resource[resourceKey] = withoutInlineBinary(resourceValue);
-      }
-      next.resource = resource;
-      continue;
-    }
-    next[key] = withoutInlineBinary(entry);
-  }
-  return next;
-}
-
 /** Rebuild a pi-ai tool result from a persisted tool row. Rows that never
  * finished (app quit / abort mid-tool) restore as errored results so the
  * model knows the call produced nothing. Exported for tests. */
@@ -1748,67 +1677,6 @@ export function toolResultFromUi(
   timestamp: number,
 ): ToolResultMessage {
   const raw: unknown = m.toolResult;
-  const blocks: ToolResultMessage["content"] = [];
-  const rawBlocks =
-    isRecord(raw) && Array.isArray(raw.content) ? raw.content : undefined;
-  if (rawBlocks) {
-    for (const b of rawBlocks) {
-      if (!isRecord(b)) continue;
-      // Same text rule as live execution: embedded MCP resources and resource
-      // links stay visible after a session restore. Binary resources have no
-      // text and stay out.
-      const blockText = hostContentBlockText(b);
-      if (blockText !== undefined) {
-        blocks.push({ type: "text", text: blockText });
-      } else if (
-        b.type === "image" &&
-        typeof b.data === "string" &&
-        typeof b.mimeType === "string"
-      ) {
-        blocks.push({ type: "image", data: b.data, mimeType: b.mimeType });
-      }
-    }
-  } else if (Array.isArray(raw)) {
-    // Plugin tools may return a bare content-block array; restore its text
-    // and image blocks so a restart does not flatten them into JSON (#1360).
-    for (const b of raw) {
-      if (!isRecord(b)) continue;
-      const blockText = hostContentBlockText(b);
-      if (blockText !== undefined) {
-        blocks.push({ type: "text", text: blockText });
-      } else if (
-        b.type === "image" &&
-        typeof b.data === "string" &&
-        typeof b.mimeType === "string"
-      ) {
-        blocks.push({ type: "image", data: b.data, mimeType: b.mimeType });
-      }
-    }
-  } else if (typeof raw === "string" && raw.trim()) {
-    blocks.push({ type: "text", text: raw });
-  } else if (raw !== undefined && raw !== null) {
-    // A host Read of an image file returns a top-level `images` array rather
-    // than content blocks; restore those as real image content so the model
-    // sees the picture across a restart, not just the JSON text (#1073).
-    const rawObject = isRecord(raw) ? raw : undefined;
-    const images = rawObject?.images;
-    if (rawObject && Array.isArray(images)) {
-      const rest = { ...rawObject };
-      delete rest.images;
-      blocks.push({ type: "text", text: safeJson(rest) });
-      for (const image of images) {
-        if (
-          isRecord(image) &&
-          typeof image.data === "string" &&
-          typeof image.mimeType === "string"
-        ) {
-          blocks.push({ type: "image", data: image.data, mimeType: image.mimeType });
-        }
-      }
-    } else {
-      blocks.push({ type: "text", text: safeJson(raw) });
-    }
-  }
   const interrupted = m.toolStatus === "running";
   const rawRecord: Record<string, unknown> | undefined = isRecord(raw)
     ? raw
@@ -1818,19 +1686,11 @@ export function toolResultFromUi(
     m.toolName === TOOL_SEARCH_NAME
       ? toolSearchActivatedNames(rawRecord?.details, rawAddedToolNames)
       : toolNameList(rawAddedToolNames);
-  if (blocks.length === 0) {
-    blocks.push({
-      type: "text",
-      text: interrupted
-        ? "[tool call was interrupted before a result was recorded]"
-        : MISSING_TOOL_RESULT_PLACEHOLDER,
-    });
-  }
   return {
     role: "toolResult",
     toolCallId: m.toolCallId ?? "",
     toolName: m.toolName ?? "",
-    content: blocks,
+    content: restoredToolContent(raw, interrupted),
     ...(toJsonValue(rawRecord?.details) !== undefined || addedToolNames.length > 0
       ? {
           details: {
@@ -4123,7 +3983,7 @@ export class DesktopAgentRuntime {
           failureKey !== undefined &&
           typeof result.errorCode === "string" &&
           RECOVERABLE_MUTATION_ERROR_CODES.has(result.errorCode)
-            ? `${failureKey} ${result.errorCode}`
+            ? `${failureKey}\0${result.errorCode}`
             : undefined;
         const grantedRecoveryGrace =
           graceKey !== undefined && !this.mutationRecoveryGraces.has(graceKey);
@@ -4156,7 +4016,7 @@ export class DesktopAgentRuntime {
           if (succeededKey !== undefined) {
             this.mutationFailureCounts.delete(succeededKey);
             for (const key of this.mutationRecoveryGraces) {
-              if (key.startsWith(`${succeededKey} `)) {
+              if (key.startsWith(`${succeededKey}\0`)) {
                 this.mutationRecoveryGraces.delete(key);
               }
             }
@@ -4187,97 +4047,13 @@ export class DesktopAgentRuntime {
             });
           }
         }
-        const rawContent = result.content;
-        const imageBlocks: Array<{ type: "image"; data: string; mimeType: string }> = [];
-        let text: string;
-        let details: unknown = rawContent;
-        const vision = visionFromModelConfig(this.provider.modelConfig);
-        // Collect image blocks from a content-block array; only well-formed
-        // image entries ({ type, data, mimeType }) are accepted.
-        const collectImageBlocks = (blocks: unknown[]): void => {
-          for (const block of blocks) {
-            if (
-              isRecord(block) &&
-              block.type === "image" &&
-              typeof block.data === "string" &&
-              typeof block.mimeType === "string"
-            ) {
-              if (vision) {
-                imageBlocks.push({
-                  type: "image",
-                  data: block.data,
-                  mimeType: block.mimeType,
-                });
-              }
-            }
-          }
-        };
-        if (typeof rawContent === "string") {
-          text = rawContent;
-        } else if (Array.isArray(rawContent)) {
-          // Plugin tools may return a bare content-block array
-          // ([{ type: "text" }, { type: "image" }]); render the text blocks
-          // and hand images to the model instead of stringifying (#1360).
-          const textParts: string[] = [];
-          for (const block of rawContent) {
-            const blockText = hostContentBlockText(block);
-            if (blockText !== undefined) textParts.push(blockText);
-          }
-          collectImageBlocks(rawContent);
-          text =
-            textParts.join("\n") ||
-            JSON.stringify(withoutInlineBinary(rawContent), null, 2);
-          details = { blocks: rawContent, imageCount: imageBlocks.length };
-        } else if (isRecord(rawContent) && Array.isArray(rawContent.content)) {
-          // MCP tools return `content: [{ type: "image" | "text", ... }]`.
-          const contentBlocks = rawContent.content;
-          const textParts: string[] = [];
-          for (const block of contentBlocks) {
-            const blockText = hostContentBlockText(block);
-            if (blockText !== undefined) textParts.push(blockText);
-          }
-          collectImageBlocks(contentBlocks);
-          text =
-            textParts.join("\n") ||
-            JSON.stringify(withoutInlineBinary(rawContent), null, 2);
-          details = { ...rawContent, imageCount: imageBlocks.length };
-        } else if (isRecord(rawContent) && Array.isArray(rawContent.images)) {
-          text =
-            typeof rawContent.text === "string"
-              ? rawContent.text
-              : JSON.stringify(
-                  { ...rawContent, images: undefined },
-                  null,
-                  2,
-                );
-          for (const image of rawContent.images) {
-            if (
-              !isRecord(image) ||
-              typeof image.data !== "string" ||
-              typeof image.mimeType !== "string"
-            ) {
-              continue;
-            }
-            if (vision) {
-              imageBlocks.push({
-                type: "image",
-                data: image.data,
-                mimeType: image.mimeType,
-              });
-            }
-          }
-          const { images: _images, ...rest } = rawContent;
-          details = {
-            ...rest,
-            ...(typeof rawContent.path === "string" ? { path: rawContent.path } : {}),
-            imageCount: imageBlocks.length,
-          };
-        } else {
-          text = JSON.stringify(rawContent, null, 2);
-        }
+        const { content, details } = liveToolResultContent(
+          result.content,
+          visionFromModelConfig(this.provider.modelConfig),
+        );
         if (!result.ok) this.failedHostToolCalls.add(toolCallId);
         return {
-          content: [{ type: "text", text }, ...imageBlocks],
+          content,
           details,
           ...(terminateAfterMutationFailure ? { terminate: true } : {}),
           isError: result.isError === true || result.ok === false,

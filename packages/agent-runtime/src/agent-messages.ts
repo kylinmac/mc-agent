@@ -31,6 +31,14 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+export function safeJson(value: unknown): string {
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
+  }
+}
+
 /** JSON-clone an opaque value so it satisfies pi 0.86 `JsonValue`. */
 export function toJsonValue(value: unknown): JsonValue | undefined {
   if (value === undefined) return undefined;
