@@ -18,6 +18,36 @@ fn stdio(id: &str) -> McpServerInput {
 }
 
 #[test]
+fn a_disabled_import_only_publishes_after_its_state_is_saved() {
+    let (data, global, _project) = scaffolding();
+    test_support::with_global_agents(global.path(), || {
+        let mut registry = McpServerRegistry::new(data.path());
+        let mut input = stdio("offline");
+        input.enabled = Some(false);
+        let state_dir = data.path().join("agent-capabilities");
+        fs::write(&state_dir, "blocks directory creation").unwrap();
+        assert!(registry.upsert(input.clone()).is_err());
+        assert!(!global.path().join("servers/offline.json").exists());
+        assert!(registry
+            .state
+            .enabled(MCP_KIND, CapabilityLevel::Global, "offline", None));
+
+        fs::remove_file(&state_dir).unwrap();
+        let target = global.path().join("servers/offline.json");
+        fs::create_dir(&target).unwrap();
+        assert!(registry.upsert(input.clone()).is_err());
+        assert!(registry
+            .state
+            .enabled(MCP_KIND, CapabilityLevel::Global, "offline", None));
+        fs::remove_dir(target).unwrap();
+        let saved = registry.upsert(input).unwrap();
+        assert!(!saved.enabled);
+        let mut reopened = McpServerRegistry::new(data.path());
+        assert!(reopened.active_for(None).unwrap().is_empty());
+    });
+}
+
+#[test]
 fn validation_accepts_http_endpoints_and_rejects_bad_ids() {
     assert!(!valid_id("1files"));
     assert!(check_url("http://localhost:3000/mcp").is_ok());

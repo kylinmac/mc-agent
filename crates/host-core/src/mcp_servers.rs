@@ -400,9 +400,8 @@ impl McpServerRegistry {
 
     pub fn upsert(&mut self, input: McpServerInput) -> Result<McpServerRecord> {
         let (level, project_path) = level_and_project(&input)?;
-        let existing = self.find(&input.id, Some(level), project_path.as_deref())?;
         let same_level = self.list(level, project_path.as_deref())?;
-        let current = existing.as_ref();
+        let current = same_level.iter().find(|record| record.id == input.id);
         let transport = input
             .transport
             .clone()
@@ -469,22 +468,37 @@ impl McpServerRegistry {
                 .unwrap_or_default();
         }
         Self::validate_config(&config)?;
-        if same_level.len() >= MAX_SERVERS && existing.is_none() {
+        if same_level.len() >= MAX_SERVERS && current.is_none() {
             bail!("MCP_INVALID: at most {MAX_SERVERS} MCP servers");
         }
         let directory = capability_dir(level, project_path.as_deref(), "servers")?;
         fs::create_dir_all(&directory)?;
         let path = directory.join(format!("{}.json", config.id));
-        fs::write(&path, serde_json::to_string_pretty(&config)?)
-            .with_context(|| format!("write {}", path.display()))?;
-        if let Some(enabled) = input.enabled {
-            self.state.set_enabled(
-                MCP_KIND,
-                level,
-                &config.id,
-                project_path.as_deref(),
-                enabled,
-            )?;
+        let document = serde_json::to_string_pretty(&config)?;
+        let owner = project_path.as_deref();
+        let was_enabled = self.state.enabled(MCP_KIND, level, &config.id, owner);
+        // Save a disable before publishing a runnable definition. A restart between
+        // these files must not activate a server the importer explicitly disabled.
+        if input.enabled == Some(false) {
+            self.state
+                .set_enabled(MCP_KIND, level, &config.id, owner, false)?;
+        }
+        if let Err(error) = fs::write(&path, document) {
+            if input.enabled == Some(false) && was_enabled {
+                self.state
+                    .set_enabled(MCP_KIND, level, &config.id, owner, true)
+                    .with_context(|| {
+                        format!(
+                            "restore activation after write {} failed: {error}",
+                            path.display()
+                        )
+                    })?;
+            }
+            return Err(error).with_context(|| format!("write {}", path.display()));
+        }
+        if input.enabled == Some(true) {
+            self.state
+                .set_enabled(MCP_KIND, level, &config.id, owner, true)?;
         }
         self.find(&config.id, Some(level), project_path.as_deref())?
             .ok_or_else(|| anyhow::anyhow!("MCP_INVALID: saved server was not found"))

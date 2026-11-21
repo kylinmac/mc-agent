@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync } from "node:fs";
+import { globSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ErrorCodes } from "@pi-desktop/shared";
@@ -22,7 +22,9 @@ const documented = new Set(
 /** Codes host-core emits as `errorCode` on JSON-RPC errors and tool results. */
 function hostEmittedCodes() {
   const codes = new Set();
-  const rpc = read("crates/host-core/src/rpc/mod.rs");
+  const rpc = globSync("crates/host-core/src/rpc/**/*.rs", { cwd: root })
+    .filter((path) => !path.split(/[/\\]/).some((part) => part.endsWith("_tests") || part.endsWith("_tests.rs")))
+    .map(read).join("\n");
   for (const m of rpc.matchAll(/rpc_err\(\s*-?\d+,\s*[^;]*?"([A-Z][A-Z0-9_]+)"\s*,?\s*\)/gs)) {
     codes.add(m[1]);
   }

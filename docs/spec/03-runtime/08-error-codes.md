@@ -56,6 +56,10 @@ registered; reserved codes in §3.7 remain intentionally absent from
 | `NOT_FOUND` | no | entity not found |
 | `SESSION_NOT_FOUND` | no | a session-scoped RPC (including `tools.execute`) named a session the host does not have; an unknown id never inherits the global workspace |
 | `CONFLICT` | maybe | state conflict / busy resource |
+| `PROJECT_HISTORY_DENIED` | no | the requested conversation is unavailable in the current local project |
+| `HISTORY_READ_FAILED` | maybe | the host could not read the selected conversation's history |
+| `SCHEDULE_ALREADY_RUNNING` | no | a run is already active for this scheduled task |
+| `SCHEDULE_NOT_DUE` | no | the scheduled task is no longer due for an automatic run |
 | `UNSUPPORTED` | no | the operation has no implementation on this surface, e.g. a trusted-extension prompt while no desktop window can show it (spec 16 §9) |
 | `FORBIDDEN` | no | RACP: the principal's roles do not admit the method (spec 19 §13) |
 | `METHOD_NOT_FOUND` | no | RACP: unknown method on this Host, e.g. `host/list` without a Gateway |
