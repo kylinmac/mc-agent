@@ -36,6 +36,7 @@ import {
   IconSparkles,
   IconCloudDown,
   IconMic,
+  IconSmartphone,
 } from "../../components/icons";
 import { Badge, Button, cx, SegmentedControl, SettingsToggle } from "../../components/ui";
 import { ModelConfigPage } from "../../components/settings/ModelConfigPage";
@@ -75,6 +76,7 @@ import { UsagePage } from "./UsagePage";
 import { ProjectTemplatesPage } from "./ProjectTemplatesPage";
 import { AskToolSettings } from "./AskToolSettings";
 import { SystemPermissionsPage } from "./SystemPermissionsPage";
+import { MobileAccessPage } from "./MobileAccessPage";
 
 type SettingsTab = ReturnType<typeof useAppStore.getState>["settingsTab"];
 
@@ -269,6 +271,7 @@ export function SettingsPage() {
       projects: <IconArchive size={14} />,
       sync: <IconCloudDown size={14} />,
       remoteHosts: <IconGlobe size={14} />,
+      mobileAccess: <IconSmartphone size={14} />,
       voice: <IconMic size={14} />,
       about: <IconInfo size={14} />,
     };
@@ -704,6 +707,8 @@ export function SettingsPage() {
           {tab === "sync" && !tabHidden && <ConfigSyncPage />}
 
           {tab === "remoteHosts" && !tabHidden && <RemoteHostsPage />}
+
+          {tab === "mobileAccess" && <MobileAccessPage />}
 
           {tab === "about" && (
             <div className="settings-stack">

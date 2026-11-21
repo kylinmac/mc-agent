@@ -84,6 +84,7 @@ import {
   Shield,
   SlidersHorizontal,
   Slash,
+  Smartphone,
   Smile,
   Sparkles,
   Square,
@@ -225,6 +226,7 @@ export const IconMic = icon(Mic);
 export const IconMicOff = icon(MicOff);
 export const IconWaveform = icon(AudioLines);
 export const IconPhoneOff = icon(PhoneOff);
+export const IconSmartphone = icon(Smartphone);
 export const IconVolume = icon(Volume2);
 export const IconPlug = icon(Plug);
 export const IconSlash = icon(Slash);

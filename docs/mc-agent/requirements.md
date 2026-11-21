@@ -557,3 +557,14 @@ P8、P11；V105：在不走 Computer Use（不录屏、不模拟键鼠、不抢�
 | 默认关闭、显式按需 | 插件位于 `apps/desktop/resources/plugins/mc.tty7/`，`enabledByDefault: false`，可在插件页一键开关；MCP 工具走既有 `ToolSearch` 延迟目录；技能 `skills/tty7.md` 与工具描述明确要求仅在用户点名 `tty7`、外部终端、`%pane`、SSH 远端目标或主动输入 `/skill:mc.tty7/tty7` 时才使用，常规命令继续走 `Bash`，右侧面板终端继续走 R27 `WorkPanel*` |
 | 读写分级审批 | `manifest.json` 的 `toolRisk` 仅将 8 个只读工具（`doctor`、`list_machines`、`list_workspaces`、`list_panes`、`capture_pane`、`pane_procs`、`list_agents`、`wait_pane`）标为 `low`；5 个写入／控制工具（`exec_in_pane`、`send_to_pane`、`split_pane`、`new_workspace`、`close_pane`）保持审批门禁 |
 | 协议与安全边界 | 零外部依赖 stdio MCP Server（`mcp-server.mjs`）全程 `shell: false` 调用 `tty7` CLI，校验 `%pane`／`machine`／`workspace`／按键防 flag 注入，交互文本经 `--stdin` 管道发送避免进 `ps`，输出有界截断 64KB 并标记为不可信数据，绝不擅自启动 `tty7-server` |
+
+## R43 手机远程操作网关与配对控制平面（2026-11-21 已确认）
+
+P9；V106：在不暴露本地明文端口、不依赖公网 IP 的前提下，为独立手机客户端 `mc-agent-mobile`（Tauri 2 + `iroh` + S Pen 离线白板）提供端到端加密远程访问入口，让用户在手机上审批、发消息、看变更并画白板与桌面端双向同步：
+
+| 项 | 约定 |
+| --- | --- |
+| 独立传输 sidecar | `crates/mc-mobile-gateway` 使用 `iroh`（ALPN `mc-agent/mobile/1` + mDNS `_mc-agent._udp` 局域网直连 + Relay 自动降级），Ed25519 密钥与已配对设备清单存在 `<数据目录>/mobile/`；与 Electron Main 仅通过 stdio NDJSON 通信，不开任何本机 TCP 端口，退出随主进程自动清理 |
+| 默认关闭与配对管理 | 默认 `enabled: false`（`<数据目录>/mobile/config.json`）；在「设置 → 手机访问」（`MobileAccessPage.tsx`）开关网关、生成带倒计时的一次性 `mc-pair://v1?...` 二维码与配对码、查看设备在线状态并即时吊销（吊销立即踢断当前连接并拒绝对方重连） |
+| 小词汇表权限边界 | `apps/desktop/electron/main/mobile-bridge/` 仅开放 `MC_MOBILE_METHODS` 白名单内的 19 个方法（`host.info`、`attention.list`、`projects.list`、`sessions.list`、`session.create`、`session.history`、`session.subscribe`/`unsubscribe`、`turn.send`/`stop`、`approval.respond`、`ask.respond`、`proposal.respond`、`diff.summary`/`file`、`canvas.list`/`get`/`createWhiteboard`/`saveWhiteboard`），非白名单调用一律返回 `FORBIDDEN`；手机端绝不接触设置写入、密钥导出、删项目或任意文件读写 |
+| 流式事件与白板实时同步 | 通过 `sendToRenderer` 单行观察挂钩向已订阅手机连接推送带单调游标（断线可按 `afterCursor` 重放，单会话上限 300 条）的流式事件、`attention.updated` 与 `canvas.changed`；手机端白板保存后即时同步桌面端 R38 `canvas.whiteboard.*` 并刷新桌面画布 |

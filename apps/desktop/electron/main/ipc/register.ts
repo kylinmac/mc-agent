@@ -49,6 +49,7 @@ import { registerBackgroundTasksIpc } from "./background-tasks-ipc";
 import { registerSkillsIpc } from "./skills-ipc";
 import { registerAgentImportIpc } from "./agent-import-ipc";
 import { registerRemoteHostIpc } from "./remote-host-ipc";
+import { registerMcMobileIpc } from "./mc-mobile-ipc";
 import { fetchSkillMarketDocument, searchSkillMarket } from "../skill-market-catalog";
 import { registerWindowIpc } from "./window-ipc";
 import { registerWorktreeIpc } from "./worktree-ipc";
@@ -673,6 +674,20 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
   }
 
   registerRemoteHostIpc({ registrar });
+
+  registerMcMobileIpc({
+    registrar,
+    dataDir,
+    getHost,
+    invoke: async (channel, args) => {
+      const handler = ipcHandlers.get(channel);
+      if (!handler) throw new Error(`IPC channel unavailable: ${channel}`);
+      return handler(...args);
+    },
+    activeTurns,
+    sendToRenderer,
+    logger,
+  });
 
   registerMarketIpc({
     registrar,

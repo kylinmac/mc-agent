@@ -53,6 +53,7 @@ import { hasSingleInstanceLock, isDevelopmentBuild } from "./installation";
 import { getStorageBootstrap } from "./storage/bootstrap";
 import { createPlanUiProbe } from "./plan-ui-probe";
 import { registerIpcHandlers } from "./ipc/register";
+import { observeMobileBridgeEvent } from "./ipc/mc-mobile-ipc";
 import { createVoiceService } from "./voice-service";
 import { MicrophoneLeaseRegistry } from "./live-voice/microphone-lease";
 import { createLiveCallService } from "./live-voice/runtime";
@@ -474,6 +475,7 @@ function setCurrentWorkspacePath(path: string | null): void {
 function sendToRenderer(channel: string, payload: unknown) {
   applicationLifecycle?.traySessions.observeEvent(channel, payload);
   applicationLifecycle?.taskbarUnreadBadge.observeEvent(channel, payload);
+  observeMobileBridgeEvent(channel, payload);
   if (channel === IPC.event.pluginChanged) {
     applicationLifecycle?.applyNativeThemeSource({
       theme: applicationAppearanceState.appThemePreference,
