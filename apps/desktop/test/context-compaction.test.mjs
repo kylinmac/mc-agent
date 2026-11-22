@@ -35,6 +35,7 @@ const [
   contextBudget,
   delegationHistory,
   compactionTail,
+  checkpoint,
 ] = await Promise.all([
   read("../../../packages/shared/src/protocol.ts"),
   readSharedTypesSource(),
@@ -58,6 +59,7 @@ const [
   read("../../../packages/agent-runtime/src/context-budget.ts"),
   read("../../../packages/agent-runtime/src/delegation-history.ts"),
   read("../../../packages/agent-runtime/src/compaction-tail.ts"),
+  read("../../../packages/agent-runtime/src/compaction-checkpoint.ts"),
 ]);
 
 test("context compaction is wired through protocol v11 and the manual IPC path", () => {
@@ -198,7 +200,7 @@ test("a checkpoint carries only the active user message past the boundary", () =
   // only its latest user message, while a completed turn carries no naked
   // historical user messages into the next task.
   assert.match(contextBudget, /COMPACTION_RETAINED_USER_MESSAGE_MAX_TOKENS = 20_000/);
-  assert.match(runtime, /type CompactionRetentionMode = "active_turn" \| "completed_turn"/);
+  assert.match(checkpoint, /type CompactionRetentionMode = "active_turn" \| "completed_turn"/);
   assert.match(runtime, /retainedTailMode: retentionMode/);
   assert.match(runtime, /private codexShapedPreparation\(/);
   assert.match(
@@ -312,9 +314,9 @@ test("a failed compaction checkpoint still restores a non-empty context", () => 
   // it had just started (#224). It must not persist one user line either: a
   // failed summary is the only record of the range behind it, so the tail is the
   // recent window itself (#827).
-  assert.match(runtime, /const retainedTail = this\.fallbackRetainedTail\(/);
+  assert.match(runtime, /const retainedTail = fallbackRetainedTail\(/);
   assert.match(
-    runtime,
+    checkpoint,
     /return selectRecentTail\(\s*preparation\.messagesToSummarize,/,
   );
   assert.match(compactionTail, /export function selectRecentTail\(/);
@@ -326,7 +328,7 @@ test("a failed compaction checkpoint still restores a non-empty context", () => 
   // The shape marker is what keeps a rebuild from narrowing the window back to
   // one user message, so the read gate has to test it.
   assert.match(
-    runtime,
+    checkpoint,
     /details\.retainedTailShape === COMPACTION_RETAINED_TAIL_SHAPE/,
   );
   // Only a range the planner cannot split falls back at all; a prompt that is
@@ -345,7 +347,7 @@ test("a fallback notice is stripped without discarding its carried summary", () 
   // the notice must be stripped without taking the real summary with it —
   // otherwise older task context is silently lost (#224). Both the normal and
   // the rebuild path share one extraction helper.
-  assert.match(runtime, /function stripCompactionFallbackNotice\(/);
+  assert.match(checkpoint, /function stripCompactionFallbackNotice\(/);
   assert.match(
     runtime,
     /const previousSummary = stripCompactionFallbackNotice\(\s*prepared\.value\.previousSummary,\s*\)/,

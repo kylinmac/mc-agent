@@ -14,12 +14,24 @@ function imageBlock(value: unknown): ImageContent | undefined {
   }
 }
 
-/** Plugins may return a bare array. MCP wraps the same blocks in content. */
+function isContentBlock(block: unknown): boolean {
+  return isRecord(block) && (
+    block.type === "text" || block.type === "image" || block.type === "audio"
+    || block.type === "resource" || block.type === "resource_link"
+  );
+}
+
+/** Plugins may return JSON rows or a bare block array. MCP wraps blocks in content. */
 function hostBlocks(raw: unknown): Content | undefined {
   const blocks = Array.isArray(raw) ? raw : isRecord(raw) ? raw.content : undefined;
   if (!Array.isArray(blocks)) return undefined;
+  if (Array.isArray(raw) && !blocks.some(isContentBlock)) return undefined;
   const content: Content = [];
   for (const block of blocks) {
+    if (Array.isArray(raw) && !isContentBlock(block)) {
+      content.push({ type: "text", text: safeJson(withoutInlineBinary(block)) });
+      continue;
+    }
     if (!isRecord(block)) continue;
     if (block.type === "text" && typeof block.text === "string") {
       content.push({ type: "text", text: block.text });
@@ -40,11 +52,11 @@ function hostBlocks(raw: unknown): Content | undefined {
 function withoutInlineBinary(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(withoutInlineBinary);
   if (!isRecord(value)) return value;
-  const next: Record<string, unknown> = {};
+  const next: Record<string, unknown> = Object.create(null);
   for (const [key, entry] of Object.entries(value)) {
-    if (key === "data" && value.type === "image") continue;
+    if (key === "data" && (value.type === "image" || value.type === "audio")) continue;
     if (key === "resource" && value.type === "resource" && isRecord(entry)) {
-      const resource: Record<string, unknown> = {};
+      const resource: Record<string, unknown> = Object.create(null);
       for (const [name, value] of Object.entries(entry)) {
         if (name !== "blob") resource[name] = withoutInlineBinary(value);
       }
@@ -74,7 +86,8 @@ export function liveToolResultContent(raw: unknown, vision: boolean): { content:
     if (vision) images = attachments.map(imageBlock).filter((image) => image !== undefined);
     details = { ...rest, imageCount: images.length };
   } else {
-    text = typeof raw === "string" ? raw : JSON.stringify(raw, null, 2);
+    text = typeof raw === "string" ? raw : JSON.stringify(withoutInlineBinary(raw), null, 2) ?? safeJson(raw);
+    if (Array.isArray(raw)) details = { blocks: raw, imageCount: 0 };
   }
   return { content: [{ type: "text", text }, ...images], details };
 }
@@ -88,7 +101,7 @@ export function restoredToolContent(raw: unknown, interrupted: boolean): Content
       return [{ type: "text", text: safeJson(rest) }, ...images.map(imageBlock).filter((image) => image !== undefined)];
     }
     if (typeof raw === "string" && raw.trim()) return [{ type: "text", text: raw }];
-    return [{ type: "text", text: safeJson(raw) }];
+    return [{ type: "text", text: safeJson(withoutInlineBinary(raw)) }];
   }
   return [{ type: "text", text: interrupted ? "[tool call was interrupted before a result was recorded]" : MISSING_RESULT }];
 }
