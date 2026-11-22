@@ -14,35 +14,38 @@ function imageBlock(value: unknown): ImageContent | undefined {
   }
 }
 
-function isContentBlock(block: unknown): boolean {
-  return isRecord(block) && (
-    block.type === "text" || block.type === "image" || block.type === "audio"
-    || block.type === "resource" || block.type === "resource_link"
-  );
+/** Null denotes a binary block whose payload must stay out of the model's text. */
+function decodeBlock(block: unknown): Content[number] | null | undefined {
+  if (!isRecord(block)) return undefined;
+  if (block.type === "text" && typeof block.text === "string") {
+    return { type: "text", text: block.text };
+  }
+  if (block.type === "image") return imageBlock(block);
+  if (block.type === "resource" && isRecord(block.resource)) {
+    if (typeof block.resource.text === "string") return { type: "text", text: block.resource.text };
+    if (typeof block.resource.blob === "string") return null;
+  }
+  if (block.type === "resource_link" && typeof block.uri === "string") {
+    const name = typeof block.name === "string" && block.name.trim() ? block.name.trim() + ": " : "";
+    return { type: "text", text: "[resource link] " + name + block.uri };
+  }
+  if (block.type === "audio" && typeof block.data === "string" && typeof block.mimeType === "string") return null;
+  return undefined;
 }
 
 /** Plugins may return JSON rows or a bare block array. MCP wraps blocks in content. */
 function hostBlocks(raw: unknown): Content | undefined {
-  const blocks = Array.isArray(raw) ? raw : isRecord(raw) ? raw.content : undefined;
+  const bare = Array.isArray(raw);
+  const blocks = bare ? raw : isRecord(raw) ? raw.content : undefined;
   if (!Array.isArray(blocks)) return undefined;
-  if (Array.isArray(raw) && !blocks.some(isContentBlock)) return undefined;
+  const decoded = blocks.map(decodeBlock);
+  if (bare && decoded.every((block) => block === undefined)) return undefined;
+
   const content: Content = [];
-  for (const block of blocks) {
-    if (Array.isArray(raw) && !isContentBlock(block)) {
-      content.push({ type: "text", text: safeJson(withoutInlineBinary(block)) });
-      continue;
-    }
-    if (!isRecord(block)) continue;
-    if (block.type === "text" && typeof block.text === "string") {
-      content.push({ type: "text", text: block.text });
-    } else if (block.type === "resource" && isRecord(block.resource) && typeof block.resource.text === "string") {
-      content.push({ type: "text", text: block.resource.text });
-    } else if (block.type === "resource_link" && typeof block.uri === "string") {
-      const name = typeof block.name === "string" && block.name.trim() ? block.name.trim() + ": " : "";
-      content.push({ type: "text", text: "[resource link] " + name + block.uri });
-    } else if (block.type === "image") {
-      const image = imageBlock(block);
-      if (image) content.push(image);
+  for (const [index, block] of decoded.entries()) {
+    if (block) content.push(block);
+    else if (bare && block === undefined) {
+      content.push({ type: "text", text: safeJson(withoutInlineBinary(blocks[index])) });
     }
   }
   return content;

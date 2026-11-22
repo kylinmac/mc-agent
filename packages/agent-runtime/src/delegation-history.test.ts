@@ -244,7 +244,11 @@ describe("taskObjectiveFromArgs", () => {
 
 describe("seedDelegateMessages", () => {
   it("recovers ordinary plugin rows, including an empty list, as JSON on resume", () => {
-    const results = [[{ id: "note-1", title: "Review" }], [7, false], []];
+    const results = [
+      [{ id: "note-1", title: "Review" }],
+      [{ id: "i2", type: "image", name: "cover.png" }, { id: "i1", type: "text", title: "Review" }],
+      [7, false], [],
+    ];
     const messages = seedDelegateMessages({
       originalTask: "review the results",
       rows: results.map((result, index) => delegateTool(`t${index}`, "Lookup", {}, result, "call-1")),
