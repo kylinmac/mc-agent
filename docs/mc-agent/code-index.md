@@ -7,6 +7,16 @@ R17 语音输入：`packages/shared/src/dictation.ts` 定义配置和限额；`a
 mc-agent 新增功能（R1–R10）的代码见文末“mc-agent 项目管理”一节。
 
 
+## 跨功能开发入口
+
+| 需求 | 修改位置 |
+|---|---|
+| 多个会话入口共用的模型与权限选择 | 桌面 `src/components/model-picker/`、`src/lib/composer-models.ts`。聊天、定时任务、创作对话分别在自己的功能文件里装配 |
+| 项目提示词、启动目录与工作区分组 | 桌面 `src/lib/projects/`、`src/hooks/useProjectFolderIndex.ts`；Rust `crates/host-core/src/rpc/project_rpc.rs` |
+| 会话检查器、分栏与工作面板 | 桌面 `src/lib/work-panel/`、`src/lib/session-subagents.ts`、`src/hooks/useSessionContextBreakdown.ts` |
+| Agent 压缩记录与恢复 | `packages/agent-runtime/src/compaction-checkpoint.ts`、`compaction-tail.ts`、`tool-result-content.ts` |
+| 插件服务崩溃及重新启动 | `apps/desktop/electron/main/plugin-service-restarts.ts` 持有重试与取消；`plugin-runtime.ts` 停止子进程并清理贡献 |
+
 ## 启动与窗口
 
 | 功能 | 代码 |
@@ -173,7 +183,7 @@ host-core 也可作为内部工具子进程启动（`tools::INTERNAL_TOOL_RUNNER
 |---|---|
 | 资料目录标记、挂载、Worker 目标工作区校验 | `crates/host-core/src/db/project_resources.rs`；`project_groups.rs` 中的 `kind` 字段 |
 | 资料目录创建、模板、改名跟随 | `crates/host-core/src/resource_dirs.rs`；路径改写复用 `data_relocation.rs::rewrite_database_paths` |
-| 新建类型、转换与解除（R1.7） | 对话框 `apps/desktop/src/features/project-workbench/ProjectKindPicker.tsx`；转换 `ConvertToManaged.tsx`；解除 `db/project_resources.rs::detach_project_resource_root`；接回旧目录在 `resource_dirs.rs::ensure_project_resources` |
+| 新建类型、转换与解除（R1.7） | 对话框 `apps/desktop/src/features/project-create/ProjectKindPicker.tsx`；转换 `ConvertToManaged.tsx`；解除 `db/project_resources.rs::detach_project_resource_root`；接回旧目录在 `resource_dirs.rs::ensure_project_resources` |
 | 用对话新建项目（R16，MC-ADR-0023） | 共享类型与参数校验 `packages/shared/src/mc-project-proposal.ts`；工具声明 `packages/agent-runtime/src/mc-project-tools.ts`；工具实现与卡片中转 `apps/desktop/electron/main/mc-project-create.ts`、IPC `ipc/mc-project-create-ipc.ts`；技能 `apps/desktop/resources/skills/new-project.md`；界面 `apps/desktop/src/features/project-create/`（方案卡片、完成卡片、首页建议条、创建步骤）；只用这一次的模板 `crates/host-core/src/project_draft_template.rs`（`project.resources.ensureDraft`） |
 | 工作区说明（`workspaces.md`） | `crates/host-core/src/workspace_notes.rs` |
 | 资料清单、确认、项目目标 | `crates/host-core/src/resource_catalog.rs`；分类索引 `resource_index.rs`（`INDEX.md`）；总索引 `resource_overview.rs`（`RESOURCES.md`）；模板元数据 `resource_templates.rs` |
@@ -218,4 +228,4 @@ Main：`apps/desktop/electron/main/work-panel-agent/`；UI：`features/work-tool
 | 工作区落盘与面板指引（R40） | 共享规则 `packages/shared/src/mc-workspace-guide.ts`；三条启动与刷新路径接线 `packages/host-runtime/src/launch-resolver.ts`、`apps/desktop/electron/main/runtime/session-launch.ts`、`apps/desktop/electron/main/runtime/sidecar.ts` |
 | 炼丹炉引用与提案卡片（R41） | 共享 URI 与提案契约 `packages/shared/src/mc-alchemy.ts`；工具声明 `packages/agent-runtime/src/mc-alchemy-tools.ts`；Main 服务与 IPC `apps/desktop/electron/main/mc-alchemy.ts`、`ipc/mc-alchemy-ipc.ts`；引导技能 `apps/desktop/resources/skills/alchemy.md`；卡片界面 `apps/desktop/src/features/alchemy/`、样式 `styles/mc-alchemy.css` |
 | tty7 外部终端内置插件（R42） | 插件清单与 MCP 桥接 `apps/desktop/resources/plugins/mc.tty7/`（`manifest.json`、`mcp-server.mjs`、`skills/tty7.md`）；回归测试 `apps/desktop/test/mc-tty7-plugin.test.mjs` |
-| 手机远程操作网关与配对控制平面（R43） | Rust `iroh` sidecar `crates/mc-mobile-gateway/`；共享协议与 19 方法白名单 `packages/shared/src/mc-mobile.ts`；Main 桥接 `apps/desktop/electron/main/mobile-bridge/` 与 `ipc/mc-mobile-ipc.ts`；设置页 `apps/desktop/src/features/settings/MobileAccessPage.tsx`、样式 `styles/mc-mobile.css`；测试 `apps/desktop/test/mc-mobile-bridge.test.mjs` |
+| 手机远程操作网关与配对控制平面（R43） | Rust `iroh` sidecar `crates/mc-mobile-gateway/`；共享协议与 `MC_MOBILE_METHODS` 白名单 `packages/shared/src/mc-mobile.ts`；Main 配对会话 `apps/desktop/electron/main/mobile-bridge/session-settings.ts` 与设置 IPC `ipc/mc-mobile-ipc.ts`；可信创建落库 `crates/host-core/src/rpc/session_create.rs`；设置页 `apps/desktop/src/features/settings/MobileAccessPage.tsx`、样式 `styles/mc-mobile.css`；测试 `apps/desktop/test/mc-mobile-bridge.test.mjs` |

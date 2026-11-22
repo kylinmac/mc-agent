@@ -241,7 +241,7 @@ D1–D4 不要求移动任何用户数据，不要求数据库迁移。遇到实
 | 模型能力 | shared 区分图像输入能力等模型属性；创作模块另有账号图片模型与生图链路 | “能看图”不等于“能生图”；可发现、已配置、可调用也不是同一种状态，不因目录里列出了模型就承诺调用成功 |
 | 插件、MCP、技能、工具 | 仓库分别有插件管理、MCP 接入、技能内容与 host 工具执行链路 | 建议解释为扩展包、连接器、操作指导、实际可执行动作；技能内容不构成权限授予，插件启用也不等于其所有连接器已连接。保留各自生命周期 |
 
-依据：[shared 工作区类型](../../packages/shared/src/types/workspace.ts)、[会话类型](../../packages/shared/src/types/sessions.ts)、[项目根类型](../../crates/host-core/src/db/project_groups.rs)、[项目类型入口](../../apps/desktop/src/features/project-workbench/ProjectKindPicker.tsx)、[项目任务](../../crates/host-core/src/project_tasks.rs)、[会话待办](../../crates/host-core/src/todos.rs)、[资料清单](../../crates/host-core/src/resource_catalog.rs)、[创作模块](../../crates/host-core/src/mc_creative/mod.rs)、[模型类型](../../packages/shared/src/types/models.ts)、[服务商类型](../../packages/shared/src/types/providers.ts)。插件等这里只检查模块职责，不代表完成其权限链路安全审计。
+依据：[shared 工作区类型](../../packages/shared/src/types/workspace.ts)、[会话类型](../../packages/shared/src/types/sessions.ts)、[项目根类型](../../crates/host-core/src/db/project_groups.rs)、[项目类型入口](../../apps/desktop/src/features/project-create/ProjectKindPicker.tsx)、[项目任务](../../crates/host-core/src/project_tasks.rs)、[会话待办](../../crates/host-core/src/todos.rs)、[资料清单](../../crates/host-core/src/resource_catalog.rs)、[创作模块](../../crates/host-core/src/mc_creative/mod.rs)、[模型类型](../../packages/shared/src/types/models.ts)、[服务商类型](../../packages/shared/src/types/providers.ts)。插件等这里只检查模块职责，不代表完成其权限链路安全审计。
 
 ### 8.2 具体需要整理的位置
 
