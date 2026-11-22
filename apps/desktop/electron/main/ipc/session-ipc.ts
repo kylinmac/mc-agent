@@ -174,19 +174,23 @@ export function registerSessionIpc({
       ].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))),
     };
   });
-  handle(IPC.invoke.sessionCreate, async (input = {}) => {
+  const createSession = async (method: "session.create" | "session.createConfigured", input: unknown) => {
     const host = getHost();
     if (!host) throw new Error("host unavailable");
-    const capabilityPromise = sessionCapabilityContext();
+    // Resolve enrichment before the write so a failed lookup cannot leave a new session behind.
+    const { providers, defaults } = await sessionCapabilityContext();
     const res = await host.call<{ session?: (RuntimeSession & { id?: string }) | null }>(
-      "session.create",
+      method,
       input,
     );
     logger.app("session", "info", "session created", { sessionId: res.session?.id });
     if (!res.session) return res;
-    const { providers, defaults } = await capabilityPromise;
     return { ...res, session: enrichSession(res.session, providers, defaults) };
-  });
+  };
+  // MCP and plugins share the ordinary create handler. Their separate permission
+  // configuration operation requires confirmation; keep the selected-mode channel out of their catalog.
+  handle(IPC.invoke.sessionCreate, (input = {}) => createSession("session.create", input));
+  handle(IPC.invoke.sessionCreateConfigured, (input) => createSession("session.createConfigured", input));
   handle(
     IPC.invoke.sessionFork,
     async (

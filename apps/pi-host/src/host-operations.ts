@@ -96,23 +96,20 @@ export function createSessionCatalog(deps: HostOperationsDeps): RacpSessionCatal
     async create(input, _principal: Principal) {
       const host = requireHost(getHost);
       const projectPath = await projectPathFor(input.projectId, host);
+      const method = input.permissionMode === undefined ? "session.create" : "session.createConfigured";
       const result = await host
-        .call<{ session?: HostSessionRecord | null }>("session.create", {
+        .call<{ session?: HostSessionRecord | null }>(method, {
           ...(input.title ? { title: input.title } : {}),
           ...(input.mode ? { mode: input.mode } : {}),
           ...(input.providerId ? { providerId: input.providerId } : {}),
           ...(input.modelId ? { modelId: input.modelId } : {}),
           ...(input.thinkingLevel ? { thinkingLevel: input.thinkingLevel } : {}),
+          ...(input.permissionMode ? { permissionMode: input.permissionMode } : {}),
           ...(projectPath ? { projectPath } : {}),
         })
         .catch(hostError);
-      if (!result.session) throw new RacpError("INTERNAL", "session.create returned no session");
-      if (input.permissionMode) {
-        await host
-          .call("session.configure", { id: result.session.id, mode: result.session.mode ?? input.mode ?? "agent", permissionMode: input.permissionMode })
-          .catch(hostError);
-      }
-      return get(host, result.session.id);
+      if (!result.session) throw new RacpError("INTERNAL", `${method} returned no session`);
+      return { ...toSessionSummary(result.session), ...(input.projectId ? { projectId: input.projectId } : {}) };
     },
     async configure(sessionId, input) {
       const host = requireHost(getHost);

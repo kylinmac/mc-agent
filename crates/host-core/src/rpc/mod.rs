@@ -16,6 +16,7 @@ mod resource_dirs_rpc;
 mod review_actions_rpc;
 mod scheduled_rpc;
 mod scheduled_tools;
+mod session_create;
 mod settings_rpc;
 mod todos;
 mod window_corner_rpc;
@@ -1847,89 +1848,8 @@ async fn handle_request(
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(json!({ "sessions": sessions }))
         }
-        "session.create" => {
-            let thinking_level = thinking_level_param(&params)?;
-            let permission_parent = permission_parent_param(&params)?;
-            // ADR 0329: an isolated session gets its own git worktree.
-            let isolated = params
-                .get("isolated")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
-            let isolated_project = if isolated {
-                Some(
-                    params
-                        .get("projectPath")
-                        .and_then(|v| v.as_str())
-                        .map(str::to_string)
-                        .ok_or_else(|| {
-                            rpc_err(
-                                1002,
-                                "an isolated session needs a projectPath",
-                                "INVALID_PARAMS",
-                            )
-                        })?,
-                )
-            } else {
-                None
-            };
-            let st = state.lock().await;
-            if let Some(project) = isolated_project.as_deref() {
-                worktree_rpc::ensure_local_project(&st.db, project)?;
-            }
-            let permission_mode = if let Some(parent_id) = permission_parent {
-                Some(
-                    sessions::session_permission_mode(&st.db, &parent_id)
-                        .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
-                        .ok_or_else(|| rpc_err(1007, "parent session not found", "NOT_FOUND"))?,
-                )
-            } else {
-                None
-            };
-            let session = sessions::create_session_with_options(
-                &st.db,
-                sessions::SessionCreateOptions {
-                    title: params
-                        .get("title")
-                        .and_then(|v| v.as_str())
-                        .map(str::to_string),
-                    mode: params
-                        .get("mode")
-                        .and_then(|v| v.as_str())
-                        .map(str::to_string),
-                    provider_id: params
-                        .get("providerId")
-                        .and_then(|v| v.as_str())
-                        .map(str::to_string),
-                    model_id: params
-                        .get("modelId")
-                        .and_then(|v| v.as_str())
-                        .map(str::to_string),
-                    project_path: params
-                        .get("projectPath")
-                        .and_then(|v| v.as_str())
-                        .map(str::to_string),
-                    thinking_level,
-                    permission_mode,
-                },
-            )
-            .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-            let Some(project) = isolated_project else {
-                let session = remote_tools::decorate_session(
-                    &st.db,
-                    serde_json::to_value(session)
-                        .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?,
-                )?;
-                return Ok(json!({ "session": session }));
-            };
-            drop(st);
-            let created = worktree_rpc::isolate_new_session(&state, &session.id, &project).await?;
-            let st = state.lock().await;
-            let session = sessions::session_summary(&st.db, &session.id)
-                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
-                .ok_or_else(|| rpc_err(1007, "session not found", "NOT_FOUND"))?;
-            let session = remote_tools::session_value(&st.db, session)?;
-            Ok(json!({ "session": session, "worktree": created }))
-        }
+        "session.create" => session_create::inherited(&state, &params).await,
+        "session.createConfigured" => session_create::configured(&state, &params).await,
         "session.fork" => {
             let session_id = params
                 .get("sessionId")

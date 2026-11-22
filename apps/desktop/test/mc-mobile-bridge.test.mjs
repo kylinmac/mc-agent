@@ -5,14 +5,20 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
 import { IPC, parseMobilePairUri } from "@pi-desktop/shared";
+import { HostProcess } from "@pi-desktop/host-runtime";
 import { MobileBridge } from "../electron/main/mobile-bridge/bridge.ts";
+import { registerSessionIpc } from "./helpers/session-ipc.mjs";
 
 const GATEWAY_BIN = resolve(
   import.meta.dirname,
   "../../../target/debug/mc-mobile-gateway" + (process.platform === "win32" ? ".exe" : ""),
 );
+const HOST_BIN = resolve(
+  import.meta.dirname,
+  "../../../target/debug/pi-desktop-host-core" + (process.platform === "win32" ? ".exe" : ""),
+);
 
-function createMockEnv(dataDir) {
+function createMockEnv(dataDir, { settingsOffline = false, storedPermission = "inherit" } = {}) {
   const renderedEvents = [];
   const invoked = [];
   const hostCalls = [];
@@ -70,8 +76,9 @@ function createMockEnv(dataDir) {
           whiteboards.delete(params.canvasId);
           return { ok: true };
         case "settings.get":
+          if (settingsOffline) throw new Error("settings unavailable");
           return {
-            permissionMode: "ask",
+            defaultPermissionMode: "ask",
             defaultProviderId: "anthropic",
             defaultModelId: "claude-sonnet-4-5",
           };
@@ -92,9 +99,12 @@ function createMockEnv(dataDir) {
           ],
         };
       case IPC.invoke.sessionCreate:
-        return { session: { id: "s-new", title: args[0]?.title ?? "New" } };
+        // Ordinary creation in host-core ignores a caller-supplied permission.
+        return { session: { id: "s-new", title: args[0]?.title ?? "New", permissionMode: "inherit" } };
+      case IPC.invoke.sessionCreateConfigured:
+        return { session: { id: "s-new", ...args[0] } };
       case IPC.invoke.sessionGet:
-        return { session: { id: args[0]?.id, title: "Alpha", mode: "agent", permissionMode: "inherit", messages: [] } };
+        return { session: { id: args[0]?.id, title: "Alpha", mode: "agent", permissionMode: storedPermission, messages: [] } };
       case IPC.invoke.sessionConfigure:
         return { session: { id: args[0], title: "Alpha", ...args[1] } };
       case IPC.invoke.providersList:
@@ -187,6 +197,91 @@ test("MobileBridge defaults to disabled and rejects non-allowlisted methods", as
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test("mobile session creation applies the requested permission on its only write", async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), "mc-mobile-session-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const { bridge, invoked } = createMockEnv(dir);
+  for (const permissionMode of ["ask", "accept-edits", "auto", "inherit"]) {
+    const created = await bridge.dispatchRpc("c1", "session.create", {
+      title: "Review", mode: "plan", permissionMode,
+      inheritPermissionFromSessionId: "untrusted", isolated: true, providerId: "not-a-create-option",
+    });
+    assert.equal(created.session.permissionMode, permissionMode);
+    assert.deepEqual(invoked.splice(0), [{
+      channel: IPC.invoke.sessionCreateConfigured,
+      args: [{ title: "Review", mode: "plan", permissionMode }],
+    }]);
+  }
+  const created = await bridge.dispatchRpc("c1", "session.create", { title: "Normal" });
+  assert.equal(created.session.permissionMode, "inherit");
+  assert.deepEqual(invoked, [{ channel: IPC.invoke.sessionCreate, args: [{ title: "Normal" }] }]);
+  const legacy = await bridge.dispatchRpc("c1", "session.create", { mode: "chat", permissionMode: "ask" });
+  assert.equal(legacy.session.mode, "plan");
+});
+
+test("mobile history keeps stored settings visible when global defaults cannot be read", async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), "mc-mobile-session-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  for (const storedPermission of ["inherit", "accept-edits"]) {
+    const { bridge } = createMockEnv(dir, { settingsOffline: true, storedPermission });
+    const history = await bridge.dispatchRpc("c1", "session.history", { sessionId: "s1" });
+    assert.equal(history.session.permissionMode, storedPermission);
+    assert.equal(history.effectivePermissionMode, storedPermission === "inherit" ? undefined : storedPermission);
+  }
+});
+
+test("a mobile session reads back its selected permission under a different global default",
+  { skip: !existsSync(HOST_BIN) }, async () => {
+    const dir = await mkdtemp(join(tmpdir(), "mc-mobile-session-host-"));
+    const host = new HostProcess({ binaryPath: HOST_BIN, dataDir: dir, onStderr() {} });
+    try {
+      await host.handshake();
+      await host.call("settings.set", { defaultPermissionMode: "auto" });
+      const handlers = new Map([
+        [IPC.invoke.pendingInteractive, async () => ({ asks: [], permissions: [] })],
+        [IPC.invoke.plansPending, async () => ({ plans: [] })],
+      ]);
+      registerSessionIpc({
+        registrar: { handle: (channel, handler) => handlers.set(channel, handler) },
+        getHost: () => host, getSidecar: () => null,
+        sessionCapabilityContext: async () => ({ providers: [], defaults: {} }),
+        enrichSession: (session) => session, logger: { app() {} },
+      });
+      const bridge = new MobileBridge({
+        dataDir: dir, appVersion: "test", activeTurns: new Map(), sendToRenderer() {},
+        getHost: () => host, invoke: (channel, args) => handlers.get(channel)(...args),
+      });
+      for (const [options, expected] of [[{ permissionMode: "ask" }, "ask"], [{}, "auto"]]) {
+        const created = await bridge.dispatchRpc("c1", "session.create", options);
+        const history = await bridge.dispatchRpc("c1", "session.history", { sessionId: created.session.id });
+        assert.equal(history.effectivePermissionMode, expected);
+      }
+    } finally {
+      await host.dispose();
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+test("mobile session settings reject malformed selections before touching a session", async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), "mc-mobile-session-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const { bridge, invoked } = createMockEnv(dir);
+  await assert.rejects(() => bridge.dispatchRpc("c1", "session.create", []), { rpcCode: "INVALID_ARGUMENT" });
+  for (const fields of [{ permissionMode: "typo" }, { permissionMode: false }, { mode: "??" }]) {
+    for (const method of ["session.create", "session.configure"]) {
+      await assert.rejects(
+        () => bridge.dispatchRpc("c1", method, { sessionId: "s1", ...fields }),
+        { rpcCode: "INVALID_ARGUMENT" },
+      );
+    }
+  }
+  await assert.rejects(
+    () => bridge.dispatchRpc("c1", "session.configure", { sessionId: "s1", mode: "plan", thinkingLevel: 7 }),
+    { rpcCode: "INVALID_ARGUMENT" },
+  );
+  assert.deepEqual(invoked, []);
 });
 
 test("MobileBridge serves allowlisted RPCs, cursor replay, images, diffs, and whiteboard sync", async () => {

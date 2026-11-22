@@ -643,7 +643,7 @@ export const api = {
     })),
   createSession: (input?: CreateSessionInput) =>
     invoke<{ session: SessionSummary; worktree?: CreatedSessionWorktree }>(
-      IPC.invoke.sessionCreate,
+      input?.permissionMode === undefined ? IPC.invoke.sessionCreate : IPC.invoke.sessionCreateConfigured,
       input ?? {},
     ).then((result) => ({ ...result, session: normalizeSession(result.session) })),
   /** Isolated sessions in git worktrees (ADR 0329). No call returns a path. */

@@ -1,5 +1,6 @@
 /** Shared public types grouped by the owning application domain. */
-export type Mode = "plan" | "goal" | "agent";
+export const SESSION_MODES = ["agent", "plan", "goal"] as const;
+export type Mode = (typeof SESSION_MODES)[number];
 
 /** Normalize mode values at compatibility boundaries. Older persisted and
  * scheduled data used `chat`; it is now the Plan operating state. */

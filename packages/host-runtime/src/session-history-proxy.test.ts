@@ -57,6 +57,13 @@ it("leaves other session reads unchanged", async () => {
   expect(forwarded.map((call) => call.method)).toEqual(["session.get"]);
 });
 
+it("keeps explicit creation permissions off the agent proxy", async () => {
+  const { sidecar, forwarded } = harness();
+  await expect(sidecar.call("probe", { method: "session.createConfigured", params: { permissionMode: "auto" } }))
+    .rejects.toThrow("host method not allowed from sidecar");
+  expect(forwarded).toEqual([]);
+});
+
 
 it.each(["session.projectHistory", "session.projectWork"])("binds %s to the caller before forwarding", async (method) => {
   const { sidecar, forwarded, read } = harness();

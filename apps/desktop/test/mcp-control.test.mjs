@@ -788,6 +788,7 @@ test("the reviewed catalog never includes picker or secret-write channels", () =
     providersCreate: "pi-desktop/providers/create",
     settingsSet: "pi-desktop/settings/set",
     mcpUpsert: "pi-desktop/mcp/upsert",
+    sessionCreateConfigured: "pi-desktop/session/create-configured",
     sessionConfigure: "pi-desktop/session/configure",
     projectSet: "pi-desktop/project/set",
   });
