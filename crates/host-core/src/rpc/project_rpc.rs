@@ -249,6 +249,11 @@ pub(super) async fn handle(
             let path = crate::db::canonical_project_path(path)
                 .ok_or_else(|| rpc_err(1002, "path required", "INVALID_PARAMS"))?;
             let st = state.lock().await;
+            let transaction = st
+                .db
+                .conn()
+                .unchecked_transaction()
+                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
             if crate::scheduled::project::has_running_tasks(&st.db, &path)
                 .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
             {
@@ -295,15 +300,14 @@ pub(super) async fn handle(
                         .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
                 }
             }
-            crate::scheduled::project::pause(&st.db, &path)
+            crate::scheduled::project::pause(&st.db, &transaction, &path)
                 .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-            let mut sessions_removed = 0;
+            let mut removed_ids = Vec::new();
             for id in &session_ids {
-                if sessions::delete_session(&st.db, id)
+                if sessions::delete_session_row(&st.db, id)
                     .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
                 {
-                    drop_session_side_data(&st, id);
-                    sessions_removed += 1;
+                    removed_ids.push(id);
                 }
             }
             let removed = st
@@ -313,7 +317,14 @@ pub(super) async fn handle(
             st.db
                 .delete_project_memory(&path)
                 .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-            Ok(json!({ "removed": removed, "sessionsRemoved": sessions_removed }))
+            transaction
+                .commit()
+                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
+            for id in &removed_ids {
+                sessions::remove_deleted_session_files(&st.db, id);
+                drop_session_side_data(&st, id);
+            }
+            Ok(json!({ "removed": removed, "sessionsRemoved": removed_ids.len() }))
         }
         "project.memory.get" => {
             let path = params

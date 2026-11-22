@@ -27,15 +27,13 @@ pub fn has_running_tasks(db: &Database, path: &str) -> Result<bool> {
 }
 
 /// Keep definitions and history, but require explicit user action to run again.
-pub fn pause(db: &Database, path: &str) -> Result<()> {
+pub fn pause(db: &Database, transaction: &rusqlite::Transaction<'_>, path: &str) -> Result<()> {
     let tasks = bound_tasks(db, path)?;
-    let transaction = db.conn().unchecked_transaction()?;
     for task in tasks {
         transaction.execute(
             "UPDATE scheduled_tasks SET enabled = 0, updated_at = ?1 WHERE id = ?2",
             rusqlite::params![now_ms(), task.id],
         )?;
     }
-    transaction.commit()?;
     Ok(())
 }

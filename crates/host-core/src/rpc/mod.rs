@@ -5541,6 +5541,61 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn project_removal_restores_membership_and_transcripts_when_a_late_write_fails() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("workspace");
+        fs::create_dir(&path).unwrap();
+        let path = path.to_str().unwrap().to_owned();
+        let mut app = AppState::open(dir.path()).unwrap();
+        app.handshook = true;
+        let group = app
+            .db
+            .create_project_group("Saved", std::slice::from_ref(&path))
+            .unwrap();
+        let session = sessions::create_session_with_options(
+            &app.db,
+            sessions::SessionCreateOptions {
+                project_path: Some(path.clone()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        app.db.conn().execute_batch("CREATE TRIGGER keep_project BEFORE DELETE ON projects BEGIN SELECT RAISE(ABORT, 'write rejected'); END;").unwrap();
+        let state = Arc::new(Mutex::new(app));
+        append_test_message(state.clone(), &session.id, "saved message").await;
+        let transcript = crate::transcripts::transcript_path(dir.path(), &session.id).unwrap();
+        let bytes = fs::read(&transcript).unwrap();
+        let remove = || {
+            handle_request(
+                state.clone(),
+                "projects.remove",
+                json!({ "path": path }),
+                mpsc::unbounded_channel().0,
+            )
+        };
+        assert!(remove().await.is_err());
+        {
+            let app = state.lock().await;
+            assert_eq!(app.db.project_session_ids(&path).unwrap(), [session.id]);
+            assert_eq!(
+                app.db
+                    .stored_project_group_for_path(&path)
+                    .unwrap()
+                    .unwrap()
+                    .id,
+                group.id
+            );
+            assert_eq!(fs::read(&transcript).unwrap(), bytes);
+            app.db
+                .conn()
+                .execute_batch("DROP TRIGGER keep_project")
+                .unwrap();
+        }
+        assert_eq!(remove().await.unwrap()["sessionsRemoved"], 1);
+        assert!(!transcript.exists());
+    }
+
+    #[tokio::test]
     async fn projects_remove_deletes_project_sessions_and_transcripts() {
         let data_dir = tempfile::tempdir().unwrap();
         let project_dir = data_dir.path().join("project");

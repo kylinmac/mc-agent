@@ -1965,18 +1965,28 @@ pub fn configure_session_with_thinking(
 }
 
 pub fn delete_session(db: &Database, id: &str) -> Result<bool> {
+    let deleted = delete_session_row(db, id)?;
+    if deleted {
+        remove_deleted_session_files(db, id);
+    }
+    Ok(deleted)
+}
+
+/// Bulk deletion defers filesystem cleanup until its database transaction commits.
+pub(crate) fn delete_session_row(db: &Database, id: &str) -> Result<bool> {
     let n = db
         .conn()
         .prepare_cached("DELETE FROM sessions WHERE id = ?1")?
         .execute(params![id])?;
     if n > 0 {
-        // Here rather than in the RPC handler so every deletion path (UI,
-        // failed scheduled-run cleanup) also drops the transcript files.
-        transcripts::remove_session_files(db.data_dir(), id);
         crate::mc_prompts::clear_session_template(db, id);
-        crate::mc_canvas::remove_session_canvases(db.data_dir(), id);
     }
     Ok(n > 0)
+}
+
+pub(crate) fn remove_deleted_session_files(db: &Database, id: &str) {
+    transcripts::remove_session_files(db.data_dir(), id);
+    crate::mc_canvas::remove_session_canvases(db.data_dir(), id);
 }
 
 pub fn normalize_session_title(title: &str) -> Result<String> {
