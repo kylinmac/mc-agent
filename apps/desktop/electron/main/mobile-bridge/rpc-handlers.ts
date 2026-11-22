@@ -393,21 +393,81 @@ export async function dispatchMobileRpc(
       return ctx.invoke(IPC.invoke.sessionCreate, [payload]);
     }
 
+    case "models.list": {
+      const [provRes, globalSettings] = await Promise.all([
+        ctx.invoke(IPC.invoke.providersList, []) as Promise<{
+          providers?: Array<{
+            id?: string;
+            name?: string;
+            enabled?: boolean;
+            defaultModelId?: string;
+            supportsReasoning?: boolean;
+            models?: Array<{ id?: string; alias?: string }>;
+          }>;
+        }>,
+        ctx
+          .getHost()
+          ?.call<{ defaultProviderId?: string; defaultModelId?: string }>("settings.get", {})
+          .catch(() => ({ defaultProviderId: undefined, defaultModelId: undefined })) ??
+          Promise.resolve({ defaultProviderId: undefined, defaultModelId: undefined }),
+      ]);
+      const rawProviders = Array.isArray(provRes?.providers) ? provRes.providers : [];
+      const providers = rawProviders
+        .filter((p) => p && typeof p.id === "string" && p.id.trim() && p.enabled !== false)
+        .map((p) => {
+          const seen = new Set<string>();
+          const models: Array<{ id: string; alias?: string }> = [];
+          for (const m of p.models ?? []) {
+            const id = typeof m?.id === "string" ? m.id.trim() : "";
+            if (!id || seen.has(id)) continue;
+            seen.add(id);
+            const alias = typeof m?.alias === "string" && m.alias.trim() ? m.alias.trim() : undefined;
+            models.push(alias ? { id, alias } : { id });
+          }
+          const legacyId = typeof p.defaultModelId === "string" ? p.defaultModelId.trim() : "";
+          if (models.length === 0 && legacyId) {
+            models.push({ id: legacyId });
+          }
+          return {
+            id: p.id!.trim(),
+            name: (typeof p.name === "string" && p.name.trim()) || p.id!.trim(),
+            supportsReasoning: Boolean(p.supportsReasoning),
+            models,
+          };
+        })
+        .filter((p) => p.models.length > 0);
+      return {
+        providers,
+        defaultProviderId: globalSettings?.defaultProviderId ?? null,
+        defaultModelId: globalSettings?.defaultModelId ?? null,
+      };
+    }
+
     case "session.configure": {
       const sessionId = asNonEmptyString(input.sessionId, 128);
       if (!sessionId) throw rpcError("INVALID_ARGUMENT", "sessionId is required");
       const allowedPerm = new Set(["inherit", "ask", "accept-edits", "auto"]);
       const allowedMode = new Set(["agent", "plan", "goal"]);
+      const allowedThinking = new Set(["off", "minimal", "low", "medium", "high", "xhigh", "max", "omit"]);
       const permissionMode = asNonEmptyString(input.permissionMode, 32);
       const nextMode = asNonEmptyString(input.mode, 32);
+      const providerId = asNonEmptyString(input.providerId, 128);
+      const modelId = asNonEmptyString(input.modelId, 256);
+      const thinkingLevel = asNonEmptyString(input.thinkingLevel, 32);
       if (permissionMode && !allowedPerm.has(permissionMode)) {
         throw rpcError("INVALID_ARGUMENT", `Invalid permissionMode: ${permissionMode}`);
       }
       if (nextMode && !allowedMode.has(nextMode)) {
         throw rpcError("INVALID_ARGUMENT", `Invalid mode: ${nextMode}`);
       }
-      if (!permissionMode && !nextMode) {
-        throw rpcError("INVALID_ARGUMENT", "permissionMode or mode is required");
+      if (thinkingLevel && !allowedThinking.has(thinkingLevel)) {
+        throw rpcError("INVALID_ARGUMENT", `Invalid thinkingLevel: ${thinkingLevel}`);
+      }
+      if ((providerId && !modelId) || (!providerId && modelId)) {
+        throw rpcError("INVALID_ARGUMENT", "providerId and modelId must be provided together");
+      }
+      if (!permissionMode && !nextMode && !modelId && !thinkingLevel) {
+        throw rpcError("INVALID_ARGUMENT", "At least one session configuration field is required");
       }
       const existing = (await ctx.invoke(IPC.invoke.sessionGet, [
         { id: sessionId, messageLimit: 1 },
@@ -416,6 +476,8 @@ export async function dispatchMobileRpc(
       const config = {
         mode: nextMode ?? existing.session.mode ?? "agent",
         ...(permissionMode ? { permissionMode } : {}),
+        ...(providerId && modelId ? { providerId, modelId } : {}),
+        ...(thinkingLevel ? { thinkingLevel } : {}),
       };
       const updated = await ctx.invoke(IPC.invoke.sessionConfigure, [sessionId, config]);
       ctx.sendToRenderer(IPC.event.sessionsChanged, { reason: "mobile-configure" });
@@ -437,17 +499,35 @@ export async function dispatchMobileRpc(
         safePlansPending(ctx, sessionId),
         ctx
           .getHost()
-          ?.call<{ permissionMode?: string }>("settings.get", {})
-          .catch(() => ({ permissionMode: undefined })) ??
-          Promise.resolve({ permissionMode: undefined }),
+          ?.call<{
+            permissionMode?: string;
+            defaultProviderId?: string;
+            defaultModelId?: string;
+          }>("settings.get", {})
+          .catch(() => ({
+            permissionMode: undefined,
+            defaultProviderId: undefined,
+            defaultModelId: undefined,
+          })) ??
+          Promise.resolve({
+            permissionMode: undefined,
+            defaultProviderId: undefined,
+            defaultModelId: undefined,
+          }),
       ]);
       if (!detailRes?.session) throw rpcError("NOT_FOUND", `Session not found: ${sessionId}`);
       const rawPerm = detailRes.session.permissionMode ?? "inherit";
       const effectivePermissionMode =
         rawPerm === "inherit" ? (globalSettings?.permissionMode ?? "ask") : rawPerm;
+      const effectiveProviderId =
+        detailRes.session.providerId || globalSettings?.defaultProviderId || null;
+      const effectiveModelId =
+        detailRes.session.modelId || globalSettings?.defaultModelId || null;
       return {
         session: detailRes.session,
         effectivePermissionMode,
+        effectiveProviderId,
+        effectiveModelId,
         isRunning: ctx.activeTurns.has(sessionId),
         activeTurnId: ctx.activeTurns.get(sessionId) ?? null,
         cursor: ctx.latestCursorFor(sessionId),
@@ -695,6 +775,18 @@ export async function dispatchMobileRpc(
       ctx.sendToRenderer(IPC.event.canvasChanged, change);
       ctx.pushGatewayEvent("canvas.changed", change);
       return { groupId, canvas: saved.canvas };
+    }
+
+    case "canvas.delete": {
+      const host = requireHost(ctx);
+      const groupId = await resolveCanvasGroupId(ctx, input);
+      const canvasId = asNonEmptyString(input.canvasId, 80);
+      if (!canvasId) throw rpcError("INVALID_ARGUMENT", "canvasId is required");
+      await host.call("canvas.delete", { groupId, canvasId });
+      const change: CanvasChange = { groupId, canvasId };
+      ctx.sendToRenderer(IPC.event.canvasChanged, change);
+      ctx.pushGatewayEvent("canvas.changed", change);
+      return { ok: true, groupId, canvasId };
     }
   }
 }
