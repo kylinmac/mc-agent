@@ -8,6 +8,7 @@ use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
+use std::io::{ErrorKind, Write};
 use std::path::Path;
 
 const MAX_SERVERS: usize = 128;
@@ -88,6 +89,11 @@ pub struct McpServerInput {
     pub env: Option<BTreeMap<String, String>>,
     pub url: Option<String>,
     pub headers: Option<BTreeMap<String, String>>,
+    /// Keep these keys from the existing same-transport config while editing other values.
+    #[serde(default)]
+    pub keep_env_keys: Vec<String>,
+    #[serde(default)]
+    pub keep_header_keys: Vec<String>,
     #[serde(default, deserialize_with = "deserialize_timeout_override")]
     pub timeout_seconds: Option<Option<u64>>,
     pub enabled: Option<bool>,
@@ -107,6 +113,23 @@ where
 
 pub struct McpServerRegistry {
     state: CapabilityState,
+}
+
+fn edited_values(
+    replacement: Option<BTreeMap<String, String>>,
+    keep: &[String],
+    current: Option<&BTreeMap<String, String>>,
+) -> Result<BTreeMap<String, String>> {
+    let Some(mut values) = replacement else {
+        return Ok(current.cloned().unwrap_or_default());
+    };
+    for key in keep {
+        let value = current
+            .and_then(|saved| saved.get(key))
+            .context("MCP_INVALID: saved configuration changed; reload settings")?;
+        values.entry(key.clone()).or_insert_with(|| value.clone());
+    }
+    Ok(values)
 }
 
 fn valid_id(id: &str) -> bool {
@@ -399,9 +422,20 @@ impl McpServerRegistry {
     }
 
     pub fn upsert(&mut self, input: McpServerInput) -> Result<McpServerRecord> {
+        self.save(input, false)
+    }
+
+    pub fn create(&mut self, input: McpServerInput) -> Result<McpServerRecord> {
+        self.save(input, true)
+    }
+
+    fn save(&mut self, input: McpServerInput, create_only: bool) -> Result<McpServerRecord> {
         let (level, project_path) = level_and_project(&input)?;
         let same_level = self.list(level, project_path.as_deref())?;
         let current = same_level.iter().find(|record| record.id == input.id);
+        if create_only && current.is_some() {
+            bail!("MCP_INVALID: a server with this id already exists at this level");
+        }
         let transport = input
             .transport
             .clone()
@@ -449,10 +483,11 @@ impl McpServerRegistry {
                 .args
                 .or_else(|| previous_same_transport.map(|record| record.args.clone()))
                 .unwrap_or_default();
-            config.env = input
-                .env
-                .or_else(|| previous_same_transport.map(|record| record.env.clone()))
-                .unwrap_or_default();
+            config.env = edited_values(
+                input.env,
+                &input.keep_env_keys,
+                previous_same_transport.map(|record| &record.env),
+            )?;
         } else if config.transport == "http" {
             if input.command.is_some() || input.args.is_some() || input.env.is_some() {
                 bail!("MCP_INVALID: an http server must not set command, args or env");
@@ -462,10 +497,11 @@ impl McpServerRegistry {
                 .map(|value| value.trim().to_string())
                 .filter(|value| !value.is_empty())
                 .or_else(|| previous_same_transport.and_then(|record| record.url.clone()));
-            config.headers = input
-                .headers
-                .or_else(|| previous_same_transport.map(|record| record.headers.clone()))
-                .unwrap_or_default();
+            config.headers = edited_values(
+                input.headers,
+                &input.keep_header_keys,
+                previous_same_transport.map(|record| &record.headers),
+            )?;
         }
         Self::validate_config(&config)?;
         if same_level.len() >= MAX_SERVERS && current.is_none() {
@@ -474,6 +510,9 @@ impl McpServerRegistry {
         let directory = capability_dir(level, project_path.as_deref(), "servers")?;
         fs::create_dir_all(&directory)?;
         let path = directory.join(format!("{}.json", config.id));
+        if create_only && path.try_exists()? {
+            bail!("MCP_INVALID: a server with this id already exists at this level");
+        }
         let document = serde_json::to_string_pretty(&config)?;
         let owner = project_path.as_deref();
         let was_enabled = self.state.enabled(MCP_KIND, level, &config.id, owner);
@@ -483,7 +522,22 @@ impl McpServerRegistry {
             self.state
                 .set_enabled(MCP_KIND, level, &config.id, owner, false)?;
         }
-        if let Err(error) = fs::write(&path, document) {
+        let write = || -> Result<()> {
+            if create_only {
+                let mut temporary = tempfile::NamedTempFile::new_in(&directory)?;
+                temporary.write_all(document.as_bytes())?;
+                if let Err(error) = temporary.persist_noclobber(&path) {
+                    if error.error.kind() == ErrorKind::AlreadyExists {
+                        bail!("MCP_INVALID: a server with this id already exists at this level");
+                    }
+                    return Err(error.error).with_context(|| format!("create {}", path.display()));
+                }
+            } else {
+                fs::write(&path, document).with_context(|| format!("write {}", path.display()))?;
+            }
+            Ok(())
+        };
+        if let Err(error) = write() {
             if input.enabled == Some(false) && was_enabled {
                 self.state
                     .set_enabled(MCP_KIND, level, &config.id, owner, true)
@@ -494,7 +548,7 @@ impl McpServerRegistry {
                         )
                     })?;
             }
-            return Err(error).with_context(|| format!("write {}", path.display()));
+            return Err(error);
         }
         if input.enabled == Some(true) {
             self.state

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import {
   GLOBAL_SCOPE,
   type AgentCapabilityLevel,
-  type McpServerRecord,
+  type McpServerSettingsRecord,
   type McpServerStatus,
 } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
@@ -58,20 +58,21 @@ function projectMcpPath(projectPath: string | null): string {
 
 function statusFor(
   statuses: readonly McpServerStatus[],
-  server: McpServerRecord,
+  server: McpServerSettingsRecord,
 ): McpServerStatus | undefined {
   return statuses.find((status) => status.serverId === server.id);
 }
 
 type McpEditorState = {
   draft: McpDraft;
-  editing: McpServerRecord | null;
+  editing: McpServerSettingsRecord | null;
   level: AgentCapabilityLevel;
+  projectPath?: string;
 };
 
 type McpCollection = {
-  global: McpServerRecord[];
-  project: McpServerRecord[];
+  global: McpServerSettingsRecord[];
+  project: McpServerSettingsRecord[];
   statuses: McpServerStatus[];
 };
 
@@ -90,7 +91,7 @@ export function AgentMcpPage() {
       selectedProjectPath
         ? api.listMcpServers({ level: "project", projectPath: selectedProjectPath })
         : Promise.resolve({
-            servers: [] as McpServerRecord[],
+            servers: [] as McpServerSettingsRecord[],
             statuses: [] as McpServerStatus[],
           }),
     ]);
@@ -140,7 +141,7 @@ export function AgentMcpPage() {
   const patchRow = (
     level: AgentCapabilityLevel,
     id: string,
-    patch: Partial<McpServerRecord>,
+    patch: Partial<McpServerSettingsRecord>,
   ) => {
     setServers((current) => ({
       ...current,
@@ -166,17 +167,19 @@ export function AgentMcpPage() {
       },
       editing: null,
       level: targetLevel,
+      projectPath: targetLevel === "project" ? selectedProjectPath ?? undefined : undefined,
     });
   };
 
-  const openEdit = (server: McpServerRecord, level: AgentCapabilityLevel) => {
+  const openEdit = (server: McpServerSettingsRecord, level: AgentCapabilityLevel) => {
     setMenuFor(null);
-    setEditor({ draft: draftFromRecord(server), editing: server, level });
+    const projectPath = level === "project" ? server.projectPath ?? selectedProjectPath ?? undefined : undefined;
+    setEditor({ draft: draftFromRecord(server), editing: server, level, projectPath });
   };
 
   const save = async () => {
     if (!editor) return;
-    const projectPath = editor.level === "project" ? selectedProjectPath ?? undefined : undefined;
+    const projectPath = editor.level === "project" ? editor.projectPath : undefined;
     const candidateId = editor.draft.id.trim();
     const candidateLabel = editor.draft.label.trim().toLocaleLowerCase();
     const sameLevel = (editor.level === "global" ? globalServers : projectServers).some(
@@ -207,7 +210,7 @@ export function AgentMcpPage() {
     }
   };
 
-  const toggle = async (server: McpServerRecord, level: AgentCapabilityLevel) => {
+  const toggle = async (server: McpServerSettingsRecord, level: AgentCapabilityLevel) => {
     const key = rowKey(level, server.id);
     if (busyId) return;
     const next = !server.enabled;
@@ -231,15 +234,13 @@ export function AgentMcpPage() {
     }
   };
 
-  const testConnection = async (server: McpServerRecord, level: AgentCapabilityLevel) => {
+  const testConnection = async (server: McpServerSettingsRecord, level: AgentCapabilityLevel) => {
     if (testingId) return;
     setTestingId(server.id);
     try {
       const result = await api.testMcpServer(server.id, {
         level,
-        ...(level === "project" && selectedProjectPath
-          ? { projectPath: selectedProjectPath }
-          : {}),
+        ...(level === "project" ? { projectPath: server.projectPath ?? selectedProjectPath ?? undefined } : {}),
       });
       setStatuses((current) => [
         ...current.filter((status) => status.serverId !== server.id),
@@ -261,7 +262,7 @@ export function AgentMcpPage() {
     }
   };
 
-  const authorizeServer = async (server: McpServerRecord, level: AgentCapabilityLevel) => {
+  const authorizeServer = async (server: McpServerSettingsRecord, level: AgentCapabilityLevel) => {
     if (authorizingId || pendingOAuthRef.current) return;
     setAuthorizingId(server.id);
     let activeLoginId: string | null = null;
@@ -327,7 +328,7 @@ export function AgentMcpPage() {
     }
   };
 
-  const remove = async (server: McpServerRecord, level: AgentCapabilityLevel) => {
+  const remove = async (server: McpServerSettingsRecord, level: AgentCapabilityLevel) => {
     const key = rowKey(level, server.id);
     setBusyId(key);
     try {
@@ -345,13 +346,13 @@ export function AgentMcpPage() {
   };
 
   const visible = useMemo(() => {
-    const match = (server: McpServerRecord) =>
+    const match = (server: McpServerSettingsRecord) =>
       matchesCapabilitySearch(
         search,
         server.label,
         server.id,
         server.description,
-        server.transport === "http" ? server.url : server.command,
+        server.transport === "http" ? server.urlOrigin : server.commandLabel,
       );
     return {
       global: globalServers.filter(match),
@@ -389,7 +390,7 @@ export function AgentMcpPage() {
    * already holds the id or name renames the arriving server, so the toast
    * reports the new name instead of pretending the id survived.
    */
-  const move = async (server: McpServerRecord, level: AgentCapabilityLevel) => {
+  const move = async (server: McpServerSettingsRecord, level: AgentCapabilityLevel) => {
     const to: AgentCapabilityLevel = level === "global" ? "project" : "global";
     const target = moveTarget[to];
     if (!target) {
@@ -424,7 +425,7 @@ export function AgentMcpPage() {
     }
   };
 
-  const renderRow = (server: McpServerRecord, level: AgentCapabilityLevel) => {
+  const renderRow = (server: McpServerSettingsRecord, level: AgentCapabilityLevel) => {
     const key = rowKey(level, server.id);
     const name = server.label || server.id;
     const status = statusFor(statuses, server);
@@ -433,10 +434,7 @@ export function AgentMcpPage() {
     const authorizing = authorizingId === server.id;
     const isArmed = armed === key;
     const isHttp = server.transport === "http";
-    const hasAuthHeader = Boolean(
-      server.headers &&
-      Object.keys(server.headers).some((k) => k.toLowerCase() === "authorization"),
-    );
+    const hasAuthHeader = server.headerKeys.some((key) => key.toLowerCase() === "authorization");
     const isOAuth = isHttp && (Boolean(status?.hasOauth) || !hasAuthHeader);
     const needsAuth =
       isHttp &&
@@ -515,7 +513,7 @@ export function AgentMcpPage() {
         name={name}
         off={!server.enabled}
         menuOpen={menuFor === key}
-        command={server.transport === "http" ? server.url : server.command}
+        command={server.transport === "http" ? server.urlOrigin : server.commandLabel}
         badges={
           <>
             <span className="agent-capability-badge is-level">
@@ -752,9 +750,9 @@ export function AgentMcpPage() {
           status={editor.editing ? statusFor(statuses, editor.editing) : undefined}
           testing={testingId === editor.editing?.id}
           projects={[]}
-          currentProjectPath={selectedProjectPath}
+          currentProjectPath={editor.projectPath ?? selectedProjectPath}
           managementLevel={editor.level}
-          managementProjectName={projectName}
+          managementProjectName={editor.projectPath ? projectDisplayName(editor.projectPath) : projectName}
           onClose={() => {
             if (!saving && !testingId) setEditor(null);
           }}

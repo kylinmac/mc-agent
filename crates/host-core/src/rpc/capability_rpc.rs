@@ -31,7 +31,12 @@ pub(super) async fn handle(
                 serde_json::from_value(params.get("server").cloned().unwrap_or(params.clone()))
                     .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
             let mut st = state.lock().await;
-            let server = st.mcp_servers.upsert(input).map_err(scope_err)?;
+            let server = if params.get("createOnly").and_then(Value::as_bool) == Some(true) {
+                st.mcp_servers.create(input)
+            } else {
+                st.mcp_servers.upsert(input)
+            }
+            .map_err(scope_err)?;
             Ok(json!({ "server": server }))
         }
         "mcp.remove" => {

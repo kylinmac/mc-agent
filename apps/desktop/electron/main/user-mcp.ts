@@ -455,7 +455,7 @@ export class UserMcpRuntime {
       };
       this.options.log?.("warn", "user mcp server failed to connect", {
         serverId: record.id,
-        message: entry.status.message,
+        authRequired: is401,
       });
       return [];
     }

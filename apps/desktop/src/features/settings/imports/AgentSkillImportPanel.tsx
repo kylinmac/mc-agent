@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type {
   ExternalSkillCandidate,
-  ExternalSkillImportItem,
   ExternalSkillScanResult,
   ExternalSkillSourceKind,
 } from "../../../lib/api";
@@ -46,8 +45,7 @@ export function AgentSkillImportPanel({
   const [scanning, setScanning] = useState(false);
   const [importing, setImporting] = useState(false);
 
-  const keyOf = (candidate: ExternalSkillCandidate) =>
-    `${candidate.source}:${candidate.sourcePath}`;
+  const keyOf = (candidate: ExternalSkillCandidate) => candidate.selectionId;
 
   const scan = async () => {
     setScanning(true);
@@ -65,17 +63,7 @@ export function AgentSkillImportPanel({
 
   const runImport = async () => {
     if (!result) return;
-    const items: ExternalSkillImportItem[] = result.candidates
-      .filter((candidate) => selected.has(keyOf(candidate)))
-      .map((candidate) => ({
-        source: candidate.source,
-        sourcePath: candidate.sourcePath,
-        shape: candidate.shape,
-        rootDir: candidate.rootDir,
-        id: candidate.id,
-        name: candidate.name,
-        description: candidate.description,
-      }));
+    const items = Array.from(selected, (selectionId) => ({ selectionId }));
     if (items.length === 0) return;
     setImporting(true);
     try {

@@ -2686,6 +2686,7 @@ sklm: {
       commandPlaceholder: "npx 或絕對路徑",
       args: "引數",
       argsHint: "寫成一行，和 README 裡一樣。引號會被識別。",
+      savedValuesHint: "已儲存的啟動參數、完整網址和憑證值已隱藏。保留欄位即可繼續使用原值，也可以輸入新值取代。",
       env: "環境變數",
       envHint: "只傳給這個伺服器。輸入時值是隱藏的。",
       addEnv: "新增變數",

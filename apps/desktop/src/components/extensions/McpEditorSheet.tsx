@@ -7,7 +7,7 @@ import {
   resolveScope,
   type ActivationScope,
   type McpServerInput,
-  type McpServerRecord,
+  type McpServerSettingsRecord,
   type McpServerStatus,
   type McpTransport,
   type ProjectRecord,
@@ -15,7 +15,7 @@ import {
 import { Button, Field, HelpIcon, Input, SettingsToggle, TooltipButton, cx, portalOverlay } from "../ui";
 import { IconPlay, IconServer, IconTerminal, IconX } from "../icons";
 import { ScopeControl } from "./ScopeControl";
-import { KeyValueRows, pairsToRecord, recordToPairs, type KeyValuePair } from "./KeyValueRows";
+import { KeyValueRows, pairsToRecord, type KeyValuePair } from "./KeyValueRows";
 import {
   MCP_STDIO_LAUNCHER_PRESETS,
   mcpStdioLauncherChoice,
@@ -50,6 +50,7 @@ export type McpDraft = {
   enabled: boolean;
   scope: ActivationScope;
   timeoutSeconds: string;
+  savedLaunch?: { transport: McpTransport; command?: string; args?: string; url?: string };
 };
 
 export function emptyMcpDraft(): McpDraft {
@@ -69,17 +70,20 @@ export function emptyMcpDraft(): McpDraft {
   };
 }
 
-export function draftFromRecord(record: McpServerRecord): McpDraft {
+export function draftFromRecord(record: McpServerSettingsRecord): McpDraft {
+  const command = record.transport === "stdio" ? record.commandLabel || "••••••••" : "";
+  const args = record.hasArgs ? "••••••••" : "";
+  const url = record.urlOrigin ? record.urlOrigin + "/…" : "";
+  const savedPairs = (keys: string[]) => keys.map((key) => ({ key, value: "", saved: true }));
   return {
     id: record.id,
     label: record.label ?? "",
     description: record.description ?? "",
     transport: record.transport,
-    command: record.command ?? "",
-    args: (record.args ?? []).join(" "),
-    env: recordToPairs(record.env),
-    url: record.url ?? "",
-    headers: recordToPairs(record.headers),
+    command, args, url,
+    env: savedPairs(record.envKeys),
+    headers: savedPairs(record.headerKeys),
+    savedLaunch: { transport: record.transport, command, args, url },
     enabled: record.enabled,
     scope: resolveScope(record.scope),
     timeoutSeconds: record.timeoutSeconds !== undefined ? String(record.timeoutSeconds) : "",
@@ -153,20 +157,23 @@ export function draftToInput(
     enabled: draft.enabled,
     scope: draft.scope,
   };
+  const saved = draft.savedLaunch?.transport === draft.transport ? draft.savedLaunch : undefined;
   if (draft.transport === "http") {
     return {
       ...base,
       transport: "http",
-      url: draft.url.trim(),
-      headers: pairsToRecord(draft.headers),
+      ...(draft.url !== saved?.url ? { url: draft.url.trim() } : {}),
+      headers: pairsToRecord(draft.headers.filter((pair) => !pair.saved)),
+      keepHeaderKeys: draft.headers.filter((pair) => pair.saved).map((pair) => pair.key),
     };
   }
   return {
     ...base,
     transport: "stdio",
-    command: draft.command.trim(),
-    args: splitArgs(draft.args),
-    env: pairsToRecord(draft.env),
+    ...(draft.command !== saved?.command ? { command: draft.command.trim() } : {}),
+    ...(draft.args !== saved?.args ? { args: splitArgs(draft.args) } : {}),
+    env: pairsToRecord(draft.env.filter((pair) => !pair.saved)),
+    keepEnvKeys: draft.env.filter((pair) => pair.saved).map((pair) => pair.key),
   };
 }
 
@@ -256,7 +263,7 @@ export function McpEditorSheet({
   draft: McpDraft;
   setDraft: (next: McpDraft) => void;
   /** The record being edited, or null when creating: the id is immutable once saved. */
-  editing: McpServerRecord | null;
+  editing: McpServerSettingsRecord | null;
   saving: boolean;
   status?: McpServerStatus;
   testing: boolean;
@@ -290,8 +297,11 @@ export function McpEditorSheet({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [saving, onClose]);
 
-  const set = <K extends keyof McpDraft>(key: K, value: McpDraft[K]) =>
-    setDraft({ ...draft, [key]: value });
+  const set = <K extends keyof McpDraft>(key: K, value: McpDraft[K]) => {
+    const savedLaunch = draft.savedLaunch && (key === "args" || key === "command" || key === "url")
+      ? { ...draft.savedLaunch, [key]: undefined } : draft.savedLaunch;
+    setDraft({ ...draft, [key]: value, savedLaunch });
+  };
 
   // Typing a name fills the id until the user takes it over, so the common path
   // never asks for two spellings of the same thing.
@@ -357,6 +367,7 @@ export function McpEditorSheet({
         </div>
 
         <div className="ext-sheet-body">
+          {editing ? <p className="ext-field-hint">{t("extensions.mcp.savedValuesHint")}</p> : null}
           <div className="ext-field-group">
             <div className="ext-field-label">{t("extensions.mcp.transport")}</div>
             <div className="ext-transport-pick" role="radiogroup" aria-label={t("extensions.mcp.transport")}>
@@ -466,6 +477,7 @@ export function McpEditorSheet({
                 </div>
                 <KeyValueRows
                   pairs={draft.env}
+                  secret
                   onChange={(next) => set("env", next)}
                   keyPlaceholder="API_KEY"
                   valuePlaceholder={t("extensions.mcp.valuePlaceholder")}

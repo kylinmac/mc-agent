@@ -1,5 +1,3 @@
-import type { McpServerRecord, UserSkillRecord } from "./capabilities.js";
-
 export interface ImportRunResult {
   imported: number;
   skipped: number;
@@ -25,24 +23,23 @@ export type ExternalSkillSourceKind =
   | "pi-user"
   | "pi-project";
 
-export interface ExternalSkillCandidate extends ExternalSkillImportItem {
+/** Identifies one row in the scan shown to the user. Main owns the execution input. */
+export interface ExternalImportSelection {
+  selectionId: string;
+}
+
+export interface ExternalSkillCandidate extends ExternalImportSelection {
+  source: ExternalSkillSourceKind;
+  sourcePath: string;
+  shape: "file" | "dir";
+  id: string;
+  name: string;
   description: string;
-  bytes: number;
-  warnings: string[];
 }
 
 export type ExternalSkillSourceReport = ExternalImportSourceReport<ExternalSkillSourceKind | "error">;
 export type ExternalSkillScanResult = ExternalImportScanResult<ExternalSkillCandidate, ExternalSkillSourceKind | "error">;
-
-export interface ExternalSkillImportItem {
-  source: ExternalSkillSourceKind;
-  sourcePath: string;
-  shape: "file" | "dir";
-  rootDir?: string;
-  id: string;
-  name: string;
-  description?: string;
-}
+export type ExternalSkillImportItem = ExternalImportSelection;
 
 export interface ExternalSkillImportPayload {
   level: "global" | "project";
@@ -51,11 +48,13 @@ export interface ExternalSkillImportPayload {
   items: ExternalSkillImportItem[];
 }
 
-export interface ExternalSkillImportRunResult {
-  imported: Array<{ item: ExternalSkillImportItem; skill: UserSkillRecord }>;
-  skipped: Array<{ item: ExternalSkillImportItem; reason: string }>;
-  failed: Array<{ item: ExternalSkillImportItem; error: string }>;
+export interface ExternalImportBatchResult {
+  imported: Array<{ item: ExternalImportSelection }>;
+  skipped: Array<{ item: ExternalImportSelection; reason: "exists" }>;
+  failed: Array<{ item: ExternalImportSelection; error: "stale-selection" | "import-failed" }>;
 }
+
+export type ExternalSkillImportRunResult = ExternalImportBatchResult;
 
 export type ExternalMcpSourceKind =
   | "claude-desktop"
@@ -66,27 +65,19 @@ export type ExternalMcpSourceKind =
   | "opencode"
   | "chatgpt-desktop";
 
-export interface ExternalMcpCandidate {
+export interface ExternalMcpCandidate extends ExternalImportSelection {
   source: ExternalMcpSourceKind;
   sourcePath: string;
   id: string;
-  rawKey: string;
   label?: string;
-  description?: string;
+  displayMeta: string;
   transport: "stdio" | "http";
-  command?: string;
-  args?: string[];
-  env?: Record<string, string>;
-  url?: string;
-  headers?: Record<string, string>;
-  disabled?: boolean;
-  warnings: string[];
 }
 
 export type ExternalMcpSourceReport = ExternalImportSourceReport<ExternalMcpSourceKind | "error">;
 export type ExternalMcpScanResult = ExternalImportScanResult<ExternalMcpCandidate, ExternalMcpSourceKind | "error">;
 
-export type ExternalMcpImportItem = Omit<ExternalMcpCandidate, "warnings">;
+export type ExternalMcpImportItem = ExternalImportSelection;
 
 export interface ExternalMcpImportPayload {
   /** Defaults to global for existing callers. */
@@ -95,8 +86,4 @@ export interface ExternalMcpImportPayload {
   items: ExternalMcpImportItem[];
 }
 
-export interface ExternalMcpImportRunResult {
-  imported: Array<{ item: ExternalMcpImportItem; server: McpServerRecord }>;
-  skipped: Array<{ item: ExternalMcpImportItem; reason: string }>;
-  failed: Array<{ item: ExternalMcpImportItem; error: string }>;
-}
+export type ExternalMcpImportRunResult = ExternalImportBatchResult;

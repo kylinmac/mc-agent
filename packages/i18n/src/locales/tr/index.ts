@@ -2719,6 +2719,7 @@ importConfirm: "İçe aktarılan uzantılar ajan sürecinde, ajanın kendi araç
       commandPlaceholder: "npx veya mutlak bir yol",
       args: "Argümanlar",
       argsHint: "README’de yazıldığı gibi tek satır. Tırnaklara uyulur.",
+      savedValuesHint: "Kayıtlı başlatma parametreleri, tam URL’ler ve kimlik bilgileri gizlenir. Değeri korumak için alanı olduğu gibi bırakın veya yeni bir değer girin.",
       env: "Ortam değişkenleri",
       envHint: "Yalnızca bu sunucuya geçirilir. Yazarken değerler gizlenir.",
       addEnv: "Değişken ekle",

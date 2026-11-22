@@ -2689,6 +2689,7 @@ sklm: {
       "commandPlaceholder": "npx o una ruta absoluta",
       "args": "Argumentos",
       "argsHint": "Una línea, tal como está impresa en el archivo README. Se respetan las cotizaciones.",
+      "savedValuesHint": "Los parámetros de inicio, las URL completas y las credenciales guardadas están ocultos. Deja el campo como está para conservarlo o introduce un valor nuevo.",
       "env": "Variables de entorno",
       "envHint": "Pasadas solo a este servidor. Los valores están ocultos mientras escribe.",
       "addEnv": "Agregar variable",

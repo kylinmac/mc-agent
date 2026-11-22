@@ -11,13 +11,18 @@ import os from "node:os";
 import path from "node:path";
 
 import type {
-  ExternalSkillCandidate as SkillCandidate,
+  ExternalSkillCandidate,
   ExternalSkillSourceKind as SkillSourceKind,
   ExternalImportScanResult,
   ExternalImportSourceReport,
 } from "@pi-desktop/shared";
 
-export type { SkillCandidate, SkillSourceKind };
+export type { SkillSourceKind };
+export interface SkillCandidate extends Omit<ExternalSkillCandidate, "selectionId"> {
+  rootDir?: string;
+  bytes: number;
+  warnings: string[];
+}
 export type SkillSourceReport = ExternalImportSourceReport<SkillSourceKind>;
 export type SkillScanResult = ExternalImportScanResult<SkillCandidate, SkillSourceKind>;
 

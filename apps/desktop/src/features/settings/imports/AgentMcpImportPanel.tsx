@@ -2,13 +2,11 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type {
   ExternalMcpCandidate,
-  ExternalMcpImportItem,
   ExternalMcpScanResult,
   ExternalMcpSourceKind,
 } from "../../../lib/api";
 import { api } from "../../../lib/api";
 import { useAppStore } from "../../../stores/app-store";
-import { externalMcpDisplayMeta } from "./import-format";
 import { Badge } from "../../../components/ui";
 import {
   ImportGroup,
@@ -48,8 +46,7 @@ export function AgentMcpImportPanel({
   const [scanning, setScanning] = useState(false);
   const [importing, setImporting] = useState(false);
 
-  const keyOf = (candidate: ExternalMcpCandidate) =>
-    `${candidate.source}:${candidate.id}`;
+  const keyOf = (candidate: ExternalMcpCandidate) => candidate.selectionId;
 
   const scan = async () => {
     setScanning(true);
@@ -67,23 +64,7 @@ export function AgentMcpImportPanel({
 
   const runImport = async () => {
     if (!result) return;
-    const items: ExternalMcpImportItem[] = result.candidates
-      .filter((candidate) => selected.has(keyOf(candidate)))
-      .map((candidate) => ({
-        source: candidate.source,
-        sourcePath: candidate.sourcePath,
-        id: candidate.id,
-        rawKey: candidate.rawKey,
-        label: candidate.label,
-        description: candidate.description,
-        transport: candidate.transport,
-        command: candidate.command,
-        args: candidate.args,
-        env: candidate.env,
-        url: candidate.url,
-        headers: candidate.headers,
-        disabled: candidate.disabled,
-      }));
+    const items = Array.from(selected, (selectionId) => ({ selectionId }));
     if (items.length === 0) return;
     setImporting(true);
     try {
@@ -168,7 +149,7 @@ export function AgentMcpImportPanel({
                       <ImportRow
                         key={key}
                         title={candidate.label || candidate.id}
-                        meta={externalMcpDisplayMeta(candidate)}
+                        meta={candidate.displayMeta}
                         checked={selected.has(key)}
                         onChange={(on) => setSelected((previous) => toggleKey(previous, key, on))}
                         badge={

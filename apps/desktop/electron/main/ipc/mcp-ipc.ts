@@ -4,6 +4,7 @@ import type { HostProcess } from "../host-process";
 import type { McpRegistrySearchResult } from "../mcp-registry-catalog";
 import type { UserMcpRuntime } from "../user-mcp";
 import type { IpcRegistrar } from "./types";
+import { mcpSettingsRecord, mcpSettingsStatus } from "../mcp-settings-view";
 
 export type McpIpcDependencies = {
   registrar: IpcRegistrar;
@@ -57,11 +58,11 @@ export function registerMcpIpc({
     await refreshUserMcp(currentWorkspacePath());
     const statuses = await Promise.all(
       (await userMcp.refreshStatuses()).map(async (status) => ({
-        ...status,
+        ...mcpSettingsStatus(status),
         hasOauth: oauth ? await oauth.hasOAuth(status.serverId) : false,
       })),
     );
-    return { servers: result.servers ?? [], statuses };
+    return { servers: (result.servers ?? []).map(mcpSettingsRecord), statuses };
   });
 
   handle(IPC.invoke.mcpUpsert, async (server: McpServerInput) => {
@@ -78,7 +79,7 @@ export function registerMcpIpc({
         })
         .catch(() => {});
     }
-    return res;
+    return { server: mcpSettingsRecord(res.server) };
   });
 
   handle(
@@ -99,10 +100,10 @@ export function registerMcpIpc({
     async (payload: { id: string; enabled: boolean } & Partial<AgentCapabilityQuery>) => {
       const host = getHost();
       if (!host) throw new Error("host unavailable");
-      const res = await host.call("mcp.setEnabled", payload);
+      const res = await host.call<{ server: McpServerRecord }>("mcp.setEnabled", payload);
       await refreshUserMcp(currentWorkspacePath());
       sendToRenderer(IPC.event.pluginChanged,{ reason: "mcp", pluginId: payload.id });
-      return res;
+      return { server: mcpSettingsRecord(res.server) };
     },
   );
 
@@ -111,10 +112,10 @@ export function registerMcpIpc({
     async (payload: { id: string; scope: ActivationScope }) => {
       const host = getHost();
       if (!host) throw new Error("host unavailable");
-      const res = await host.call("mcp.setScope", payload);
+      const res = await host.call<{ server: McpServerRecord }>("mcp.setScope", payload);
       await refreshUserMcp(currentWorkspacePath());
       sendToRenderer(IPC.event.pluginChanged,{ reason: "mcp", pluginId: payload.id });
-      return res;
+      return { server: mcpSettingsRecord(res.server) };
     },
   );
 
@@ -134,7 +135,7 @@ export function registerMcpIpc({
     }
     await refreshUserMcp(currentWorkspacePath());
     sendToRenderer(IPC.event.pluginChanged,{ reason: "mcp", pluginId: res.server?.id });
-    return res;
+    return { server: mcpSettingsRecord(res.server) };
   });
 
   handle(
@@ -158,7 +159,7 @@ export function registerMcpIpc({
       await refreshUserMcp(currentWorkspacePath());
       sendToRenderer(IPC.event.pluginChanged,{ reason: "mcp", pluginId: payload.id });
       const hasOauth = oauth ? await oauth.hasOAuth(payload.id) : false;
-      return { status: { ...status, hasOauth } };
+      return { status: { ...mcpSettingsStatus(status), hasOauth } };
     },
   );
 
@@ -204,17 +205,17 @@ export function registerMcpIpc({
     const failed = [...parsed.skipped];
     for (const server of parsed.servers) {
       try {
-        const res = await host.call<{ server: McpServerRecord }>("mcp.upsert", { server });
+        const res = await host.call<{ server: McpServerRecord }>("mcp.upsert", { server, createOnly: true });
         imported.push(res.server);
       } catch (error) {
-        failed.push({ id: server.id, reason: describeError(error) });
+        failed.push({ id: server.id, reason: /already exists/i.test(describeError(error)) ? "already exists" : "import failed" });
       }
     }
     await refreshUserMcp(currentWorkspacePath());
     if (imported.length) {
       sendToRenderer(IPC.event.pluginChanged,{ reason: "mcp" });
     }
-    return { imported, failed };
+    return { imported: imported.map(mcpSettingsRecord), failed };
   });
 
 }

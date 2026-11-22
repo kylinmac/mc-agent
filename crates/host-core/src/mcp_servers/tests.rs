@@ -18,6 +18,76 @@ fn stdio(id: &str) -> McpServerInput {
 }
 
 #[test]
+fn repeated_import_preserves_the_saved_definition_and_explicit_edits_still_work() {
+    let (data, global, _project) = scaffolding();
+    test_support::with_global_agents(global.path(), || {
+        let mut registry = McpServerRegistry::new(data.path());
+        let mut input = stdio("docs");
+        input.enabled = Some(false);
+        registry.create(input.clone()).unwrap();
+        input.command = Some("other".into());
+        assert!(registry
+            .create(input.clone())
+            .unwrap_err()
+            .to_string()
+            .contains("already exists"));
+        let stored = registry.list(CapabilityLevel::Global, None).unwrap();
+        assert_eq!(stored[0].command.as_deref(), Some("npx"));
+        assert!(!stored[0].enabled);
+        assert_eq!(
+            registry.upsert(input).unwrap().command.as_deref(),
+            Some("other")
+        );
+        let malformed = global.path().join("servers/manual.json");
+        fs::write(&malformed, "user editing this file").unwrap();
+        assert!(registry
+            .create(stdio("manual"))
+            .unwrap_err()
+            .to_string()
+            .contains("already exists"));
+        assert_eq!(
+            fs::read_to_string(malformed).unwrap(),
+            "user editing this file"
+        );
+    });
+}
+
+#[test]
+fn settings_edit_keeps_only_selected_values_in_the_current_transport() {
+    let (data, global, _project) = scaffolding();
+    test_support::with_global_agents(global.path(), || {
+        let mut registry = McpServerRegistry::new(data.path());
+        let mut input = stdio("docs");
+        input.env = Some(BTreeMap::from([
+            ("KEEP".to_owned(), "original".to_owned()),
+            ("REMOVE".to_owned(), "removed".to_owned()),
+        ]));
+        registry.create(input).unwrap();
+        let edit = |keep: &str| McpServerInput {
+            id: "docs".into(),
+            env: Some(BTreeMap::from([("ADD".to_owned(), "new".to_owned())])),
+            keep_env_keys: vec![keep.into()],
+            ..Default::default()
+        };
+        let saved = registry.upsert(edit("KEEP")).unwrap();
+        assert_eq!(saved.command.as_deref(), Some("npx"));
+        assert_eq!(saved.args, vec!["-y", "server"]);
+        assert_eq!(
+            saved.env,
+            BTreeMap::from([
+                ("ADD".into(), "new".into()),
+                ("KEEP".into(), "original".into())
+            ])
+        );
+        assert!(registry.upsert(edit("missing")).is_err());
+        assert_eq!(
+            registry.list(CapabilityLevel::Global, None).unwrap()[0].env,
+            saved.env
+        );
+    });
+}
+
+#[test]
 fn a_disabled_import_only_publishes_after_its_state_is_saved() {
     let (data, global, _project) = scaffolding();
     test_support::with_global_agents(global.path(), || {

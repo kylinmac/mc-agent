@@ -12,13 +12,20 @@ import path from "node:path";
 import { mcpImportId } from "@pi-desktop/shared";
 
 import type {
-  ExternalMcpCandidate as McpCandidate,
+  McpServerInput,
   ExternalMcpSourceKind as McpSourceKind,
   ExternalImportScanResult,
   ExternalImportSourceReport,
 } from "@pi-desktop/shared";
 
-export type { McpCandidate, McpSourceKind };
+export type { McpSourceKind };
+export interface McpCandidate extends Pick<McpServerInput, "id" | "label" | "description" | "transport" | "command" | "args" | "env" | "url" | "headers"> {
+  source: McpSourceKind;
+  sourcePath: string;
+  rawKey: string;
+  disabled?: boolean;
+  warnings: string[];
+}
 export type McpSourceReport = ExternalImportSourceReport<McpSourceKind>;
 export type McpScanResult = ExternalImportScanResult<McpCandidate, McpSourceKind>;
 

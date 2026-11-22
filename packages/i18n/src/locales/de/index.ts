@@ -2689,6 +2689,7 @@ sklm: {
       "commandPlaceholder": "npx oder ein absoluter Pfad",
       "args": "Argumente",
       "argsHint": "Eine Zeile, wie in der README-Datei abgedruckt. Zitate werden respektiert.",
+      "savedValuesHint": "Gespeicherte Startparameter, vollständige URLs und Zugangsdaten sind ausgeblendet. Unveränderte Felder behalten ihren Wert. Zum Ersetzen einen neuen Wert eingeben.",
       "env": "Umgebungsvariablen",
       "envHint": "Wird nur an diesen Server übergeben. Während der Eingabe werden Werte ausgeblendet.",
       "addEnv": "Variable hinzufügen",

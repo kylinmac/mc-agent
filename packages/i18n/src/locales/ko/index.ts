@@ -2726,6 +2726,7 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
       commandPlaceholder: "npx 또는 절대 경로",
       args: "인수",
       argsHint: "README에 표시된 대로 한 줄로 입력하세요. 따옴표는 유지됩니다.",
+      savedValuesHint: "저장된 실행 인수, 전체 URL 및 자격 증명 값은 숨겨집니다. 기존 값을 유지하려면 필드를 그대로 두고, 바꾸려면 새 값을 입력하세요.",
       env: "환경 변수",
       envHint: "이 서버에만 전달됩니다. 입력하는 동안 값은 숨겨집니다.",
       addEnv: "변수 추가",

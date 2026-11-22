@@ -27,31 +27,16 @@ import { useAppStore } from "../../apps/desktop/src/stores/app-store";
 
 const projectPath = "/tmp/pi-settings-inline-import-project";
 const candidate = {
-  source: "claude-code",
-  sourcePath: projectPath + "/.mcp.json",
-  id: "fixture-project-server",
-  rawKey: "fixture-project-server",
-  label: ${JSON.stringify(serverLabel)},
-  description: "Local fixture server",
-  transport: "stdio",
-  command: "node",
-  args: ["server.js"],
-  disabled: true,
-  warnings: [],
+  selectionId: "fixture-choice", source: "claude-code", sourcePath: projectPath + "/.mcp.json",
+  id: "fixture-project-server", label: ${JSON.stringify(serverLabel)},
+  displayMeta: "Local fixture server", transport: "stdio",
 };
 const importedServer = {
-  id: candidate.id,
-  label: candidate.label,
-  level: "project",
-  projectPath,
-  transport: "stdio",
-  command: candidate.command,
-  args: candidate.args,
-  enabled: false,
-  createdAt: "2026-10-04T00:00:00.000Z",
-  updatedAt: "2026-10-04T00:00:00.000Z",
+  id: candidate.id, label: candidate.label, level: "project", projectPath,
+  transport: "stdio", commandLabel: "node", hasArgs: true, envKeys: ["DOCS_KEY"], headerKeys: [], enabled: false,
+  createdAt: "2026-10-04T00:00:00.000Z", updatedAt: "2026-10-04T00:00:00.000Z",
 };
-const otherCandidate = { ...candidate, id: "other", rawKey: "other", label: "Local docs" };
+const otherCandidate = { ...candidate, selectionId: "other-choice", id: "other", label: "Local docs" };
 const project = {
   id: 1,
   path: projectPath,
@@ -110,10 +95,13 @@ window.piDesktop = {
       case IPC.invoke.mcpImportRun:
         imported = true;
         data = {
-          imported: [{ item: input.items[0], server: importedServer }],
+          imported: [{ item: input.items[0] }],
           skipped: [],
           failed: [],
         };
+        break;
+      case IPC.invoke.mcpUpsert:
+        data = { server: importedServer };
         break;
       default:
         throw new Error("Unexpected fixture IPC: " + channel);
@@ -328,6 +316,20 @@ window.importSelectedMcp = async () => {
     importedServerDisabled: visibleRow?.classList.contains("is-off") ?? false,
   };
 };
+
+window.editImportedMcp = async () => {
+  const edit = requireNode(buttons().find((button) => button.getAttribute("aria-label") === "Edit " + candidate.label), "Missing imported server editor");
+  flushSync(() => edit.click());
+  const dialog = await waitFor(() => document.querySelector(".ext-sheet-body"), "MCP editor did not open");
+  const valueInput = requireNode(dialog.querySelector(".kv-value"), "Missing saved credential field");
+  if (valueInput.value !== "" || !valueInput.placeholder) throw new Error("Saved credential must be masked");
+  flushSync(() => requireNode(buttonByLabel("Save"), "Missing save action").click());
+  const call = await waitFor(() => calls.find((entry) => entry.channel === IPC.invoke.mcpUpsert), "Saving the masked form did not reach Main");
+  if ("args" in call.input || "command" in call.input || Object.keys(call.input.env).length) {
+    throw new Error("An unchanged launch field was sent as a replacement");
+  }
+  return call.input.keepEnvKeys;
+};
 `;
 
 const urlAssets = {
@@ -415,7 +417,8 @@ app.whenReady().then(async () => {
             (await win.webContents.capturePage()).toPNG());
         }
         const imported = await win.webContents.executeJavaScript("window.importSelectedMcp()");
-        console.log("SETTINGS_INLINE_MCP_IMPORT " + JSON.stringify({ ...selection, ...imported }));
+        const keptEnvKeys = await win.webContents.executeJavaScript("window.editImportedMcp()");
+        console.log("SETTINGS_INLINE_MCP_IMPORT " + JSON.stringify({ ...selection, ...imported, keptEnvKeys }));
         win.destroy();
       }
     }
@@ -455,6 +458,7 @@ app.whenReady().then(async () => {
       .map((line) => JSON.parse(line.slice("SETTINGS_INLINE_MCP_IMPORT ".length)));
     assert.equal(results.length, 4, output);
     const [result] = results;
+    assert.deepEqual(result.keptEnvKeys, ["DOCS_KEY"]);
     for (const variant of results.slice(1)) assert.deepEqual(variant, result);
 
     assert.deepEqual(result.builtinToggleState, {
@@ -472,18 +476,7 @@ app.whenReady().then(async () => {
     assert.deepEqual(result.runCall.input, {
       level: "project",
       projectPath: "/tmp/pi-settings-inline-import-project",
-      items: [{
-        source: "claude-code",
-        sourcePath: "/tmp/pi-settings-inline-import-project/.mcp.json",
-        id: "fixture-project-server",
-        rawKey: "fixture-project-server",
-        label: serverLabel,
-        description: "Local fixture server",
-        transport: "stdio",
-        command: "node",
-        args: ["server.js"],
-        disabled: true,
-      }],
+      items: [{ selectionId: "fixture-choice" }],
     });
     assert.equal(result.visibleToast, "Import done: 1 imported, 0 skipped, 0 failed");
     assert.equal(result.visibleImportedServer, true);

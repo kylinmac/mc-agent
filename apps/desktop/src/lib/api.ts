@@ -67,7 +67,7 @@ import type {
   SkillCatalogEntry,
   ModelInfo,
   McpServerInput,
-  McpServerRecord,
+  McpServerSettingsRecord,
   McpServerStatus,
   McpOAuthLoginEvent,
   OnboardingState,
@@ -1317,13 +1317,13 @@ export const api = {
 
   // --- MCP servers the user owns -------------------------------------------
   listMcpServers: (query?: AgentCapabilityQuery) =>
-    invoke<{ servers: McpServerRecord[]; statuses: McpServerStatus[] }>(
+    invoke<{ servers: McpServerSettingsRecord[]; statuses: McpServerStatus[] }>(
       IPC.invoke.mcpList,
       query,
     ),
   /** Create or replace a server; the id decides which level-local file. */
   upsertMcpServer: (server: McpServerInput) =>
-    invoke<{ server: McpServerRecord }>(IPC.invoke.mcpUpsert, server),
+    invoke<{ server: McpServerSettingsRecord }>(IPC.invoke.mcpUpsert, server),
   removeMcpServer: (
     id: string,
     query?: Partial<AgentCapabilityQuery>,
@@ -1341,7 +1341,7 @@ export const api = {
    * holds the same id or name renames the arriving server.
    */
   transferMcpServer: (move: AgentCapabilityMove) =>
-    invoke<{ server: McpServerRecord }>(IPC.invoke.mcpTransfer, move),
+    invoke<{ server: McpServerSettingsRecord }>(IPC.invoke.mcpTransfer, move),
   /** Force one handshake and report what happened, for the editor's test button. */
   testMcpServer: (id: string, query?: Partial<AgentCapabilityQuery>) =>
     invoke<{ status: McpServerStatus }>(IPC.invoke.mcpTest, { id, ...query }),
@@ -1353,7 +1353,7 @@ export const api = {
   /** Accept a pasted `mcpServers` block; bad entries are reported, not fatal. */
   importMcpServers: (text: string) =>
     invoke<{
-      imported: McpServerRecord[];
+      imported: McpServerSettingsRecord[];
       failed: Array<{ id: string; reason: string }>;
     }>(IPC.invoke.mcpImport, { text }),
   /**

@@ -2654,6 +2654,7 @@ export const ptBR = {
       commandPlaceholder: "npx ou um caminho absoluto",
       args: "Argumentos",
       argsHint: "Argumentos passados ao comando, um por linha ou separados por espaço.",
+      savedValuesHint: "Os argumentos de inicialização, as URLs completas e as credenciais salvas ficam ocultos. Mantenha o campo como está para preservar o valor ou digite um novo.",
       env: "Variáveis de ambiente",
       envHint: "Passadas apenas para este servidor. Os valores ficam ocultos ao digitar.",
       addEnv: "Adicionar variável",

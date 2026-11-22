@@ -2757,6 +2757,7 @@ importConfirm: "Imported extensions run inside the agent process with the same a
       commandPlaceholder: "npx or an absolute path",
       args: "Arguments",
       argsHint: "One line, as printed in the README. Quotes are respected.",
+      savedValuesHint: "Saved launch details and credential values are hidden. Leave a field as shown to keep it, or enter a replacement.",
       env: "Environment variables",
       envHint: "Passed only to this server. Values are hidden while you type.",
       addEnv: "Add variable",

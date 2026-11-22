@@ -2689,6 +2689,7 @@ sklm: {
       "commandPlaceholder": "npx ou un chemin absolu",
       "args": "Arguments",
       "argsHint": "Une ligne, telle qu'imprimée dans le README. Les citations sont respectées.",
+      "savedValuesHint": "Les paramètres de lancement, les URL complètes et les identifiants enregistrés sont masqués. Laissez un champ tel quel pour le conserver ou saisissez une nouvelle valeur.",
       "env": "Variables d'environnement",
       "envHint": "Transmises uniquement à ce serveur. Les valeurs sont masquées pendant que vous tapez.",
       "addEnv": "Ajoutez la variable",

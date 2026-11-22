@@ -2709,6 +2709,7 @@ sklm: {
       commandPlaceholder: "npx 或绝对路径",
       args: "参数",
       argsHint: "写成一行，和 README 里一样。引号会被识别。",
+      savedValuesHint: "已保存的启动参数、完整地址和凭据值已隐藏。保留字段可以继续使用原值，也可以输入新值替换。",
       env: "环境变量",
       envHint: "只传给这个服务器。输入时值是隐藏的。",
       addEnv: "添加变量",
