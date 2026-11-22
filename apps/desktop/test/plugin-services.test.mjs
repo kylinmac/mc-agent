@@ -17,6 +17,7 @@ register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
 const { PluginRuntime } = await import("../electron/main/plugin-runtime.ts");
 
 const { PluginServiceRestarts } = await import("../electron/main/plugin-service-restarts.ts");
+const { McpServerClient } = await import("../electron/main/plugin-mcp.ts");
 
 const hostSrc = readFileSync(hostProcessEntry, "utf8");
 const runtimeSrc = readFileSync(join(desktopRoot, "electron/main/plugin-runtime.ts"), "utf8");
@@ -381,6 +382,50 @@ test("unloading while a restarted child is spawning stops that child before it r
   await exited.promise;
   assert.deepEqual(runtime.listLoaded(), []);
   assert.deepEqual(runtime.getServiceStates(), []);
+});
+
+test("unload closes pending MCP discovery and ignores a late tool catalog", async (t) => {
+  const { dir, manifest } = writeServicePlugin({ permissions: ["mcp.server.local"], services: [], main: "" });
+  manifest.contributes.mcpServers = [{ id: "books", transport: "stdio", command: "node", args: ["./server.js"] }];
+  writeFileSync(join(dir, "manifest.json"), JSON.stringify(manifest));
+  const discovering = Promise.withResolvers();
+  const reply = Promise.withResolvers();
+  t.mock.method(McpServerClient.prototype, "connect", () => {
+    discovering.resolve();
+    return reply.promise;
+  });
+  const close = t.mock.method(McpServerClient.prototype, "close");
+  const { runtime } = createRuntime(t);
+  const stopped = assert.rejects(runtime.loadFromPath(dir), /plugin stopped/);
+  await discovering.promise;
+  try {
+    await runtime.unload(manifest.id);
+    assert.equal(close.mock.callCount(), 1);
+  } finally {
+    reply.resolve([{ name: "ListBooks", inputSchema: { type: "object" } }]);
+  }
+  await stopped;
+  assert.deepEqual(runtime.getTools(), []);
+  assert.deepEqual(runtime.listLoaded(), []);
+});
+
+test("a crash during the restarted service's start preserves the next retry", async (t) => {
+  const { dir, startsFile } = writeServicePlugin({
+    main: COUNTER_PRELUDE + `
+      module.exports.onLoad = () => pi.services.register({
+        id: "worker", start: () => {
+          const n = countStart();
+          if (n === 1) setTimeout(() => process.exit(7), 30);
+          if (n === 2) process.exit(7);
+        }
+      });
+    `,
+  });
+  const { runtime, audits } = createRuntime(t);
+  await runtime.loadFromPath(dir);
+  await waitFor(() => runtime.getServiceStates().some((service) => service.state === "running" && service.restarts === 2));
+  assert.equal(readFileSync(startsFile, "utf8"), "3");
+  assert.deepEqual(audits.filter((entry) => entry.api === "plugin.service.restart.scheduled").map((entry) => entry.attempt), [1, 2]);
 });
 
 test("a crashed host process is restarted with backoff and the restart is counted", async (t) => {

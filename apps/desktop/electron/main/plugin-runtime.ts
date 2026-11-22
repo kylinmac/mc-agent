@@ -2212,14 +2212,14 @@ export class PluginRuntime {
       throw error;
     }
 
-    restart?.throwIfAborted();
+    this.assertLoaded(loaded);
     this.registerSkills(loaded);
     this.registerAgentExtensions(loaded);
     this.registerThemes(loaded);
     await this.registerMcpServers(loaded);
-    restart?.throwIfAborted();
+    this.assertLoaded(loaded);
     await this.startServices(loaded);
-    restart?.throwIfAborted();
+    this.assertLoaded(loaded);
     // After the child's `onLoad`, so the plugin's commands already exist: a
     // declared shortcut whose command was never registered is reported and
     // skipped rather than held against a command that cannot run.
@@ -2231,6 +2231,14 @@ export class PluginRuntime {
       ts: Date.now(),
     });
     return manifest;
+  }
+
+  private isCurrent(loaded: LoadedPlugin): boolean {
+    return !loaded.disposing && this.loaded.get(loaded.manifest.id) === loaded;
+  }
+
+  private assertLoaded(loaded: LoadedPlugin): void {
+    if (!this.isCurrent(loaded)) throw apiError("PLUGIN_UNLOADED", "plugin stopped during initialization");
   }
 
   /** Abort this session's invocations without affecting sibling sessions. */
@@ -3397,7 +3405,7 @@ export class PluginRuntime {
         ts: Date.now(),
       });
     } catch (error) {
-      if (signal.aborted) return;
+      if (signal.aborted || this.restarts.attempts(pluginId) !== attempt) return;
       this.markServices(loaded, "failed", attempt, (error as Error).message);
       this.services.audit?.({
         pluginId,
@@ -3987,7 +3995,9 @@ export class PluginRuntime {
       settings = {};
     }
 
+    if (!this.isCurrent(loaded)) return;
     const clients: McpServerClient[] = [];
+    this.mcpClients.set(pluginId, clients);
     for (const raw of declared) {
       if (clients.length >= MAX_MCP_SERVERS_PER_PLUGIN) {
         this.services.audit?.({
@@ -4051,9 +4061,11 @@ export class PluginRuntime {
       try {
         tools = await client.connect();
       } catch {
+        if (!this.isCurrent(loaded)) return;
         // The client already audited the failure; leave the server toolless.
         continue;
       }
+      if (!this.isCurrent(loaded)) return;
       for (const tool of tools) {
         const name = pluginMcpToolKey(server.id, tool.name);
         const fullName = pluginToolName(pluginId, name);
@@ -4075,7 +4087,6 @@ export class PluginRuntime {
         });
       }
     }
-    if (clients.length) this.mcpClients.set(pluginId, clients);
   }
 
   /**
@@ -4166,6 +4177,7 @@ export class PluginRuntime {
           { t: "call", method: "service.start", payload: { id: service.id } },
           SERVICE_START_TIMEOUT_MS,
         );
+        if (!this.isCurrent(loaded)) return;
         this.setServiceState({
           pluginId,
           serviceId: service.id,
@@ -4181,6 +4193,7 @@ export class PluginRuntime {
           ts: Date.now(),
         });
       } catch (error) {
+        if (!this.isCurrent(loaded)) return;
         this.setServiceState({
           pluginId,
           serviceId: service.id,
@@ -4201,7 +4214,7 @@ export class PluginRuntime {
       }
     }
     // Surviving the grace window means the backoff can start from zero again.
-    if (restarts > 0) this.restarts.healthy(pluginId);
+    if (restarts > 0 && this.isCurrent(loaded)) this.restarts.healthy(pluginId);
   }
 
   /** Ask the child to stop its services, then forget them: the plugin is going. */
