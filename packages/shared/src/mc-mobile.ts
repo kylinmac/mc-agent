@@ -12,6 +12,7 @@ export const MC_MOBILE_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 /** Allowlisted small-vocabulary RPC methods exposed to paired mobile devices. */
 export const MC_MOBILE_METHODS = [
   "host.info",
+  "models.list",
   "attention.list",
   "projects.list",
   "sessions.list",
@@ -31,6 +32,7 @@ export const MC_MOBILE_METHODS = [
   "canvas.get",
   "canvas.createWhiteboard",
   "canvas.saveWhiteboard",
+  "canvas.delete",
 ] as const;
 
 export type McMobileMethod = (typeof MC_MOBILE_METHODS)[number];

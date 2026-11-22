@@ -65,8 +65,16 @@ function createMockEnv(dataDir) {
           });
           return { canvas: next };
         }
+        case "canvas.delete":
+          canvases.delete(params.canvasId);
+          whiteboards.delete(params.canvasId);
+          return { ok: true };
         case "settings.get":
-          return { permissionMode: "ask" };
+          return {
+            permissionMode: "ask",
+            defaultProviderId: "anthropic",
+            defaultModelId: "claude-sonnet-4-5",
+          };
         default:
           return {};
       }
@@ -89,6 +97,28 @@ function createMockEnv(dataDir) {
         return { session: { id: args[0]?.id, title: "Alpha", mode: "agent", permissionMode: "inherit", messages: [] } };
       case IPC.invoke.sessionConfigure:
         return { session: { id: args[0], title: "Alpha", ...args[1] } };
+      case IPC.invoke.providersList:
+        return {
+          providers: [
+            {
+              id: "anthropic",
+              name: "Anthropic",
+              enabled: true,
+              apiKey: "sk-secret-must-never-leak",
+              supportsReasoning: true,
+              models: [
+                { id: "claude-sonnet-4-5", alias: "Sonnet 4.5" },
+                { id: "claude-opus-4-1" },
+              ],
+            },
+            {
+              id: "disabled-p",
+              name: "Disabled",
+              enabled: false,
+              models: [{ id: "hidden-model" }],
+            },
+          ],
+        };
       case IPC.invoke.pendingInteractive:
         return {
           permissions: args[0]?.sessionId === "s1" ? [{ requestId: "perm-1", toolName: "bash" }] : [],
@@ -243,16 +273,43 @@ test("MobileBridge serves allowlisted RPCs, cursor replay, images, diffs, and wh
     assert.equal(loaded.scene.elements.length, 1);
     assert.equal(loaded.hasPreview, true);
 
-    // Session permissionMode inspection and remote configuration
+    // Session permissionMode & model inspection + remote configuration
+    const models = await bridge.dispatchRpc("c1", "models.list", {});
+    assert.equal(models.providers.length, 1);
+    assert.equal(models.providers[0].id, "anthropic");
+    assert.equal(models.providers[0].models.length, 2);
+    assert.equal("apiKey" in models.providers[0], false);
+    assert.equal(models.defaultModelId, "claude-sonnet-4-5");
+
     const history = await bridge.dispatchRpc("c1", "session.history", { sessionId: "s1" });
     assert.equal(history.effectivePermissionMode, "ask");
+    assert.equal(history.effectiveProviderId, "anthropic");
+    assert.equal(history.effectiveModelId, "claude-sonnet-4-5");
+
     const configured = await bridge.dispatchRpc("c1", "session.configure", {
       sessionId: "s1",
       permissionMode: "auto",
+      providerId: "anthropic",
+      modelId: "claude-opus-4-1",
+      thinkingLevel: "high",
     });
     assert.equal(configured.session.permissionMode, "auto");
+    assert.equal(configured.session.providerId, "anthropic");
+    assert.equal(configured.session.modelId, "claude-opus-4-1");
+    assert.equal(configured.session.thinkingLevel, "high");
+
+    const deleted = await bridge.dispatchRpc("c1", "canvas.delete", {
+      sessionId: "s1",
+      canvasId: created.canvas.id,
+    });
+    assert.equal(deleted.ok, true);
+
     await assert.rejects(
       () => bridge.dispatchRpc("c1", "session.configure", { sessionId: "s1", permissionMode: "root" }),
+      (err) => err?.rpcCode === "INVALID_ARGUMENT",
+    );
+    await assert.rejects(
+      () => bridge.dispatchRpc("c1", "session.configure", { sessionId: "s1", modelId: "only-model" }),
       (err) => err?.rpcCode === "INVALID_ARGUMENT",
     );
   } finally {
