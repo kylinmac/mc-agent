@@ -1,3 +1,4 @@
+import { PANE_ICONS } from "../../components/work-panel/pane-icons";
 import { Fragment, useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../../stores/app-store";
@@ -5,17 +6,10 @@ import type { WorkPanelTab } from "../../lib/work-panel-tabs";
 import { cx } from "../../components/ui";
 import type { IconProps } from "../../components/icons";
 import {
-  IconActivity,
-  IconBrowser,
   IconChevronDown,
   IconChevronRight,
   IconClose,
-  IconDiff,
-  IconFolder,
-  IconGlobe,
-  IconPlug,
   IconPlus,
-  IconTerminal,
 } from "../../components/icons";
 import {
   groupPanes,
@@ -27,9 +21,9 @@ import {
   resizePanePair,
   togglePaneCollapsed,
   type PaneId,
-} from "./work-panes-model";
-import { expandPane, updatePanePrefs, usePanePrefs } from "./pane-layout";
-import { browserTab, terminalTab } from "./tool-tabs";
+} from "../../lib/work-panel/work-panes-model";
+import { expandPane, updatePanePrefs, usePanePrefs } from "../../lib/work-panel/pane-layout";
+import { browserTab, terminalTab } from "../../lib/work-panel/tool-tabs";
 
 /*
   mc-agent work panel as stacked panes (MC-ADR-0005), after VS Code's and
@@ -41,16 +35,6 @@ import { browserTab, terminalTab } from "./tool-tabs";
   Native plugin views composite above the renderer and would swallow the
   pointer, so they are hidden while a pane is being dragged or resized.
 */
-
-export const PANE_ICONS: Record<PaneId, ComponentType<IconProps>> = {
-  canvas: IconBrowser,
-  terminal: IconTerminal,
-  background: IconActivity,
-  browser: IconGlobe,
-  files: IconFolder,
-  review: IconDiff,
-  other: IconPlug,
-};
 
 type Props = {
   tabs: WorkPanelTab[];

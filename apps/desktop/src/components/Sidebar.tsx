@@ -38,8 +38,8 @@ import {
   getVisibleProjectSessions,
   updateProjectSessionExpansion,
 } from "../lib/sidebar-project-sessions";
-import { mergeProjectEntries, sessionFolderLabel } from "../features/project-sidebar/project-merge";
-import { useProjectFolderIndex } from "../features/project-sidebar/useProjectFolderIndex";
+import { mergeProjectEntries, sessionFolderLabel } from "../lib/projects/project-folders";
+import { useProjectFolderIndex } from "../hooks/useProjectFolderIndex";
 import { SidebarAttentionFeed } from "../features/attention-feed/SidebarAttentionFeed";
 import { SidebarFooter } from "../features/app-rail/SidebarFooter";
 import {
@@ -96,7 +96,7 @@ import {
 import { WorktreeBehindWatcher } from "../features/worktree/WorktreeBehind";
 import { startConversationalProject } from "../features/project-create/start-conversational-project";
 import { projectStartFolderChoices } from "../features/project-sidebar/start-folder-menu";
-import { rememberedStartFolder, rememberStartFolder } from "../features/project-workbench/start-folder";
+import { rememberedStartFolder, rememberStartFolder } from "../lib/projects/start-folder";
 import { SidebarMenuPanel, sidebarMenuKeyDown } from "./SidebarMenuPanel";
 import {
   sidebarMenuAction,

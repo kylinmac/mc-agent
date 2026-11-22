@@ -5,7 +5,7 @@ import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { Button } from "../../components/ui";
 import { IconPlus, IconTrash } from "../../components/icons";
-import { SettingsCard } from "../settings/primitives";
+import { SettingsCard } from "./primitives";
 
 /**
  * mc-agent (MC-ADR-0023): the folders new projects go in. Each says what

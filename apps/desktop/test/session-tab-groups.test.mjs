@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { groupProjectTabs, groupedEntryId, moveGroupedTab } from "../src/features/session-tabs/tab-groups.ts";
-import { buildProjectFolderIndex } from "../src/features/project-sidebar/project-merge.ts";
+import { buildProjectFolderIndex } from "../src/lib/projects/project-folders.ts";
 import { normalizeProjectPath } from "../src/lib/sidebar-session-groups.ts";
 
 test("groups share sidebar multi-folder identity and keep first appearance and tab order", () => {

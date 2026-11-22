@@ -10,7 +10,7 @@ const [toolbarSource, modelPickerSource] = await Promise.all([
     "utf8",
   ),
   readFile(
-    new URL("../src/features/chat/composer/ComposerModelPicker.tsx", import.meta.url),
+    new URL("../src/components/model-picker/ComposerModelPicker.tsx", import.meta.url),
     "utf8",
   ),
 ]);

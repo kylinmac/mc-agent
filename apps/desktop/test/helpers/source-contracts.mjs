@@ -19,6 +19,7 @@ export {
 export {
   readComposerSource,
   readComposerModule,
+  readModelPickerModule,
   readComposerSourceSync,
   readComposerModuleSync,
 } from "./composer-source.mjs";

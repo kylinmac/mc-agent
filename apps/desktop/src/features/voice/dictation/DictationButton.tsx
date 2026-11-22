@@ -7,7 +7,7 @@ import { useAppStore } from "../../../stores/app-store";
 import { DictationSession } from "./session";
 import { dictationErrorKey } from "./errors";
 import { PortalVisibilityContext } from "../../../lib/portal-visibility";
-import { dictationHoldKeys, registerDictationHoldTarget } from "./dictation-hold";
+import { dictationHoldKeys, registerDictationHoldTarget } from "../dictation-hold";
 
 /** A hold shorter than this was a slip of the finger: dropped, not transcribed. */
 const HOLD_MIN_MS = 400;

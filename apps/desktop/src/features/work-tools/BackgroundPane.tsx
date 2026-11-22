@@ -4,7 +4,7 @@ import type { BackgroundShell } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { transcriptViewMessages } from "../../lib/transcript-reading";
-import { formatElapsed, sessionSubagents } from "../session-info/session-subagents";
+import { formatElapsed, sessionSubagents } from "../../lib/session-subagents";
 import { refreshBackgroundShells, useBackgroundFocus, useBackgroundShells } from "./background-shells";
 
 /*

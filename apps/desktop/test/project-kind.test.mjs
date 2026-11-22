@@ -5,7 +5,7 @@ import test from "node:test";
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 const [dialog, picker, slice, workbench, ipc] = await Promise.all([
   read("../src/components/ProjectCreateDialog.tsx"),
-  read("../src/features/project-workbench/ProjectKindPicker.tsx"),
+  read("../src/features/project-create/ProjectKindPicker.tsx"),
   read("../src/stores/slices/project-slice.ts"),
   read("../src/features/project-workbench/ProjectWorkbench.tsx"),
   read("../electron/main/ipc/project-resources-ipc.ts"),

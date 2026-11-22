@@ -1,4 +1,4 @@
-import type { WorkPanelTab } from "../../lib/work-panel-tabs";
+import type { WorkPanelTab } from "../work-panel-tabs";
 
 /*
   mc-agent work-panel tools (MC-ADR-0005). Terminals and browsers open a new

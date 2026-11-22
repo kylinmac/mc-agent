@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createLatestCommitQueue } from "../src/features/chat/composer/thinking-commit-queue.ts";
+import { createLatestCommitQueue } from "../src/components/model-picker/thinking-commit-queue.ts";
 
 test("latest-wins drops values that arrive while a send is in flight", async () => {
   const sent = [];

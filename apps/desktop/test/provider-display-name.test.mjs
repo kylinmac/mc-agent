@@ -102,7 +102,7 @@ test("the default picker's query reaches an account by its label", () => {
 
 test("the Composer keeps resolving its heading through the same helper", async () => {
   const source = await read(
-    "../src/features/chat/composer/hooks/useComposerModelMenu.ts",
+    "../src/components/model-picker/useComposerModelMenu.ts",
   );
   assert.match(source, /providerDisplayName: providerDisplayName\(candidate\)/);
   assert.match(source, /providerSearchText: providerSearchText\(candidate\)/);

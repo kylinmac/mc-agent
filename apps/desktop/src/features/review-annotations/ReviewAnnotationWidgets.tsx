@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Textarea } from "../../components/ui";
 import { useAppStore } from "../../stores/app-store";
-import { usePanePrefs } from "../work-tools/pane-layout";
+import { usePanePrefs } from "../../lib/work-panel/pane-layout";
 import {
   isSessionAwaitingPlanApproval,
   sendBatchAnnotationsToSession,

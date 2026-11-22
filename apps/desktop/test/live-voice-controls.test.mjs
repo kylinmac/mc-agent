@@ -49,7 +49,7 @@ test("Live Voice separates idle entry and compact call presentation", async (t) 
   t.after(() => server.close());
   const React = await import("react");
   const { renderToStaticMarkup } = await import("react-dom/server");
-  const { LiveVoiceControls } = await server.ssrLoadModule("/src/features/voice/live/LiveVoiceControls.tsx");
+  const { LiveVoiceControls } = await server.ssrLoadModule("/src/features/voice/LiveVoiceControls.tsx");
   const { LiveVoiceCallBar } = await server.ssrLoadModule("/src/features/voice/live/LiveVoiceCallBar.tsx");
   const { getLiveCallController } = await server.ssrLoadModule("/src/features/voice/live/live-call-controller.ts");
   const { liveVoiceMode, liveVoiceIssue, liveReadinessMessage, hasUnconfirmedMediaRelease, liveVoiceWidgetSnapshot, liveVoiceWidgetVisible } = await server.ssrLoadModule("/src/features/voice/live/live-voice-presentation.ts");

@@ -5,7 +5,7 @@ import { useAppStore } from "../../stores/app-store";
 import { IconChevronDown, IconClose, IconPlus } from "../../components/icons";
 import { NotificationCenter } from "../../components/NotificationCenter";
 import { Button } from "../../components/ui";
-import { useProjectFolderIndex } from "../project-sidebar/useProjectFolderIndex";
+import { useProjectFolderIndex } from "../../hooks/useProjectFolderIndex";
 import {
   groupProjectTabs,
   groupedEntryId,

@@ -7,7 +7,7 @@ import { SettingsCard, SettingsRow } from "../primitives";
 import { api } from "../../../lib/api";
 import { useAppStore } from "../../../stores/app-store";
 import type { LiveVoiceSettings } from "./LiveVoiceSettings";
-import { dictationHoldKeys } from "../../voice/dictation/dictation-hold";
+import { dictationHoldKeys } from "../../voice/dictation-hold";
 
 export function DictationSettings({ t, settings, saveSettings }: ComponentProps<typeof LiveVoiceSettings>) {
   const value = settings.dictation ?? { enabled: false, adapter: "codex", providerId: "", modelId: "" };

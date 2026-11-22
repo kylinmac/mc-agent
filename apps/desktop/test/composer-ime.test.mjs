@@ -1,11 +1,11 @@
-import { readComposerModule } from "./helpers/source-contracts.mjs";
+import { readModelPickerModule, readComposerModule } from "./helpers/source-contracts.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const inputSource = await readComposerModule("ComposerInput.tsx");
 const draftSource = await readComposerModule("hooks/useComposerDraft.ts");
-const modelMenuSource = await readComposerModule("hooks/useComposerModelMenu.ts");
+const modelMenuSource = await readModelPickerModule("useComposerModelMenu.ts");
 
 const modifierSendCondition =
   /event\.key === "Enter"\s*&&\s*!event\.shiftKey\s*&&\s*\(enterToSend \|\| event\.metaKey \|\| event\.ctrlKey\)/;

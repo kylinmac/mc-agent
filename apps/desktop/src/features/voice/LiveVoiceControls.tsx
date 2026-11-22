@@ -1,20 +1,21 @@
-import { useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useLiveVoiceSnapshot } from "./live-status";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { TFunction } from "i18next";
-import { IconWaveform } from "../../../components/icons";
-import { AnchoredMenu } from "../../../components/settings/AnchoredMenu";
-import { TooltipButton } from "../../../components/ui";
-import { PortalVisibilityContext } from "../../../lib/portal-visibility";
-import { getLiveCallController } from "./live-call-controller";
-import { hasUnconfirmedMediaRelease, liveVoiceMode } from "./live-voice-presentation";
-import { LiveVoicePreparation } from "./LiveVoicePreparation";
-import "../../../styles/voice.css";
+import { IconWaveform } from "../../components/icons";
+import { AnchoredMenu } from "../../components/settings/AnchoredMenu";
+import { TooltipButton } from "../../components/ui";
+import { PortalVisibilityContext } from "../../lib/portal-visibility";
+import { getLiveCallController } from "./live/live-call-controller";
+import { hasUnconfirmedMediaRelease, liveVoiceMode } from "./live/live-voice-presentation";
+import { LiveVoicePreparation } from "./live/LiveVoicePreparation";
+import "../../styles/voice.css";
 
 export function LiveVoiceControls({ t, workSessionId }: {
   t: TFunction;
   workSessionId?: string;
 }) {
   const controller = getLiveCallController();
-  const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
+  const snapshot = useLiveVoiceSnapshot();
   const visible = useContext(PortalVisibilityContext);
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);

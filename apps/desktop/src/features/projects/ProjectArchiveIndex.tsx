@@ -12,7 +12,7 @@ import {
   type GroupId,
   type ProjectIndexItem,
 } from "../../lib/project-archive";
-import { projectDisplayPath } from "../project-workbench/display-path";
+import { projectDisplayPath } from "../../lib/projects/display-path";
 
 /**
  * Row element id. Encoded rather than slugged: two projects whose paths differ

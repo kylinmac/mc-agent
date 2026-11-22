@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next";
-import type { AppState } from "../../../stores/app-state";
-import { Badge } from "../../../components/ui";
+import type { AppState } from "../../stores/app-state";
+import { Badge } from "../ui";
 
 type ConfigurationStatus = AppState["sessionConfigurationStatus"][string];
 

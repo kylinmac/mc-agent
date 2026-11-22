@@ -1,4 +1,6 @@
-import { useSessionContextBreakdown } from "../features/chat/context-usage/useSessionContextBreakdown";
+import { isSessionThinkingLevel } from "@pi-desktop/shared";
+import { thinkingLevelForProvider, thinkingProviderForModel } from "../lib/composer-models";
+import { useSessionContextBreakdown } from "../hooks/useSessionContextBreakdown";
 import { isRemoteSession, sessionAllows } from "../lib/remote-session-safety";
 import { inheritedSessionModelBinding } from "../lib/session-model";
 import {
@@ -49,9 +51,6 @@ import {
   PLACEHOLDER_KEYS,
   cssPixels,
   isPermissionMode,
-  isThinkingLevel,
-  thinkingLevelForProvider,
-  thinkingProviderForModel,
   type ComposerPrefill,
 } from "../features/chat/composer/model";
 import { editorSelectionRange } from "../features/chat/composer/editor";
@@ -65,7 +64,7 @@ import { useComposerSuggestion, type ComposerSuggestionView } from "../features/
 import { useComposerSubmit } from "../features/chat/composer/hooks/useComposerSubmit";
 import { useComposerTransforms } from "../features/chat/composer/hooks/useComposerTransforms";
 import { ComposerInput } from "../features/chat/composer/ComposerInput";
-import { useComposerModelMenu } from "../features/chat/composer/hooks/useComposerModelMenu";
+import { useComposerModelMenu } from "./model-picker/useComposerModelMenu";
 import { useVoiceInput } from "../features/voice/useVoiceInput";
 import { ComposerToolbar } from "../features/chat/composer/ComposerToolbar";
 import { DictationButton } from "../features/voice/dictation/DictationButton";
@@ -75,12 +74,9 @@ import { useSplitView } from "../lib/mc-split-view";
 
 const EMPTY_QUEUED_PROMPTS: QueuedPrompt[] = [];
 
-export {
-  THINKING_LEVELS,
-  thinkingLevelForProvider,
-  thinkingProviderForModel,
-  type ComposerPrefill,
-} from "../features/chat/composer/model";
+export { THINKING_LEVELS } from "@pi-desktop/shared";
+export { thinkingLevelForProvider, thinkingProviderForModel } from "../lib/composer-models";
+export type { ComposerPrefill } from "../features/chat/composer/model";
 
 export function Composer({
   variant = "docked",
@@ -408,7 +404,7 @@ export function Composer({
     activeSession?.thinkingLevel ??
     (!activeSession ? draftConfiguration?.thinkingLevel : undefined) ??
     draftThinkingLevel;
-  const configuredThinkingLevel = isThinkingLevel(sessionThinkingLevel)
+  const configuredThinkingLevel = isSessionThinkingLevel(sessionThinkingLevel)
     ? sessionThinkingLevel
     : "off";
   const thinkingLevel = thinkingLevelForProvider(

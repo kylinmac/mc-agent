@@ -1,5 +1,5 @@
-import { ComposerModelPicker } from "../../apps/desktop/src/features/chat/composer/ComposerModelPicker";
-import { ComposerConfigurationNotice } from "../../apps/desktop/src/features/chat/composer/ComposerConfigurationNotice";
+import { ComposerModelPicker } from "../../apps/desktop/src/components/model-picker/ComposerModelPicker";
+import { ComposerConfigurationNotice } from "../../apps/desktop/src/components/model-picker/ComposerConfigurationNotice";
 import { createInstance } from "i18next";
 import { en } from "@pi-desktop/i18n";
 const i18n = createInstance();
@@ -8,7 +8,7 @@ import { I18nextProvider } from "react-i18next";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import type { ModelInfo, ProviderPublic, SessionThinkingLevel } from "@pi-desktop/shared";
-import { useComposerModelMenu } from "../../apps/desktop/src/features/chat/composer/hooks/useComposerModelMenu";
+import { useComposerModelMenu } from "../../apps/desktop/src/components/model-picker/useComposerModelMenu";
 import { useAppStore } from "./fixtures/composer-model-selection-store";
 import { TurnProcess } from "../../apps/desktop/src/features/chat/transcript/TurnProcess";
 import type { AssistantTurnPart } from "../../apps/desktop/src/lib/assistant-turns";

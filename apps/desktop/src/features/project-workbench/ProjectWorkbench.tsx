@@ -5,7 +5,7 @@ import { api } from "../../lib/api";
 import { Button, Input } from "../../components/ui";
 import { IconFolder, IconPlus } from "../../components/icons";
 import { shortenPath, type ProjectIndexItem } from "../../lib/project-archive";
-import { chooseStartFolder, rememberedStartFolder, rememberStartFolder } from "./start-folder";
+import { chooseStartFolder, rememberedStartFolder, rememberStartFolder } from "../../lib/projects/start-folder";
 import { ProjectOverview } from "./ProjectOverview";
 import { ResourceCatalog } from "./ResourceCatalog";
 import { ConvertToManaged } from "./ConvertToManaged";

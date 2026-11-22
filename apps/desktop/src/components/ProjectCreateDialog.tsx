@@ -21,7 +21,7 @@ import {
   IconFolder,
   IconMonitor,
 } from "./icons";
-import { ProjectKindPicker, type ProjectKind } from "../features/project-workbench/ProjectKindPicker";
+import { ProjectKindPicker, type ProjectKind } from "../features/project-create/ProjectKindPicker";
 import { ProjectPromptPicker, usePromptConfig } from "./ProjectPromptPicker";
 
 /** One project entry point for local folders, git checkouts and remote hosts. */

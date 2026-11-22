@@ -4,7 +4,7 @@ import { TooltipButton } from "../../components/ui";
 import { pluginViewIcon, pluginViewInitial } from "../../lib/plugin-view-icons";
 import { pluginWorkPanelTab } from "../../lib/work-panel-tabs";
 import { useAppStore } from "../../stores/app-store";
-import { BROWSER_VIEW_REF, FILES_VIEW_REF } from "../work-tools/work-panes-model";
+import { BROWSER_VIEW_REF, FILES_VIEW_REF } from "../../lib/work-panel/work-panes-model";
 import { UpdateRailButton } from "./UpdateRailButton";
 
 /*

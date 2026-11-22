@@ -1,10 +1,11 @@
-import { sameRecentModel } from "../../../../lib/recent-models";
+import { sameRecentModel } from "../../lib/recent-models";
 import type {
   Mode,
   ProviderPublic,
   SessionThinkingLevel,
 } from "@pi-desktop/shared";
 import {
+  sessionThinkingMenuLevels,
   imageGenerationBindings,
   initialThinkingLevelForBinding,
   initialThinkingLevelForUnmatchedModel,
@@ -16,19 +17,16 @@ import {
   composerModelMatchesQuery,
   composerModelsForProvider,
   sameComposerModelId,
-} from "../../../../lib/composer-models";
+  thinkingLevelForProvider,
+  thinkingProviderForModel,
+} from "../../lib/composer-models";
 import {
   providerDisplayName,
   providerSearchText,
-} from "../../../../lib/provider-display";
-import { providerThinkingLevels } from "../../../../lib/session-thinking";
-import { useAppStore } from "../../../../stores/app-store";
-import {
-  sessionThinkingMenuLevels,
-  thinkingLevelForProvider,
-  thinkingProviderForModel,
-} from "../model";
-import { createLatestCommitQueue } from "../thinking-commit-queue";
+} from "../../lib/provider-display";
+import { providerThinkingLevels } from "../../lib/session-thinking";
+import { useAppStore } from "../../stores/app-store";
+import { createLatestCommitQueue } from "./thinking-commit-queue";
 
 type UseComposerModelMenuOptions = {
   mode: Mode;

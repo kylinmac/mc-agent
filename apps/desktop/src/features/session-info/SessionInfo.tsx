@@ -1,4 +1,4 @@
-import { useSessionContextBreakdown } from "../chat/context-usage/useSessionContextBreakdown";
+import { useSessionContextBreakdown } from "../../hooks/useSessionContextBreakdown";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -33,13 +33,13 @@ const ProjectInstructionsDialog = lazy(() =>
 const SystemPromptDialog = lazy(() =>
   import("./SystemPromptDialog").then((module) => ({ default: module.SystemPromptDialog })),
 );
-import { formatElapsed, sessionSubagents } from "./session-subagents";
+import { formatElapsed, sessionSubagents } from "../../lib/session-subagents";
 import { focusBackgroundShell, useBackgroundShells } from "../work-tools/background-shells";
-import { backgroundTab } from "../work-tools/tool-tabs";
-import { expandPane } from "../work-tools/pane-layout";
+import { backgroundTab } from "../../lib/work-panel/tool-tabs";
+import { expandPane } from "../../lib/work-panel/pane-layout";
 import { IconChevronDown, IconChevronRight, IconFolder, IconInfo } from "../../components/icons";
-import { useProjectFolderIndex } from "../project-sidebar/useProjectFolderIndex";
-import { sessionFolderLabel } from "../project-sidebar/project-merge";
+import { useProjectFolderIndex } from "../../hooks/useProjectFolderIndex";
+import { sessionFolderLabel } from "../../lib/projects/project-folders";
 import {
   breakdownRows,
   PENDING_BREAKDOWN_ROWS,

@@ -10,7 +10,7 @@ import { IconChat, IconFolder } from "../../components/icons";
 import { SettingsMenuSelect } from "../../components/settings/SettingsMenuSelect";
 import { useAppStore } from "../../stores/app-store";
 import { ScheduledModelPicker } from "./ScheduledModelPicker";
-import { ComposerPermissionPicker } from "../chat/composer/ComposerPermissionPicker";
+import { ComposerPermissionPicker } from "../../components/model-picker/ComposerPermissionPicker";
 
 
 export type ScheduledModelSelection = {

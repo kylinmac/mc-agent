@@ -1,14 +1,14 @@
 import { formatTokenCount, type ModelInfo, type ProviderPublic } from "@pi-desktop/shared";
 import type { TFunction } from "i18next";
 import type { RefObject } from "react";
-import { IconCheck, IconChevronDown, IconChevronRight, IconEye, IconSearch, IconSparkles } from "../../../components/icons";
+import { IconCheck, IconChevronDown, IconChevronRight, IconEye, IconSearch, IconSparkles } from "../icons";
 import {
   composerModelBadges,
   composerModelBinding,
   composerModelDisplayName,
   sameComposerModelId,
-} from "../../../lib/composer-models";
-import { providerDisplayName } from "../../../lib/provider-display";
+} from "../../lib/composer-models";
+import { providerDisplayName } from "../../lib/provider-display";
 
 export type ComposerModelGroup = {
   provider: ProviderPublic;

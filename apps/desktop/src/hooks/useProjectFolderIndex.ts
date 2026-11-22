@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectGroupRecord } from "@pi-desktop/shared";
-import { api } from "../../lib/api";
-import { normalizeProjectPath } from "../../lib/sidebar-session-groups";
-import { buildProjectFolderIndex, type ProjectFolderIndex } from "./project-merge";
+import { api } from "../lib/api";
+import { normalizeProjectPath } from "../lib/sidebar-session-groups";
+import { buildProjectFolderIndex, type ProjectFolderIndex } from "../lib/projects/project-folders";
 
 type FolderSnapshot = {
   groups: ProjectGroupRecord[];

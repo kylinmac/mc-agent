@@ -1,15 +1,15 @@
-import { readComposerModule } from "./helpers/source-contracts.mjs";
+import { readModelPickerModule } from "./helpers/source-contracts.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { loadStyles } from "./helpers/styles.mjs";
 
 const [modelMenuSource, pickerSource, sliderSource] = await Promise.all([
-  readComposerModule("hooks/useComposerModelMenu.ts"),
-  readComposerModule("ComposerModelPicker.tsx"),
-  readComposerModule("ThinkingLevelSlider.tsx"),
+  readModelPickerModule("useComposerModelMenu.ts"),
+  readModelPickerModule("ComposerModelPicker.tsx"),
+  readModelPickerModule("ThinkingLevelSlider.tsx"),
 ]);
-const listSource = await readComposerModule("ComposerModelList.tsx");
+const listSource = await readModelPickerModule("ComposerModelList.tsx");
 const composerSource = `${modelMenuSource}\n${pickerSource}\n${sliderSource}\n${listSource}`;
 const stylesSource = await loadStyles();
 
@@ -153,7 +153,7 @@ test("Composer preserves aliases but never shows a catalog friendly name for an 
 });
 
 test("reasoning projection uses the selected exact catalog row and binding", async () => {
-  const source = await readComposerModule("model.ts");
+  const source = await readFile(new URL("../src/lib/composer-models.ts", import.meta.url), "utf8");
   assert.match(source, /sameComposerModelId\(candidate\.modelId, modelId\)/);
   assert.match(source, /sameComposerModelId\(candidate\.id, modelId\)/);
 });

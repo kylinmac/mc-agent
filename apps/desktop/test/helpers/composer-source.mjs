@@ -4,6 +4,8 @@ import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const desktopSourceRoot = fileURLToPath(new URL("../../src/", import.meta.url));
+const modelPickerRoot = join(desktopSourceRoot, "components/model-picker");
+const modelPolicy = join(desktopSourceRoot, "lib/composer-models.ts");
 const composerRoot = join(desktopSourceRoot, "features/chat/composer");
 
 async function sourceFiles(directory) {
@@ -24,7 +26,7 @@ async function sourceFiles(directory) {
 export async function readComposerSource() {
   const facade = join(desktopSourceRoot, "components/Composer.tsx");
   const autocompleteHook = join(desktopSourceRoot, "hooks/use-composer-autocomplete.ts");
-  const paths = [facade, autocompleteHook, ...(await sourceFiles(composerRoot))];
+  const paths = [facade, autocompleteHook, modelPolicy, ...(await sourceFiles(composerRoot)), ...(await sourceFiles(modelPickerRoot))];
   const chunks = await Promise.all(
     paths.map(async (path) => {
       const source = await readFile(path, "utf8");
@@ -32,6 +34,10 @@ export async function readComposerSource() {
     }),
   );
   return chunks.join("\n");
+}
+
+export async function readModelPickerModule(relativePath) {
+  return readFile(join(modelPickerRoot, relativePath), "utf8");
 }
 
 export async function readComposerModule(relativePath) {
@@ -51,7 +57,7 @@ function sourceFilesSync(directory) {
 export function readComposerSourceSync() {
   const facade = join(desktopSourceRoot, "components/Composer.tsx");
   const autocompleteHook = join(desktopSourceRoot, "hooks/use-composer-autocomplete.ts");
-  return [facade, autocompleteHook, ...sourceFilesSync(composerRoot)]
+  return [facade, autocompleteHook, modelPolicy, ...sourceFilesSync(composerRoot), ...sourceFilesSync(modelPickerRoot)]
     .map((path) => `\n/* ${relative(desktopSourceRoot, path)} */\n${readFileSync(path, "utf8")}`)
     .join("\n");
 }

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSyncExternalStore } from "react";
 import type { TFunction } from "i18next";
 import type { AppSettings, LiveBinding, LiveVoiceSettings, ProviderPublic } from "@pi-desktop/shared";
 import { OAUTH_AUTH_KIND } from "@pi-desktop/shared";
@@ -8,7 +7,7 @@ import { SettingsMenuSelect } from "../../../components/settings/SettingsMenuSel
 import { SettingsCard, SettingsRow } from "../primitives";
 import { api } from "../../../lib/api";
 import { useAppStore } from "../../../stores/app-store";
-import { getLiveCallController } from "../../voice/live/live-call-controller";
+import { refreshLiveVoiceStatus, useLiveVoiceSnapshot } from "../../voice/live-status";
 
 type Adapter = LiveBinding["adapterId"];
 
@@ -22,8 +21,7 @@ export function LiveVoiceSettings({
   saveSettings: (patch: Partial<AppSettings>) => Promise<void>;
 }) {
   const live: LiveVoiceSettings = settings.liveVoice ?? { enabled: false, bindings: [] };
-  const controller = getLiveCallController();
-  const liveSnapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
+  const liveSnapshot = useLiveVoiceSnapshot();
   const [providers, setProviders] = useState<ProviderPublic[]>([]);
   const [providersLoading, setProvidersLoading] = useState(true);
   const [providersLoadFailed, setProvidersLoadFailed] = useState(false);
@@ -63,7 +61,7 @@ export function LiveVoiceSettings({
     setSaving(true);
     try {
       await saveSettings({ liveVoice: next });
-      await controller.refreshStatus();
+      await refreshLiveVoiceStatus();
     } catch {
       showToast(t("liveVoice.saveFailed"), { variant: "error" });
     } finally {

@@ -29,6 +29,7 @@ function within(path, directory) {
 
 function localTarget(file, specifier) {
   if (specifier.startsWith("@renderer/")) return resolve(renderer, specifier.slice("@renderer/".length));
+  if (specifier.startsWith("/src/")) return resolve(renderer, specifier.slice("/src/".length));
   return resolve(dirname(file), specifier);
 }
 
@@ -102,4 +103,55 @@ test("renderer and browser-facing contracts access host capabilities through the
 test("headless host and runtime packages run independently of the desktop shell", () => {
   checkSources([headless, ...runtimePackages.map((name) => resolve(root, "packages", name))]
     .map((directory) => resolve(directory, "src")), importsDesktop);
+});
+
+function featureBoundaries(files) {
+  const edges = new Map();
+  const failures = [];
+  for (const [file, source] of files) {
+    const [layer, owner] = relative(renderer, file).split(sep);
+    for (const { fileName } of ts.preProcessFile(source, true, true).importedFiles) {
+      if (!/^(\.\.?\/|@renderer\/|\/src\/)/.test(fileName)) continue;
+      const [targetLayer, target, ...path] = relative(renderer, localTarget(file, fileName)).split(sep);
+      if (targetLayer !== "features" || !target) continue;
+      const edge = relative(renderer, file) + " → " + fileName;
+      if (["stores", "lib", "hooks"].includes(layer)) failures.push("Shared code imports a feature: " + edge);
+      if (layer !== "features" || target === owner) continue;
+      if (owner !== "app" && path.length > 1) failures.push("Private feature import: " + edge);
+      if (!edges.has(owner)) edges.set(owner, new Set());
+      edges.get(owner).add(target);
+    }
+  }
+  const visited = new Set();
+  function visit(owner, stack) {
+    if (stack.includes(owner)) {
+      failures.push("Feature cycle: " + [...stack.slice(stack.indexOf(owner)), owner].join(" → "));
+      return;
+    }
+    if (visited.has(owner)) return;
+    visited.add(owner);
+    for (const next of edges.get(owner) ?? []) visit(next, [...stack, owner]);
+  }
+  for (const owner of edges.keys()) visit(owner, []);
+  return failures;
+}
+
+test("feature rules catch cycles, private imports and reverse dependencies", () => {
+  const files = [
+    ["features/a/View.tsx", 'export { value } from "../b/state/private";'],
+    ["features/b/state/private.ts", 'void import("@renderer/features/a/View");'],
+    ["hooks/useValue.ts", 'import type { Value } from "/src/features/b/state/private";'],
+    ["features/app/AppShell.tsx", 'import "../a/internal/Panel";'],
+  ].map(([file, source]) => [resolve(renderer, file), source]);
+  assert.deepEqual(featureBoundaries(files).map((error) => error.split(":")[0]), [
+    "Private feature import", "Shared code imports a feature", "Feature cycle",
+  ]);
+});
+
+test("renderer features compose through public modules and have no direct dependency cycles", () => {
+  const files = globSync("**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}", { cwd: renderer })
+    .filter((file) => !/\.(test|spec)\.[^.]+$/.test(file))
+    .map((file) => [resolve(renderer, file), readFileSync(resolve(renderer, file), "utf8")]);
+  const failures = featureBoundaries(files);
+  assert.deepEqual(failures, [], failures.join("\n"));
 });

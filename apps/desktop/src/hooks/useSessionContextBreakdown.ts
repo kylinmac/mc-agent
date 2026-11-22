@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { SessionContextBreakdown } from "@pi-desktop/shared";
-import { api } from "../../../lib/api";
-import { useAppStore } from "../../../stores/app-store";
-import { createContextSnapshotCache } from "./context-snapshot";
+import { api } from "../lib/api";
+import { useAppStore } from "../stores/app-store";
+import { createContextSnapshotCache } from "../lib/context-snapshot";
 
 const readSnapshot = createContextSnapshotCache();
 

@@ -10,7 +10,7 @@ import {
   paneOf,
   resizePanePair,
   togglePaneCollapsed,
-} from "../src/features/work-tools/work-panes-model.ts";
+} from "../src/lib/work-panel/work-panes-model.ts";
 
 // mc-agent work-panel panes (MC-ADR-0005).
 

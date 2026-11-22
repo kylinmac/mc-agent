@@ -1,12 +1,12 @@
 import type { TFunction } from "i18next";
 import type { ReactNode } from "react";
 import { ComposerModelList } from "./ComposerModelList";
-import { AnchoredMenu } from "../../../components/settings/AnchoredMenu";
-import { IconBot, IconChevronDown } from "../../../components/icons";
-import { TooltipButton } from "../../../components/ui";
-import type { AppState } from "../../../stores/app-state";
+import { AnchoredMenu } from "../settings/AnchoredMenu";
+import { IconBot, IconChevronDown } from "../icons";
+import { TooltipButton } from "../ui";
+import type { AppState } from "../../stores/app-state";
 import { configurationNotice } from "./ComposerConfigurationNotice";
-import type { useComposerModelMenu } from "./hooks/useComposerModelMenu";
+import type { useComposerModelMenu } from "./useComposerModelMenu";
 import { ThinkingLevelSlider } from "./ThinkingLevelSlider";
 
 type ModelMenuController = ReturnType<typeof useComposerModelMenu>;

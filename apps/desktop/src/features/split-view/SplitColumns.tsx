@@ -22,10 +22,9 @@ import {
   readWorkPanelDockShare,
   writeWorkPanelDockShare,
 } from "../../lib/work-panel-resize";
-import { groupPanes } from "../work-tools/work-panes-model";
-import { usePanePrefs } from "../work-tools/pane-layout";
-import { PANE_ICONS } from "../work-tools/WorkPanes";
-import { PLACEHOLDER_KEYS } from "../chat/composer/model";
+import { groupPanes } from "../../lib/work-panel/work-panes-model";
+import { usePanePrefs } from "../../lib/work-panel/pane-layout";
+import { PANE_ICONS } from "../../components/work-panel/pane-icons";
 import { ChatReviewBatchDock } from "../review-annotations/ReviewAnnotationWidgets";
 import { closeSplitColumn, focusSplitColumn, openSplitColumnTool, useColumnTranscript } from "./split-actions";
 
@@ -437,7 +436,7 @@ function SplitColumn({
                 <div className="composer-dock composer-dock-docked">
                   <div className="composer-stack">
                     <div className="composer-shell mc-split-ghost">
-                      <span className="mc-split-ghost-placeholder">{t(PLACEHOLDER_KEYS.docked[0])}</span>
+                      <span className="mc-split-ghost-placeholder">{t("chat.placeholder")}</span>
                       {model ? <span className="mc-split-ghost-model">{model}</span> : null}
                     </div>
                   </div>

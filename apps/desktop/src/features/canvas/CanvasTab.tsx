@@ -6,7 +6,7 @@ import { IconBrowser, IconDownload, IconPencil, IconPlus, IconTrash } from "../.
 import { api } from "../../lib/api";
 import { isRemoteSession } from "../../lib/remote-session-safety";
 import { useAppStore } from "../../stores/app-store";
-import { canvasTab } from "../work-tools/tool-tabs";
+import { canvasTab } from "../../lib/work-panel/tool-tabs";
 import { CanvasView } from "./CanvasView";
 import { threadAttachment, type CanvasAttachment, type CanvasViewState } from "./canvas-model";
 import { canvasGroupIdForSession, sendToSession, useCanvasSession } from "./canvas-session";

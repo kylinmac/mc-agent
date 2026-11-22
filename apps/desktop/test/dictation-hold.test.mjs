@@ -17,7 +17,7 @@ test("hold to talk: the key-down starts, any key-up or leaving the window ends",
   } });
   let active = null;
   Object.defineProperty(globalThis, "document", { configurable: true, value: { get activeElement() { return active; } } });
-  const { beginDictationHold, registerDictationHoldTarget } = await server.ssrLoadModule("/src/features/voice/dictation/dictation-hold.ts");
+  const { beginDictationHold, registerDictationHoldTarget } = await server.ssrLoadModule("/src/features/voice/dictation-hold.ts");
 
   assert.equal(beginDictationHold(), false, "no composer, nothing to take the hold");
 

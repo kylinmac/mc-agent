@@ -1,7 +1,7 @@
 import type { SessionSummary } from "@pi-desktop/shared";
 import { normalizeProjectPath } from "../../lib/sidebar-session-groups.ts";
 import { isRemoteSession } from "../../lib/remote-session-safety.ts";
-import type { ProjectFolderIndex } from "../project-sidebar/project-merge.ts";
+import type { ProjectFolderIndex } from "../../lib/projects/project-folders.ts";
 import { tabPage } from "./tab-list.ts";
 
 export type ProjectTabGroup = { kind: "project"; id: string; title: string; keys: string[] };

@@ -1,10 +1,10 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { TFunction } from "i18next";
 import type { GlobalPermissionMode, Mode } from "@pi-desktop/shared";
-import { AnchoredMenu } from "../../../components/settings/AnchoredMenu";
-import { TooltipButton } from "../../../components/ui";
-import { IconCheck, IconChevronDown } from "../../../components/icons";
-import { PERMISSION_MODE_I18N_KEYS } from "../../../lib/permission-mode-labels";
+import { AnchoredMenu } from "../settings/AnchoredMenu";
+import { TooltipButton } from "../ui";
+import { IconCheck, IconChevronDown } from "../icons";
+import { PERMISSION_MODE_I18N_KEYS } from "../../lib/permission-mode-labels";
 
 /** Controlled permission UI shared by conversations and task drafts. */
 export function ComposerPermissionPicker({t, mode, composerPermissionMode,

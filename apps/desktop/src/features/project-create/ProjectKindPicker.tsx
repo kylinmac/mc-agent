@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { TemplatePicker } from "./TemplatePicker";
-import { startConversationalProject } from "../project-create/start-conversational-project";
+import { TemplatePicker } from "../project-workbench/TemplatePicker";
+import { startConversationalProject } from "./start-conversational-project";
 
 export type ProjectKind = "simple" | "managed";
 

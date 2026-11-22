@@ -6,7 +6,7 @@ import { catalogs, flattenCatalog } from "@pi-desktop/i18n";
 import { IPC, KEYBOARD_SHORTCUTS, keybindingMatchesEvent, resolveKeybinding } from "@pi-desktop/shared";
 import { useAppStore } from "../../src/stores/app-store";
 import { PortalVisibilityProvider } from "../../src/lib/portal-visibility";
-import { LiveVoiceControls } from "../../src/features/voice/live/LiveVoiceControls";
+import { LiveVoiceControls } from "../../src/features/voice/LiveVoiceControls";
 import { ToastHost } from "../../src/components/Toast";
 import { LiveVoiceStatusHost } from "../../src/features/voice/live/LiveVoiceStatusHost";
 import { LiveVoiceWidget } from "../../src/features/voice/live/LiveVoiceWidget";

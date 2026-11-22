@@ -1,6 +1,6 @@
 import type { UiMessage } from "@pi-desktop/shared";
-import type { AssistantActivityItem } from "../../lib/assistant-turns";
-import { delegationIdForMessage } from "../../lib/subagent-panel";
+import type { AssistantActivityItem } from "./assistant-turns";
+import { delegateAgentName, delegationIdForMessage } from "./subagent-panel";
 import {
   collectDelegationStatuses,
   collectDelegationTimings,
@@ -8,8 +8,7 @@ import {
   isDelegationActivityItem,
   subagentOutcome,
   type SubagentOutcome,
-} from "../../lib/subagent-topology";
-import { delegateAgentName } from "../chat/transcript/model";
+} from "./subagent-topology";
 
 /*
   mc-agent session info: the conversation's `Task` subagents (ADR 0062/0089),
