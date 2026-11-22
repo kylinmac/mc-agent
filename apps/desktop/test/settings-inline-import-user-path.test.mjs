@@ -386,7 +386,7 @@ test("Settings disables a bundled skill and imports an external MCP server into 
     await cp(join(renderer, "assets"), join(temp, "assets"), { recursive: true });
     await writeFile(
       join(temp, "index.html"),
-      `<!doctype html><html data-platform="darwin"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:">${css.map((path) => `<link rel="stylesheet" href="${path}">`).join("")}</head><body><div id="root"></div><script type="module" src="renderer.js"></script></body></html>`,
+      `<!doctype html><html data-platform="${process.platform}"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:">${css.map((path) => `<link rel="stylesheet" href="${path}">`).join("")}</head><body><div id="root"></div><script type="module" src="renderer.js"></script></body></html>`,
     );
     await writeFile(
       join(temp, "main.cjs"),
@@ -394,14 +394,16 @@ test("Settings disables a bundled skill and imports an external MCP server into 
 const { app, BrowserWindow } = require("electron");
 const path = require("node:path");
 app.setPath("userData", path.join(__dirname, "profile"));
+app.on("window-all-closed", () => {});
 app.whenReady().then(async () => {
-  const win = new BrowserWindow({ show: false, width: 1100, height: 760,
-    webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false } });
-  win.webContents.on("console-message", (event) => console.error(event.message));
   try {
     for (const width of [800, 1100]) {
-      win.setContentSize(width, 760);
       for (const theme of ["light", "dark"]) {
+        console.log("Testing settings import at " + width + "px in " + theme);
+        // Xvfb needs a mapped window for Chromium to keep delivering animation frames.
+        const win = new BrowserWindow({ show: process.platform === "linux", width, height: 760, useContentSize: true,
+          webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false } });
+        win.webContents.on("console-message", (event) => console.error(event.message));
         await win.loadFile(path.join(__dirname, "index.html"), { query: { theme } });
         const viewport = await win.webContents.executeJavaScript("innerWidth");
         if (viewport !== width) throw new Error("Expected width " + width + ", got " + viewport);
@@ -414,6 +416,7 @@ app.whenReady().then(async () => {
         }
         const imported = await win.webContents.executeJavaScript("window.importSelectedMcp()");
         console.log("SETTINGS_INLINE_MCP_IMPORT " + JSON.stringify({ ...selection, ...imported }));
+        win.destroy();
       }
     }
     app.exit(0);
@@ -436,7 +439,7 @@ app.whenReady().then(async () => {
       stream.setEncoding("utf8");
       stream.on("data", (chunk) => { output += chunk; });
     }
-    const timer = setTimeout(() => child.kill("SIGKILL"), 30_000);
+    const timer = setTimeout(() => child.kill("SIGKILL"), 50_000);
     let code;
     try {
       code = await new Promise((resolve, reject) => {

@@ -244,8 +244,7 @@ jobs:
       - name: Test capability transfers, settings import, and theme surfaces
         run: |
           pnpm test:e2e:capability-move
-          xvfb-run --auto-servernum pnpm test:e2e:settings-inline-import
-          xvfb-run --auto-servernum pnpm test:e2e:theme-surfaces
+          xvfb-run --auto-servernum sh -c 'openbox >/dev/null 2>&1 & pnpm test:e2e:settings-inline-import && pnpm test:e2e:theme-surfaces'
 
       - name: Run inline GenUI interaction and isolation E2E
         run: xvfb-run --auto-servernum pnpm test:e2e:gen-ui
