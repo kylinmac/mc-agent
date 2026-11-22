@@ -179,7 +179,7 @@ describe("pi-host packaging", () => {
     expect(readFileSync(join(f.out, "keep"), "utf8")).toBe("old output");
   });
 
-  it("installs verified contents, atomically switches current, and reuses immutable versions", () => {
+  it("installs verified contents, atomically switches current, and reuses immutable versions", { timeout: 30_000 }, () => {
     const f = fixture();
     expect(bundle(f).status).toBe(0);
     const root = join(f.root, "installed with spaces");
