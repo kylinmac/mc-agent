@@ -1,89 +1,77 @@
 #!/usr/bin/env node
-/**
- * Style token guard: forbids raw typography/radius literals in the desktop
- * renderer. All values must come from the token scales defined in the
- * `@theme` block of styles/tokens.css (see docs/spec/04-ux/07-ui-design-system.md).
- *
- * Checked:
- *  - CSS: migrated settings/composer/plugin search fills cannot contain raw
- *    hex, color functions, white, or black, nor non-token `--gray-*` /
- *    `--accent-*` / `--color-*` variable references (see
- *    style-surface-tokens.mjs).
- *  - CSS: font-size / font-weight / line-height / letter-spacing /
- *    border-radius values must be var(...) based (token definitions on
- *    `--custom-property` lines are exempt).
- *  - TSX: arbitrary-value utilities text-[...], rounded-[...], leading-[...],
- *    tracking-[...], font-[...] are forbidden.
- */
 import { readdirSync, readFileSync } from "node:fs";
-import { join, dirname, relative } from "node:path";
+import { dirname, extname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { findLiteralSurfaceColors } from "./style-surface-tokens.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const srcDir = join(root, "apps/desktop/src");
-
-const CSS_PROPS = /^\s*(font-size|font-weight|line-height|letter-spacing|border-radius)\s*:\s*([^;]+);?/;
+const CSS_SCALE = /[;{]\s*(font-size|font-weight|line-height|letter-spacing|border-radius)\s*:\s*([^;{}]+)/g;
 const TSX_ARBITRARY = /\b(?:text|rounded|leading|tracking|font)-\[[^\]]+\]/g;
 const ALLOWED_BARE = new Set(["0", "!important", "inherit", "initial", "unset", "normal", "none"]);
 
 function walk(dir) {
-  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
-    const p = join(dir, e.name);
-    if (e.isDirectory()) return walk(p);
-    return /\.(css|tsx)$/.test(e.name) ? [p] : [];
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return walk(path);
+    return /\.(css|tsx?)$/.test(entry.name) ? [path] : [];
   });
 }
 
-function stripVars(value) {
-  let prev;
-  do {
-    prev = value;
-    value = value.replace(/var\([^()]*\)/g, " ");
-  } while (value !== prev);
-  return value;
+function mask(text) {
+  return text.replace(/[^\n]/g, " ");
 }
 
-const violations = [];
+// Only an unqualified root declaration supplies a default to every theme.
+export function designTokens(css) {
+  const names = new Set();
+  const source = css.replace(/\/\*[\s\S]*?\*\//g, mask);
+  for (const [, selector, body] of source.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (!selector.split(",").some((part) => part.trim() === ":root")) continue;
+    for (const [, name] of body.matchAll(/(?:^|;)\s*(--ds-[\w-]+)\s*:/g)) names.add(name);
+  }
+  return names;
+}
 
-for (const file of walk(srcDir)) {
-  const rel = relative(root, file);
-  const source = readFileSync(file, "utf8");
-  if (file.endsWith(".css")) {
-    for (const violation of findLiteralSurfaceColors(source)) {
-      violations.push(`${rel}:${violation.line} raw ${violation.property} value "${violation.value}" — use a surface token`);
+export function styleTokenIssues(source, extension, names) {
+  const issues = [];
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, mask);
+  const lineAt = (index) => code.slice(0, index).split("\n").length;
+  for (const hit of code.matchAll(/\bvar\(\s*(--ds-[\w-]+)\s*[,)]/g)) {
+    if (!names.has(hit[1])) issues.push({ line: lineAt(hit.index), message: "undefined design token " + hit[1] });
+  }
+  if (extension === ".tsx") {
+    for (const hit of code.matchAll(TSX_ARBITRARY)) {
+      issues.push({ line: lineAt(hit.index), message: "arbitrary utility " + hit[0] + " — use a token utility class" });
     }
   }
-  const lines = source.split("\n");
-  // `@font-face` descriptors describe the font file (weight ranges, etc.),
-  // not UI typography, so they are exempt from the token scale.
-  let inFontFace = 0;
-  lines.forEach((line, i) => {
-    if (file.endsWith(".css")) {
-      if (/^\s*--/.test(line)) return; // token definition
-      if (/@font-face\s*\{/.test(line)) inFontFace += 1;
-      if (inFontFace > 0) {
-        if (/\}/.test(line)) inFontFace -= 1;
-        return;
-      }
-      const m = line.match(CSS_PROPS);
-      if (!m) return;
-      const rest = stripVars(m[2]).trim();
-      const bad = rest.split(/\s+/).filter((t) => t && !ALLOWED_BARE.has(t));
-      if (bad.length) {
-        violations.push(`${rel}:${i + 1} raw ${m[1]} value "${m[2].trim()}" — use a token var`);
-      }
-    } else {
-      for (const hit of line.match(TSX_ARBITRARY) ?? []) {
-        violations.push(`${rel}:${i + 1} arbitrary utility "${hit}" — use a token utility class`);
+  if (extension === ".css") {
+    for (const { line, property, value } of findLiteralSurfaceColors(code)) {
+      issues.push({ line, message: "raw " + property + " value " + value + " — use a surface token" });
+    }
+    // Font-face ranges describe the file. Only element styles use the UI scales.
+    const styles = code.replace(/@font-face\s*\{[^{}]*\}/g, mask);
+    for (const hit of styles.matchAll(CSS_SCALE)) {
+      let rest = hit[2];
+      while (/var\([^()]*\)/.test(rest)) rest = rest.replace(/var\([^()]*\)/g, " ");
+      if (rest.split(/\s+/).some((term) => term && !ALLOWED_BARE.has(term))) {
+        issues.push({ line: lineAt(hit.index + hit[0].indexOf(hit[1])), message: "raw " + hit[1] + " value " + hit[2].trim() + " — use a scale token" });
       }
     }
-  });
+  }
+  return issues;
 }
 
-if (violations.length) {
-  console.error("Style token violations:\n" + violations.map((v) => `  ${v}`).join("\n"));
-  console.error(`\n${violations.length} violation(s). Use the scales in styles/tokens.css @theme.`);
-  process.exit(1);
+if (import.meta.main) {
+  const tokens = designTokens(readFileSync(join(srcDir, "styles/tokens.css"), "utf8"));
+  const violations = walk(srcDir).flatMap((file) =>
+    styleTokenIssues(readFileSync(file, "utf8"), extname(file), tokens)
+      .map(({ line, message }) => relative(root, file) + ":" + line + " " + message),
+  );
+  if (violations.length) {
+    console.error(violations.join("\n"));
+    process.exitCode = 1;
+  } else {
+    console.log("style tokens OK");
+  }
 }
-console.log("style tokens OK");

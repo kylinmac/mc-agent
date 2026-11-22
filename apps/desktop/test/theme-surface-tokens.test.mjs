@@ -1,6 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { findLiteralSurfaceColors } from "../../../scripts/style-surface-tokens.mjs";
+import { designTokens, styleTokenIssues } from "../../../scripts/check-style-tokens.mjs";
+
+test("renderer styles resolve design tokens in all themes and compact rules use the type scale", () => {
+  const tokens = designTokens(':root, :root[data-theme="dark"] { --ds-ink: black; }\n:root[data-theme="light"] { --ds-typo: red; }');
+  const css = [
+    "/* color: var(--ds-example); */",
+    "@font-face { font-weight: 100 900; }",
+    ".item { color: var(--ds-ink); font-size: var(--text-base); border-radius: 4px; font-weight: 650 }",
+    ".item:hover { color: var(--ds-typo, var(--ds-ink)); }",
+  ].join("\n");
+  const issues = styleTokenIssues(css, ".css", tokens);
+  assert.deepEqual(issues.map(({ line }) => line).sort(), [3, 3, 4]);
+  assert(issues.some(({ message }) => message.includes("--ds-typo")));
+  assert.deepEqual(styleTokenIssues('const ink = "var(--ds-ink)";', ".ts", tokens), []);
+  assert.equal(styleTokenIssues('<span className="text-[11px]" style={{ color: "var(--ds-missing)" }} />', ".tsx", tokens).length, 2);
+});
 
 test("surface guard catches literal fills on base, theme, and focus rules", () => {
   const violations = findLiteralSurfaceColors(`

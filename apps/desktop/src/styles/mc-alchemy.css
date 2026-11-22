@@ -2,7 +2,7 @@
 
 .composer-stack > .mc-alchemy-card {
   width: 100%;
-  margin: 0 0 8px;
+  margin: 0 0 var(--ds-space-8);
   background: var(--ds-bg-composer);
   box-shadow: var(--ds-shadow-composer);
 }
@@ -10,11 +10,11 @@
 .mc-alchemy-card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--ds-space-12);
   max-height: min(520px, 60vh);
-  padding: 12px 14px;
+  padding: var(--ds-space-12) var(--ds-space-16);
   overflow-y: auto;
-  border: 1px solid var(--ds-border);
+  border: 1px solid var(--ds-border-default);
   border-radius: var(--radius-md);
   overscroll-behavior-y: contain;
 }
@@ -24,36 +24,36 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--ds-space-8);
 }
 
 .mc-alchemy-head-main {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--ds-space-8);
   min-width: 0;
 }
 
 .mc-alchemy-badge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 7px;
+  padding: var(--ds-space-2) var(--ds-space-8);
   border-radius: var(--radius-xs);
-  background: var(--ds-bg-subtle);
+  background: var(--ds-bg-chip);
   color: var(--ds-text-muted);
   font-size: var(--text-xs);
   font-weight: var(--font-weight-medium);
 }
 
 .mc-alchemy-title {
-  color: var(--ds-text);
+  color: var(--ds-text-primary);
   font-size: var(--text-sm);
   font-weight: var(--font-weight-semibold);
 }
 
 .mc-alchemy-close {
   display: inline-flex;
-  padding: 3px;
+  padding: var(--ds-space-4);
   border: 0;
   border-radius: var(--radius-xs);
   background: transparent;
@@ -63,7 +63,7 @@
 
 .mc-alchemy-close:hover {
   background: var(--ds-bg-hover);
-  color: var(--ds-text);
+  color: var(--ds-text-primary);
 }
 
 .mc-alchemy-note,
@@ -77,17 +77,17 @@
 .mc-alchemy-fields {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--ds-space-8);
 }
 
 .mc-alchemy-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ds-space-4);
 }
 
 .mc-alchemy-label {
-  color: var(--ds-text-faint);
+  color: var(--ds-text-secondary);
   font-size: var(--text-xs);
   font-weight: var(--font-weight-medium);
 }
@@ -95,11 +95,11 @@
 .mc-alchemy-input,
 .mc-alchemy-textarea {
   width: 100%;
-  padding: 6px 8px;
-  border: 1px solid var(--ds-border);
+  padding: var(--ds-space-6) var(--ds-space-8);
+  border: 1px solid var(--ds-border-default);
   border-radius: var(--radius-sm);
-  background: var(--ds-bg-surface);
-  color: var(--ds-text);
+  background: var(--ds-field-inset-bg);
+  color: var(--ds-text-primary);
   font-size: var(--text-sm);
   font-family: inherit;
 }
@@ -115,14 +115,14 @@
 .mc-alchemy-scope-row {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--ds-space-16);
 }
 
 .mc-alchemy-radio {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  color: var(--ds-text);
+  gap: var(--ds-space-6);
+  color: var(--ds-text-primary);
   font-size: var(--text-xs);
   cursor: pointer;
 }
@@ -135,19 +135,19 @@
 .mc-alchemy-refs {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ds-space-4);
 }
 
 .mc-alchemy-ref-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--ds-space-6);
 }
 
 .mc-alchemy-ref-chip {
-  padding: 2px 6px;
+  padding: var(--ds-space-2) var(--ds-space-6);
   border-radius: var(--radius-xs);
-  background: var(--ds-bg-subtle);
+  background: var(--ds-bg-chip);
   color: var(--ds-text-muted);
   font-size: var(--text-xs);
 }
@@ -161,5 +161,5 @@
 .mc-alchemy-foot-left {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--ds-space-6);
 }

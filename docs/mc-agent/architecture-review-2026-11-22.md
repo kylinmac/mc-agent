@@ -4,13 +4,16 @@
 
 ## 从案例移植了什么
 
-参考目录为本机 `agent-study/ai-dev-case-studies`。tty7 的 `.github/scripts/check-host-boundary.sh` 把宿主边界变成能失败的检查；openidea 的 `.agents/skills/issue-fix/SKILL.md` 用用户操作复现并验收修复。在 mc-agent 中，前者对应本地与 CI 共用的 `pnpm check:architecture`，后者对应下面的导入、恢复和设置回归用例。界面已有组件、样式变量和目录规则，继续沿用 `apps/desktop/src/AGENTS.md`。
+参考目录为本机 `agent-study/ai-dev-case-studies`。tty7 的 `.github/scripts/check-host-boundary.sh` 把宿主边界变成能失败的检查。openidea 的 `.agents/skills/issue-fix/SKILL.md` 用用户操作复现并验收修复。在 mc-agent 中，前者对应本地与 CI 共用的 `pnpm check:architecture`，后者对应下面的导入、恢复和设置回归用例。
+
+界面沿用 mc-agent 自己的两列外壳和主题。参考 tty7 的 `docs/design-system.md`，按工作内容、操作和状态分配视觉层次。参考 openidea 的 `src/styles/customProperties.test.ts` 和 `spacingScale.test.ts`，把变量引用检查接入 CI，并给共用间距命名。设计选择和可运行的验收入口见[桌面 UI 开发规范](ui-guidelines.md)。
 
 ## 源码审查与处置
 
 | 用户路径 | 状态或权限归属 | 本次处置与验证入口 |
 |---|---|---|
 | 窗口调用宿主 | Preload 控制通道，Main 编排，Rust 执行特权操作 | 统一窗口和 Preload 对错误信封 `Result<T>` 的声明。依赖检查覆盖 Renderer、shared 和供浏览器使用的语音子入口 |
+| 设置中选择项目并勾选导入项 | 共享控件负责焦点、选中和半选，页面负责导入 | 修复复选标记颜色与分段选择的方向键操作。检查器发现 10 个缺少基础定义的设计变量名和 6 处单行规则中的裸字号、字重或圆角。替换错误引用并为现有面板宽度提供默认值。Electron 用例在 800、1100 像素宽度和两种主题检查导入 |
 | 批量导入对话、模型配置 | Main 持有本轮扫描清单，Rust 写入目标数据 | 会话只回传公开字段，按来源和外部 ID 匹配。旧版本导入 ID 继续去重。重扫、重新注册、批量执行中更换宿主由 `session-import-ipc.test.mjs` 覆盖 |
 | 添加或迁移技能、MCP | Main 识别来源，Rust 注册表拥有配置、启用状态及项目作用域 | 19 个 RPC 方法移入能力模块。导入结果使用宿主最终状态；停用状态写入失败时不会发布新定义。真实宿主测试覆盖项目间及全局迁移，设置页测试覆盖点击导入 |
 | 会话、插件、工作区等 IPC 跨过一次等待 | 每次调用使用启动它的宿主或 sidecar | 去掉九个注册模块中会被下一次请求覆盖的后端引用。批量粘贴 MCP 时插入一次重启与第二个 IPC，验证原批次的两个条目都留在原宿主 |

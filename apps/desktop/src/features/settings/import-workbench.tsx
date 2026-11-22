@@ -211,7 +211,7 @@ export function ImportRow({
       label={
         <>
           <span className="import-row-main">
-            <span className="import-row-title">{title}</span>
+            <span className="import-row-title" title={title}>{title}</span>
             <span className="import-row-meta">{meta}</span>
           </span>
           {badge}

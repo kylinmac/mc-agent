@@ -11,6 +11,7 @@ import { repositoryRoot, resolveElectronBinary } from "../../../scripts/e2e/boot
 const root = repositoryRoot();
 const here = dirname(fileURLToPath(import.meta.url));
 const { build } = createRequire(join(root, "packages/agent-runtime/package.json"))("esbuild");
+const serverLabel = "工作区 · Workspace MCP / " + "long-project-name-".repeat(8) + "review";
 
 const fixtureSource = String.raw`
 import React from "react";
@@ -19,7 +20,7 @@ import { flushSync } from "react-dom";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import { catalogs, flattenCatalog } from "@pi-desktop/i18n";
-import { IPC } from "@pi-desktop/shared";
+import { FONT_SCALE_PRESETS, IPC } from "@pi-desktop/shared";
 import { SettingsPage } from "../../apps/desktop/src/features/settings/SettingsPage";
 import { ToastHost } from "../../apps/desktop/src/components/Toast";
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";
@@ -30,7 +31,7 @@ const candidate = {
   sourcePath: projectPath + "/.mcp.json",
   id: "fixture-project-server",
   rawKey: "fixture-project-server",
-  label: "Workspace Fixture MCP",
+  label: ${JSON.stringify(serverLabel)},
   description: "Local fixture server",
   transport: "stdio",
   command: "node",
@@ -50,6 +51,7 @@ const importedServer = {
   createdAt: "2026-10-04T00:00:00.000Z",
   updatedAt: "2026-10-04T00:00:00.000Z",
 };
+const otherCandidate = { ...candidate, id: "other", rawKey: "other", label: "Local docs" };
 const project = {
   id: 1,
   path: projectPath,
@@ -103,7 +105,7 @@ window.piDesktop = {
         };
         break;
       case IPC.invoke.mcpImportScan:
-        data = { candidates: imported ? [] : [candidate], sources: [] };
+        data = { candidates: imported ? [otherCandidate] : [candidate, otherCandidate], sources: [] };
         break;
       case IPC.invoke.mcpImportRun:
         imported = true;
@@ -127,13 +129,16 @@ await i18n.use(initReactI18next).init({
   resources: { en: { translation: flattenCatalog(catalogs.en) } },
   interpolation: { escapeValue: false },
 });
+const theme = new URLSearchParams(location.search).get("theme");
+const fontScale = innerWidth === 800 ? FONT_SCALE_PRESETS.xl : FONT_SCALE_PRESETS.default;
 useAppStore.setState({
-  settings: { defaultMode: "agent", theme: "light", language: "en", developerMode: false },
+  settings: { defaultMode: "agent", theme, fontScale, language: "en", developerMode: false },
   settingsTab: "skills",
   page: "settings",
   workspace: { path: projectPath, name: project.name },
 });
-document.documentElement.dataset.theme = "light";
+document.documentElement.dataset.theme = theme;
+document.documentElement.style.setProperty("--font-scale", String(fontScale));
 const root = createRoot(document.getElementById("root"));
 flushSync(() => root.render(React.createElement(React.Fragment, null,
   React.createElement(SettingsPage),
@@ -164,7 +169,7 @@ async function waitFor(predicate, message) {
   throw new Error(message);
 }
 
-window.settingsInlineMcpImportProbe = async () => {
+window.selectMcpCandidate = async () => {
   await waitFor(
     () => [...document.querySelectorAll(".agent-capability-row .agent-capability-name")]
       .find((node) => node.textContent.trim() === "imagegen"),
@@ -194,6 +199,7 @@ window.settingsInlineMcpImportProbe = async () => {
     persisted: builtinSkillSetCall,
     visibleOff: builtinRow.classList.contains("is-off"),
   };
+  requireNode(document.querySelector(".toast-dismiss"), "Missing skill status").click();
 
   await waitFor(() => buttonByLabel("MCP"), "MCP destination did not render");
   flushSync(() => requireNode(buttonByLabel("MCP"), "MCP navigation is missing").click());
@@ -207,7 +213,19 @@ window.settingsInlineMcpImportProbe = async () => {
       .find((button) => button.textContent.trim().startsWith("Project")),
     "Project scope filter is missing",
   );
-  flushSync(() => projectFilter.click());
+  const filters = [...projectFilter.parentElement.querySelectorAll('[role="radio"]')];
+  const selected = requireNode(filters.find((option) => option.getAttribute("aria-checked") === "true"), "Missing active filter");
+  if (selected.tabIndex !== 0 || filters.filter((option) => option.tabIndex === 0).length !== 1) {
+    throw new Error("A scope filter must have exactly one Tab stop");
+  }
+  selected.focus();
+  for (const [key, expected] of [["End", projectFilter], ["ArrowRight", filters[0]], ["ArrowLeft", projectFilter]]) {
+    document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+    await settle();
+    if (document.activeElement !== expected || expected.getAttribute("aria-checked") !== "true") {
+      throw new Error("Scope filter did not move focus and selection on " + key);
+    }
+  }
   await settle();
   if (projectFilter.getAttribute("aria-checked") !== "true") {
     throw new Error("Project scope filter did not become active");
@@ -262,7 +280,29 @@ window.settingsInlineMcpImportProbe = async () => {
     buttons().find((button) => button.textContent.trim() === "Import selected (1)"),
     "Import selected action did not enable after selecting the candidate",
   );
-  flushSync(() => importButton.click());
+  const mark = getComputedStyle(candidateCheckbox, "::after");
+  const mixed = requireNode(panel.querySelector(".import-select-all input:indeterminate"), "Missing mixed selection");
+  const ink = getComputedStyle(importButton).color;
+  if (mark.borderRightStyle !== "solid" || mark.borderRightColor !== ink ||
+      getComputedStyle(mixed, "::after").backgroundColor !== ink ||
+      mark.borderRightColor === getComputedStyle(candidateCheckbox).backgroundColor) {
+    throw new Error("Selected and mixed checkboxes must paint contrasting marks in " + theme);
+  }
+  const box = candidateCheckbox.getBoundingClientRect();
+  const title = candidateRow.querySelector(".import-row-title");
+  if (title.title !== candidate.label) throw new Error("Long candidate name must be available in full");
+  const name = title.getBoundingClientRect();
+  const action = importButton.getBoundingClientRect();
+  if (name.width <= 0 || box.right > name.left + 1 || name.right > innerWidth + 1 ||
+      action.width <= 0 || action.left < 0 || action.right > innerWidth + 1) {
+    throw new Error("Long candidate obscures the selection or import action at width " + innerWidth);
+  }
+  await waitFor(() => !document.querySelector(".toast"), "Dismissed skill status remained visible");
+  return { builtinToggleState, scanCountBeforeExplicitClick };
+};
+
+window.importSelectedMcp = async () => {
+  flushSync(() => requireNode(buttonByLabel("Import selected (1)"), "Import action disappeared").click());
   await waitFor(
     () => [...document.querySelectorAll(".toast-message")]
       .find((node) => node.textContent.trim() === "Import done: 1 imported, 0 skipped, 0 failed"),
@@ -279,8 +319,6 @@ window.settingsInlineMcpImportProbe = async () => {
   const visibleRow = [...document.querySelectorAll(".agent-capability-row")]
     .find((row) => row.querySelector(".agent-capability-name")?.textContent.trim() === candidate.label);
   return {
-    builtinToggleState,
-    scanCountBeforeExplicitClick,
     scanCalls,
     runCall,
     visibleToast: [...document.querySelectorAll(".toast-message")]
@@ -361,9 +399,23 @@ app.whenReady().then(async () => {
     webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false } });
   win.webContents.on("console-message", (event) => console.error(event.message));
   try {
-    await win.loadFile(path.join(__dirname, "index.html"));
-    const result = await win.webContents.executeJavaScript("window.settingsInlineMcpImportProbe()");
-    console.log("SETTINGS_INLINE_MCP_IMPORT " + JSON.stringify(result));
+    for (const width of [800, 1100]) {
+      win.setContentSize(width, 760);
+      for (const theme of ["light", "dark"]) {
+        await win.loadFile(path.join(__dirname, "index.html"), { query: { theme } });
+        const viewport = await win.webContents.executeJavaScript("innerWidth");
+        if (viewport !== width) throw new Error("Expected width " + width + ", got " + viewport);
+        const selection = await win.webContents.executeJavaScript("window.selectMcpCandidate()");
+        if (process.env.PI_E2E_ARTIFACT_DIR) {
+          const fs = require("node:fs/promises");
+          await fs.mkdir(process.env.PI_E2E_ARTIFACT_DIR, { recursive: true });
+          await fs.writeFile(path.join(process.env.PI_E2E_ARTIFACT_DIR, "settings-import-" + theme + "-" + width + ".png"),
+            (await win.webContents.capturePage()).toPNG());
+        }
+        const imported = await win.webContents.executeJavaScript("window.importSelectedMcp()");
+        console.log("SETTINGS_INLINE_MCP_IMPORT " + JSON.stringify({ ...selection, ...imported }));
+      }
+    }
     app.exit(0);
   } catch (error) {
     console.error(error?.stack ?? error);
@@ -395,10 +447,12 @@ app.whenReady().then(async () => {
       clearTimeout(timer);
     }
     assert.equal(code, 0, output);
-    const resultLine = output.split(/\r?\n/)
-      .find((line) => line.startsWith("SETTINGS_INLINE_MCP_IMPORT "));
-    assert(resultLine, output);
-    const result = JSON.parse(resultLine.slice("SETTINGS_INLINE_MCP_IMPORT ".length));
+    const results = output.split(/\r?\n/)
+      .filter((line) => line.startsWith("SETTINGS_INLINE_MCP_IMPORT "))
+      .map((line) => JSON.parse(line.slice("SETTINGS_INLINE_MCP_IMPORT ".length)));
+    assert.equal(results.length, 4, output);
+    const [result] = results;
+    for (const variant of results.slice(1)) assert.deepEqual(variant, result);
 
     assert.deepEqual(result.builtinToggleState, {
       persisted: {
@@ -420,7 +474,7 @@ app.whenReady().then(async () => {
         sourcePath: "/tmp/pi-settings-inline-import-project/.mcp.json",
         id: "fixture-project-server",
         rawKey: "fixture-project-server",
-        label: "Workspace Fixture MCP",
+        label: serverLabel,
         description: "Local fixture server",
         transport: "stdio",
         command: "node",

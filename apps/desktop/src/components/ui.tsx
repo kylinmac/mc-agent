@@ -6,6 +6,7 @@ import {
   useState,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
   type Ref,
   type SelectHTMLAttributes,
@@ -722,13 +723,35 @@ export function SegmentedControl<T extends string>({
   disabled?: boolean;
 }) {
   const itemRole = role === "tablist" ? "tab" : role === "radiogroup" ? "radio" : undefined;
+  const tabStop = Math.max(0, options.findIndex((option) => option.value === value));
+  function moveFocus(event: ReactKeyboardEvent<HTMLButtonElement>, index: number) {
+    if (!itemRole || event.altKey || event.ctrlKey || event.metaKey) return;
+    let next: number;
+    switch (event.key) {
+      case "Home": next = 0; break;
+      case "End": next = options.length - 1; break;
+      case "ArrowUp":
+      case "ArrowDown":
+        if (itemRole !== "radio") return;
+        next = index + (event.key === "ArrowUp" ? -1 : 1);
+        break;
+      case "ArrowLeft": next = index - 1; break;
+      case "ArrowRight": next = index + 1; break;
+      default: return;
+    }
+    event.preventDefault();
+    next = (next + options.length) % options.length;
+    const target = event.currentTarget.parentElement?.children.item(next);
+    if (target instanceof HTMLButtonElement) target.focus();
+    if (options[next].value !== value) onChange(options[next].value);
+  }
   return (
     <div
       className={cx("settings-segment", className)}
       role={role}
       aria-label={label}
     >
-      {options.map((option) => (
+      {options.map((option, index) => (
         <button
           key={option.value}
           type="button"
@@ -743,6 +766,8 @@ export function SegmentedControl<T extends string>({
             itemClassName,
           )}
           disabled={disabled}
+          tabIndex={itemRole ? (index === tabStop ? 0 : -1) : undefined}
+          onKeyDown={itemRole ? (event) => moveFocus(event, index) : undefined}
           onClick={() => onChange(option.value)}
         >
           {option.label}

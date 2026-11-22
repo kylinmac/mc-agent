@@ -3,6 +3,8 @@
 Scoped rules for `apps/desktop/src/`. These tighten the root `AGENTS.md`;
 on conflict the rules here win.
 
+布局、字号、间距、主题、键盘交互和 PR 验收见[桌面 UI 开发规范](../../../docs/mc-agent/ui-guidelines.md)。从仓库根目录运行 `pnpm check:ui`。
+
 ---
 
 ## Shared UI primitives are mandatory

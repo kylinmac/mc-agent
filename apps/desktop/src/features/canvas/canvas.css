@@ -508,7 +508,7 @@
 
 .mc-canvas-popover button.is-danger {
   margin-right: auto;
-  color: var(--ds-danger, #c92a2a);
+  color: var(--ds-error);
 }
 
 .mc-canvas-popover button.mc-canvas-icon,

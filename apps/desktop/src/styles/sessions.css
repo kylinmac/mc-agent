@@ -194,10 +194,10 @@
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 10px;
+  gap: var(--ds-space-8);
   border-radius: var(--radius-md);
   background: var(--ds-tile);
-  padding: 6px 10px;
+  padding: var(--ds-space-6) var(--ds-space-12);
   cursor: pointer;
   transition: background var(--motion-duration-fast) var(--motion-ease-out);
 }
@@ -230,7 +230,7 @@
   min-width: 0;
   flex: 1;
   align-items: center;
-  gap: 10px;
+  gap: var(--ds-space-8);
 }
 
 .import-group-checkbox > span {

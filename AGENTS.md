@@ -40,7 +40,7 @@ mc-agent 是 kylinmac 个人维护的 PI-Desktop Fork。本文件统一规定所
 - 模块归属以 mc-agent 当前调用链、数据所有权和测试边界为准。可以直接整理继承代码；同步上游时再评估冲突成本。
 - 业务规则归拥有该数据或执行权限的模块；页面、IPC 注册和 RPC 路由保留参数转换与编排。同一跨进程数据结构由生产方与消费方引用共享契约，保留原入口以便逐步迁移。
 - 每次重构选一条可以独立验证的用户路径。修复某个入口时，检查相同规则是否也用于其他入口。并行任务涉及同一工作区时，用独立分支或 worktree 分开交付。
-- 有界面变化时，在隔离开发实例复现受影响的交互；布局改动检查窄窗口、长文本或键盘等相关状态。在 PR 写清实测步骤和未覆盖的平台。
+- 界面开发先查[桌面 UI 开发规范](docs/mc-agent/ui-guidelines.md)和 Renderer 的组件目录。在隔离开发实例复现受影响的交互，布局改动检查窄窗口、长文本和相关键盘操作，在 PR 写清实测步骤和未覆盖的平台。
 - 保留默认行为、数据语义、IPC/RPC 与插件契约。需要改变时说明迁移方式；权限边界与长期架构决定写入 MC-ADR。工程取舍见 [MC-ADR-0032](docs/mc-agent/adr/mc-0032-domain-contracts.md)。
 
 ## 技术边界（进入开发后必须守住）
@@ -69,6 +69,7 @@ Renderer → Preload IPC → Electron Main → Rust host-core / Node agent-runti
 | --- | --- |
 | JS | `pnpm --filter <pkg> typecheck`、`pnpm lint`、相关包的 `test` |
 | 进程边界、模块拆分 | `pnpm check:architecture` 与 CI 执行同一组依赖和文件大小检查 |
+| Renderer 样式、控件 | `pnpm check:ui`；涉及颜色或交互时按 UI 规范运行相应的 Electron 用例 |
 | Rust | `cargo fmt --check`、`cargo test -p host-core --locked`、`cargo clippy -p host-core --all-targets` |
 | 跨进程行为 | 相关的 `pnpm test:e2e:*` |
 | 文档 | 见上面“文档”一节 |

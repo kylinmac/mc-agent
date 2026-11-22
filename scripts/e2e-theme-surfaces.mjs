@@ -28,6 +28,7 @@ try {
     <section class="fixture-controls"><div class="composer-stack"><section class="asktool-card"><div class="asktool-card-header"><span class="asktool-card-title">Question</span></div><button class="asktool-option">Blue</button><button class="asktool-option selected">Green</button><input class="asktool-custom-input" placeholder="Other" aria-label="Other"></section></div></section>
     <section class="fixture-prose"><div class="prose-chat"><p>Answer prose with a <kbd>K</kbd> keycap and an <code>inline chip</code>.</p></div><div class="thinking-prose"><code>thinking code</code></div><div class="code-block-head">Code card head band</div><div class="mermaid-block-body">Mermaid canvas</div><button class="send-btn" disabled>Send</button></section>
     <section class="fixture-tools"><div class="tool-row-content">Tool output</div><div class="tool-block is-plain"><div class="tool-row-content">Plain tool output</div></div><div class="tool-row-content is-error">Error tool output</div></section>
+    <button class="btn btn-primary">Import selected</button>
     <script src="renderer.js"></script>`);
   await writeFile(
     join(temp, "main.cjs"),
