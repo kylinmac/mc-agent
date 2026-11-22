@@ -13,6 +13,7 @@ export const mcEnEntries: McReleaseNotes[] = [
     date: "2026-11-21",
     features: [
       "Choose permissions and a model before confirming a scheduled task created by the assistant. Save a default model for new tasks on the Scheduled overview.",
+      "Added models.list, session model switching, and canvas.delete to the mobile remote bridge so mc-agent Mobile can inspect and switch models in chat and delete whiteboards.",
     ],
     fixes: [
       "Scheduled conversations appear in the project sidebar. Reused conversations apply permission changes on the next run.",
