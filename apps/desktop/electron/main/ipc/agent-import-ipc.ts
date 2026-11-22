@@ -24,7 +24,11 @@ export function mcpImportPreview(candidate: McpCandidate, selectionId: string): 
   const { id, source, sourcePath, label, description, transport } = candidate;
   const origin = mcpUrlOrigin(candidate.url);
   const endpoint = origin ? new URL(origin).host : mcpCommandLabel(candidate.command);
-  return { selectionId, id, source, sourcePath, label, transport, displayMeta: description || endpoint || sourcePath };
+  return {
+    selectionId, id, source, sourcePath, transport,
+    label: label === id ? candidate.rawKey : label,
+    displayMeta: description || endpoint || sourcePath,
+  };
 }
 
 function skillImportPreview(candidate: SkillCandidate, selectionId: string): ExternalSkillCandidate {

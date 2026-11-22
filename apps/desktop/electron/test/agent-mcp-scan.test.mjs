@@ -19,6 +19,35 @@ async function makeHome() {
   return { root, home };
 }
 
+test("distinct source names that normalize to one id remain individually selectable", async (t) => {
+  const { root, home } = await makeHome();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(join(home, ".claude"));
+  await writeFile(join(home, ".claude.json"), JSON.stringify({ mcpServers: {
+    "team docs": { command: "legacy" }, "team-docs": { command: "second" },
+  } }));
+  await writeFile(join(home, ".claude", "settings.json"), JSON.stringify({ mcpServers: {
+    "team docs": { command: "first" },
+  } }));
+  const { registerAgentImportIpc } = await import("../main/ipc/agent-import-ipc.ts");
+  const { IPC } = await import("@pi-desktop/shared");
+  const handlers = new Map();
+  const saved = [];
+  registerAgentImportIpc({
+    registrar: { handle: (channel, fn) => handlers.set(channel, fn) },
+    getHost: () => ({ call: async (_method, { server }) => { saved.push(server); } }),
+    scanMcp: () => scanExternalMcp({ homeDir: home, platform: "linux", env: {} }),
+    sendToRenderer() {},
+  });
+  const { candidates } = await handlers.get(IPC.invoke.mcpImportScan)();
+  assert.deepEqual(candidates.map(({ id, label }) => [id, label]), [
+    ["team-docs", "team docs"], ["team-docs", "team-docs"],
+  ]);
+  assert.notEqual(candidates[0].selectionId, candidates[1].selectionId);
+  await handlers.get(IPC.invoke.mcpImportRun)({ items: [candidates[1], candidates[0]] });
+  assert.deepEqual(saved.map((server) => server.command), ["second", "first"]);
+});
+
 test("claude-desktop config on darwin is read and mapped to a candidate", async () => {
   const { root, home } = await makeHome();
   try {

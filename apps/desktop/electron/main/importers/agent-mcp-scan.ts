@@ -138,17 +138,6 @@ function toCandidate(
   };
 }
 
-function dedupeById(candidates: McpCandidate[]): McpCandidate[] {
-  const seen = new Set<string>();
-  const out: McpCandidate[] = [];
-  for (const cand of candidates) {
-    if (seen.has(cand.id)) continue;
-    seen.add(cand.id);
-    out.push(cand);
-  }
-  return out;
-}
-
 interface MapScan {
   candidates: McpCandidate[];
   count: number;
@@ -166,8 +155,7 @@ function scanServerMap(
     collected.push(toCandidate(source, sourcePath, key, index, value));
     index += 1;
   }
-  const deduped = dedupeById(collected);
-  return { candidates: deduped, count: deduped.length };
+  return { candidates: collected, count: collected.length };
 }
 
 function parseJson(text: string): { value: unknown | null; error?: string } {
@@ -253,8 +241,8 @@ async function scanClaudeCode(
     ),
   ]);
   const merged = new Map<string, McpCandidate>();
-  for (const cand of legacy.candidates) merged.set(cand.id, cand);
-  for (const cand of settings.candidates) merged.set(cand.id, cand);
+  for (const cand of legacy.candidates) merged.set(cand.rawKey, cand);
+  for (const cand of settings.candidates) merged.set(cand.rawKey, cand);
   return {
     reports: [legacy.report, settings.report],
     candidates: [...merged.values()],
@@ -320,9 +308,8 @@ async function scanOpencode(
     collected.push(mapped);
     index += 1;
   }
-  const deduped = dedupeById(collected);
-  report.count = deduped.length;
-  return { report, candidates: deduped };
+  report.count = collected.length;
+  return { report, candidates: collected };
 }
 
 /**
@@ -496,9 +483,8 @@ async function scanCodex(
     collected.push(toCandidate("codex", filePath, key, index, raw));
     index += 1;
   }
-  const deduped = dedupeById(collected);
-  report.count = deduped.length;
-  return { report, candidates: deduped };
+  report.count = collected.length;
+  return { report, candidates: collected };
 }
 
 async function scanChatgptDesktop(): Promise<{
