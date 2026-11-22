@@ -22,6 +22,7 @@ const rpcSources = await readFile(
   new URL("../../../crates/host-core/src/rpc/mod.rs", import.meta.url),
   "utf8",
 );
+const projectRpc = await readFile(new URL("../../../crates/host-core/src/rpc/project_rpc.rs", import.meta.url), "utf8");
 const backgroundTasks = await readFile(
   new URL("../../../crates/host-core/src/background_tasks.rs", import.meta.url),
   "utf8",
@@ -183,7 +184,7 @@ test("deleting a session signals its tasks from the shared cleanup path only", (
   assert.match(cleanup[1], /st\.background_tasks\.stop_session_running\(id\);/);
   // Deleting is the only caller of that cleanup, and no archive method exists.
   assert.equal(
-    rpcSources.match(/drop_session_side_data\(&st, id\);/g)?.length,
+    (rpcSources + projectRpc).match(/drop_session_side_data\(&st, id\);/g)?.length,
     2,
     "both deletion paths reach the shared cleanup",
   );

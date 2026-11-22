@@ -5,7 +5,7 @@ import { readMainSource } from "./helpers/main-source.mjs";
 
 const read = (relativePath) => readFile(new URL(relativePath, import.meta.url), "utf8");
 
-const [dialog, page, api, protocol, main, runtime, sidecar, db, groups, rpc] = await Promise.all([
+const [dialog, page, api, protocol, main, runtime, sidecar, db, groups, rpc, projectRpc] = await Promise.all([
   read("../src/components/ProjectMemoryDialog.tsx"),
   read("../src/pages/ProjectsPage.tsx"),
   read("../src/lib/api.ts"),
@@ -16,6 +16,7 @@ const [dialog, page, api, protocol, main, runtime, sidecar, db, groups, rpc] = a
   read("../../../crates/host-core/src/db/repositories.rs"),
   read("../../../crates/host-core/src/db/project_groups.rs"),
   read("../../../crates/host-core/src/rpc/mod.rs"),
+  read("../../../crates/host-core/src/rpc/project_rpc.rs"),
 ]);
 
 test("project memory has a host-backed editor and project menu entry", () => {
@@ -40,7 +41,7 @@ test("project memory crosses the IPC and runtime boundary", () => {
   assert.match(api, /saveProjectGroupMemory/);
   assert.match(main, /project\.group\.memory\.get/);
   assert.match(main, /project\.group\.memory\.set/);
-  assert.match(rpc, /project\.group\.context/);
+  assert.match(projectRpc, /project\.group\.context/);
   assert.match(api, /getProjectMemory/);
   assert.match(api, /saveProjectMemory/);
   assert.match(main, /project\.memory\.get/);
@@ -54,6 +55,6 @@ test("project memory crosses the IPC and runtime boundary", () => {
   assert.match(groups, /GROUP_NAMESPACE/);
   assert.match(groups, /project_group_context_for_path/);
   assert.match(rpc, /resolve_tool_workspace_for_call/);
-  assert.match(rpc, /"project\.memory\.get"/);
-  assert.match(rpc, /"project\.memory\.set"/);
+  assert.match(projectRpc, /"project\.memory\.get"/);
+  assert.match(projectRpc, /"project\.memory\.set"/);
 });
