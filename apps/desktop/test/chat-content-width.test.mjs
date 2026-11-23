@@ -8,7 +8,7 @@ const surfaceSource = await readFile(
   "utf8",
 );
 const composerSource = await readFile(
-  new URL("../src/components/Composer.tsx", import.meta.url),
+  new URL("../src/features/chat/Composer.tsx", import.meta.url),
   "utf8",
 );
 const handleSource = await readFile(

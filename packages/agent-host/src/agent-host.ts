@@ -1,14 +1,12 @@
 import type {
   AgentEvent,
   AgentEventEnvelope,
-  AgentPromptAttachment,
   AgentStatus,
   AskToolRequest,
   PlanningStateEvent,
   RacpApprovalRequest,
   RacpApprovalResponse,
   RacpApprovalResult,
-  RacpCursor,
   RacpInputRequest,
   RacpInputResponse,
   RacpItemSummary,
@@ -18,7 +16,6 @@ import type {
   RacpPermissionMode,
   RacpPlanningState,
   RacpPolicy,
-  RacpRequestContext,
   RacpRole,
   RacpSession,
   RacpSessionSnapshot,
@@ -26,7 +23,6 @@ import type {
   RacpTurn,
   RacpTurnAdmission,
   UiMessage,
-  VoiceOrigin,
 } from "@pi-desktop/shared";
 import {
   RACP_ACTIVE_TURN_STATUSES,
@@ -39,10 +35,14 @@ import {
   racpKindForAgentEvent,
   rolesAllowOperation,
 } from "@pi-desktop/shared";
-
-import { ApprovalBroker, type ApprovalPort } from "./approvals.js";
+import { ApprovalBroker } from "./approvals.js";
 import { racpError } from "./errors.js";
-import { EventHub, type SubscribeParams, type SubscribeResult, type SubscriptionSink } from "./event-log.js";
+import {
+  EventHub,
+  type SubscribeParams,
+  type SubscribeResult,
+  type SubscriptionSink,
+} from "./event-log.js";
 import {
   MemoryQueueStore,
   RandomIds,
@@ -51,88 +51,32 @@ import {
   type IdSource,
   type Principal,
   type QueueReorderDirection,
-  type QueueStore,
   type QueuedTurnRecord,
   type RuntimePort,
   type SessionPort,
   type SessionSummary,
 } from "./ports.js";
 import { TurnQueue } from "./turn-queue.js";
-
-export type AgentHostOptions = {
-  runtime: RuntimePort;
-  sessions: SessionPort;
-  approvals: ApprovalPort;
-  queueStore?: QueueStore;
-  clock?: Clock;
-  ids?: IdSource;
-  limits?: Partial<RacpLimits>;
-  policy?: Partial<RacpPolicy>;
-  /** Lifetime for approvals raised while no remote subscriber is attached. */
-  localApprovalLifetimeMs?: number;
-  /** Whether Host policy lets remote approvers grant `allow-session`. */
-  allowRemoteSessionGrants?: boolean;
-  /** Bound on the transcript page in a snapshot. */
-  snapshotItems?: number;
-  /** Called after any change to a session's queue, with the new entries. */
-  onQueueChange?: (sessionId: string, entries: QueueEntryView[]) => void;
-};
-
-/** A queued turn together with the prompt it will send. */
-export type QueueEntryView = {
-  turn: RacpTurn;
-  content: string;
-  sessionMessageId?: string;
-  userMessageId?: string;
-  voiceOrigin?: VoiceOrigin;
-  attachments?: AgentPromptAttachment[];
-  /** Set only for promoted entries; entries are already in delivery order. */
-  priority?: number;
-};
-
-export type StartTurnParams = {
-  sessionId: string;
-  idempotencyKey?: string;
-  /** Main-private identity captured when authorizing a Live work scope. */
-  expectedWorkspaceIdentity?: string | null;
-  admission?: RacpTurnAdmission;
-  input: {
-    text: string;
-    attachments?: AgentPromptAttachment[];
-    sessionMessageId?: string;
-    /** Client-chosen id for the durable user row (D288). */
-    userMessageId?: string;
-    voiceOrigin?: VoiceOrigin;
-  };
-  context: RacpRequestContext;
-};
-
-export type StartTurnResult = { accepted: true; turn: RacpTurn; cursor: RacpCursor };
-
-export type AgentWorkSnapshot = {
-  sessionId: string;
-  mode: "agent" | "plan" | "goal";
-  state: "idle" | "running" | "waiting-permission" | "waiting-input" | "finalizing";
-  activeTurnId?: string;
-  activeTurnStatus?: RacpTurn["status"];
-  queue: Array<{ queueEntryId: string; position: number }>;
-  revision: number;
-};
-
-export type AttachParams = {
-  sessionId: string;
-  role?: RacpRole;
-  after?: RacpCursor;
-  includeSnapshot?: boolean;
-};
-
-export type AttachResult = {
-  session: RacpSession;
-  role: RacpRole;
-  replayComplete: boolean;
-  resyncReason?: "epoch" | "evicted" | "ahead";
-  snapshot?: RacpSessionSnapshot;
-};
+import type {
+  AgentHostOptions,
+  QueueEntryView,
+  StartTurnParams,
+  StartTurnResult,
+  AgentWorkSnapshot,
+  AttachParams,
+  AttachResult,
+} from "./agent-host-contracts.js";
+export type {
+  AgentHostOptions,
+  QueueEntryView,
+  StartTurnParams,
+  StartTurnResult,
+  AgentWorkSnapshot,
+  AttachParams,
+  AttachResult,
+} from "./agent-host-contracts.js";
+import { TurnIdempotency, hashInput } from "./turn-idempotency.js";
+export { hashInput } from "./turn-idempotency.js";
 
 type TurnRecord = RacpTurn & {
   /** A queued input consumed by another turn cannot be canceled retroactively. */
@@ -158,15 +102,6 @@ type SessionState = {
   remoteSubscribers: number;
 };
 
-type IdempotencyEntry = {
-  turnId: string;
-  inputHash: string;
-  sessionId: string;
-  userMessageId?: string;
-  voiceOrigin?: { callId: string; operationId: string };
-};
-
-const MAX_IDEMPOTENCY_ENTRIES = 2000;
 const MAX_TURNS_PER_SESSION = 200;
 
 /**
@@ -196,7 +131,7 @@ export class AgentHost {
   private readonly runtimeAliases = new Map<string, string>();
   /** The dequeued turn whose runtime prompt acknowledgement is still pending. */
   private readonly startingQueuedTurns = new Map<string, TurnRecord>();
-  private readonly idempotency = new Map<string, IdempotencyEntry>();
+  private readonly idempotency = new TurnIdempotency();
   private readonly draining = new Set<string>();
   /** A pass that arrived while one was running: the queue must be looked at again. */
   private readonly drainPending = new Set<string>();
@@ -500,11 +435,8 @@ export class AgentHost {
     const inputHash = hashInput(params.input);
     const idempotencyKey = params.idempotencyKey ?? params.context.idempotencyKey;
     if (idempotencyKey) {
-      const remembered = this.idempotency.get(`${principal.subject}|${idempotencyKey}`);
+      const remembered = this.idempotency.lookup(principal.subject, idempotencyKey, inputHash);
       if (remembered) {
-        if (remembered.inputHash !== inputHash) {
-          throw racpError("IDEMPOTENCY_CONFLICT", "the idempotency key was reused with different input");
-        }
         const turn = state.turns.get(remembered.turnId);
         if (turn) return { accepted: true, turn: this.toRacpTurn(state, turn), cursor: this.hub.stream(state.id).cursor() };
       }
@@ -575,7 +507,7 @@ export class AgentHost {
       turn.principalSubject = principal.subject;
       if (!isTerminal(turn.status)) state.activeTurnId = turn.id;
     }
-    if (idempotencyKey) this.rememberIdempotency(`${principal.subject}|${idempotencyKey}`, {
+    if (idempotencyKey) this.idempotency.remember(principal.subject, idempotencyKey, {
       turnId: turn.id,
       inputHash,
       sessionId: state.id,
@@ -603,7 +535,7 @@ export class AgentHost {
     this.requireRole(principal, "turn/get");
     const { sessionId, idempotencyKey, userMessageId, voiceOrigin } = request;
     if (!sessionId.trim() || !idempotencyKey.trim() || !userMessageId.trim()) return undefined;
-    const remembered = this.idempotency.get(`${principal.subject}|${idempotencyKey}`);
+    const remembered = this.idempotency.lookup(principal.subject, idempotencyKey);
     const rememberedMatches = remembered?.sessionId === sessionId &&
       remembered.userMessageId === userMessageId &&
       remembered.voiceOrigin?.callId === voiceOrigin.callId &&
@@ -1455,15 +1387,6 @@ export class AgentHost {
     return Boolean(turn && isActive(turn.status));
   }
 
-  private rememberIdempotency(key: string, entry: IdempotencyEntry): void {
-    this.idempotency.set(key, entry);
-    while (this.idempotency.size > MAX_IDEMPOTENCY_ENTRIES) {
-      const oldest = this.idempotency.keys().next().value;
-      if (oldest === undefined) break;
-      this.idempotency.delete(oldest);
-    }
-  }
-
   private requireRole(principal: Principal, operation: RacpOperation): void {
     if (!rolesAllowOperation(principal.roles, operation)) {
       throw racpError("FORBIDDEN", `principal lacks the role for ${operation}`);
@@ -1537,20 +1460,6 @@ function highestRole(roles: RacpRole[]): RacpRole {
 function requireSessionId(sessionId: string | undefined): string {
   if (!sessionId) throw racpError("INVALID_ARGUMENT", "sessionId is required");
   return sessionId;
-}
-
-/** Small stable hash so a reused idempotency key with other input is detected. */
-export function hashInput(input: StartTurnParams["input"]): string {
-  const encoded = JSON.stringify({
-    text: input.text,
-    attachments: input.attachments ?? [],
-    ...(input.sessionMessageId ? { sessionMessageId: input.sessionMessageId } : {}),
-  });
-  let hash = 5381;
-  for (let index = 0; index < encoded.length; index += 1) {
-    hash = ((hash << 5) + hash + encoded.charCodeAt(index)) | 0;
-  }
-  return `${encoded.length}:${(hash >>> 0).toString(16)}`;
 }
 
 export type { UiMessage };

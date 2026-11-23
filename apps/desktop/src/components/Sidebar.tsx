@@ -4,85 +4,34 @@ import { isRemoteSession, sessionAllows } from "../lib/remote-session-safety";
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type AnimationEventHandler as ReactAnimationEventHandler,
   type DragEvent as ReactDragEvent,
   type KeyboardEvent as ReactKeyboardEvent,
-  type MouseEvent as ReactMouseEvent,
-  type PointerEvent as ReactPointerEvent,
 } from "react";
 import { TooltipButton, cx } from "./ui";
-
 import { portalToBody } from "../lib/portal-visibility";
-import {
-  placeSidebarFloatingMenuTop,
-  SIDEBAR_FLOATING_MENU_MAX_HEIGHT,
-  SIDEBAR_MENU_VIEWPORT_PADDING,
-} from "../lib/sidebar-floating-menu";
 import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
 import { formatSessionLastReplyDate } from "../lib/sidebar-session-date";
 import { SessionHoverCard } from "../features/sessions/SessionHoverCard";
 import { useSessionHoverCard } from "../features/sessions/useSessionHoverCard";
-import { isDefaultSessionTitle, useAppStore } from "../stores/app-store";
-import {
-  getGlobalPinnedSessions,
-  normalizeProjectPath,
-  sessionArchived,
-  sessionPinned,
-} from "../lib/sidebar-session-groups";
-import {
-  getVisibleProjectSessions,
-  updateProjectSessionExpansion,
-} from "../lib/sidebar-project-sessions";
-import { mergeProjectEntries, sessionFolderLabel } from "../lib/projects/project-folders";
-import { useProjectFolderIndex } from "../hooks/useProjectFolderIndex";
+import { useAppStore } from "../stores/app-store";
+import { normalizeProjectPath, sessionArchived, sessionPinned } from "../lib/sidebar-session-groups";
+import { getVisibleProjectSessions, updateProjectSessionExpansion } from "../lib/sidebar-project-sessions";
+import { sessionFolderLabel } from "../lib/projects/project-folders";
 import { SidebarAttentionFeed } from "../features/attention-feed/SidebarAttentionFeed";
 import { SidebarFooter } from "../features/app-rail/SidebarFooter";
-import {
-  composerDropItems,
-  hasComposerFileDrag,
-} from "../lib/composer-drop";
-import {
-  projectGroupKeyFromPoint,
-  projectReorderInsertAfter,
-  projectReorderShouldArm,
-  sameProjectReorderBucket,
-} from "../lib/sidebar-project-reorder";
-import {
-  sidebarSessionStatus,
-  type SidebarSessionStatus,
-} from "../lib/sidebar-session-status";
-import {
-  projectRunSummaryIsLive,
-  resolveSidebarRunningAffordances,
-  summarizeProjectRuns,
-} from "../lib/sidebar-project-runs";
-import {
-  ProjectRunBadge,
-  ProjectRunCount,
-  ProjectRunRail,
-} from "./ProjectRunIndicator";
-import { ErrorCodes, formatSessionLink } from "@pi-desktop/shared";
+import { composerDropItems, hasComposerFileDrag } from "../lib/composer-drop";
+import { sidebarSessionStatus, type SidebarSessionStatus } from "../lib/sidebar-session-status";
+import { projectRunSummaryIsLive, resolveSidebarRunningAffordances, summarizeProjectRuns } from "../lib/sidebar-project-runs";
+import { ProjectRunBadge, ProjectRunCount, ProjectRunRail } from "./ProjectRunIndicator";
+import { formatSessionLink } from "@pi-desktop/shared";
 import type { SessionSummary } from "@pi-desktop/shared";
-import type {
-  ProjectMeta,
-  ProjectSort,
-  SessionSort,
-} from "../lib/sidebar-preferences";
-import {
-  clampSidebarWidth,
-  SIDEBAR_WIDTH_MAX,
-  SIDEBAR_WIDTH_MIN,
-} from "../lib/sidebar-preferences";
-import {
-  SIDEBAR_RESIZE_STEP,
-  sidebarPointerResize,
-  sidebarResetWidth,
-} from "../lib/sidebar-resize";
+import type { SessionSort } from "../lib/sidebar-preferences";
+import { clampSidebarWidth, SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_MIN } from "../lib/sidebar-preferences";
 import { BrandLogo } from "./BrandLogo";
 import { SidebarSlotHost, pagePinsSidebar } from "../features/sidebar-slot/SidebarSlot";
 import { ProjectEditDialog } from "./ProjectEditDialog";
@@ -132,78 +81,15 @@ import {
   IconTrash,
   IconX,
 } from "./icons";
-
-type ProjectEntry = {
-  path: string;
-  displayPath?: string;
-  key: string;
-  name: string;
-  sessions: SessionSummary[];
-  open: boolean;
-  active: boolean;
-  meta: ProjectMeta;
-  /** Best-effort git branch from the project workspace, if known. */
-  branch?: string;
-  /** mc-agent: every folder of the merged project group, normalized. */
-  memberKeys?: string[];
-};
+import { useSidebarResize } from "./sidebar/useSidebarResize";
+import { useSidebarMenus } from "./sidebar/useSidebarMenus";
+import type { ProjectEntry } from "./sidebar/project-entry";
+import { useProjectReorder } from "./sidebar/useProjectReorder";
+import { projectName, projectMetaFor, useSidebarProjects } from "./sidebar/useSidebarProjects";
 
 /** Private MIME so a sidebar session drag is never mistaken for an OS file drop. */
 const SESSION_DRAG_MIME = "application/x-pi-desktop-session";
 
-type SidebarResizeState = {
-  pointerId: number;
-  startX: number;
-  startWidth: number;
-  currentWidth: number;
-  frame: number;
-  handle: HTMLDivElement;
-};
-
-type ProjectReorderPointerState = {
-  pointerId: number;
-  projectKey: string;
-  startX: number;
-  startY: number;
-  lastX: number;
-  lastY: number;
-  armed: boolean;
-  dropKey: string | null;
-  dropTop: number;
-  dropHeight: number;
-  insertAfter: boolean;
-  onMove: (event: PointerEvent) => void;
-  onUp: (event: PointerEvent) => void;
-  onCancel: (event: PointerEvent) => void;
-};
-
-function clearSidebarResizeStyles(): void {
-  document.documentElement.removeAttribute("data-sidebar-resizing");
-}
-
-function projectName(path: string, fallback?: string) {
-  if (fallback?.trim()) return fallback.trim();
-  const clean = path.replace(/[\\/]+$/, "");
-  const parts = clean.split(/[\\/]/).filter(Boolean);
-  return parts[parts.length - 1] || path;
-}
-
-function timestamp(value?: string) {
-  const parsed = value ? Date.parse(value) : 0;
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function optionalTimestamp(value?: string): number | null {
-  const parsed = value ? Date.parse(value) : NaN;
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function projectMetaFor(
-  path: string,
-  projectMeta: Record<string, ProjectMeta>,
-): ProjectMeta {
-  return projectMeta[normalizeProjectPath(path) || path] ?? projectMeta[path] ?? {};
-}
 
 function projectDomId(path: string): string {
   let hash = 2166136261;
@@ -212,37 +98,6 @@ function projectDomId(path: string): string {
     hash = Math.imul(hash, 16777619);
   }
   return `sidebar-project-${(hash >>> 0).toString(36)}`;
-}
-
-function firstSessionDate(
-  sessions: SessionSummary[],
-  field: "createdAt" | "updatedAt",
-): number | null {
-  const values = sessions
-    .map((session) => timestamp(session[field]))
-    .filter((value) => value > 0);
-  return values.length ? Math.min(...values) : null;
-}
-
-function lastSessionDate(
-  sessions: SessionSummary[],
-  field: "createdAt" | "updatedAt",
-): number | null {
-  const values = sessions
-    .map((session) => timestamp(session[field]))
-    .filter((value) => value > 0);
-  return values.length ? Math.max(...values) : null;
-}
-
-function compareOptionalDate(
-  a: number | null,
-  b: number | null,
-  descending: boolean,
-): number {
-  if (a === null && b === null) return 0;
-  if (a === null) return 1;
-  if (b === null) return -1;
-  return descending ? b - a : a - b;
 }
 
 export function Sidebar({
@@ -267,18 +122,25 @@ export function Sidebar({
   onAnimationEnd?: ReactAnimationEventHandler<HTMLElement>;
 }) {
   const { t, i18n } = useTranslation();
-  const sessions = useAppStore((s) => s.sessions);
+  const {
+    sessions,
+    projectMeta,
+    sessionMeta,
+    showArchived,
+    displaySessionSort,
+    activeProjectPath,
+    taskTitle,
+    filtered,
+    compareSessions,
+    pinnedSessions,
+    pinnedSessionIds,
+    projectEntries,
+    projectEntriesByPath,
+    projectFolderIndex,
+  } = useSidebarProjects();
   const activeSessionId = useAppStore((s) => s.activeSessionId);
   const selectingSessionId = useAppStore((s) => s.selectingSessionId);
-  const workspace = useAppStore((s) => s.workspace);
-  const openProjects = useAppStore((s) => s.openProjects);
-  const openProjectPathsState = useAppStore((s) => s.openProjectPaths);
-  const activeProjectPathState = useAppStore((s) => s.activeProjectPath);
-  const projectMeta = useAppStore((s) => s.projectMeta);
   const projectCollapsed = useAppStore((s) => s.projectCollapsed);
-  const sessionMeta = useAppStore((s) => s.sessionMeta);
-  const sessionView = useAppStore((s) => s.sessionView);
-  const projectSort = useAppStore((s) => s.projectSort);
   const runningSessions = useAppStore((s) => s.runningSessions);
   const sessionOutcomes = useAppStore((s) => s.sessionOutcomes);
   const pendingPermissions = useAppStore((s) => s.pendingPermissions);
@@ -318,26 +180,14 @@ export function Sidebar({
   const showToast = useAppStore((s) => s.showToast);
   const setSettingsTab = useAppStore((s) => s.setSettingsTab);
 
-  const [sortOpen, setSortOpen] = useState(false);
-  const [sessionMenu, setSessionMenu] = useState<string | null>(null);
   const [renameFor, setRenameFor] = useState<SessionSummary | null>(null);
   const [editProjectFor, setEditProjectFor] = useState<ProjectEntry | null>(null);
   const [deleteProjectFor, setDeleteProjectFor] = useState<ProjectEntry | null>(null);
   // Which row menu item is armed for its second, confirming click.
   const { armed: armedDelete, setArmed: setArmedDelete } = useArmedDelete();
-  const [projectMenu, setProjectMenu] = useState<string | null>(null);
-  // mc-agent (#41): the project "+" opens a start-folder menu in the same slot.
-  const [projectMenuKind, setProjectMenuKind] = useState<"actions" | "startFolder">("actions");
   // Multi-select: Shift/Cmd+click session rows for batch operations.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const lastClickedIdRef = useRef<string | null>(null);
-  const [sectionMenu, setSectionMenu] = useState<"sessions" | "projects" | null>(null);
-  const [menuPosition, setMenuPosition] = useState<{
-    top: number;
-    left: number;
-    anchorTop: number;
-    anchorBottom: number;
-  } | null>(null);
   const {
     card: sessionHoverCard,
     show: revealSessionHoverCard,
@@ -346,155 +196,46 @@ export function Sidebar({
     keepVisible: keepSessionHoverCardVisible,
     registerDismissGuard: registerSessionHoverCardDismissGuard,
   } = useSessionHoverCard();
+  const {
+    sortOpen,
+    setSortOpen,
+    sessionMenu,
+    setSessionMenu,
+    projectMenu,
+    setProjectMenu,
+    projectMenuKind,
+    sectionMenu,
+    setSectionMenu,
+    menuPosition,
+    menuTriggerRef,
+    menuFirstItemRef,
+    floatingMenuRef,
+    closeMenus,
+    placeMenu,
+    placeMenuAtPoint,
+    openSessionRowMenu,
+    openProjectRowMenu,
+    openSectionMenu,
+  } = useSidebarMenus(hideSessionHoverCard);
   const [expandedProjectSessions, setExpandedProjectSessions] = useState<Record<string, boolean>>({});
   const [draggingSessionId, setDraggingSessionId] = useState<string | null>(null);
   const [dropProjectKey, setDropProjectKey] = useState<string | null>(null);
   const [projectsDropActive, setProjectsDropActive] = useState(false);
-  const [sidebarResizing, setSidebarResizing] = useState(false);
-  const [draggingProjectKey, setDraggingProjectKey] = useState<string | null>(null);
-  const [dropIndicator, setDropIndicator] = useState<{ key: string; insertAfter: boolean } | null>(null);
   const [windowFocused, setWindowFocused] = useState(true);
 
-  const menuTriggerRef = useRef<HTMLButtonElement | null>(null);
-  const menuFirstItemRef = useRef<HTMLButtonElement | null>(null);
-  const floatingMenuRef = useRef<HTMLDivElement | null>(null);
   const sessionPrefetchTimerRef = useRef<number | undefined>(undefined);
-  const sidebarResizeRef = useRef<SidebarResizeState | null>(null);
-  const projectReorderRef = useRef<ProjectReorderPointerState | null>(null);
-  const suppressProjectTitleClickRef = useRef(false);
-  const projectEntriesRef = useRef<ProjectEntry[]>([]);
-  const reorderProjectEntriesRef = useRef<(
-    sourceKey: string,
-    targetKey: string,
-    insertAfter: boolean,
-  ) => void>(() => {});
 
-  const finishSidebarResize = useCallback((cancelled: boolean, collapse = false) => {
-    const state = sidebarResizeRef.current;
-    if (!state) return;
-    if (collapse) {
-      // Keep the previewed width for the exit animation and persist nothing:
-      // the shell restores the preferred expanded width on reopen.
-    } else if (cancelled) {
-      onWidthChange(state.startWidth);
-    } else {
-      onWidthChange(state.currentWidth);
-      onWidthCommit(state.currentWidth);
-    }
-    sidebarResizeRef.current = null;
-    if (state.frame) cancelAnimationFrame(state.frame);
-    clearSidebarResizeStyles();
-    if (state.handle.hasPointerCapture(state.pointerId)) {
-      state.handle.releasePointerCapture(state.pointerId);
-    }
-    setSidebarResizing(false);
-    if (collapse) onResizeCollapse();
-  }, [onResizeCollapse, onWidthChange, onWidthCommit]);
-
-  const startSidebarResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || sidebarResizeRef.current) return;
-    event.preventDefault();
-    event.stopPropagation();
-    event.currentTarget.focus({ preventScroll: true });
-    // Anchor to the rendered width so pressing the handle never resizes the
-    // column; the live budget only limits where the gesture may land.
-    const startWidth = clampSidebarWidth(sidebarWidth);
-    sidebarResizeRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startWidth,
-      currentWidth: startWidth,
-      frame: 0,
-      handle: event.currentTarget,
-    };
-    setSidebarResizing(true);
-    document.documentElement.setAttribute("data-sidebar-resizing", "true");
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }, [sidebarWidth, widthMax]);
-
-  const moveSidebarResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    const state = sidebarResizeRef.current;
-    if (!state || state.pointerId !== event.pointerId) return;
-    const result = sidebarPointerResize({
-      startWidth: state.startWidth,
-      deltaX: event.clientX - state.startX,
-      maxWidth: widthMax,
-    });
-    if (result.type === "collapse") {
-      if (!sidebarPinned) {
-        finishSidebarResize(true, true);
-        return;
-      }
-      state.currentWidth = SIDEBAR_WIDTH_MIN;
-    } else {
-      state.currentWidth = result.width;
-    }
-    if (state.frame) return;
-    state.frame = requestAnimationFrame(() => {
-      if (sidebarResizeRef.current !== state) return;
-      state.frame = 0;
-      onWidthChange(state.currentWidth);
-    });
-  }, [finishSidebarResize, onWidthChange, sidebarPinned, widthMax]);
-
-  const endSidebarResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (sidebarResizeRef.current?.pointerId !== event.pointerId) return;
-    finishSidebarResize(false);
-  }, [finishSidebarResize]);
-
-  const cancelSidebarResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (sidebarResizeRef.current?.pointerId !== event.pointerId) return;
-    finishSidebarResize(true);
-  }, [finishSidebarResize]);
-
-  const handleSidebarResizeKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const currentWidth = clampSidebarWidth(sidebarWidth, widthMax);
-    const nextWidth = event.key === "Home"
-      ? SIDEBAR_WIDTH_MIN
-      : event.key === "End"
-        ? clampSidebarWidth(widthMax, widthMax)
-        : clampSidebarWidth(
-            currentWidth + (event.key === "ArrowRight" ? SIDEBAR_RESIZE_STEP : -SIDEBAR_RESIZE_STEP),
-            widthMax,
-          );
-    if (nextWidth === currentWidth) return;
-    onWidthCommit(nextWidth);
-  }, [onWidthCommit, sidebarWidth, widthMax]);
-
-  /**
-   * Double-click reset: the shell's default width, clamped by the live
-   * three-column budget. A pointer gesture that is somehow still open is
-   * dropped first so its release cannot overwrite the reset.
-   */
-  const resetSidebarWidth = useCallback(() => {
-    if (sidebarResizeRef.current) finishSidebarResize(true);
-    onWidthCommit(sidebarResetWidth(widthMax));
-  }, [finishSidebarResize, onWidthCommit, widthMax]);
-
-  useEffect(() => {
-    if (!sidebarResizing) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      finishSidebarResize(true);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [finishSidebarResize, sidebarResizing]);
-
-  useEffect(() => {
-    return () => {
-      const state = sidebarResizeRef.current;
-      if (!state) return;
-      if (state.frame) cancelAnimationFrame(state.frame);
-      onWidthChange(state.startWidth);
-      clearSidebarResizeStyles();
-      sidebarResizeRef.current = null;
-    };
-  }, [onWidthChange]);
+  const {
+    sidebarResizing,
+    startSidebarResize,
+    moveSidebarResize,
+    endSidebarResize,
+    cancelSidebarResize,
+    handleSidebarResizeKeyDown,
+    resetSidebarWidth,
+  } = useSidebarResize(
+    sidebarWidth, widthMax, sidebarPinned, onWidthChange, onWidthCommit, onResizeCollapse,
+  );
 
   // Mirror window focus onto the sidebar; a blurred window can keep CSS :hover
   // latched on the row under the cursor.
@@ -523,515 +264,15 @@ export function Sidebar({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedIds.size, sessionMenu, projectMenu, sectionMenu, sortOpen]);
 
-  const showArchived = sessionView.archived;
-  const sessionSort = sessionView.sort;
-  const displaySessionSort: Exclude<SessionSort, "manual"> =
-    sessionSort === "manual" ? "recent" : sessionSort;
-  const displayProjectSort: ProjectSort = projectSort;
-  const activeProjectPath = normalizeProjectPath(activeProjectPathState ?? workspace?.path);
   const selectedSessionId = selectingSessionId ?? activeSessionId;
-  const openProjectPaths = useMemo(
-    () =>
-      openProjectPathsState
-        .map((path) => normalizeProjectPath(path))
-        .filter((path): path is string => Boolean(path)),
-    [openProjectPathsState],
-  );
-
-  const closeMenus = useCallback((restoreFocus = true) => {
-    const trigger = menuTriggerRef.current;
-    setSortOpen(false);
-    setSessionMenu(null);
-    setProjectMenu(null);
-    setSectionMenu(null);
-    setMenuPosition(null);
-    if (restoreFocus && trigger) requestAnimationFrame(() => trigger.focus());
-  }, []);
-
-  const placeMenu = useCallback((event: ReactMouseEvent<HTMLButtonElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const anchor = { top: rect.top, bottom: rect.bottom };
-    setMenuPosition({
-      top: placeSidebarFloatingMenuTop(
-        anchor,
-        SIDEBAR_FLOATING_MENU_MAX_HEIGHT,
-        window.innerHeight,
-      ),
-      left: Math.max(SIDEBAR_MENU_VIEWPORT_PADDING, rect.right + 4),
-      anchorTop: anchor.top,
-      anchorBottom: anchor.bottom,
-    });
-  }, []);
-
-  // Body-level sidebar menus always anchor their left edge to the right side
-  // of the trigger or pointer; they never flip to the left at the viewport edge.
-  const placeMenuAtPoint = useCallback((x: number, y: number) => {
-    const anchor = { top: y, bottom: y };
-    setMenuPosition({
-      top: placeSidebarFloatingMenuTop(
-        anchor,
-        SIDEBAR_FLOATING_MENU_MAX_HEIGHT,
-        window.innerHeight,
-      ),
-      left: Math.max(SIDEBAR_MENU_VIEWPORT_PADDING, x + 4),
-      anchorTop: anchor.top,
-      anchorBottom: anchor.bottom,
-    });
-  }, []);
-
-  const openSessionRowMenu = useCallback(
-    (sessionId: string, trigger: HTMLButtonElement | null) => {
-      menuTriggerRef.current = trigger;
-      setSortOpen(false);
-      setProjectMenu(null);
-      setSectionMenu(null);
-      hideSessionHoverCard();
-      setSessionMenu(sessionId);
-    },
-    [hideSessionHoverCard],
-  );
-
-  const openProjectRowMenu = useCallback(
-    (
-      projectKey: string,
-      trigger: HTMLButtonElement | null,
-      kind: "actions" | "startFolder" = "actions",
-    ) => {
-      menuTriggerRef.current = trigger;
-      setSortOpen(false);
-      setSessionMenu(null);
-      setSectionMenu(null);
-      setProjectMenuKind(kind);
-      setProjectMenu(projectKey);
-    },
-    [],
-  );
-
-  const openSectionMenu = useCallback(
-    (section: "sessions" | "projects", x: number, y: number) => {
-      menuTriggerRef.current = null;
-      setSortOpen(false);
-      setSessionMenu(null);
-      setProjectMenu(null);
-      placeMenuAtPoint(x, y);
-      setSectionMenu(section);
-    },
-    [placeMenuAtPoint],
-  );
-
-  useEffect(() => {
-    if (!sortOpen && !sessionMenu && !projectMenu && !sectionMenu) return;
-    const onPointer = (e: PointerEvent) => {
-      // Right-click must not dismiss first; contextmenu handlers reopen create menus.
-      if (e.button === 2 || (e.pointerType === "mouse" && e.buttons === 2)) return;
-      const target = e.target as Node;
-      if ((target as Element)?.closest?.(
-        ".sidebar-popover, .sidebar-row-menu, .notification-popover-portaled",
-      )) return;
-      closeMenus(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      closeMenus();
-    };
-    const onViewportChange = () => closeMenus(false);
-    window.addEventListener("pointerdown", onPointer);
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("resize", onViewportChange);
-    return () => {
-      window.removeEventListener("pointerdown", onPointer);
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("resize", onViewportChange);
-    };
-  }, [sortOpen, sessionMenu, projectMenu, sectionMenu, closeMenus]);
-
-  useEffect(() => {
-    if (!sessionMenu && !projectMenu && !sectionMenu && !sortOpen) return;
-    requestAnimationFrame(() => menuFirstItemRef.current?.focus());
-  }, [sessionMenu, projectMenu, sectionMenu, sortOpen]);
-
-  const menuAnchorTop = menuPosition?.anchorTop;
-  const menuAnchorBottom = menuPosition?.anchorBottom;
-
-  useLayoutEffect(() => {
-    if (menuAnchorTop === undefined || menuAnchorBottom === undefined) return;
-    const menu = floatingMenuRef.current;
-    if (!menu) return;
-
-    const reposition = () => {
-      const top = placeSidebarFloatingMenuTop(
-        { top: menuAnchorTop, bottom: menuAnchorBottom },
-        menu.getBoundingClientRect().height,
-        window.innerHeight,
-      );
-      setMenuPosition((current) =>
-        current && current.top !== top ? { ...current, top } : current,
-      );
-    };
-
-    reposition();
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(reposition);
-    observer.observe(menu);
-    return () => observer.disconnect();
-  }, [
-    menuAnchorTop,
-    menuAnchorBottom,
-    sessionMenu,
-    projectMenu,
-    sectionMenu,
-    sortOpen,
-  ]);
-
-  const taskTitle = useCallback((title?: string | null) => {
-    const value = (title || "").trim();
-    return isDefaultSessionTitle(value) ? t("chat.untitledTask") : value;
-  }, [t]);
-
-  const filtered = useMemo(
-    () => sessions.filter((session) => showArchived || !sessionArchived(session, sessionMeta[session.id])),
-    [sessions, showArchived, sessionMeta],
-  );
-
-  const compareSessions = useCallback((a: SessionSummary, b: SessionSummary) => {
-    const aMeta = sessionMeta[a.id] ?? {};
-    const bMeta = sessionMeta[b.id] ?? {};
-    const archiveOrder = Number(sessionArchived(a, aMeta)) - Number(sessionArchived(b, bMeta));
-    if (archiveOrder !== 0) return archiveOrder;
-    const pinOrder = Number(sessionPinned(b, bMeta)) - Number(sessionPinned(a, aMeta));
-    if (pinOrder !== 0) return pinOrder;
-    if (displaySessionSort === "name") {
-      const byName = taskTitle(a.title).localeCompare(taskTitle(b.title), undefined, {
-        sensitivity: "base",
-      });
-      if (byName !== 0) return byName;
-    } else if (displaySessionSort === "oldest") {
-      const byCreated = compareOptionalDate(
-        optionalTimestamp(a.createdAt),
-        optionalTimestamp(b.createdAt),
-        false,
-      );
-      if (byCreated !== 0) return byCreated;
-    } else if (displaySessionSort === "created") {
-      const byCreated = compareOptionalDate(
-        optionalTimestamp(a.createdAt),
-        optionalTimestamp(b.createdAt),
-        true,
-      );
-      if (byCreated !== 0) return byCreated;
-    } else {
-      const byRecent = compareOptionalDate(
-        optionalTimestamp(a.updatedAt),
-        optionalTimestamp(b.updatedAt),
-        true,
-      );
-      if (byRecent !== 0) return byRecent;
-    }
-    return a.id.localeCompare(b.id);
-  }, [displaySessionSort, sessionMeta, taskTitle]);
-
-  const pinnedSessions = useMemo(
-    () => getGlobalPinnedSessions(filtered, sessionMeta, projectMeta, showArchived)
-      .sort(compareSessions),
-    [filtered, sessionMeta, projectMeta, showArchived, compareSessions],
-  );
-  const pinnedSessionIds = useMemo(
-    () => new Set(pinnedSessions.map((session) => session.id)),
-    [pinnedSessions],
-  );
-
-  const folderEntries = useMemo(() => {
-    const byPath = new Map<string, ProjectEntry>();
-    const add = (rawPath: string, name?: string, branch?: string, open = false) => {
-      const normalized = normalizeProjectPath(rawPath);
-      if (!normalized) return;
-      const existing = byPath.get(normalized);
-      if (existing) {
-        existing.open ||= open;
-        if (name && existing.name === projectName(existing.path)) existing.name = name;
-        if (branch && !existing.branch) existing.branch = branch;
-        return;
-      }
-      const meta = projectMetaFor(rawPath, projectMeta);
-      byPath.set(normalized, {
-        path: rawPath,
-        displayPath: openProjects.find((project) => normalizeProjectPath(project.path) === normalized)?.remote?.path
-          ?? (normalizeProjectPath(workspace?.path) === normalized ? workspace?.remote?.path : undefined),
-        key: normalized,
-        name: projectName(rawPath, meta.name ?? name),
-        sessions: [],
-        open,
-        active: normalized === activeProjectPath,
-        meta,
-        branch,
-      });
-    };
-    for (const path of openProjectPaths) {
-      const record = openProjects.find(
-        (project) => normalizeProjectPath(project.path) === path,
-      );
-      add(path, record?.name, record?.branch, true);
-    }
-    if (workspace?.path) add(workspace.path, workspace.name, workspace.branch, true);
-    for (const session of filtered) {
-      const sessionPath = normalizeProjectPath(session.projectPath);
-      if (!sessionPath) continue;
-      // A closed project remains discoverable in Projects, but its historical
-      // sessions must not recreate a sidebar tab that the user just closed.
-      const entry = byPath.get(sessionPath);
-      if (entry) entry.sessions.push(session);
-    }
-    const result = [...byPath.values()].filter(
-      (entry) => showArchived || !entry.meta.archived,
-    );
-    for (const entry of result) entry.sessions.sort(compareSessions);
-    result.sort((a, b) => {
-      const archiveOrder = Number(!!a.meta.archived) - Number(!!b.meta.archived);
-      if (archiveOrder !== 0) return archiveOrder;
-      const pinOrder = Number(!!b.meta.pinned) - Number(!!a.meta.pinned);
-      if (pinOrder !== 0) return pinOrder;
-      if (displayProjectSort === "manual") {
-        const byOrder =
-          (a.meta.order ?? Number.MAX_SAFE_INTEGER) -
-          (b.meta.order ?? Number.MAX_SAFE_INTEGER);
-        if (byOrder !== 0) return byOrder;
-      } else if (displayProjectSort === "name") {
-        const byName = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-        if (byName !== 0) return byName;
-      } else if (
-        displayProjectSort === "oldest" ||
-        displayProjectSort === "created"
-      ) {
-        const dateForProject =
-          displayProjectSort === "oldest" ? firstSessionDate : lastSessionDate;
-        const aCreated = dateForProject(a.sessions, "createdAt");
-        const bCreated = dateForProject(b.sessions, "createdAt");
-        const byCreated = compareOptionalDate(
-          aCreated,
-          bCreated,
-          displayProjectSort === "created",
-        );
-        if (byCreated !== 0) return byCreated;
-      } else {
-        const aRecent = lastSessionDate(a.sessions, "updatedAt");
-        const bRecent = lastSessionDate(b.sessions, "updatedAt");
-        const byRecent = compareOptionalDate(aRecent, bRecent, true);
-        if (byRecent !== 0) return byRecent;
-      }
-      return a.key.localeCompare(b.key);
-    });
-    return result;
-  }, [
-    filtered,
-    openProjectPaths,
-    openProjects,
-    workspace,
-    activeProjectPath,
-    projectMeta,
-    showArchived,
-    displayProjectSort,
-    sessionMeta,
-    compareSessions,
-  ]);
-
-  // mc-agent: one entry per project group instead of one per start folder.
-  // Entries whose folder no longer exists are hidden unless they are active
-  // or still hold sessions, so nothing the user can reach disappears.
-  const { index: projectFolderIndex, missing: missingProjectFolders } = useProjectFolderIndex(
-    `${openProjectPaths.join("\n")}|${sessions.length}`,
-  );
-  const projectEntries = useMemo(
-    () =>
-      mergeProjectEntries(
-        folderEntries.filter(
-          (entry) => !missingProjectFolders.has(entry.key) || entry.active || entry.sessions.length > 0,
-        ),
-        filtered,
-        projectFolderIndex,
-        normalizeProjectPath,
-        compareSessions,
-      ),
-    [folderEntries, filtered, projectFolderIndex, missingProjectFolders, compareSessions],
-  );
-
-  // Look up project entries by normalized path so session rows can fetch the
-  // workspace name (and any other project metadata) for the hover card.
-  const projectEntriesByPath = useMemo(() => {
-    const map = new Map<string, ProjectEntry>();
-    for (const entry of projectEntries) map.set(entry.key, entry);
-    // mc-agent: sessions from any folder of a merged project find its entry.
-    for (const entry of projectEntries) {
-      for (const key of entry.memberKeys ?? []) if (!map.has(key)) map.set(key, entry);
-    }
-    return map;
-  }, [projectEntries]);
-
-  projectEntriesRef.current = projectEntries;
-
-  const finishProjectReorderPress = useCallback((opts?: { keepClickSuppressed?: boolean }) => {
-    const state = projectReorderRef.current;
-    if (state) {
-      window.removeEventListener("pointermove", state.onMove, true);
-      window.removeEventListener("pointerup", state.onUp, true);
-      window.removeEventListener("pointercancel", state.onCancel, true);
-      projectReorderRef.current = null;
-    }
-    if (!opts?.keepClickSuppressed) suppressProjectTitleClickRef.current = false;
-    setDraggingProjectKey(null);
-    setDropIndicator(null);
-    document.documentElement.removeAttribute("data-project-reordering");
-  }, []);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      if (!projectReorderRef.current) return;
-      event.preventDefault();
-      finishProjectReorderPress();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      finishProjectReorderPress();
-    };
-  }, [finishProjectReorderPress]);
-
-  const reorderProjectEntries = useCallback(
-    (sourceKey: string, targetKey: string, insertAfter: boolean) => {
-      if (!sourceKey || !targetKey || sourceKey === targetKey) return;
-      const keys = projectEntries.map((entry) => entry.key);
-      const sourceIndex = keys.indexOf(sourceKey);
-      const targetIndex = keys.indexOf(targetKey);
-      if (sourceIndex < 0 || targetIndex < 0) return;
-      const source = projectEntries[sourceIndex];
-      const target = projectEntries[targetIndex];
-      if (!sameProjectReorderBucket(source.meta, target.meta)) {
-        return;
-      }
-      keys.splice(sourceIndex, 1);
-      const nextTargetIndex = keys.indexOf(targetKey) + (insertAfter ? 1 : 0);
-      keys.splice(nextTargetIndex, 0, sourceKey);
-      reorderProjects(keys);
-    },
-    [projectEntries, reorderProjects],
-  );
-  reorderProjectEntriesRef.current = reorderProjectEntries;
-
-  const beginProjectReorderPress = useCallback(
-    (event: ReactPointerEvent<HTMLButtonElement>, projectKey: string) => {
-      if (event.button !== 0 || event.pointerType === "touch" || projectReorderRef.current) {
-        return;
-      }
-
-      const onMove = (moveEvent: PointerEvent) => {
-        const current = projectReorderRef.current;
-        if (!current || current.pointerId !== moveEvent.pointerId) return;
-        current.lastX = moveEvent.clientX;
-        current.lastY = moveEvent.clientY;
-        if (!current.armed) {
-          if (
-            !projectReorderShouldArm(
-              moveEvent.clientX - current.startX,
-              moveEvent.clientY - current.startY,
-            )
-          ) {
-            return;
-          }
-          current.armed = true;
-          suppressProjectTitleClickRef.current = true;
-          document.documentElement.setAttribute("data-project-reordering", "true");
-          setDraggingProjectKey(current.projectKey);
-        }
-        moveEvent.preventDefault();
-        const target = projectGroupKeyFromPoint(moveEvent.clientX, moveEvent.clientY);
-        const source = projectEntriesRef.current.find((entry) => entry.key === current.projectKey);
-        const destination = target
-          ? projectEntriesRef.current.find((entry) => entry.key === target.key)
-          : undefined;
-        if (
-          target &&
-          source &&
-          destination &&
-          target.key !== current.projectKey &&
-          sameProjectReorderBucket(source.meta, destination.meta)
-        ) {
-          const insertAfter = projectReorderInsertAfter(
-            moveEvent.clientY,
-            target.top,
-            target.height,
-          );
-          current.dropKey = target.key;
-          current.dropTop = target.top;
-          current.dropHeight = target.height;
-          current.insertAfter = insertAfter;
-          setDropIndicator({ key: target.key, insertAfter });
-        } else {
-          current.dropKey = null;
-          setDropIndicator(null);
-        }
-      };
-
-      const onUp = (upEvent: PointerEvent) => {
-        const current = projectReorderRef.current;
-        if (!current || current.pointerId !== upEvent.pointerId) return;
-        if (current.armed) {
-          upEvent.preventDefault();
-          if (current.dropKey) {
-            reorderProjectEntriesRef.current(
-              current.projectKey,
-              current.dropKey,
-              current.insertAfter,
-            );
-          }
-          finishProjectReorderPress({ keepClickSuppressed: true });
-          return;
-        }
-        finishProjectReorderPress();
-      };
-
-      const onCancel = (cancelEvent: PointerEvent) => {
-        const current = projectReorderRef.current;
-        if (!current || current.pointerId !== cancelEvent.pointerId) return;
-        finishProjectReorderPress();
-      };
-
-      const state: ProjectReorderPointerState = {
-        pointerId: event.pointerId,
-        projectKey,
-        startX: event.clientX,
-        startY: event.clientY,
-        lastX: event.clientX,
-        lastY: event.clientY,
-        armed: false,
-        dropKey: null,
-        dropTop: 0,
-        dropHeight: 0,
-        insertAfter: false,
-        onMove,
-        onUp,
-        onCancel,
-      };
-      projectReorderRef.current = state;
-      window.addEventListener("pointermove", onMove, true);
-      window.addEventListener("pointerup", onUp, true);
-      window.addEventListener("pointercancel", onCancel, true);
-    },
-    [finishProjectReorderPress],
-  );
-
-  const moveProjectWithKeyboard = useCallback(
-    (event: ReactKeyboardEvent<HTMLButtonElement>, projectKey: string) => {
-      if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
-      const index = projectEntries.findIndex((entry) => entry.key === projectKey);
-      const target = projectEntries[index + (event.key === "ArrowUp" ? -1 : 1)];
-      if (!target) return;
-      event.preventDefault();
-      event.stopPropagation();
-      reorderProjectEntries(projectKey, target.key, event.key === "ArrowDown");
-    },
-    [projectEntries, reorderProjectEntries],
-  );
-
+  const {
+    draggingProjectKey,
+    dropIndicator,
+    suppressProjectTitleClickRef,
+    beginProjectReorderPress,
+    moveProjectWithKeyboard,
+    projectReorderRef,
+  } = useProjectReorder(projectEntries, reorderProjects);
   const showSessionHoverCard = useCallback((
     session: SessionSummary,
     target: HTMLElement,
@@ -1676,7 +917,6 @@ export function Sidebar({
     onDone: () => closeMenus(false),
   });
 
-
   const onMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     sidebarMenuKeyDown(event, closeMenus);
   };
@@ -1689,8 +929,6 @@ export function Sidebar({
         : value === "name"
           ? t("nav.sortName", { defaultValue: "Name" })
           : t("nav.sortCreated", { defaultValue: "Created date" });
-
-
 
   const sessionMenuContent = useCallback(
     (session: SessionSummary): SidebarMenuPanelContent => {

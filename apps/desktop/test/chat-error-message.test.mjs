@@ -20,7 +20,7 @@ test("provider failures stay in the transcript as structured assistant messages"
   ]);
 
   assert.match(runtime, /error:\s*classifiedError,\s*isError:\s*true/);
-  assert.match(runtime, /m\.status === "error" \|\| m\.isError \|\| m\.error/);
+  assert.match(await readRoot("packages/agent-runtime/src/transcript-replay.ts"), /m\.status === "error" \|\| m\.isError \|\| m\.error/);
   assert.match(sessionTranscript, /failed && empty && !event\.message\.error/);
   assert.match(store, /assistantErrorMessage\(event\.error\)/);
 });

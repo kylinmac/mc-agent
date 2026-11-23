@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { useSessionContextBreakdown } from "../../src/hooks/useSessionContextBreakdown";
 import { contextUsageFromBreakdown } from "../../src/lib/context-usage";
-import { ContextUsageInspector } from "../../src/components/ContextUsageInspector";
+import { ContextUsageInspector } from "../../src/features/chat/ContextUsageInspector";
 import { useAppStore } from "../../src/stores/app-store";
 import { api } from "../../src/lib/api";
 

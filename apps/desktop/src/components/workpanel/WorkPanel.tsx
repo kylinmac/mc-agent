@@ -42,7 +42,7 @@ import {
 import { ReviewTab } from "./ReviewTab";
 import { FilesTab } from "./FilesTab";
 import { PluginViewTab } from "./PluginViewTab";
-import { SubagentTranscriptTab } from "./SubagentTranscriptTab";
+import { SubagentTranscriptTab } from "../../features/chat/SubagentTranscriptTab";
 import { TerminalTab } from "../../features/work-tools/TerminalTab";
 import { useTerminalCwd, WorkPanelQuickTools } from "../../features/work-tools/WorkPanelQuickTools";
 import { WorkPanes } from "../../features/work-tools/WorkPanes";

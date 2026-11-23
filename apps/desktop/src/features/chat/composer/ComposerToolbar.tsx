@@ -13,7 +13,7 @@ import type { AppState } from "../../../stores/app-store";
 import { useAppStore } from "../../../stores/app-store";
 import { ComposerModePicker } from "./ComposerModePicker";
 import { ComposerPermissionPicker } from "../../../components/model-picker/ComposerPermissionPicker";
-import { ContextUsageInspector } from "../../../components/ContextUsageInspector";
+import { ContextUsageInspector } from "../ContextUsageInspector";
 import { ComposerControlSlots } from "./ComposerControlSlots";
 import { ComposerPromptTemplatePicker } from "./ComposerPromptTemplatePicker";
 import { TooltipButton } from "../../../components/ui";

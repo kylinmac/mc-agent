@@ -293,6 +293,7 @@ const MEASURE = `(() => {
     sidebarKind: sidebar ? String(sidebar.className).split(" ")[0] : null,
     main: round(main),
     panel: round(panel),
+    stacked: Boolean(panel?.closest(".mc-stacked-dock")),
     handle: handle
       ? {
           x: Math.round(handle.getBoundingClientRect().left + handle.getBoundingClientRect().width / 2),
@@ -402,10 +403,9 @@ async function main() {
     const clickSidebarToggle = async () => {
       await cdp.evaluate(
         `(() => {
-          const toggle =
-            document.querySelector(".ct-lead .ct-icon-btn") ??
-            document.querySelector('.window-chrome-row [data-nav="toggle-sidebar"]') ??
-            document.querySelector('.sidebar [data-nav="toggle-sidebar"]');
+          const toggle = [...document.querySelectorAll(
+            '.ct-lead .ct-icon-btn, .window-chrome-row [data-nav="toggle-sidebar"], .main-titlebar [data-nav="toggle-sidebar"], .sidebar [data-nav="toggle-sidebar"]',
+          )].find((button) => button.getClientRects().length);
           toggle?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
         })()`,
       );
@@ -704,13 +704,10 @@ async function main() {
     check(
       narrowCollapsed.panel === 360 &&
         narrowReopened.sidebarKind === "sidebar" &&
-        narrowReopened.main === MAIN_PANE_REOPEN_TARGET_WIDTH &&
-        narrowReopened.panel ===
-          narrowReopened.windowWidth -
-            narrowReopened.sidebar -
-            MAIN_PANE_REOPEN_TARGET_WIDTH &&
-        narrowReopened.panel < WORK_PANEL_MIN_WIDTH,
-      "a narrow reopen shows the panel below its regular minimum",
+        narrowReopened.stacked &&
+        narrowReopened.panel === narrowReopened.main &&
+        narrowReopened.handle === null,
+      "a narrow reopen stacks the panel below the chat",
       JSON.stringify({ narrowCollapsed, narrowReopened }),
     );
     const storedAfterNarrowReopen = await cdp.evaluate(
@@ -804,15 +801,15 @@ async function main() {
     );
     await rig(`window.__PI_DESKTOP__.setWorkPanelWidth(500)`);
     await waitFor(
-      () => cdp.evaluate(`!!document.querySelector(".work-panel-new-tab")`),
+      () => cdp.evaluate(`!!document.querySelector(".mc-quick-tool:not(:disabled)")`),
       "work panel new-tab action",
     );
     await cdp.evaluate(
-      `document.querySelector(".work-panel-new-tab")?.click?.()`,
+      `document.querySelector(".mc-quick-tool:not(:disabled)")?.click?.()`,
     );
     await waitFor(
-      () => cdp.evaluate(`!!document.querySelector(".work-panel-tab")`),
-      "work panel tab mounted before preview mode",
+      () => cdp.evaluate(`!!document.querySelector(".mc-pane-header")`),
+      "work pane mounted before preview mode",
     );
     // The panel's `+`, maximize, and the viewport-fixed collapse toggle are one
     // button group. Only the rendered box proves it: a stylesheet contract
@@ -876,9 +873,9 @@ async function main() {
         const row = document.querySelector(".window-chrome-row");
         const spacer = document.querySelector(".window-chrome-drag");
         const header = document.querySelector(".work-panel-header");
-        const actions = [...row.querySelectorAll("[data-nav]")];
+        const actions = [...row.querySelectorAll("[data-nav]")].filter((action) => action.getClientRects().length);
         const headerBox = header.getBoundingClientRect();
-        const firstTab = document.querySelector(".work-panel-tab");
+        const firstTab = document.querySelector(".mc-quick-tool");
         const controls = document.querySelector(".window-controls");
         const sidebar = document.querySelector(".sidebar");
         const platform = document.documentElement.dataset.platform;
@@ -1007,7 +1004,7 @@ async function main() {
         ),
       "plugin route remains visible after preview mode",
     );
-    // E2E: a plugin modal covers the window chrome. The 46px band is an opaque
+    // E2E: a plugin modal covers the window chrome. The titlebar band is an opaque
     // absolute row, and the route surface must not hold a stacking context that
     // leaves the modal's veil underneath it — that is what put the band over
     // the install consent. The viewport-fixed work-panel toggle sits inside the
@@ -1229,8 +1226,8 @@ async function main() {
       const handle = document.querySelector(".sidebar-resize-handle");
       const panel = document.querySelector('[data-testid="work-panel"]');
       const panelHeader = document.querySelector(".work-panel-header");
-      const panelTabStrip = document.querySelector(".work-panel-tab-strip");
-      const firstPanelTab = document.querySelector(".work-panel-tab");
+      const panelTabStrip = document.querySelector(".mc-quick-tools");
+      const firstPanelTab = document.querySelector(".mc-quick-tool");
       const controlsBox = controls ? controls.getBoundingClientRect() : null;
       const firstAction =
         document.querySelector('.window-chrome-row [data-nav="toggle-sidebar"]') ??
@@ -1317,8 +1314,8 @@ async function main() {
       JSON.stringify(e2eChromePreview),
     );
     check(
-      e2eChromePreview.bandHeight === 46 && e2eChromePreview.bandPointerEvents === "none",
-      "the preview band is a 46px pass-through strip",
+      e2eChromePreview.bandHeight === 38 && e2eChromePreview.bandPointerEvents === "none",
+      "the preview band uses the 38px shell titlebar and passes pointer events through",
       JSON.stringify(e2eChromePreview),
     );
     check(
@@ -1384,7 +1381,7 @@ async function main() {
       );
       await clickSidebarToggle();
       await waitFor(
-        () => cdp.evaluate(`!document.querySelector(".sidebar") && document.querySelectorAll(${JSON.stringify(routeActionSelector)}).length === 2`),
+        () => cdp.evaluate(`!document.querySelector(".sidebar") && document.querySelectorAll(${JSON.stringify(routeActionSelector)}).length === 3`),
         `${route} collapsed-sidebar actions`,
       );
       check(

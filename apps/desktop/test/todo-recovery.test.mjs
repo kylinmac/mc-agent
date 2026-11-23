@@ -40,7 +40,7 @@ async function harness() {
     } }],
     esbuild: { jsx: "automatic" },
   });
-  const { TodoDock } = await server.ssrLoadModule("/src/components/TodoDock.tsx");
+  const { TodoDock } = await server.ssrLoadModule("/src/features/chat/TodoDock.tsx");
   const { useAppStore } = await server.ssrLoadModule("/src/stores/app-store.ts");
   const { api } = await server.ssrLoadModule("/src/lib/api.ts");
   const offTodos = api.onTodosChanged(useAppStore.getState().applyTodosChanged);

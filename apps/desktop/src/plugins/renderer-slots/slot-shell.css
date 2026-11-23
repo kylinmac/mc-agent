@@ -15,12 +15,15 @@
   min-width: 0;
 }
 
-/*
- * A toolbar control shrinks with the row, and what no longer fits is cut at
- * its own edge instead of painting over the next control. Only across: a
- * popover a control opens above the toolbar still shows.
- */
+/* Wrap contributed controls at their boundaries so each action stays accessible. */
+.composer-toolbar:has(.pi-plugin-slot[data-pi-slot="composerControl"]),
+.composer-toolbar :is(.composer-left, .composer-right):has(.pi-plugin-slot[data-pi-slot="composerControl"]) {
+  flex-wrap: wrap;
+}
+
 .pi-plugin-slot[data-pi-slot="composerControl"] {
+  flex: none;
+  max-width: 100%;
   overflow-x: clip;
   overflow-clip-margin: 2px;
 }

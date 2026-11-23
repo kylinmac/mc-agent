@@ -23,7 +23,7 @@ const searchDialog = readFileSync(
   "utf8",
 );
 const composer = readFileSync(
-  new URL("../src/components/Composer.tsx", import.meta.url),
+  new URL("../src/features/chat/Composer.tsx", import.meta.url),
   "utf8",
 );
 const composerToolbar = readFileSync(

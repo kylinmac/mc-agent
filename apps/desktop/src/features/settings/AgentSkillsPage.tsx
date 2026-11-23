@@ -26,13 +26,13 @@ import {
   useArmedDelete,
   type CapabilityFilter,
   type CapabilityMenuItem,
-} from "./AgentCapabilityLayout";
+} from "../../components/settings/AgentCapabilityLayout";
 import {
   SkillEditorSheet,
   draftFromSkill,
   emptySkillDraft,
   type SkillDraft,
-} from "./SkillEditorSheet";
+} from "../../components/settings/SkillEditorSheet";
 import {
   IconArrowUpDown,
   IconBookOpen,
@@ -42,12 +42,12 @@ import {
   IconPencil,
   IconPlus,
   IconTrash,
-} from "../icons";
-import { SkillMarketPanel } from "./SkillMarketPanel";
-import { AgentSkillImportPanel } from "../../features/settings/imports/AgentSkillImportPanel";
-import { ImportToggleButton } from "../../features/settings/import-workbench";
+} from "../../components/icons";
+import { SkillMarketPanel } from "../../components/settings/SkillMarketPanel";
+import { AgentSkillImportPanel } from "./imports/AgentSkillImportPanel";
+import { ImportToggleButton } from "./import-workbench";
 
-import { TooltipButton } from "../ui";
+import { TooltipButton } from "../../components/ui";
 const GLOBAL_SKILLS_PATH = "~/.agents/skills";
 
 function projectSkillsPath(projectPath: string | null): string {

@@ -1,10 +1,10 @@
 import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { SessionTodo, TodoStatus } from "@pi-desktop/shared";
-import { Button } from "./ui";
-import { IconCheck, IconChevronDown, IconChevronUp } from "./icons";
-import { useSessionTodosRecovery } from "../features/chat/todos/useSessionTodosRecovery";
-import { useAppStore } from "../stores/app-store";
+import { Button } from "../../components/ui";
+import { IconCheck, IconChevronDown, IconChevronUp } from "../../components/icons";
+import { useSessionTodosRecovery } from "./todos/useSessionTodosRecovery";
+import { useAppStore } from "../../stores/app-store";
 
 /**
  * Todo rendering for the composer.

@@ -24,7 +24,7 @@ const read = (rel) => readFile(new URL(rel, import.meta.url), "utf8");
 
 const setupSource = await read("../src/components/settings/ProviderSetupDialog.tsx");
 const hookSource = await read("../src/components/settings/useProviderModels.ts");
-const pageSource = await read("../src/components/settings/ModelConfigPage.tsx");
+const pageSource = await read("../src/features/settings/ModelConfigPage.tsx");
 const vendorDialogSource = await read("../src/components/settings/VendorAccountDialog.tsx");
 const pickerSource = await read("../src/components/settings/ModelSelectionPanes.tsx");
 const fieldsSource = await read("../src/components/settings/ProviderConnectionFields.tsx");

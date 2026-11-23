@@ -1,3 +1,4 @@
+import { readContractModules } from "./helpers/source-contracts.mjs";
 import { readStoreSource } from "./helpers/source-contracts.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -23,7 +24,11 @@ const [
   read("../src/components/SessionRenameDialog.tsx"),
   readStoreSource(),
   read("../src/lib/api.ts"),
-  read("../../../crates/host-core/src/sessions.rs"),
+  readContractModules(
+  "../../../crates/host-core/src/sessions/titles.rs",
+  "../../../crates/host-core/src/sessions/types.rs",
+  "../../../crates/host-core/src/sessions/tests/titles.rs",
+),
   read("../../../crates/host-core/src/rpc/mod.rs"),
   loadStyles(),
 ]);

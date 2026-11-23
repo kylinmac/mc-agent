@@ -35,7 +35,7 @@ const [
   read("../src/components/Sidebar.tsx"),
   read("../src/pages/ProjectsPage.tsx"),
   read("../src/components/settings/AgentCapabilityLayout.tsx"),
-  read("../src/components/settings/AgentSkillsPage.tsx"),
+  read("../src/features/settings/AgentSkillsPage.tsx"),
   ...LOCALE_IDS.map((id) => read(`../../../packages/i18n/src/locales/${id}/index.ts`)),
 ]);
 

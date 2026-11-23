@@ -17,7 +17,7 @@ import { en } from "@pi-desktop/i18n";
 import { useComposerDraft } from "../../apps/desktop/src/features/chat/composer/hooks/useComposerDraft";
 import { useComposerCompletions } from "../../apps/desktop/src/features/chat/composer/hooks/useComposerCompletions";
 import { ComposerInput } from "../../apps/desktop/src/features/chat/composer/ComposerInput";
-import { ComposerAutocomplete } from "../../apps/desktop/src/components/ComposerAutocomplete";
+import { ComposerAutocomplete } from "../../apps/desktop/src/features/chat/ComposerAutocomplete";
 import { api } from "../../apps/desktop/src/lib/api";
 import { editorSelectionRange, setEditorCaret } from "../../apps/desktop/src/features/chat/composer/editor";
 

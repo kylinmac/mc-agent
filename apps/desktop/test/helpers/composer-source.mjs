@@ -24,7 +24,7 @@ async function sourceFiles(directory) {
 
 /** Read the Composer facade plus the extracted editor, hooks, and UI modules. */
 export async function readComposerSource() {
-  const facade = join(desktopSourceRoot, "components/Composer.tsx");
+  const facade = join(desktopSourceRoot, "features/chat/Composer.tsx");
   const autocompleteHook = join(desktopSourceRoot, "hooks/use-composer-autocomplete.ts");
   const paths = [facade, autocompleteHook, modelPolicy, ...(await sourceFiles(composerRoot)), ...(await sourceFiles(modelPickerRoot))];
   const chunks = await Promise.all(
@@ -55,7 +55,7 @@ function sourceFilesSync(directory) {
 }
 
 export function readComposerSourceSync() {
-  const facade = join(desktopSourceRoot, "components/Composer.tsx");
+  const facade = join(desktopSourceRoot, "features/chat/Composer.tsx");
   const autocompleteHook = join(desktopSourceRoot, "hooks/use-composer-autocomplete.ts");
   return [facade, autocompleteHook, modelPolicy, ...sourceFilesSync(composerRoot), ...sourceFilesSync(modelPickerRoot)]
     .map((path) => `\n/* ${relative(desktopSourceRoot, path)} */\n${readFileSync(path, "utf8")}`)

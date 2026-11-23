@@ -4,7 +4,7 @@ import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
 import { catalogs } from "@pi-desktop/i18n";
 import type { AppSettings, ProviderPublic, UiMessage } from "@pi-desktop/shared";
-import { ModelConfigPage } from "../../apps/desktop/src/components/settings/ModelConfigPage";
+import { ModelConfigPage } from "../../apps/desktop/src/features/settings/ModelConfigPage";
 import { GeneratedImages } from "../../apps/desktop/src/features/chat/transcript/GeneratedImages";
 import { Markdown } from "../../apps/desktop/src/components/Markdown";
 import { api } from "../../apps/desktop/src/lib/api";

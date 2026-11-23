@@ -11,7 +11,7 @@ import { readSharedTypesSource } from "./helpers/shared-types-source.mjs";
 const stylesSource = await loadStyles();
 const transcriptSource = await readTranscriptSource();
 const inspectorSource = await readFile(
-  new URL("../src/components/ContextUsageInspector.tsx", import.meta.url),
+  new URL("../src/features/chat/ContextUsageInspector.tsx", import.meta.url),
   "utf8",
 );
 const composerSource = await readComposerSource();

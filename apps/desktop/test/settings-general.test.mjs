@@ -15,7 +15,7 @@ const settingsSearchSource = await readFile(
   "utf8",
 );
 const providersSource = await readFile(
-  new URL("../src/components/settings/ModelConfigPage.tsx", import.meta.url),
+  new URL("../src/features/settings/ModelConfigPage.tsx", import.meta.url),
   "utf8",
 );
 const defaultModelSource = await readFile(

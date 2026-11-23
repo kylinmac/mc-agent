@@ -1,12 +1,13 @@
+import { readContractModules } from "./helpers/source-contracts.mjs";
 import { readAppSource } from "./helpers/source-contracts.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { loadStyles } from "./helpers/styles.mjs";
 
-const sidebarSource = await readFile(
-  new URL("../src/components/Sidebar.tsx", import.meta.url),
-  "utf8",
+const sidebarSource = readContractModules(
+  "../src/components/Sidebar.tsx",
+  "../src/components/sidebar/useSidebarResize.ts",
 );
 const appSource = await readAppSource();
 const globalStyles = await loadStyles();

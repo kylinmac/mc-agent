@@ -21,9 +21,10 @@ const components = new Map(
 );
 const settingsDir = join(here, "../src/components/settings");
 const settingsComponents = new Map(
-  readdirSync(settingsDir)
-    .filter((name) => name.endsWith(".tsx"))
-    .map((name) => [name, readFileSync(join(settingsDir, name), "utf8")]),
+  [settingsDir, join(here, "../src/features/settings")].flatMap((dir) =>
+    readdirSync(dir).filter((name) => name.endsWith(".tsx"))
+      .map((name) => [name, readFileSync(join(dir, name), "utf8")]),
+  ),
 );
 const pageSrc = readPluginsSourceSync();
 const marketPanelSrc = readFileSync(

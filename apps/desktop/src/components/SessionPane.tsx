@@ -4,7 +4,7 @@ import { useAppStore } from "../stores/app-store";
 import { headPermission, sessionPermissions } from "../lib/pending-permissions";
 import { headAsk } from "../lib/pending-asks";
 import { useTranscriptView } from "../hooks/use-transcript-view";
-import { TranscriptDisclosureProvider } from "../features/chat/transcript/disclosure";
+import { TranscriptDisclosureProvider } from "../features/chat/transcript";
 import type { RestoreTranscriptReading } from "../hooks/use-transcript-reading-position";
 
 /**

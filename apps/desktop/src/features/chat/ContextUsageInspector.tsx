@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { portalToBody } from "../lib/portal-visibility";
+import { portalToBody } from "../../lib/portal-visibility";
 import { useTranslation } from "react-i18next";
 import {
   formatCompactTokenCount,
@@ -14,9 +14,9 @@ import {
   type SessionContextBreakdown,
   type UiMessage,
 } from "@pi-desktop/shared";
-import { useAppStore } from "../stores/app-store";
-import { formatToolDuration } from "../lib/tool-display";
-import { TooltipButton } from "./ui";
+import { useAppStore } from "../../stores/app-store";
+import { formatToolDuration } from "../../lib/tool-display";
+import { TooltipButton } from "../../components/ui";
 import {
   aggregateToolTokenUsage,
   calculateCacheRate,
@@ -25,13 +25,13 @@ import {
   contextOccupancyTokens,
   contextUsageView,
   resolveContextUsageDisplay,
-} from "../lib/context-usage";
+} from "../../lib/context-usage";
 import {
   placeContextInspector,
   type ContextInspectorPlacement,
-} from "../lib/context-inspector-position";
-import { useSessionTiming } from "../features/chat/context-usage/useSessionTiming";
-import { ContextCostKpis } from "../features/chat/context-usage/ContextCostKpis";
+} from "../../lib/context-inspector-position";
+import { useSessionTiming } from "./context-usage/useSessionTiming";
+import { ContextCostKpis } from "./context-usage/ContextCostKpis";
 
 const CONTEXT_RING_RADIUS = 9;
 const CONTEXT_RING_CIRCUMFERENCE = 2 * Math.PI * CONTEXT_RING_RADIUS;

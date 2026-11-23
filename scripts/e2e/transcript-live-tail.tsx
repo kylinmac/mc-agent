@@ -5,7 +5,7 @@ import { I18nextProvider } from "react-i18next";
 import { en } from "@pi-desktop/i18n";
 import type { UiMessage } from "@pi-desktop/shared";
 import { SessionPane } from "../../apps/desktop/src/components/SessionPane";
-import { Composer } from "../../apps/desktop/src/components/Composer";
+import { Composer } from "../../apps/desktop/src/features/chat/Composer";
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";
 import type { AppState } from "../../apps/desktop/src/stores/app-state";
 import { getTranscriptReadingPosition } from "../../apps/desktop/src/lib/transcript-reading-position";

@@ -3,6 +3,7 @@ import { createAssistantMessageEventStream, type AssistantMessage, type Message 
 import type { ContextCompactionRecord, UiMessage } from "@pi-desktop/shared";
 import type { MessageEntry } from "./pi-runtime-types.js";
 import { compactionBoundaryId, restorableCompaction } from "./mc-compaction-boundary.js";
+import * as replay from "./transcript-replay.js";
 import { orderSystemRows } from "./system-transcript-journal.js";
 import { DesktopAgentRuntime, type AgentRuntimeDiagnostic } from "./runtime.js";
 
@@ -154,12 +155,10 @@ describe("compaction replay boundaries", () => {
 
 // Fault injection verifies the real constructor stops before a model can be called.
 it("rejects a restored projection that silently drops a required user row", () => {
-  type Projection = { historyToEntries: (history: UiMessage[]) => MessageEntry[] };
-  const prototype = DesktopAgentRuntime.prototype as unknown as Projection;
-  const original = prototype.historyToEntries;
-  const spy = vi.spyOn(prototype, "historyToEntries").mockImplementation(function (this: Projection, history) {
-    return original.call(this, history).filter((entry) => entry.id !== "old");
-  });
+  const original = replay.historyToEntries;
+  const spy = vi.spyOn(replay, "historyToEntries").mockImplementation((...args) =>
+    original(...args).filter((entry) => entry.id !== "old"),
+  );
   const onClose = vi.fn();
   try {
     expect(() => new DesktopAgentRuntime({ sessionId: "offline", mode: "agent", thinkingLevel: "off", history: [old],

@@ -9,7 +9,6 @@
   },
   "rust": {
     "crates/host-core/src/rpc/mod.rs": "Legacy RPC dispatch module; its extraction is outside this refactor scope.",
-    "crates/host-core/src/sessions.rs": "Legacy session service module; its extraction is outside this refactor scope.",
     "crates/host-core/src/tools/mod.rs": "Legacy builtin tool dispatch module; its extraction is outside this refactor scope.",
     "crates/host-core/src/plugin_sessions.rs": "Legacy plugin session lifecycle module; its extraction is outside this refactor scope.",
     "crates/host-core/src/transcripts.rs": "Legacy transcript persistence module; its extraction is outside this refactor scope.",

@@ -10,7 +10,7 @@ import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 test("TodoDock renders bounded session progress and cancelled state", async () => {
   const server = await createDesktopSsrServer({ esbuild: { jsx: "automatic" } });
   try {
-    const { TodoDock } = await server.ssrLoadModule("/src/components/TodoDock.tsx");
+    const { TodoDock } = await server.ssrLoadModule("/src/features/chat/TodoDock.tsx");
     const { useAppStore } = await server.ssrLoadModule("/src/stores/app-store.ts");
     const i18n = createInstance();
     await i18n.init({ lng: "en", resources: { en: { translation: catalogs.en } } });

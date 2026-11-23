@@ -1,13 +1,13 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import type { TFunction } from "i18next";
 import { DICTATION_MAX_SECONDS } from "@pi-desktop/shared";
-import { TooltipButton } from "../../../components/ui";
-import { IconMic, IconStop, IconX } from "../../../components/icons";
-import { useAppStore } from "../../../stores/app-store";
-import { DictationSession } from "./session";
-import { dictationErrorKey } from "./errors";
-import { PortalVisibilityContext } from "../../../lib/portal-visibility";
-import { dictationHoldKeys, registerDictationHoldTarget } from "../dictation-hold";
+import { TooltipButton } from "../../components/ui";
+import { IconMic, IconStop, IconX } from "../../components/icons";
+import { useAppStore } from "../../stores/app-store";
+import { DictationSession } from "./dictation/session";
+import { dictationErrorKey } from "./dictation/errors";
+import { PortalVisibilityContext } from "../../lib/portal-visibility";
+import { dictationHoldKeys, registerDictationHoldTarget } from "./dictation-hold";
 
 /** A hold shorter than this was a slip of the finger: dropped, not transcribed. */
 const HOLD_MIN_MS = 400;

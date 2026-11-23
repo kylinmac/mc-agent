@@ -27,17 +27,17 @@ import {
   useArmedDelete,
   type CapabilityFilter,
   type CapabilityMenuItem,
-} from "./AgentCapabilityLayout";
+} from "../../components/settings/AgentCapabilityLayout";
 import {
   draftFromRecord,
   draftToInput,
   emptyMcpDraft,
   McpEditorSheet,
   type McpDraft,
-} from "../extensions/McpEditorSheet";
-import { McpMarketPanel } from "./McpMarketPanel";
-import { AgentMcpImportPanel } from "../../features/settings/imports/AgentMcpImportPanel";
-import { ImportToggleButton } from "../../features/settings/import-workbench";
+} from "../../components/extensions/McpEditorSheet";
+import { McpMarketPanel } from "../../components/settings/McpMarketPanel";
+import { AgentMcpImportPanel } from "./imports/AgentMcpImportPanel";
+import { ImportToggleButton } from "./import-workbench";
 import {
   IconArrowUpDown,
   IconKey,
@@ -47,8 +47,8 @@ import {
   IconServer,
   IconTerminal,
   IconTrash,
-} from "../icons";
-import { TooltipButton, cx } from "../ui";
+} from "../../components/icons";
+import { TooltipButton, cx } from "../../components/ui";
 
 const GLOBAL_MCP_PATH = "~/.agents/servers";
 

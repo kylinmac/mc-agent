@@ -1,8 +1,8 @@
 import { isSessionThinkingLevel } from "@pi-desktop/shared";
-import { thinkingLevelForProvider, thinkingProviderForModel } from "../lib/composer-models";
-import { useSessionContextBreakdown } from "../hooks/useSessionContextBreakdown";
-import { isRemoteSession, sessionAllows } from "../lib/remote-session-safety";
-import { inheritedSessionModelBinding } from "../lib/session-model";
+import { thinkingLevelForProvider, thinkingProviderForModel } from "../../lib/composer-models";
+import { useSessionContextBreakdown } from "../../hooks/useSessionContextBreakdown";
+import { isRemoteSession, sessionAllows } from "../../lib/remote-session-safety";
+import { inheritedSessionModelBinding } from "../../lib/session-model";
 import {
   useEffect,
   useLayoutEffect,
@@ -22,28 +22,28 @@ import {
   isImageGenerationModel,
   normalizeLargePasteThreshold,
 } from "@pi-desktop/shared";
-import { useAppStore } from "../stores/app-store";
-import { latestTurnContextInspector } from "../lib/latest-turn-context";
-import { isActivePlanExecution } from "../lib/plan-mode-state";
-import { headAsk, queuedAskCount } from "../lib/pending-asks";
-import type { QueuedPrompt } from "../lib/queued-prompts";
-import { composerModelDisplayName, sameComposerModelId } from "../lib/composer-models";
+import { useAppStore } from "../../stores/app-store";
+import { latestTurnContextInspector } from "../../lib/latest-turn-context";
+import { isActivePlanExecution } from "../../lib/plan-mode-state";
+import { headAsk, queuedAskCount } from "../../lib/pending-asks";
+import type { QueuedPrompt } from "../../lib/queued-prompts";
+import { composerModelDisplayName, sameComposerModelId } from "../../lib/composer-models";
 import {
   resolveComposerThinkingProvider,
-} from "../lib/session-thinking";
+} from "../../lib/session-thinking";
 import { ComposerAutocomplete } from "./ComposerAutocomplete";
-import { AskToolCard } from "./AskToolCard";
-import { ProjectProposalSlot } from "../features/project-create/ProjectProposalSlot";
-import { AlchemyProposalSlot } from "../features/alchemy/AlchemyProposalSlot";
-import { NewProjectIntentBar } from "../features/project-create/NewProjectIntentBar";
-import { CanvasContextBar } from "../features/canvas/CanvasContextBar";
+import { AskToolCard } from "../../components/AskToolCard";
+import { ProjectProposalSlot } from "../project-create/ProjectProposalSlot";
+import { AlchemyProposalSlot } from "../alchemy/AlchemyProposalSlot";
+import { NewProjectIntentBar } from "../project-create/NewProjectIntentBar";
+import { CanvasContextBar } from "../canvas/CanvasContextBar";
 import {
   defaultCanvasPromptForSession,
   prepareCanvasSubmission,
   useCanvasSession,
-} from "../features/canvas/canvas-session";
-import { NEW_PROJECT_PREFIX, useNewProjectIntent } from "../features/project-create/new-project-intent";
-import { PlanApprovalBar } from "./PlanApprovalBar";
+} from "../canvas/canvas-session";
+import { NEW_PROJECT_PREFIX, useNewProjectIntent } from "../project-create/new-project-intent";
+import { PlanApprovalBar } from "../../components/PlanApprovalBar";
 import { TaskDock } from "./TaskDock";
 import {
   COMPOSER_MAX_VISIBLE_ROWS,
@@ -52,31 +52,31 @@ import {
   cssPixels,
   isPermissionMode,
   type ComposerPrefill,
-} from "../features/chat/composer/model";
-import { editorSelectionRange } from "../features/chat/composer/editor";
-import { useComposerAttachments } from "../features/chat/composer/hooks/useComposerAttachments";
-import { useComposerCompletions } from "../features/chat/composer/hooks/useComposerCompletions";
-import { useComposerDraft } from "../features/chat/composer/hooks/useComposerDraft";
-import { useComposerInputHistory } from "../features/chat/composer/hooks/useComposerInputHistory";
-import { useNextPromptSuggestion } from "../features/chat/composer/hooks/useNextPromptSuggestion";
-import { usePluginComposerBridge } from "../features/chat/composer/hooks/usePluginComposerBridge";
-import { useComposerSuggestion, type ComposerSuggestionView } from "../features/chat/composer/hooks/useComposerSuggestion";
-import { useComposerSubmit } from "../features/chat/composer/hooks/useComposerSubmit";
-import { useComposerTransforms } from "../features/chat/composer/hooks/useComposerTransforms";
-import { ComposerInput } from "../features/chat/composer/ComposerInput";
-import { useComposerModelMenu } from "./model-picker/useComposerModelMenu";
-import { useVoiceInput } from "../features/voice/useVoiceInput";
-import { ComposerToolbar } from "../features/chat/composer/ComposerToolbar";
-import { DictationButton } from "../features/voice/dictation/DictationButton";
-import { ComposerStatus } from "../features/chat/composer/ComposerStatus";
-import { ChatWidthGrip } from "./ConversationWidthHandles";
-import { useSplitView } from "../lib/mc-split-view";
+} from "./composer/model";
+import { editorSelectionRange } from "./composer/editor";
+import { useComposerAttachments } from "./composer/hooks/useComposerAttachments";
+import { useComposerCompletions } from "./composer/hooks/useComposerCompletions";
+import { useComposerDraft } from "./composer/hooks/useComposerDraft";
+import { useComposerInputHistory } from "./composer/hooks/useComposerInputHistory";
+import { useNextPromptSuggestion } from "./composer/hooks/useNextPromptSuggestion";
+import { usePluginComposerBridge } from "./composer/hooks/usePluginComposerBridge";
+import { useComposerSuggestion, type ComposerSuggestionView } from "./composer/hooks/useComposerSuggestion";
+import { useComposerSubmit } from "./composer/hooks/useComposerSubmit";
+import { useComposerTransforms } from "./composer/hooks/useComposerTransforms";
+import { ComposerInput } from "./composer/ComposerInput";
+import { useComposerModelMenu } from "../../components/model-picker/useComposerModelMenu";
+import { useVoiceInput } from "../voice/useVoiceInput";
+import { ComposerToolbar } from "./composer/ComposerToolbar";
+import { DictationButton } from "../voice/DictationButton";
+import { ComposerStatus } from "./composer/ComposerStatus";
+import { ChatWidthGrip } from "../../components/ConversationWidthHandles";
+import { useSplitView } from "../../lib/mc-split-view";
 
 const EMPTY_QUEUED_PROMPTS: QueuedPrompt[] = [];
 
 export { THINKING_LEVELS } from "@pi-desktop/shared";
-export { thinkingLevelForProvider, thinkingProviderForModel } from "../lib/composer-models";
-export type { ComposerPrefill } from "../features/chat/composer/model";
+export { thinkingLevelForProvider, thinkingProviderForModel } from "../../lib/composer-models";
+export type { ComposerPrefill } from "./composer/model";
 
 export function Composer({
   variant = "docked",

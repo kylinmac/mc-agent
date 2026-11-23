@@ -49,7 +49,7 @@ async function withDockRender(run) {
     ],
   });
   try {
-    const { TaskDock } = await server.ssrLoadModule("/src/components/TaskDock.tsx");
+    const { TaskDock } = await server.ssrLoadModule("/src/features/chat/TaskDock.tsx");
     const { useAppStore } = await server.ssrLoadModule("/src/stores/app-store.ts");
     const i18n = createInstance();
     await i18n.init({ lng: "en", resources: { en: { translation: catalogs.en } } });

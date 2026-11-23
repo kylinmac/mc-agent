@@ -26,7 +26,7 @@ const ICON_BUTTON_FILES = [
   "../src/components/Sidebar.tsx",
   "../src/features/chat/composer/ComposerToolbar.tsx",
   "../src/components/workpanel/FilesTab.tsx",
-  "../src/components/settings/ModelConfigPage.tsx",
+  "../src/features/settings/ModelConfigPage.tsx",
 ];
 
 /** Label-driven controls: their width is their text, not a square target. */

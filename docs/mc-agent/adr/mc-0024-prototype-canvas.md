@@ -23,7 +23,7 @@
 
 ## 影响
 
-- 改动上游（各一两行接线）：`plugin-schemes.ts`、`bootstrap/startup.ts`、`index.html`、`live-voice/microphone-permissions.ts`、`ipc/register.ts`、`runtime/sidecar.ts`、`packages/agent-runtime/src/runtime.ts`、`permissions.rs`、`tools/mod.rs`、`rpc/mod.rs`、`main.rs`、`packages/shared/src/protocol.ts`、`src/lib/api.ts`、`lib/work-panel-tabs.ts`、`components/workpanel/WorkPanel.tsx`、`components/Composer.tsx`、`transcript/MessageRow.tsx`。
+- 改动上游（各一两行接线）：`plugin-schemes.ts`、`bootstrap/startup.ts`、`index.html`、`live-voice/microphone-permissions.ts`、`ipc/register.ts`、`runtime/sidecar.ts`、`packages/agent-runtime/src/runtime.ts`、`permissions.rs`、`tools/mod.rs`、`rpc/mod.rs`、`main.rs`、`packages/shared/src/protocol.ts`、`src/lib/api.ts`、`lib/work-panel-tabs.ts`、`components/workpanel/WorkPanel.tsx`、`features/chat/Composer.tsx`、`transcript/MessageRow.tsx`。
 - 新增：`crates/host-core/src/mc_canvas/*`、`rpc/mc_canvas_rpc.rs`、`packages/shared/src/mc-canvas.ts`、`electron/main/canvas/*`、`electron/main/ipc/mc-canvas-ipc.ts`、`packages/agent-runtime/src/mc-canvas-tools.ts`、`src/features/canvas/*`。
 - 创作工作台不变。
 

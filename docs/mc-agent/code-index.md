@@ -16,6 +16,11 @@ mc-agent 新增功能（R1–R10）的代码见文末“mc-agent 项目管理”
 | 会话检查器、分栏与工作面板 | 桌面 `src/lib/work-panel/`、`src/lib/session-subagents.ts`、`src/hooks/useSessionContextBreakdown.ts` |
 | Agent 压缩记录与恢复 | `packages/agent-runtime/src/compaction-checkpoint.ts`、`compaction-tail.ts`、`tool-result-content.ts` |
 | 插件服务崩溃及重新启动 | `apps/desktop/electron/main/plugin-service-restarts.ts` 持有重试与取消；`plugin-runtime.ts` 停止子进程并清理贡献 |
+| 聊天输入、草稿和任务栏 | 桌面 `src/features/chat/Composer.tsx`、`composer/`、`TaskDock.tsx`；插件消费 `features/chat/plugin-draft.ts` |
+| 侧栏项目与会话排序、重排、菜单及宽度 | 桌面 `src/components/sidebar/` 中的 `useSidebarProjects`、`useProjectReorder`、`useSidebarMenus`、`useSidebarResize` |
+| 会话持久化 | `crates/host-core/src/sessions.rs` 为门面；追加消息看 `sessions/append.rs`，历史版本看 `revisions.rs`，分叉看 `fork.rs`，恢复看 `recovery.rs` |
+| Agent 历史重放、委派与工具描述 | `packages/agent-runtime/src/transcript-replay.ts`、`delegation-registry.ts`、`builtin-tool-schemas.ts` |
+| 插件文件权限、文件操作、子进程调用 | Electron Main 的 `plugin-file-access.ts`、`plugin-file-api.ts`、`plugin-process-calls.ts` |
 
 ## 启动与窗口
 

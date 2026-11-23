@@ -1,3 +1,4 @@
+import { readContractModules } from "./helpers/source-contracts.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -10,9 +11,10 @@ import test from "node:test";
  * process lifecycle).
  */
 
-const runtime = await readFile(
-  new URL("../../../packages/agent-runtime/src/runtime.ts", import.meta.url),
-  "utf8",
+const runtime = readContractModules(
+  "../../../packages/agent-runtime/src/runtime.ts",
+  "../../../packages/agent-runtime/src/builtin-tool-schemas.ts",
+  "../../../packages/agent-runtime/src/command-shell-policy.ts",
 );
 const toolSources = await readFile(
   new URL("../../../crates/host-core/src/tools/mod.rs", import.meta.url),
@@ -28,7 +30,7 @@ const backgroundTasks = await readFile(
   "utf8",
 );
 const bar = await readFile(
-  new URL("../src/components/TaskDock.tsx", import.meta.url),
+  new URL("../src/features/chat/TaskDock.tsx", import.meta.url),
   "utf8",
 );
 const controller = await readFile(
@@ -37,7 +39,7 @@ const controller = await readFile(
 );
 const api = await readFile(new URL("../src/lib/api.ts", import.meta.url), "utf8");
 const composer = await readFile(
-  new URL("../src/components/Composer.tsx", import.meta.url),
+  new URL("../src/features/chat/Composer.tsx", import.meta.url),
   "utf8",
 );
 const styles = await readFile(

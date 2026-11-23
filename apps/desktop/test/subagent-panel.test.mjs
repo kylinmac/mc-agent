@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const tabSource = await readFile(
-  new URL("../src/components/workpanel/SubagentTranscriptTab.tsx", import.meta.url),
+  new URL("../src/features/chat/SubagentTranscriptTab.tsx", import.meta.url),
   "utf8",
 );
 const workPanelSource = await readFile(

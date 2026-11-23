@@ -116,6 +116,7 @@ function featureBoundaries(files) {
       if (targetLayer !== "features" || !target) continue;
       const edge = relative(renderer, file) + " → " + fileName;
       if (["stores", "lib", "hooks"].includes(layer)) failures.push("Shared code imports a feature: " + edge);
+      if ((layer === "components" || layer === "plugins") && path.length > 1) failures.push("Private feature import: " + edge);
       if (layer !== "features" || target === owner) continue;
       if (owner !== "app" && path.length > 1) failures.push("Private feature import: " + edge);
       if (!edges.has(owner)) edges.set(owner, new Set());
@@ -141,10 +142,13 @@ test("feature rules catch cycles, private imports and reverse dependencies", () 
     ["features/a/View.tsx", 'export { value } from "../b/state/private";'],
     ["features/b/state/private.ts", 'void import("@renderer/features/a/View");'],
     ["hooks/useValue.ts", 'import type { Value } from "/src/features/b/state/private";'],
+    ["components/Shared.tsx", 'import "../features/b/state/private";'],
+    ["plugins/renderer-host/test.ts", 'import "../../features/b/state/private";'],
+    ["components/Allowed.tsx", 'import "../features/b/public";'],
     ["features/app/AppShell.tsx", 'import "../a/internal/Panel";'],
   ].map(([file, source]) => [resolve(renderer, file), source]);
   assert.deepEqual(featureBoundaries(files).map((error) => error.split(":")[0]), [
-    "Private feature import", "Shared code imports a feature", "Feature cycle",
+    "Private feature import", "Shared code imports a feature", "Private feature import", "Private feature import", "Feature cycle",
   ]);
 });
 

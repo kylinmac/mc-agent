@@ -1,3 +1,4 @@
+import { readContractModules } from "./helpers/source-contracts.mjs";
 import { readAppSourceSync, readSettingsSourceSync, readStoreSourceSync, readMainSourceSync } from "./helpers/source-contracts.mjs";
 import { sanitizeThemeCss } from "@pi-desktop/plugin-sdk";
 import assert from "node:assert/strict";
@@ -17,7 +18,11 @@ const here = dirname(fileURLToPath(import.meta.url));
 const desktopRoot = join(here, "..");
 const repoRoot = join(desktopRoot, "../..");
 
-const runtimeSrc = readFileSync(join(desktopRoot, "electron/main/plugin-runtime.ts"), "utf8");
+const runtimeSrc = readContractModules(
+  "../electron/main/plugin-runtime.ts",
+  "../electron/main/plugin-theme-paths.ts",
+  "../electron/main/plugin-host-contracts.ts",
+);
 const mainSrc = readMainSourceSync();
 const appSrc = readAppSourceSync();
 const settingsSrc = readSettingsSourceSync();

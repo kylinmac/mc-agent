@@ -37,7 +37,7 @@ test("the outbox is drained before a branch is archived", () => {
 });
 
 test("the host owns the branch root search and the pager stamp", () => {
-  const host = read("../../../crates/host-core/src/sessions.rs");
+  const host = read("../../../crates/host-core/src/sessions/revisions.rs");
   const rpc = read("../../../crates/host-core/src/rpc/mod.rs");
   const transcripts = read("../../../crates/host-core/src/transcripts.rs");
 
@@ -58,7 +58,7 @@ test("the host owns the branch root search and the pager stamp", () => {
 });
 
 test("a transcript rewrite keeps each message's owning turn", () => {
-  const host = read("../../../crates/host-core/src/sessions.rs");
+  const host = read("../../../crates/host-core/src/sessions/revisions.rs");
 
   assert.match(host, /SELECT id, turn_id FROM messages/);
   assert.match(host, /owning_turns\.get\(&record\.id\)\.map\(String::as_str\)/);

@@ -1,5 +1,5 @@
 import { toolResultPayload } from "../../lib/tool-presentation";
-import { SubagentStopButton } from "../../features/chat/transcript/SubagentStopButton";
+import { SubagentStopButton } from "./transcript/SubagentStopButton";
 import { collectDelegationStatuses, subagentOutcome } from "../../lib/subagent-topology";
 import { Fragment, useLayoutEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -7,22 +7,22 @@ import { useAppStore } from "../../stores/app-store";
 import { useFollowScroll } from "../../hooks/use-follow-scroll";
 import { useTranscriptView } from "../../hooks/use-transcript-view";
 import { useTranscriptSearchFocus } from "../../hooks/use-transcript-search-focus";
-import { IconArrowDown, IconBot, IconChevronDown } from "../icons";
-import { Textarea, TooltipButton } from "../ui";
+import { IconArrowDown, IconBot, IconChevronDown } from "../../components/icons";
+import { Textarea, TooltipButton } from "../../components/ui";
 import { DisclosureAnchorContext } from "../../lib/disclosure-anchor-context";
-import { TranscriptDisclosureProvider } from "../../features/chat/transcript/disclosure";
+import { TranscriptDisclosureProvider } from "./transcript/disclosure";
 import { buildSubagentTranscript } from "../../lib/subagent-transcript";
 import { reviewChangeFromMessage } from "../../lib/workspace-review";
 import {
   AssistantErrorMessage,
   ThinkingRow,
-} from "../../features/chat/transcript/shared";
+} from "./transcript/shared";
 import {
   ReviewChangeCard,
-} from "../ReviewChangeCard";
-import { ToolRow } from "../../features/chat/transcript/ToolRow";
-import { Markdown } from "../Markdown";
-import { delegateModelId, delegateThinkingLevel } from "../../features/chat/transcript/model";
+} from "../../components/ReviewChangeCard";
+import { ToolRow } from "./transcript/ToolRow";
+import { Markdown } from "../../components/Markdown";
+import { delegateModelId, delegateThinkingLevel } from "./transcript/model";
 
 /**
  * The work-panel tab showing one delegation as a conversation (issue #917).

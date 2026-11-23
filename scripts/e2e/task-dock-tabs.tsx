@@ -4,7 +4,7 @@ import i18n from "i18next";
 import { I18nextProvider } from "react-i18next";
 import { en } from "@pi-desktop/i18n";
 import { IPC } from "@pi-desktop/shared";
-import { TaskDock } from "../../apps/desktop/src/components/TaskDock";
+import { TaskDock } from "../../apps/desktop/src/features/chat/TaskDock";
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";
 
 function assert(value: unknown, message: string): asserts value {

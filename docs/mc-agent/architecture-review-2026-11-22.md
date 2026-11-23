@@ -40,17 +40,20 @@
 | 导入外部 MCP 或技能 | Main 用本轮扫描的选择标识查回原配置或路径，Rust 注册表执行同作用域的原子添加。管理界面按字段保留已有凭据 | 同 ID 不覆盖已保存配置，多请求竞争由写入者裁决。选择失效、编辑时保留已有值、实际设置窗口的操作见 [MC-ADR-0009](adr/mc-0009-import-from-other-agents.md) |
 | 通过桌面、手机或无头控制器创建会话 | 可信入口在 Rust 同一事务中写入新会话及选定权限。通用插件与 agent 的创建接口继续继承权限 | 用临时数据库比对创建响应和读回值。手机历史按正式设置键 `defaultPermissionMode` 解析继承权限。非法选项、失败回滚及 sidecar 的方法边界均有回归 |
 
-复核后，直接跨功能的静态引用为 29 处、23 对，静态功能依赖无环。`lib/`、`stores/`、`hooks/` 指向 feature 的引用为 0。这里统计源码 import、re-export、字面量动态 import 和 require；运行时事件、插件发现与组件装配另由用户路径验证。数字是此轮快照，CI 检查的是规则。
+11 月 22 日复核后，直接跨功能的静态引用为 29 处、23 对，静态功能依赖无环。`lib/`、`stores/`、`hooks/` 指向 feature 的引用为 0。这里统计源码 import、re-export、字面量动态 import 和 require；运行时事件、插件发现与组件装配另由用户路径验证。数字是此轮快照，CI 检查的是规则。
 
-仓库还把部分功能装配放在 `src/components/`。这层仍有 32 处直接引用 feature 的嵌套实现，其中 `Composer.tsx` 占 16 处。其他例子是子代理转录页组合聊天行、设置页装配导入面板。`src/plugins/renderer-host/` 另有 5 处接入聊天草稿。它们处于上述 feature 间依赖统计之外。
+## 11 月 23 日继续拆分
 
-## 仍需按功能演进的部分
+前一次复核在 `src/components/` 找到 32 处对其他功能内部模块的引用，其中 Composer 占 16 处。本次把会话输入、任务栏、上下文检查器和子代理转录交给聊天功能，把三张设置页交给设置功能。插件渲染宿主原先的 5 处草稿内部引用也改走 `features/chat/plugin-draft.ts`。这两层现在各有 0 处引用功能内部模块。装配代码迁入功能目录后，功能间统计为 38 处静态引用、26 对方向，无环。
 
-| 所在层 | 尚集中的职责 | 后续改动的验证边界 |
+| 用户路径 | 代码归属 | 验证入口 |
 |---|---|---|
-| Renderer | `Sidebar.tsx` 仍装配导航、分组、拖放与会话操作；`lib/api.ts` 汇集桌面调用门面 | 改动哪种操作，就沿其实际消费者迁移，并回放键盘、窄窗口与持久化状态 |
-| Rust 宿主 | `rpc/mod.rs` 仍含会话与工具执行分发，`sessions.rs` 集中多种写操作和内联测试 | 以一个 RPC 方法族为单位，用旧库、失败回滚和并发读写验收 |
-| Agent 运行时 | `runtime.ts` 仍拥有回合循环、压缩的运行时调度与写入、工具编排；`agent-host` 负责启动、传输与进程事件 | 变更恢复策略时用中断、重启和上下文预算用例；变更 IPC 生命周期时验证退出和重连 |
-| Electron 插件与其他入口 | `plugin-runtime.ts` 仍装配插件宿主 API、贡献和授权。语音、远程协议、内置插件另有模块。安装器、外设桥与手机网关有平台依赖 | 固定相应插件或设备入口验证。架构扫描本身不能证明设备、平台或外部服务行为 |
+| 输入提示词、选择模型、调用插件草稿动作 | `features/chat/Composer.tsx` 组合输入控件，插件宿主持有动作分发。插件工具条控件空间不足时换行 | `test:e2e:composer-model-selection`、`test:e2e:plugin-ui-slots` |
+| 查看项目与会话、调宽侧栏、打开菜单、重排项目 | `components/sidebar/` 分别持有项目与会话排序、菜单定位和焦点、拖放与键盘重排、宽度与指针捕获。Sidebar 组合这些交互 | `sidebar-project-reorder`、`sidebar-resize` 与 `test:e2e:sidebar-menu` |
+| 读写、恢复、分叉会话与切换消息版本 | `sessions.rs` 作为 Rust 门面。消息编解码、显示、索引、查询、追加、修订、分叉、恢复与回合分别有实现模块。原单测按领域迁入 `sessions/tests/` | `cargo test -p host-core --locked` |
+| 恢复模型上下文、启动子代理、获取下一条提示建议 | `transcript-replay.ts` 重建历史，`builtin-tool-schemas.ts` 声明内置工具。`delegation-registry.ts` 管委派生命周期，`next-prompt-suggestion.ts` 管建议请求的合并、取消与缓存。主循环仍持有当前模型和压缩时机 | agent-runtime 离线运行时及恢复测试 |
+| 受理重复请求、向插件子进程发起调用、读写文件 | AgentHost 通过 `turn-idempotency.ts` 核对重复输入。Electron 的 `plugin-process-calls.ts` 管子进程请求、超时与取消，`plugin-file-access.ts` 校验范围和同意状态，`plugin-file-api.ts` 实现文件操作 | agent-host、插件文件范围和卸载测试，插件插槽端到端测试 |
+
+`runtime.ts` 仍编排回合、模型调用及压缩，`plugin-runtime.ts` 仍装配贡献和宿主服务，`Sidebar.tsx` 仍负责导航布局与会话操作。修改这些入口时，按表中的用户路径验证。
 
 当前架构决定见 [MC-ADR-0032](adr/mc-0032-domain-contracts.md)，模块入口见[代码索引](code-index.md)，进程关系见[现状架构](as-built-architecture.md)。

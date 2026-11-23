@@ -5,7 +5,7 @@ import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import { catalogs, flattenCatalog } from "@pi-desktop/i18n";
 import type { SessionTodo, SessionTodoSnapshot } from "@pi-desktop/shared";
-import { TodoDock } from "../../apps/desktop/src/components/TodoDock";
+import { TodoDock } from "../../apps/desktop/src/features/chat/TodoDock";
 import { api } from "../../apps/desktop/src/lib/api";
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";
 

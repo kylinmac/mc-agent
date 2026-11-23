@@ -1,3 +1,4 @@
+import { readContractModules } from "./helpers/source-contracts.mjs";
 import {
   readMainModuleSync,
   readMainSourceSync,
@@ -16,9 +17,9 @@ const repoRoot = join(desktopRoot, "..", "..");
 
 const mainSrc = readMainSourceSync();
 const pluginIpcSrc = readMainModuleSync("ipc/plugin-ipc.ts");
-const runtimeSrc = readFileSync(
-  join(desktopRoot, "electron/main/plugin-runtime.ts"),
-  "utf8",
+const runtimeSrc = readContractModules(
+  "../electron/main/plugin-runtime.ts",
+  "../electron/main/plugin-dev-access.ts",
 );
 const pluginsUiSrc = readPluginsSourceSync();
 const sharedTypesSrc = readSharedTypesSourceSync();

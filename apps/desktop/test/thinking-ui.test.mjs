@@ -59,7 +59,7 @@ const topbarSource = await readFile(
 const settingsSource = (
   await Promise.all(
     [
-      "../src/components/settings/ModelConfigPage.tsx",
+      "../src/features/settings/ModelConfigPage.tsx",
       "../src/components/settings/ProviderSetupDialog.tsx",
       // The picker both credential kinds render owns the thinking chips (D270).
       "../src/components/settings/ModelSelectionPanes.tsx",

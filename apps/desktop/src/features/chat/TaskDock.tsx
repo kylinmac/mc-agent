@@ -1,13 +1,13 @@
 import { useId, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { SessionTodo } from "@pi-desktop/shared";
-import type { BackgroundTaskOutput, BackgroundTaskSummary } from "../lib/api";
-import { Button } from "./ui";
-import { IconChevronDown, IconChevronUp } from "./icons";
+import type { BackgroundTaskOutput, BackgroundTaskSummary } from "../../lib/api";
+import { Button } from "../../components/ui";
+import { IconChevronDown, IconChevronUp } from "../../components/icons";
 import { TodoPanel, todoProgress } from "./TodoDock";
-import { useAppStore } from "../stores/app-store";
-import { useBackgroundTasks } from "../features/chat/background-tasks/useBackgroundTasks";
-import { useSessionTodosRecovery } from "../features/chat/todos/useSessionTodosRecovery";
+import { useAppStore } from "../../stores/app-store";
+import { useBackgroundTasks } from "./background-tasks/useBackgroundTasks";
+import { useSessionTodosRecovery } from "./todos/useSessionTodosRecovery";
 
 /**
  * The composer's shared Todo + background-task container.

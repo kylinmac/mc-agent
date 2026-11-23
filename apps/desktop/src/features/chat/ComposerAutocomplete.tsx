@@ -4,7 +4,7 @@ import type { ComposerCommand } from "@pi-desktop/shared";
 import type {
   CompletionController,
   CompletionItem,
-} from "../features/chat/composer/hooks/useComposerCompletions";
+} from "./composer/hooks/useComposerCompletions";
 import {
   IconBookOpen,
   IconFileText,
@@ -12,8 +12,8 @@ import {
   IconPlug,
   IconSlash,
   IconSparkles,
-} from "./icons";
-import { AnchoredMenu } from "./settings/AnchoredMenu";
+} from "../../components/icons";
+import { AnchoredMenu } from "../../components/settings/AnchoredMenu";
 
 /**
  * Composer autocomplete panel (D123–D125, spec 08 §11.8): full composer

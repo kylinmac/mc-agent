@@ -1,3 +1,4 @@
+import { readContractModules } from "./helpers/source-contracts.mjs";
 import {
   readStoreSource,
   readStoreModule,
@@ -43,14 +44,22 @@ const [
   read("../src/lib/api.ts"),
   readStoreSource(),
   readStoreModule("slices/events-slice.ts"),
-  read("../../../packages/agent-runtime/src/runtime.ts"),
+  readContractModules(
+  "../../../packages/agent-runtime/src/runtime.ts",
+  "../../../packages/agent-runtime/src/delegation-status.ts",
+),
   read("../electron/main/builtin-commands.ts"),
   read("../../../crates/host-core/src/rpc/mod.rs"),
   read("../../../crates/host-core/src/permissions.rs"),
-  read("../../../crates/host-core/src/sessions.rs"),
+  readContractModules(
+  "../../../crates/host-core/src/sessions/types.rs",
+  "../../../crates/host-core/src/sessions/queries.rs",
+  "../../../crates/host-core/src/sessions/fork.rs",
+  "../../../crates/host-core/src/sessions/revisions.rs",
+),
   read("../../../crates/host-core/src/transcripts.rs"),
   readTranscriptSource(),
-  read("../src/components/ContextUsageInspector.tsx"),
+  read("../src/features/chat/ContextUsageInspector.tsx"),
   read("../src/lib/assistant-turns.ts"),
   loadStyles(),
   read("../../../packages/i18n/src/locales/en/index.ts"),

@@ -1,3 +1,4 @@
+import { readContractModules } from "./helpers/source-contracts.mjs";
 import {
   readMainModuleSync,
   readMainSourceSync,
@@ -12,7 +13,10 @@ const here = dirname(fileURLToPath(import.meta.url));
 const desktopRoot = join(here, "..");
 
 const watcherSrc = readFileSync(join(desktopRoot, "electron/main/plugin-watcher.ts"), "utf8");
-const runtimeSrc = readFileSync(join(desktopRoot, "electron/main/plugin-runtime.ts"), "utf8");
+const runtimeSrc = readContractModules(
+  "../electron/main/plugin-runtime.ts",
+  "../electron/main/plugin-dev-access.ts",
+);
 const mainSrc = readMainSourceSync();
 const pluginIpcSrc = readMainModuleSync("ipc/plugin-ipc.ts");
 const sidecarSrc = readMainModuleSync("runtime/sidecar.ts");

@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 const agent = await read("../electron/main/ipc/agent-ipc.ts");
 
-const composer = await read("../src/components/Composer.tsx");
+const composer = await read("../src/features/chat/Composer.tsx");
 const transcript = await read("../src/stores/slices/transcript-slice.ts");
 const events = await read("../src/stores/slices/events-slice.ts");
 const sidecarDispatch = await read("../../../packages/agent-runtime/src/sidecar.ts");

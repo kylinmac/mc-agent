@@ -65,7 +65,7 @@ test("the hold shortcut is configurable, allowed and free by default", () => {
 });
 
 test("a short tap is dropped and a release while the microphone opens still ends the hold", () => {
-  const button = readFileSync(new URL("../src/features/voice/dictation/DictationButton.tsx", import.meta.url), "utf8");
+  const button = readFileSync(new URL("../src/features/voice/DictationButton.tsx", import.meta.url), "utf8");
   const shell = readFileSync(new URL("../src/features/app/useAppShellRuntime.tsx", import.meta.url), "utf8");
   assert.match(button, /const HOLD_MIN_MS = 400;/);
   assert.match(button, /Date\.now\(\) - pressed\.pressedAt < HOLD_MIN_MS\) void cancel\(\)/);

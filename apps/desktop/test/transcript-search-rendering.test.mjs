@@ -17,7 +17,7 @@ test("rendered Markdown and file chips map source-only hits to their visible own
       "/src/features/chat/transcript/shared.tsx",
     );
     const { SubagentTranscriptTab } = await server.ssrLoadModule(
-      "/src/components/workpanel/SubagentTranscriptTab.tsx",
+      "/src/features/chat/SubagentTranscriptTab.tsx",
     );
     const { useAppStore } = await server.ssrLoadModule("/src/stores/app-store.ts");
     const { ActivityGroup } = await server.ssrLoadModule(

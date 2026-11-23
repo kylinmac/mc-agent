@@ -85,8 +85,10 @@ mod tests {
         user.id = "user".into();
         user.role = "user".into();
         user.model_system = None;
-        let (records, ids, _) =
-            super::super::clone_records_for_fork(vec![record, super::super::ui_to_record(&user).0]);
+        let (records, ids, _) = super::super::fork::clone_records_for_fork(vec![
+            record,
+            super::super::ui_to_record(&user).0,
+        ]);
         assert_eq!(
             records[0].meta.as_ref().unwrap()["modelSystem"]["beforeMessageId"],
             ids["user"]

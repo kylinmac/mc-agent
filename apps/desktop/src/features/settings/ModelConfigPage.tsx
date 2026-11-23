@@ -17,32 +17,32 @@ import {
 } from "@pi-desktop/shared";
 import { useAppStore } from "../../stores/app-store";
 import { api } from "../../lib/api";
-import { Button } from "../ui";
+import { Button } from "../../components/ui";
 import {
   IconConfig,
   IconPlus,
   IconServer,
-} from "../icons";
-import { providerServesChatModels } from "./default-model";
+} from "../../components/icons";
+import { providerServesChatModels } from "../../components/settings/default-model";
 import {
   imageGenerationPickerCandidates,
   isImageGenerationPickerCandidate,
   planImageGenerationDefaults,
-} from "./image-generation-default";
-import { copyProviderConfiguration, type ProviderCopyDraft } from "./provider-copy";
-import { ImageGenerationModelRow } from "./ImageGenerationModelRow";
-import { AccountImageModels } from "../../features/creative/AccountImageModels";
-import { OAuthLoginDialog } from "./OAuthLoginDialog";
-import { ProviderSetupDialog } from "./ProviderSetupDialog";
-import { ServiceList } from "./ServiceList";
-import { serviceRowKind } from "./service-row-status";
-import { useVendorAccounts } from "./useVendorAccounts";
-import { VendorAccountDialog, type VendorAccountForm } from "./VendorAccountDialog";
-import { ModelConfigImportPanel } from "../../features/settings/imports/ModelConfigImportPanel";
-import { ImportToggleButton } from "../../features/settings/import-workbench";
-import { JevSettingsCard } from "./JevSettingsCard";
-import { JEV_SERVICE } from "./service-catalog";
-import { isPluginCatalogSetupForProvider } from "./provider-setup-mode";
+} from "../../components/settings/image-generation-default";
+import { copyProviderConfiguration, type ProviderCopyDraft } from "../../components/settings/provider-copy";
+import { ImageGenerationModelRow } from "../../components/settings/ImageGenerationModelRow";
+import { AccountImageModels } from "../creative/AccountImageModels";
+import { OAuthLoginDialog } from "../../components/settings/OAuthLoginDialog";
+import { ProviderSetupDialog } from "../../components/settings/ProviderSetupDialog";
+import { ServiceList } from "../../components/settings/ServiceList";
+import { serviceRowKind } from "../../components/settings/service-row-status";
+import { useVendorAccounts } from "../../components/settings/useVendorAccounts";
+import { VendorAccountDialog, type VendorAccountForm } from "../../components/settings/VendorAccountDialog";
+import { ModelConfigImportPanel } from "./imports/ModelConfigImportPanel";
+import { ImportToggleButton } from "./import-workbench";
+import { JevSettingsCard } from "../../components/settings/JevSettingsCard";
+import { JEV_SERVICE } from "../../components/settings/service-catalog";
+import { isPluginCatalogSetupForProvider } from "../../components/settings/provider-setup-mode";
 
 type CatalogStatus = {
   loaded: boolean;

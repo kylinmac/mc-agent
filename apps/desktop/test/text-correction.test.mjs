@@ -30,7 +30,7 @@ test("shared Input/Textarea primitives default text correction off", async () =>
 
 test("primary editable surfaces disable browser text correction", async () => {
   const files = [
-    ["../src/components/Composer.tsx", await readComposerSource()],
+    ["../src/features/chat/Composer.tsx", await readComposerSource()],
     ["../src/components/ChatTranscript.tsx", await readTranscriptSource()],
     ["../src/components/SearchDialog.tsx", await read("../src/components/SearchDialog.tsx")],
     ["../src/pages/SettingsPage.tsx", await readSettingsSource()],
