@@ -34,4 +34,13 @@ test("local architecture check covers new files before commit and skips working-
   rmSync(join(cwd, "packages/old.ts"));
   const fixed = check();
   assert.equal(fixed.status, 0, fixed.stderr);
+
+  write("docs/architecture/allowlist.json", JSON.stringify({
+    rust: { "crates/missing.rs": "no longer exists" },
+    typescript: { [file]: "now within budget" },
+  }));
+  const obsolete = check();
+  assert.equal(obsolete.status, 1);
+  assert.match(obsolete.stderr, /obsolete size exemption: crates\/missing\.rs/);
+  assert.match(obsolete.stderr, /obsolete size exemption: packages\/new\.ts/);
 });

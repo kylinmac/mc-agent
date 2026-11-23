@@ -153,6 +153,18 @@ const byPath = new Map(metrics.map((entry) => [entry.path, entry]));
 const allowlist = readAllowlist();
 const failures = [];
 
+for (const [entries, limit, extensions] of [
+  [allowlist.rust, limits.rust.max, [".rs"]],
+  [allowlist.typescript, limits.newTypeScript.max, [".ts", ".tsx"]],
+]) {
+  for (const path of Object.keys(entries)) {
+    const file = byPath.get(path);
+    if (!file || !extensions.includes(extname(path)) || path.endsWith(".d.ts") || file.loc <= limit) {
+      failures.push("Remove obsolete size exemption: " + path);
+    }
+  }
+}
+
 const counts = new Map([
   [">500", metrics.filter((entry) => entry.loc > 500).length],
   [">1000", metrics.filter((entry) => entry.loc > 1_000).length],
