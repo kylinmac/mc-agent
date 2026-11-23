@@ -9307,7 +9307,7 @@ describe("DesktopAgentRuntime subagents", () => {
     await expect(
       (runtime as any).agent.afterToolCall({ toolCall: { id: "task-over" } }),
     ).resolves.toEqual({ isError: true });
-    expect((runtime as any).delegations.running()).toHaveLength(MAX);
+    expect(runtime["delegations"].running()).toHaveLength(MAX);
 
     // Freeing one slot (via stop) makes room again.
     const stop = (runtime as any).agent.state.tools.find(
@@ -9315,7 +9315,7 @@ describe("DesktopAgentRuntime subagents", () => {
     );
     await stop.execute("stop-1", { delegationIds: [ids[0]] });
     await vi.waitFor(() => {
-      expect((runtime as any).delegations.running()).toHaveLength(MAX - 1);
+      expect(runtime["delegations"].running()).toHaveLength(MAX - 1);
     });
     const again = await tool.execute("task-again", {
       agent: "explorer",
@@ -9340,13 +9340,13 @@ describe("DesktopAgentRuntime subagents", () => {
       task: "Find it.",
     });
     const delegationId = (started.details as any).delegationId as string;
-    expect((runtime as any).delegations.running()).toHaveLength(1);
+    expect(runtime["delegations"].running()).toHaveLength(1);
 
     await (runtime as any).handleAgentEvent({ type: "agent_end" });
     expect((runtime as any).delegations.get(delegationId).status).toBe(
       "running",
     );
-    expect((runtime as any).delegations.running()).toHaveLength(1);
+    expect(runtime["delegations"].running()).toHaveLength(1);
 
     subagentRuns.deferred = false;
     await runtime.dispose();
@@ -9372,7 +9372,7 @@ describe("DesktopAgentRuntime subagents", () => {
         "aborted",
       );
     });
-    expect((runtime as any).delegations.running()).toHaveLength(0);
+    expect(runtime["delegations"].running()).toHaveLength(0);
 
     subagentRuns.deferred = false;
     await runtime.dispose();
@@ -9393,7 +9393,7 @@ describe("DesktopAgentRuntime subagents", () => {
       task: "Find it.",
     });
     const delegationId = (started.details as any).delegationId as string;
-    expect((runtime as any).delegations.running()).toHaveLength(1);
+    expect(runtime["delegations"].running()).toHaveLength(1);
 
     (runtime as any).providerRateLimitRetryAttempt =
       PROVIDER_RATE_LIMIT_MAX_RETRIES;
@@ -10054,7 +10054,7 @@ describe("DesktopAgentRuntime subagents", () => {
         await vi.waitFor(() => {
           expect(ids.map((id) => internals.delegations.get(id).status)).toEqual(["failed", "failed"]);
         });
-        expect(internals.delegations.running()).toHaveLength(0);
+        expect(runtime["delegations"].running()).toHaveLength(0);
         for (const id of ids) {
           expect(internals.delegations.get(id).result).toMatchObject({ status: "failed",
             error: { code: "SUBAGENT_PARENT_FAILED", resumeId: id } });
@@ -11685,7 +11685,7 @@ describe("compaction fallback retention (#827)", () => {
       true,
     );
 
-    const checkpoint = appendedCheckpoint(host);
+    expect(appendedCheckpoint(host)).toBeDefined();
     const replayed = replayedMessages(runtime);
     expect(replayed.map((message: any) => message.role)).toEqual([
       "compactionSummary",
@@ -12166,7 +12166,7 @@ describe("DesktopAgentRuntime delegation wait settlement safety", () => {
       });
 
       expect(String((started.details as any)?.error)).toMatch(/initialize/i);
-      expect((runtime as any).delegations.running()).toHaveLength(0);
+      expect(runtime["delegations"].running()).toHaveLength(0);
       await expect((runtime as any).resumeAfterDelegations()).resolves.toBeUndefined();
     } finally {
       subagentRuns.constructorError = undefined;

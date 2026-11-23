@@ -572,7 +572,7 @@ export default function (pi: any) {
 }
 `,
     );
-    const { bridge, log } = fakeBridge();
+    const { bridge } = fakeBridge();
     const runner = new TrustedExtensionRunner({ specs: [ext], bridge, reservedToolNames: () => ["read"] });
     const reports = await runner.load();
     expect(reports).toEqual([

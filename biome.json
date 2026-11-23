@@ -4,12 +4,14 @@
 		"includes": [
 			"apps/desktop/src/features/app/**/*.ts",
 			"apps/desktop/src/features/app/**/*.tsx",
-			"apps/desktop/src/features/chat/composer/**/*.ts",
-			"apps/desktop/src/features/chat/composer/**/*.tsx",
+			"apps/desktop/src/features/chat/**/*.ts",
+			"apps/desktop/src/features/chat/**/*.tsx",
 			"apps/desktop/src/features/plugins/**/*.ts",
 			"apps/desktop/src/features/plugins/**/*.tsx",
 			"apps/desktop/src/features/settings/**/*.ts",
 			"apps/desktop/src/features/settings/**/*.tsx",
+			"apps/desktop/electron/main/plugin-*.ts",
+			"packages/agent-runtime/src/**/*.ts",
 			"apps/desktop/electron/main/runtime/session-launch.ts",
 			"apps/desktop/electron/main/ipc/workspace-ipc.ts",
 			"packages/shared/src/types/**/*.ts",
@@ -25,7 +27,8 @@
 		"rules": {
 			"preset": "none",
 			"correctness": {
-				"noUnusedVariables": "error"
+				"noUnusedVariables": "error",
+				"noUnusedImports": "error"
 			}
 		}
 	}

@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { memo, useCallback, useMemo, useRef, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { PlanningState, UiMessage } from "@pi-desktop/shared";
 import { proposalKindForMode } from "@pi-desktop/shared";
