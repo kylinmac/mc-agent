@@ -211,7 +211,7 @@ test("the shared picker can select or clear every visible model at once", () => 
   assert.match(pickerSource, /toggleVisibleModels/);
   assert.match(pickerSource, /settings\.selectAllVisibleModels/);
   assert.match(pickerSource, /settings\.deselectAllVisibleModels/);
-  assert.match(pickerSource, /el\.indeterminate/);
+  assert.match(pickerSource, /indeterminate=\{someVisibleSelected\}/);
   // A filtered select-all must not drop models the filter is hiding.
   assert.match(pickerSource, /a filtered select-all does not touch hidden matches/);
   assert.match(pickerSource, /visibleRows\.length > 0/);
