@@ -1,1 +1,1 @@
-﻿export { ChatTranscript } from "../features/chat/transcript";
+export { ChatTranscript } from "../features/chat/transcript";

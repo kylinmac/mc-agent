@@ -725,7 +725,7 @@ export function SegmentedControl<T extends string>({
   const itemRole = role === "tablist" ? "tab" : role === "radiogroup" ? "radio" : undefined;
   const tabStop = Math.max(0, options.findIndex((option) => option.value === value));
   function moveFocus(event: ReactKeyboardEvent<HTMLButtonElement>, index: number) {
-    if (!itemRole || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (!itemRole || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     let next: number;
     switch (event.key) {
       case "Home": next = 0; break;

@@ -229,6 +229,14 @@
   flex: 1;
   overflow: auto;
   padding: 14px 10px 24px;
+  scroll-padding-block-end: var(--ds-space-16);
+  mask-image: linear-gradient(to bottom, black calc(100% - var(--ds-space-16)), transparent);
+}
+
+@media (forced-colors: active) {
+  .settings-nav-scroll {
+    mask-image: none;
+  }
 }
 
 .settings-nav-group {
@@ -2158,6 +2166,7 @@
  */
 
 .agent-capability-page {
+  container: capability-page / inline-size;
   display: flex;
   min-width: 0;
   flex-direction: column;
@@ -2348,6 +2357,14 @@
   align-items: center;
   gap: 8px;
   margin-left: auto;
+}
+
+@container capability-page (max-width: 32rem) {
+  .agent-capability-toolbar .agent-capability-toolbar-actions,
+  .import-toolbar .import-toolbar-actions {
+    flex-wrap: wrap;
+    margin-left: 0;
+  }
 }
 
 /*

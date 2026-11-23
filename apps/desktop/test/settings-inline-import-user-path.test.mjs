@@ -207,6 +207,12 @@ window.selectMcpCandidate = async () => {
     throw new Error("A scope filter must have exactly one Tab stop");
   }
   selected.focus();
+  const modified = new KeyboardEvent("keydown", { key: "End", shiftKey: true, bubbles: true, cancelable: true });
+  selected.dispatchEvent(modified);
+  await settle();
+  if (modified.defaultPrevented || document.activeElement !== selected || selected.getAttribute("aria-checked") !== "true") {
+    throw new Error("Shift+End must leave the selected scope and native key handling intact");
+  }
   for (const [key, expected] of [["End", projectFilter], ["ArrowRight", filters[0]], ["ArrowLeft", projectFilter]]) {
     document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
     await settle();
@@ -275,6 +281,25 @@ window.selectMcpCandidate = async () => {
       getComputedStyle(mixed, "::after").backgroundColor !== ink ||
       mark.borderRightColor === getComputedStyle(candidateCheckbox).backgroundColor) {
     throw new Error("Selected and mixed checkboxes must paint contrasting marks in " + theme);
+  }
+  const navigation = requireNode(document.querySelector(".settings-nav-scroll"), "Missing settings navigation");
+  if (navigation.scrollHeight > navigation.clientHeight) {
+    const initialScroll = navigation.scrollTop;
+    navigation.scrollTop = navigation.scrollHeight;
+    const lastItem = [...navigation.querySelectorAll(".settings-nav-item")].at(-1);
+    const fade = parseFloat(getComputedStyle(navigation).scrollPaddingBlockEnd);
+    if (!(fade > 0) || lastItem.getBoundingClientRect().bottom > navigation.getBoundingClientRect().bottom - fade + 1) {
+      throw new Error("Last navigation item must scroll fully above the bottom fade");
+    }
+    navigation.scrollTop = initialScroll;
+  }
+  if (innerWidth === 800) {
+    const toolbar = requireNode(document.querySelector(".agent-capability-toolbar"), "Missing capability toolbar");
+    const project = toolbar.querySelector(".agent-capability-project-picker").getBoundingClientRect();
+    const actions = toolbar.querySelector(".agent-capability-toolbar-actions").getBoundingClientRect();
+    if (actions.top >= project.bottom && Math.abs(project.left - actions.left) > 2) {
+      throw new Error("Wrapped project picker and actions must share the leading edge");
+    }
   }
   const box = candidateCheckbox.getBoundingClientRect();
   const title = candidateRow.querySelector(".import-row-title");
