@@ -1319,6 +1319,7 @@ sklm: {
     importAgentScanModeHint:
       "Copy places a private replica; symlink follows external edits on the next scan but breaks if the source is renamed or removed. Skills only.",
     externalImportFeedback: {
+      list: "Liste yenilenemedi. Bu sayfayı yeniden açıp tekrar deneyin.",
       json: "Dosyadaki JSON sözdizimini düzeltip yeniden tarayın.",
       format: "Yapılandırma biçimi desteklenmiyor. Dosya yapısını kontrol edip yeniden tarayın.",
       permission: "Erişim reddedildi. Dosya veya klasör izinlerini kontrol edip yeniden deneyin.",

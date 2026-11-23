@@ -50,6 +50,9 @@ const project = {
 const calls = [];
 let imported = false;
 let recovery = false;
+let failReload = false;
+let recoveryScans = 0;
+let pluginChanged;
 const stale = { ...candidate, id: "old", label: "Old server", selectionId: "old-choice" };
 const builtinSkill = {
   id: "pi-desktop/imagegen",
@@ -64,7 +67,10 @@ let builtinSkillSetCall;
 Object.defineProperty(window, "AudioContext", { configurable: true, value: undefined });
 window.piDesktop = {
   platform: "darwin",
-  on() { return () => {}; },
+  on(channel, listener) {
+    if (channel === IPC.event.pluginChanged) pluginChanged = listener;
+    return () => { if (pluginChanged === listener) pluginChanged = undefined; };
+  },
   async invoke(channel, ...args) {
     const input = args[0];
     calls.push({ channel, input });
@@ -88,13 +94,14 @@ window.piDesktop = {
         data = { id: input.id, enabled: input.enabled };
         break;
       case IPC.invoke.mcpList:
+        if (failReload) return { ok: false, error: { code: "INTERNAL", message: "private-fixture-list-error" } };
         data = {
           servers: imported && input?.level === "project" ? [importedServer] : [],
           statuses: [],
         };
         break;
       case IPC.invoke.mcpImportScan:
-        if (recovery && calls.filter((call) => call.channel === channel).length > 3) {
+        if (recovery && ++recoveryScans > 1) {
           if (innerWidth === 1100) return { ok: false, error: { message: "private-fixture-do-not-display" } };
           data = { candidates: [], sources: [{ kind: "error", path: "", exists: false, count: 0, error: "scan-failed" }] };
           break;
@@ -105,6 +112,10 @@ window.piDesktop = {
         } : { candidates: imported ? [otherCandidate] : [candidate, otherCandidate], sources: [] };
         break;
       case IPC.invoke.mcpImportRun:
+        if (failReload) {
+          pluginChanged?.({ reason: "mcp" });
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
         imported = true;
         data = recovery ? {
           imported: [{ item: input.items[0] }], skipped: [], failed: [
@@ -206,8 +217,7 @@ window.verifyImportRecovery = async () => {
     throw new Error("Missing row-specific localized validation error");
   }
   if (inputs().filter((input) => input.checked).length !== 2) throw new Error("Partial failure lost the retry selection");
-  const scanCalls = calls.filter((call) => call.channel === IPC.invoke.mcpImportScan).length;
-  if (scanCalls !== 3) throw new Error("Partial failure must preserve the displayed scan");
+  if (recoveryScans !== 1) throw new Error("Partial failure must preserve the displayed scan");
   flushSync(() => requireNode(document.querySelector(".import-toolbar .btn-secondary"), "Rescan action missing").click());
   await waitFor(() => document.querySelector('[role="alert"]')?.textContent.includes("扫描未完成"), "Missing fatal rescan feedback");
   if (document.querySelector(".import-toolbar .btn-primary") || inputs().length || document.body.textContent.includes("private-fixture")) {
@@ -422,6 +432,18 @@ window.editImportedMcp = async () => {
   }
   return call.input.keepEnvKeys;
 };
+
+window.verifySavedRefreshFailure = async () => {
+  const remaining = await waitFor(() => document.querySelector(".import-row input:enabled"), "Missing second candidate");
+  flushSync(() => remaining.click());
+  failReload = true;
+  flushSync(() => requireNode(buttonByLabel("Import selected (1)"), "Missing second import action").click());
+  await waitFor(() => document.querySelector('[role="alert"]')?.textContent.includes("Items were saved"), "The real settings page lost the post-save refresh error");
+  if (document.body.textContent.includes("private-fixture-list-error") || document.querySelector(".import-row input:checked")) {
+    throw new Error("A list reload exposed private details or offered to save a committed selection again");
+  }
+  failReload = false;
+};
 `;
 
 const urlAssets = {
@@ -510,6 +532,7 @@ app.whenReady().then(async () => {
         }
         const imported = await win.webContents.executeJavaScript("window.importSelectedMcp()");
         const keptEnvKeys = await win.webContents.executeJavaScript("window.editImportedMcp()");
+        await win.webContents.executeJavaScript("window.verifySavedRefreshFailure()");
         await win.webContents.executeJavaScript("window.verifyImportRecovery()");
         console.log("SETTINGS_INLINE_MCP_IMPORT " + JSON.stringify({ ...selection, ...imported, keptEnvKeys }));
         win.destroy();

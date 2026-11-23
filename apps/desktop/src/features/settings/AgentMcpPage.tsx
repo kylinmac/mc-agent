@@ -107,8 +107,8 @@ export function AgentMcpPage() {
     loading,
     refreshing,
     reload: load,
-  } = useHostCollection(fetchServers, EMPTY_MCP_COLLECTION, (error) =>
-    showToast(error instanceof Error ? error.message : String(error), { variant: "error" }),
+  } = useHostCollection(fetchServers, EMPTY_MCP_COLLECTION, () =>
+    showToast(t("settings.externalImportFeedback.list"), { variant: "error" }),
   );
   const setStatuses = (update: (current: McpServerStatus[]) => McpServerStatus[]) =>
     setServers((current) => ({ ...current, statuses: update(current.statuses) }));
@@ -683,7 +683,7 @@ export function AgentMcpPage() {
             key={`${targetLevel}:${targetLevel === "project" ? selectedProjectPath ?? "" : ""}`}
             level={targetLevel}
             projectPath={targetLevel === "project" ? selectedProjectPath ?? undefined : undefined}
-            onImported={load}
+            onImported={() => load({ throwOnError: true })}
           />
         </div>
       </section>

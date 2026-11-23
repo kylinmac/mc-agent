@@ -1310,6 +1310,7 @@ sklm: {
     importAgentScanModeHint:
       "Copy places a private replica; symlink follows external edits on the next scan but breaks if the source is renamed or removed. Skills only.",
     externalImportFeedback: {
+      list: "無法更新清單。請重新開啟此頁後重試。",
       json: "修正檔案中的 JSON 語法後重新掃描。",
       format: "不支援此設定格式。檢查檔案結構後重新掃描。",
       permission: "存取遭拒。請檢查檔案或資料夾權限後重試。",

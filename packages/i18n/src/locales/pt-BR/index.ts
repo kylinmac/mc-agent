@@ -1140,6 +1140,7 @@ export const ptBR = {
     importAgentScanModeLink: "Link simbólico",
     importAgentScanModeHint: "Copiar cria uma cópia privada; o link simbólico acompanha edições externas na próxima verificação, mas deixa de funcionar se a origem for renomeada ou removida. Apenas para habilidades.",
     externalImportFeedback: {
+      list: "Não foi possível atualizar a lista. Abra a página novamente e tente outra vez.",
       json: "Corrija a sintaxe JSON do arquivo e verifique novamente.",
       format: "O formato da configuração não é compatível. Confira a estrutura e verifique novamente.",
       permission: "Acesso negado. Confira as permissões do arquivo ou da pasta e tente novamente.",

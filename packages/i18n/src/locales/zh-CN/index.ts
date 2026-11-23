@@ -1332,6 +1332,7 @@ sklm: {
     importAgentScanModeHint:
       "复制：拷贝到本机后与源解耦；软链接：外部改动下次扫描自动生效，源被删除或移动会失效。仅对技能生效。",
     externalImportFeedback: {
+      list: "列表刷新失败。重新打开此页后重试。",
       json: "修正文件中的 JSON 语法后重新扫描。",
       format: "配置格式不受支持。检查文件结构后重新扫描。",
       permission: "访问被拒绝。检查文件或目录权限后重试。",

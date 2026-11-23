@@ -1325,6 +1325,7 @@ sklm: {
     importAgentScanModeHint:
       "Copy places a private replica; symlink follows external edits on the next scan but breaks if the source is renamed or removed. Skills only.",
     externalImportFeedback: {
+      list: "목록을 새로 고치지 못했습니다. 이 페이지를 다시 열고 재시도하세요.",
       json: "파일의 JSON 구문을 수정한 뒤 다시 스캔하세요.",
       format: "지원하지 않는 설정 형식입니다. 파일 구조를 확인한 뒤 다시 스캔하세요.",
       permission: "접근이 거부되었습니다. 파일이나 폴더의 권한을 확인한 뒤 다시 시도하세요.",

@@ -95,8 +95,8 @@ export function AgentSkillsPage() {
     loading,
     refreshing,
     reload: load,
-  } = useHostCollection(fetchSkills, EMPTY_SKILL_COLLECTION, (error) =>
-    showToast(error instanceof Error ? error.message : String(error), { variant: "error" }),
+  } = useHostCollection(fetchSkills, EMPTY_SKILL_COLLECTION, () =>
+    showToast(t("settings.externalImportFeedback.list"), { variant: "error" }),
   );
   const [filter, setFilter] = useState<CapabilityFilter>("all");
   const [importOpen, setImportOpen] = useState(false);
@@ -644,7 +644,7 @@ export function AgentSkillsPage() {
             key={`${targetLevel}:${targetLevel === "project" ? selectedProjectPath ?? "" : ""}`}
             level={targetLevel}
             projectPath={targetLevel === "project" ? selectedProjectPath ?? undefined : undefined}
-            onImported={load}
+            onImported={() => load({ throwOnError: true })}
           />
         </div>
       </section>
