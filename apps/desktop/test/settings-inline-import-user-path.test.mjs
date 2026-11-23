@@ -94,6 +94,11 @@ window.piDesktop = {
         };
         break;
       case IPC.invoke.mcpImportScan:
+        if (recovery && calls.filter((call) => call.channel === channel).length > 3) {
+          if (innerWidth === 1100) return { ok: false, error: { message: "private-fixture-do-not-display" } };
+          data = { candidates: [], sources: [{ kind: "error", path: "", exists: false, count: 0, error: "scan-failed" }] };
+          break;
+        }
         data = recovery ? {
           candidates: [candidate, stale, otherCandidate],
           sources: [{ kind: "cursor-global", path: "/" + "project".repeat(35) + "/config/mcp.json", count: 0, exists: true, error: "invalid-json" }],
@@ -203,6 +208,11 @@ window.verifyImportRecovery = async () => {
   if (inputs().filter((input) => input.checked).length !== 2) throw new Error("Partial failure lost the retry selection");
   const scanCalls = calls.filter((call) => call.channel === IPC.invoke.mcpImportScan).length;
   if (scanCalls !== 3) throw new Error("Partial failure must preserve the displayed scan");
+  flushSync(() => requireNode(document.querySelector(".import-toolbar .btn-secondary"), "Rescan action missing").click());
+  await waitFor(() => document.querySelector('[role="alert"]')?.textContent.includes("扫描未完成"), "Missing fatal rescan feedback");
+  if (document.querySelector(".import-toolbar .btn-primary") || inputs().length || document.body.textContent.includes("private-fixture")) {
+    throw new Error("A failed rescan must retire the previous selection and cannot expose bridge errors");
+  }
   flushSync(() => root.render(React.createElement(AgentSkillImportPanel, props)));
   requireNode(document.querySelector(".import-idle button"), "Missing Skill scan action").click();
   const failure = await waitFor(() => document.querySelector('[role="alert"]'), "Missing localized Skill scan failure");

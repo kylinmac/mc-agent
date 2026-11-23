@@ -67,6 +67,12 @@ export function ExternalAgentImportPanel<Source extends string, Candidate extend
   }, []);
 
   async function readScan() {
+    // Main retires the previous IDs when a scan starts, even if reading the source fails.
+    setBusy("scan");
+    setResult(null);
+    setSelected(new Set());
+    setFeedback([]);
+    disclosure.reset();
     try {
       const next = await scan();
       if (!mounted.current) return;
@@ -76,9 +82,6 @@ export function ExternalAgentImportPanel<Source extends string, Candidate extend
         return;
       }
       setResult(next);
-      setFeedback([]);
-      setSelected(new Set());
-      disclosure.reset();
     } catch {
       if (mounted.current) setFeedback([{ reason: "scan-failed" }]);
     }
@@ -86,7 +89,6 @@ export function ExternalAgentImportPanel<Source extends string, Candidate extend
 
   async function startScan() {
     if (busy) return;
-    setBusy("scan");
     await readScan();
     if (mounted.current) setBusy(null);
   }
