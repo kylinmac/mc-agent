@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Checkbox, HelpIcon, cx } from "../../components/ui";
 import { IconChevronLeft, IconDownload } from "../../components/icons";
@@ -196,23 +196,29 @@ export function ImportRow({
   checked,
   onChange,
   badge,
+  error,
 }: {
   title: string;
   meta: ReactNode;
   checked: boolean;
   onChange: (on: boolean) => void;
   badge?: ReactNode;
+  error?: string;
 }) {
+  const errorId = useId();
   return (
     <Checkbox
       className="import-row"
       checked={checked}
+      aria-label={error ? title : undefined}
+      aria-describedby={error ? errorId : undefined}
       onChange={(event) => onChange(event.target.checked)}
       label={
         <>
           <span className="import-row-main">
             <span className="import-row-title" title={title}>{title}</span>
             <span className="import-row-meta">{meta}</span>
+            {error && <span id={errorId} className="import-row-error" role="alert">{error}</span>}
           </span>
           {badge}
         </>

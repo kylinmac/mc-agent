@@ -1315,6 +1315,22 @@ sklm: {
     importAgentScanModeLink: "Symlink",
     importAgentScanModeHint:
       "Copy places a private replica; symlink follows external edits on the next scan but breaks if the source is renamed or removed. Skills only.",
+    externalImportFeedback: {
+      json: "Corrigez la syntaxe JSON du fichier, puis relancez l’analyse.",
+      format: "Le format de configuration n’est pas pris en charge. Vérifiez sa structure, puis relancez l’analyse.",
+      permission: "Accès refusé. Vérifiez les droits du fichier ou du dossier, puis réessayez.",
+      read: "La source est illisible. Vérifiez son accessibilité, puis relancez l’analyse.",
+      size: "Un fichier de compétence dépasse 128 Kio. Réduisez sa taille, puis relancez l’analyse.",
+      scan: "L’analyse n’a pas abouti. Relancez-la.",
+      stale: "La sélection a expiré. Relancez l’analyse et sélectionnez à nouveau l’élément.",
+      mcp: "La configuration MCP est invalide. Vérifiez le transport et la commande ou l’URL, puis relancez l’analyse.",
+      skill: "La compétence est invalide. Vérifiez ses fichiers et le mode d’importation, puis réessayez.",
+      destination: "La destination est indisponible. Vérifiez le projet sélectionné, puis réessayez.",
+      host: "Le service local est indisponible. Redémarrez l’application, puis réessayez.",
+      missing: "La source de la compétence a été déplacée ou supprimée. Restaurez-la ou relancez l’analyse.",
+      save: "L’importation n’a pas pu être confirmée. Vérifiez la liste de destination et réimportez les éléments manquants.",
+      refresh: "Les éléments sont enregistrés, mais la liste n’a pas été actualisée. Rouvrez-la pour les voir.",
+    },
     importAgentScanResult:
       "Import done: {{imported}} imported, {{skipped}} skipped, {{failed}} failed",
     importAgentScanShapeFile: "File",

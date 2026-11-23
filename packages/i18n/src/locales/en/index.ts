@@ -1191,6 +1191,22 @@ sklm: {
     importAgentScanModeLink: "Symlink",
     importAgentScanModeHint:
       "Copy places a private replica; symlink follows external edits on the next scan but breaks if the source is renamed or removed. Skills only.",
+    externalImportFeedback: {
+      json: "Fix the JSON syntax in this file, then scan again.",
+      format: "The configuration format is unsupported. Check its structure, then scan again.",
+      permission: "Access was denied. Check file or folder permissions, then try again.",
+      read: "The source could not be read. Check that it is accessible, then scan again.",
+      size: "A skill file exceeds 128 KiB. Reduce its size, then scan again.",
+      scan: "The scan could not finish. Scan again.",
+      stale: "This selection expired. Scan again and select the item.",
+      mcp: "The MCP configuration failed validation. Check the transport and command or URL, then scan again.",
+      skill: "The skill failed validation. Check its files and import mode, then try again.",
+      destination: "The destination is unavailable. Check the selected project and try again.",
+      host: "The local service is unavailable. Restart the app and try again.",
+      missing: "The skill source has moved or was removed. Restore it or scan again.",
+      save: "The import could not be confirmed. Check the destination list and retry any missing items.",
+      refresh: "Items were saved, but the list could not refresh. Reopen the list to see them.",
+    },
     importAgentScanResult:
       "Import done: {{imported}} imported, {{skipped}} skipped, {{failed}} failed",
     importAgentScanShapeFile: "File",

@@ -10,11 +10,13 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { mcpImportId } from "@pi-desktop/shared";
+import { scanReadError } from "./external-import-errors";
 
 import type {
   McpServerInput,
   ExternalMcpSourceKind as McpSourceKind,
   ExternalImportScanResult,
+  ExternalImportScanError,
   ExternalImportSourceReport,
 } from "@pi-desktop/shared";
 
@@ -36,14 +38,14 @@ export interface McpScanOptions {
   env?: NodeJS.ProcessEnv;
 }
 
-async function readText(filePath: string): Promise<{ text: string | null; error?: string }> {
+async function readText(filePath: string): Promise<{ text: string | null; error?: ExternalImportScanError }> {
   try {
     const text = await fs.readFile(filePath, "utf8");
     return { text };
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code;
     if (code === "ENOENT") return { text: null };
-    return { text: null, error: `${code ?? "ERR"}: ${(err as Error).message}` };
+    return { text: null, error: scanReadError(err as NodeJS.ErrnoException) };
   }
 }
 
@@ -158,11 +160,11 @@ function scanServerMap(
   return { candidates: collected, count: collected.length };
 }
 
-function parseJson(text: string): { value: unknown | null; error?: string } {
+function parseJson(text: string): { value: unknown | null; error?: ExternalImportScanError } {
   try {
     return { value: JSON.parse(text) as unknown };
-  } catch (err) {
-    return { value: null, error: `invalid json: ${(err as Error).message}` };
+  } catch {
+    return { value: null, error: "invalid-json" };
   }
 }
 
@@ -185,7 +187,7 @@ async function scanJsonMcpServers(
     return { report, candidates: [] };
   }
   if (!isRecord(value)) {
-    report.error = "root is not an object";
+    report.error = "invalid-format";
     return { report, candidates: [] };
   }
   const map = container(value);
@@ -274,7 +276,7 @@ async function scanOpencode(
   const chosenPath = primaryText != null || primaryErr ? primary : fallback;
   const report: McpSourceReport = { kind: "opencode", path: chosenPath, exists: false, count: 0 };
   let text: string | null;
-  let err: string | undefined;
+  let err: ExternalImportScanError | undefined;
   if (primaryText != null || primaryErr) {
     text = primaryText;
     err = primaryErr;
@@ -295,7 +297,7 @@ async function scanOpencode(
     return { report, candidates: [] };
   }
   if (!isRecord(value)) {
-    report.error = "root is not an object";
+    report.error = "invalid-format";
     return { report, candidates: [] };
   }
   const container = isRecord(value.mcp) ? value.mcp : null;
@@ -473,8 +475,8 @@ async function scanCodex(
   let parsed: Record<string, Record<string, unknown>>;
   try {
     parsed = parseCodexMcpToml(text);
-  } catch (err) {
-    report.error = `toml parse failed: ${(err as Error).message}`;
+  } catch {
+    report.error = "invalid-format";
     return { report, candidates: [] };
   }
   const collected: McpCandidate[] = [];

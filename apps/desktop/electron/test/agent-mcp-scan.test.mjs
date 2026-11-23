@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { register } from "node:module";
@@ -220,11 +220,12 @@ test("invalid json is reported through sources[].error, never as a candidate", a
   const { root, home } = await makeHome();
   try {
     await mkdir(join(home, ".cursor"), { recursive: true });
-    await writeFile(join(home, ".cursor", "mcp.json"), "{ not json");
+    await writeFile(join(home, ".cursor", "mcp.json"), "{private-fixture-is-not-json}");
     const result = await scanExternalMcp({ homeDir: home, platform: "linux", env: {} });
     const src = result.sources.find((s) => s.kind === "cursor-global");
     assert.equal(src.exists, true);
-    assert.match(src.error, /invalid json/);
+    assert.equal(src.error, "invalid-json");
+    assert.doesNotMatch(JSON.stringify(src), /private-fixture/);
     assert.equal(result.candidates.filter((c) => c.source === "cursor-global").length, 0);
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -242,6 +243,21 @@ test("chatgpt-desktop always reports as not detected until a stable path exists"
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("scan reports denied file access separately from an absent source", {
+  skip: process.platform === "win32" || process.getuid?.() === 0,
+}, async (t) => {
+  const { root, home } = await makeHome();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const file = join(home, ".cursor", "mcp.json");
+  await mkdir(dirname(file), { recursive: true });
+  await writeFile(file, "private-fixture");
+  await chmod(file, 0);
+  const { sources } = await scanExternalMcp({ homeDir: home, platform: "linux", env: {} });
+  assert.equal(sources.find((source) => source.path === file).error, "permission-denied");
+  assert.equal(sources.find((source) => source.kind === "claude-desktop").error, undefined);
+  assert.doesNotMatch(JSON.stringify(sources), /private-fixture/);
 });
 
 test("parseCodexMcpToml ignores unrelated sections and comments", () => {

@@ -4,11 +4,20 @@ export interface ImportRunResult {
   failed: number;
 }
 
+/** Safe public diagnostics. Parser, filesystem and host messages can contain credentials. */
+export const externalImportScanErrors = [
+  "invalid-json", "invalid-format", "permission-denied", "source-unreadable", "skill-too-large", "scan-failed",
+] as const;
+export type ExternalImportScanError = (typeof externalImportScanErrors)[number];
+export type ExternalImportWriteError =
+  | "stale-selection" | "invalid-mcp" | "invalid-skill" | "invalid-destination"
+  | "permission-denied" | "host-unavailable" | "source-missing" | "import-failed";
+
 export interface ExternalImportSourceReport<Kind extends string> {
   kind: Kind;
   path: string;
   exists: boolean;
-  error?: string;
+  error?: ExternalImportScanError;
   count: number;
 }
 
@@ -51,7 +60,8 @@ export interface ExternalSkillImportPayload {
 export interface ExternalImportBatchResult {
   imported: Array<{ item: ExternalImportSelection }>;
   skipped: Array<{ item: ExternalImportSelection; reason: "exists" }>;
-  failed: Array<{ item: ExternalImportSelection; error: "stale-selection" | "import-failed" }>;
+  /** requestIndex identifies a submitted row even when Main cannot authenticate its selectionId. */
+  failed: Array<{ item: ExternalImportSelection; requestIndex: number; error: ExternalImportWriteError }>;
 }
 
 export type ExternalSkillImportRunResult = ExternalImportBatchResult;

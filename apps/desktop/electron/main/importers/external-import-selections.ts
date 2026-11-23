@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
+import { externalImportScanErrors } from "@pi-desktop/shared";
 import type {
   ExternalImportBatchResult,
   ExternalImportScanResult,
   ExternalImportSelection,
 } from "@pi-desktop/shared";
+import { importWriteError } from "./external-import-errors";
 
 // Settings can stay open for the life of the app. Release old projects' private inputs.
 const MAX_PROJECT_SCANS = 32;
@@ -37,13 +39,13 @@ export function externalImportScans<Private, Public, Source extends string>(
           }),
           sources: result.sources.map(({ kind, path, exists, count, error }) => ({
             kind, path, exists, count,
-            ...(error ? { error: "Source could not be read" } : {}),
+            ...(error ? { error: externalImportScanErrors.includes(error) ? error : "source-unreadable" } : {}),
           })),
         };
       } catch {
         return {
           candidates: [],
-          sources: [{ kind: "error", path: "", exists: false, count: 0, error: "Scan failed" }],
+          sources: [{ kind: "error", path: "", exists: false, count: 0, error: "scan-failed" }],
         };
       }
     },
@@ -58,24 +60,29 @@ export function externalImportScans<Private, Public, Source extends string>(
 export async function importSelections<T>(
   items: readonly ExternalImportSelection[],
   candidates: ReadonlyMap<string, T> | undefined,
-  save: (candidate: T) => Promise<unknown>,
+  save: ((candidate: T) => Promise<unknown>) | null,
 ): Promise<ExternalImportBatchResult> {
   const result: ExternalImportBatchResult = { imported: [], skipped: [], failed: [] };
-  for (const selection of items) {
+  for (const [requestIndex, selection] of items.entries()) {
     const item = { selectionId: typeof selection?.selectionId === "string" ? selection.selectionId : "" };
     const candidate = candidates?.get(item.selectionId);
     if (!candidate) {
-      result.failed.push({ item: { selectionId: "" }, error: "stale-selection" });
+      result.failed.push({ item: { selectionId: "" }, requestIndex, error: "stale-selection" });
+      continue;
+    }
+    if (!save) {
+      result.failed.push({ item, requestIndex, error: "host-unavailable" });
       continue;
     }
     try {
       await save(candidate);
       result.imported.push({ item });
     } catch (error) {
-      if (error instanceof Error && /already exists/i.test(error.message)) {
+      const reason = importWriteError(error);
+      if (reason === "exists") {
         result.skipped.push({ item, reason: "exists" });
       } else {
-        result.failed.push({ item, error: "import-failed" });
+        result.failed.push({ item, requestIndex, error: reason });
       }
     }
   }

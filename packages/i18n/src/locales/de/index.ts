@@ -1315,6 +1315,22 @@ sklm: {
     importAgentScanModeLink: "Symlink",
     importAgentScanModeHint:
       "Copy places a private replica; symlink follows external edits on the next scan but breaks if the source is renamed or removed. Skills only.",
+    externalImportFeedback: {
+      json: "Korrigiere die JSON-Syntax der Datei und scanne erneut.",
+      format: "Das Konfigurationsformat wird nicht unterstützt. Prüfe die Struktur und scanne erneut.",
+      permission: "Zugriff verweigert. Prüfe die Datei- oder Ordnerberechtigungen und versuche es erneut.",
+      read: "Die Quelle ist nicht lesbar. Prüfe den Zugriff und scanne erneut.",
+      size: "Eine Skill-Datei ist größer als 128 KiB. Verkleinere sie und scanne erneut.",
+      scan: "Der Scan wurde nicht abgeschlossen. Starte ihn erneut.",
+      stale: "Die Auswahl ist abgelaufen. Scanne erneut und wähle den Eintrag noch einmal aus.",
+      mcp: "Die MCP-Konfiguration ist ungültig. Prüfe Transport und Befehl oder URL und scanne erneut.",
+      skill: "Der Skill ist ungültig. Prüfe die Dateien und den Importmodus und versuche es erneut.",
+      destination: "Das Ziel ist nicht verfügbar. Prüfe das ausgewählte Projekt und versuche es erneut.",
+      host: "Der lokale Dienst ist nicht verfügbar. Starte die App neu und versuche es erneut.",
+      missing: "Die Skill-Quelle wurde verschoben oder entfernt. Stelle sie wieder her oder scanne erneut.",
+      save: "Der Import konnte nicht bestätigt werden. Prüfe die Zielliste und importiere fehlende Einträge erneut.",
+      refresh: "Die Einträge sind gespeichert. Öffne die Liste erneut, um sie zu aktualisieren.",
+    },
     importAgentScanResult:
       "Import done: {{imported}} imported, {{skipped}} skipped, {{failed}} failed",
     importAgentScanShapeFile: "File",

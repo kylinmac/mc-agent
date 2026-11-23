@@ -1331,6 +1331,22 @@ sklm: {
     importAgentScanModeLink: "软链接",
     importAgentScanModeHint:
       "复制：拷贝到本机后与源解耦；软链接：外部改动下次扫描自动生效，源被删除或移动会失效。仅对技能生效。",
+    externalImportFeedback: {
+      json: "修正文件中的 JSON 语法后重新扫描。",
+      format: "配置格式不受支持。检查文件结构后重新扫描。",
+      permission: "访问被拒绝。检查文件或目录权限后重试。",
+      read: "无法读取来源。检查文件或目录是否可访问，然后重新扫描。",
+      size: "技能文件超过 128 KiB。缩小文件后重新扫描。",
+      scan: "扫描未完成，请重新扫描。",
+      stale: "此选择已过期。请重新扫描并再次勾选该项。",
+      mcp: "MCP 配置未通过校验。检查传输方式及命令或 URL，然后重新扫描。",
+      skill: "技能未通过校验。检查技能文件和导入方式后重试。",
+      destination: "目标位置不可用。检查所选项目后重试。",
+      host: "本地服务不可用。重启应用后重试。",
+      missing: "技能源文件已移动或删除。恢复文件或重新扫描。",
+      save: "无法确认导入结果。请查看目标列表，再重试缺失的项目。",
+      refresh: "项目已保存，但列表刷新失败。重新打开列表即可查看。",
+    },
     importAgentScanResult:
       "导入完成：成功 {{imported}}，跳过 {{skipped}}，失败 {{failed}}",
     importAgentScanShapeFile: "文件",

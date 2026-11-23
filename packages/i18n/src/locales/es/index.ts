@@ -1315,6 +1315,22 @@ sklm: {
     importAgentScanModeLink: "Symlink",
     importAgentScanModeHint:
       "Copy places a private replica; symlink follows external edits on the next scan but breaks if the source is renamed or removed. Skills only.",
+    externalImportFeedback: {
+      json: "Corrige la sintaxis JSON del archivo y vuelve a escanear.",
+      format: "El formato de la configuración no es compatible. Revisa la estructura y vuelve a escanear.",
+      permission: "Acceso denegado. Revisa los permisos del archivo o la carpeta y vuelve a intentarlo.",
+      read: "No se pudo leer el origen. Comprueba que sea accesible y vuelve a escanear.",
+      size: "Un archivo de habilidad supera los 128 KiB. Reduce su tamaño y vuelve a escanear.",
+      scan: "El escaneo no terminó. Vuelve a escanear.",
+      stale: "La selección ha caducado. Vuelve a escanear y selecciona de nuevo el elemento.",
+      mcp: "La configuración MCP no es válida. Revisa el transporte y el comando o la URL y vuelve a escanear.",
+      skill: "La habilidad no es válida. Revisa sus archivos y el modo de importación e inténtalo de nuevo.",
+      destination: "El destino no está disponible. Revisa el proyecto seleccionado e inténtalo de nuevo.",
+      host: "El servicio local no está disponible. Reinicia la aplicación e inténtalo de nuevo.",
+      missing: "El origen de la habilidad se ha movido o eliminado. Restáuralo o vuelve a escanear.",
+      save: "No se pudo confirmar la importación. Revisa la lista de destino e importa de nuevo los elementos que falten.",
+      refresh: "Los elementos se guardaron, pero la lista no se actualizó. Vuelve a abrirla para verlos.",
+    },
     importAgentScanResult:
       "Import done: {{imported}} imported, {{skipped}} skipped, {{failed}} failed",
     importAgentScanShapeFile: "File",

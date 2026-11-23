@@ -46,14 +46,13 @@ export function registerAgentImportIpc({
   registrar.handle(IPC.invoke.skillImportScan, skills.scan);
   registrar.handle(IPC.invoke.skillImportRun, async ({ level, projectPath, mode = "copy", items }: ExternalSkillImportPayload) => {
     const host = getHost();
-    if (!host) throw new Error("host unavailable");
-    const result = await importSelections(items, skills.forDestination(level, projectPath), (candidate) => {
+    const result = await importSelections(items, skills.forDestination(level, projectPath), host && ((candidate) => {
       const { id, name, shape, description, sourcePath, rootDir } = candidate;
       return host.call("skills.import", {
         id, name, shape, description, level, mode, ...(level === "project" ? { projectPath } : {}),
         path: shape === "dir" ? rootDir ?? sourcePath : sourcePath,
       });
-    });
+    }));
     if (result.imported.length) sendToRenderer(IPC.event.pluginChanged, { reason: "skill" });
     return result;
   });
@@ -61,15 +60,14 @@ export function registerAgentImportIpc({
   registrar.handle(IPC.invoke.mcpImportScan, mcp.scan);
   registrar.handle(IPC.invoke.mcpImportRun, async ({ level = "global", projectPath, items }: ExternalMcpImportPayload) => {
     const host = getHost();
-    if (!host) throw new Error("host unavailable");
-    const result = await importSelections(items, mcp.forDestination(level, projectPath), (candidate) => {
+    const result = await importSelections(items, mcp.forDestination(level, projectPath), host && ((candidate) => {
       const { id, label, description, transport, command, args, env, url, headers, disabled } = candidate;
       return host.call("mcp.upsert", {
         createOnly: true,
         server: { id, label, description, transport, command, args, env, url, headers, level,
           ...(level === "project" ? { projectPath } : {}), ...(disabled ? { enabled: false } : {}) },
       });
-    });
+    }));
     if (result.imported.length) {
       // The save is committed. Notify the UI even if rebuilding the active runtime fails.
       try {

@@ -1318,6 +1318,22 @@ sklm: {
     importAgentScanModeLink: "Symlink",
     importAgentScanModeHint:
       "Copy places a private replica; symlink follows external edits on the next scan but breaks if the source is renamed or removed. Skills only.",
+    externalImportFeedback: {
+      json: "Dosyadaki JSON sözdizimini düzeltip yeniden tarayın.",
+      format: "Yapılandırma biçimi desteklenmiyor. Dosya yapısını kontrol edip yeniden tarayın.",
+      permission: "Erişim reddedildi. Dosya veya klasör izinlerini kontrol edip yeniden deneyin.",
+      read: "Kaynak okunamadı. Erişilebilir olduğunu kontrol edip yeniden tarayın.",
+      size: "Bir beceri dosyası 128 KiB sınırını aşıyor. Boyutunu küçültüp yeniden tarayın.",
+      scan: "Tarama tamamlanamadı. Yeniden tarayın.",
+      stale: "Seçimin süresi doldu. Yeniden tarayıp öğeyi tekrar seçin.",
+      mcp: "MCP yapılandırması doğrulanamadı. Aktarım türünü ve komutu veya URL’yi kontrol edip yeniden tarayın.",
+      skill: "Beceri doğrulanamadı. Dosyaları ve içe aktarma modunu kontrol edip yeniden deneyin.",
+      destination: "Hedef kullanılamıyor. Seçili projeyi kontrol edip yeniden deneyin.",
+      host: "Yerel hizmet kullanılamıyor. Uygulamayı yeniden başlatıp tekrar deneyin.",
+      missing: "Beceri kaynağı taşınmış veya silinmiş. Kaynağı geri yükleyin ya da yeniden tarayın.",
+      save: "İçe aktarma doğrulanamadı. Hedef listesini kontrol edip eksik öğeleri yeniden içe aktarın.",
+      refresh: "Öğeler kaydedildi ancak liste yenilenemedi. Öğeleri görmek için listeyi yeniden açın.",
+    },
     importAgentScanResult:
       "Import done: {{imported}} imported, {{skipped}} skipped, {{failed}} failed",
     importAgentScanShapeFile: "File",

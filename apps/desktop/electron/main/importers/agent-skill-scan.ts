@@ -9,11 +9,13 @@
 import { promises as fs, type Stats } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { scanReadError } from "./external-import-errors";
 
 import type {
   ExternalSkillCandidate,
   ExternalSkillSourceKind as SkillSourceKind,
   ExternalImportScanResult,
+  ExternalImportScanError,
   ExternalImportSourceReport,
 } from "@pi-desktop/shared";
 
@@ -87,40 +89,32 @@ function findUnquotedHash(value: string): number {
   return -1;
 }
 
-async function statSafe(target: string): Promise<Stats | null> {
-  try {
-    return await fs.stat(target);
-  } catch {
-    return null;
-  }
-}
-
-async function listDir(dir: string): Promise<{ entries: string[]; error?: string; exists: boolean }> {
+async function listDir(dir: string): Promise<{ entries: string[]; error?: ExternalImportScanError; exists: boolean }> {
   try {
     const entries = await fs.readdir(dir);
     return { entries, exists: true };
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code;
     if (code === "ENOENT") return { entries: [], exists: false };
-    return { entries: [], exists: false, error: `${code ?? "ERR"}: ${(err as Error).message}` };
+    return { entries: [], exists: false, error: scanReadError(err as NodeJS.ErrnoException) };
   }
 }
 
 async function readSkillFile(
   filePath: string,
-): Promise<{ text: string | null; bytes: number; error?: string }> {
+): Promise<{ text: string | null; bytes: number; error?: ExternalImportScanError }> {
   try {
     const stat = await fs.stat(filePath);
     if (!stat.isFile()) return { text: null, bytes: 0 };
     if (stat.size > MAX_SKILL_BYTES) {
-      return { text: null, bytes: stat.size, error: `skill exceeds ${MAX_SKILL_BYTES}B limit` };
+      return { text: null, bytes: stat.size, error: "skill-too-large" };
     }
     const text = await fs.readFile(filePath, "utf8");
     return { text, bytes: stat.size };
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code;
     if (code === "ENOENT") return { text: null, bytes: 0 };
-    return { text: null, bytes: 0, error: `${code ?? "ERR"}: ${(err as Error).message}` };
+    return { text: null, bytes: 0, error: scanReadError(err as NodeJS.ErrnoException) };
   }
 }
 
@@ -172,17 +166,22 @@ async function scanDirectory(
   report.exists = true;
 
   const candidates: SkillCandidate[] = [];
-  const errors: string[] = [];
   for (const entry of listing.entries.sort()) {
     if (candidates.length >= MAX_CANDIDATES_PER_SOURCE) break;
     const abs = path.join(dir, entry);
-    const stat = await statSafe(abs);
-    if (!stat) continue;
+    let stat: Stats;
+    try {
+      stat = await fs.stat(abs);
+    } catch (error) {
+      const failure = error as NodeJS.ErrnoException;
+      if (failure.code !== "ENOENT") report.error ??= scanReadError(failure);
+      continue;
+    }
     if (stat.isFile() && entry.toLowerCase().endsWith(".md")) {
       const fallbackId = entry.replace(/\.md$/i, "");
       const { text, bytes, error } = await readSkillFile(abs);
       if (error) {
-        errors.push(`${entry}: ${error}`);
+        report.error ??= error;
         continue;
       }
       if (text == null) continue;
@@ -194,7 +193,7 @@ async function scanDirectory(
       const skillPath = path.join(abs, "SKILL.md");
       const { text, bytes, error } = await readSkillFile(skillPath);
       if (error) {
-        errors.push(`${entry}: ${error}`);
+        report.error ??= error;
         continue;
       }
       if (text == null) continue;
@@ -211,7 +210,6 @@ async function scanDirectory(
     deduped.push(cand);
   }
   report.count = deduped.length;
-  if (errors.length) report.error = errors.join("; ");
   return { report, candidates: deduped };
 }
 

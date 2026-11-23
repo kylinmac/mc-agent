@@ -161,3 +161,38 @@ test("MCP settings list and mutation replies expose edit metadata without saved 
     assert.deepEqual(reply.server, listed.servers[0]);
   }
 });
+
+test("import feedback distinguishes source and host failures and correlates stale rows by position", async () => {
+  const handlers = new Map();
+  const invoke = (channel, payload) => handlers.get(channel)(payload);
+  const servers = ["denied", "invalid", "ok"].map((id) => ({
+    source: "codex", sourcePath: "/config", id, rawKey: id, transport: "stdio", command: "fixture", warnings: [],
+  }));
+  let host = { call: async (_method, { server }) => {
+    if (server.id === "denied") throw Object.assign(new Error("private-fixture"), { code: "EACCES" });
+    if (server.id === "invalid") throw Object.assign(new Error('MCP_INVALID: header key "already exists private-fixture" is not allowed'), { errorCode: "MCP_INVALID" });
+  } };
+  registerAgentImportIpc({
+    registrar: { handle: (channel, fn) => handlers.set(channel, fn) },
+    getHost: () => host, sendToRenderer() {},
+    scanMcp: async () => ({ candidates: servers, sources: [
+      { kind: "cursor-global", path: "/config", exists: true, count: 0, error: "invalid-json" },
+      { kind: "claude-code", path: "/config2", exists: false, count: 0, error: "permission-denied" },
+      { kind: "opencode", path: "/config3", exists: true, count: 0, error: "private-fixture" },
+    ] }),
+    scanSkills: async () => { throw new Error("private-fixture"); },
+  });
+  const preview = await invoke(IPC.invoke.mcpImportScan);
+  assert.deepEqual(preview.sources.map(({ error }) => error), ["invalid-json", "permission-denied", "source-unreadable"]);
+  const failedScan = await invoke(IPC.invoke.skillImportScan);
+  assert.equal(failedScan.sources[0].error, "scan-failed");
+  const [denied, invalid, ok] = preview.candidates;
+  const outcome = await invoke(IPC.invoke.mcpImportRun, { items: [ok, denied, { selectionId: "private-fixture" }, invalid] });
+  assert.deepEqual(outcome.failed.map(({ requestIndex, error }) => [requestIndex, error]),
+    [[1, "permission-denied"], [2, "stale-selection"], [3, "invalid-mcp"]]);
+  assert.equal(outcome.skipped.length, 0);
+  assert.doesNotMatch(JSON.stringify([failedScan, preview, outcome]), /private-fixture/);
+  host = null;
+  const offline = await invoke(IPC.invoke.mcpImportRun, { items: [ok] });
+  assert.equal(offline.failed[0].error, "host-unavailable");
+});

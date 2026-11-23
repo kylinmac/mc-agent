@@ -22,6 +22,8 @@ import { initReactI18next } from "react-i18next";
 import { catalogs, flattenCatalog } from "@pi-desktop/i18n";
 import { FONT_SCALE_PRESETS, IPC } from "@pi-desktop/shared";
 import { SettingsPage } from "../../apps/desktop/src/features/settings/SettingsPage";
+import { AgentMcpImportPanel } from "../../apps/desktop/src/features/settings/imports/AgentMcpImportPanel";
+import { AgentSkillImportPanel } from "../../apps/desktop/src/features/settings/imports/AgentSkillImportPanel";
 import { ToastHost } from "../../apps/desktop/src/components/Toast";
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";
 
@@ -47,6 +49,8 @@ const project = {
 };
 const calls = [];
 let imported = false;
+let recovery = false;
+const stale = { ...candidate, id: "old", label: "Old server", selectionId: "old-choice" };
 const builtinSkill = {
   id: "pi-desktop/imagegen",
   name: "imagegen",
@@ -90,15 +94,31 @@ window.piDesktop = {
         };
         break;
       case IPC.invoke.mcpImportScan:
-        data = { candidates: imported ? [otherCandidate] : [candidate, otherCandidate], sources: [] };
+        data = recovery ? {
+          candidates: [candidate, stale, otherCandidate],
+          sources: [{ kind: "cursor-global", path: "/" + "project".repeat(35) + "/config/mcp.json", count: 0, exists: true, error: "invalid-json" }],
+        } : { candidates: imported ? [otherCandidate] : [candidate, otherCandidate], sources: [] };
         break;
       case IPC.invoke.mcpImportRun:
         imported = true;
-        data = {
+        data = recovery ? {
+          imported: [{ item: input.items[0] }], skipped: [], failed: [
+            { item: { selectionId: "" }, requestIndex: 1, error: "stale-selection" },
+            { item: input.items[2], requestIndex: 2, error: "invalid-mcp" },
+          ],
+        } : {
           imported: [{ item: input.items[0] }],
           skipped: [],
           failed: [],
         };
+        break;
+      case IPC.invoke.skillImportScan:
+        if (calls.filter((call) => call.channel === IPC.invoke.skillImportScan).length === 1) {
+          return { ok: false, error: { message: "private-fixture-do-not-display" } };
+        }
+        data = { candidates: [], sources: [
+          { kind: "claude-user", path: "/skills", exists: false, count: 0, error: "permission-denied" },
+        ] };
         break;
       case IPC.invoke.mcpUpsert:
         data = { server: importedServer };
@@ -114,7 +134,8 @@ await i18n.use(initReactI18next).init({
   lng: "en",
   fallbackLng: "en",
   keySeparator: false,
-  resources: { en: { translation: flattenCatalog(catalogs.en) } },
+  resources: { en: { translation: flattenCatalog(catalogs.en) },
+    "zh-CN": { translation: flattenCatalog(catalogs["zh-CN"]) } },
   interpolation: { escapeValue: false },
 });
 const theme = new URLSearchParams(location.search).get("theme");
@@ -156,6 +177,42 @@ async function waitFor(predicate, message) {
   }
   throw new Error(message);
 }
+
+window.verifyImportRecovery = async () => {
+  recovery = true;
+  await i18n.changeLanguage("zh-CN");
+  const props = { level: "global", onImported: async () => {} };
+  flushSync(() => root.render(React.createElement(AgentMcpImportPanel, props)));
+  requireNode(document.querySelector(".import-idle button"), "Missing scan action").click();
+  const source = await waitFor(() => document.querySelector('[role="alert"]'), "No inline scan feedback");
+  if (!source.textContent.includes("/config/mcp.json") || !source.textContent.includes("JSON 语法")) {
+    throw new Error("Scan feedback must identify the source and explain JSON syntax in Chinese");
+  }
+  if (source.scrollWidth > source.clientWidth + 1 || source.getBoundingClientRect().right > innerWidth) {
+    throw new Error("The source path must wrap within the alert at " + innerWidth + "px");
+  }
+  const inputs = () => [...document.querySelectorAll(".import-row input")];
+  flushSync(() => document.querySelector(".import-select-all input").click());
+  requireNode(document.querySelector(".import-toolbar .btn-primary"), "Missing import action").click();
+  const rowError = (name) => [...document.querySelectorAll(".import-row")].find((row) =>
+    row.querySelector(".import-row-title").textContent === name)?.querySelector('[role="alert"]')?.textContent;
+  await waitFor(() => rowError("Old server")?.includes("重新扫描"), "Stale row did not identify its local candidate");
+  if (!rowError("Local docs")?.includes("MCP 配置") || rowError(candidate.label)) {
+    throw new Error("Missing row-specific localized validation error");
+  }
+  if (inputs().filter((input) => input.checked).length !== 2) throw new Error("Partial failure lost the retry selection");
+  const scanCalls = calls.filter((call) => call.channel === IPC.invoke.mcpImportScan).length;
+  if (scanCalls !== 3) throw new Error("Partial failure must preserve the displayed scan");
+  flushSync(() => root.render(React.createElement(AgentSkillImportPanel, props)));
+  requireNode(document.querySelector(".import-idle button"), "Missing Skill scan action").click();
+  const failure = await waitFor(() => document.querySelector('[role="alert"]'), "Missing localized Skill scan failure");
+  if (!failure.textContent.includes("重新扫描") || document.body.textContent.includes("private-fixture")) {
+    throw new Error("Skill IPC errors must remain private and offer recovery in Chinese");
+  }
+  requireNode(document.querySelector(".import-idle button"), "Skill retry action missing").click();
+  await waitFor(() => document.querySelector('[role="alert"]')?.textContent.includes("访问被拒绝"), "Missing permission feedback after retry");
+  if (document.querySelector(".import-empty")) throw new Error("An unreadable source must not appear as an empty scan");
+};
 
 window.selectMcpCandidate = async () => {
   await waitFor(
@@ -443,6 +500,7 @@ app.whenReady().then(async () => {
         }
         const imported = await win.webContents.executeJavaScript("window.importSelectedMcp()");
         const keptEnvKeys = await win.webContents.executeJavaScript("window.editImportedMcp()");
+        await win.webContents.executeJavaScript("window.verifyImportRecovery()");
         console.log("SETTINGS_INLINE_MCP_IMPORT " + JSON.stringify({ ...selection, ...imported, keptEnvKeys }));
         win.destroy();
       }
