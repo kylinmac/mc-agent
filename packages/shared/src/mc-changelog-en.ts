@@ -9,6 +9,21 @@ import type { McReleaseNotes } from "./mc-changelog-types.js";
  */
 export const mcEnEntries: McReleaseNotes[] = [
   {
+    version: "1.0.92",
+    date: "2026-11-23",
+    improvements: [
+      "When an MCP server or skill import fails, you can see the cause and how to retry. Failed items stay selected after a batch import.",
+      "Use the arrow keys, Home, and End to change segmented options in Settings. In narrow windows, wrapped actions line up with the project picker.",
+      "Importing an MCP server again skips its existing settings. You can keep saved credentials when editing a server.",
+    ],
+    fixes: [
+      "Resumed chats and subagents can read lists, MCP resource text, links, and images returned by plugin tools.",
+      "New sessions remember the permissions chosen on desktop, mobile, or a headless client. Mobile history also shows permissions inherited from global settings.",
+      "If a storage error interrupts project deletion, your groups, sessions, and chat history remain available for another attempt.",
+      "Disabling a crashed plugin or quitting the app cancels pending restarts. A stopped plugin can no longer register tools.",
+    ],
+  },
+  {
     version: "1.0.91",
     date: "2026-11-21",
     features: [
