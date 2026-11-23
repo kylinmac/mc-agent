@@ -30,7 +30,7 @@ test("remote and imported pi sessions are not asked", () => {
 
 test("Tab accepts only into an empty draft, and the setting gates the request", () => {
   const input = readFileSync(new URL("../src/features/chat/composer/ComposerInput.tsx", import.meta.url), "utf8");
-  const composer = readFileSync(new URL("../src/components/Composer.tsx", import.meta.url), "utf8");
+  const composer = readFileSync(new URL("../src/features/chat/Composer.tsx", import.meta.url), "utf8");
   const ipc = readFileSync(new URL("../electron/main/ipc/mc-session-insight-ipc.ts", import.meta.url), "utf8");
   // The suggestion shares the plugin slot (ADR 0333): drawn only while the
   // draft is empty, and Tab takes it only when no completion claims the key.

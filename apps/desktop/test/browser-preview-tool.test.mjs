@@ -1,3 +1,4 @@
+import { readContractModules } from "./helpers/source-contracts.mjs";
 import { readAppSource, readMainSource } from "./helpers/source-contracts.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -17,13 +18,14 @@ const protocolSource = await readFile(
   new URL("../../../packages/shared/src/protocol.ts", import.meta.url),
   "utf8",
 );
-const runtimeSource = await readFile(
-  new URL("../../../packages/agent-runtime/src/runtime.ts", import.meta.url),
-  "utf8",
+const runtimeSource = readContractModules(
+  "../../../packages/agent-runtime/src/runtime.ts",
+  "../../../packages/agent-runtime/src/builtin-tool-schemas.ts",
 );
-const pluginRuntimeSource = await readFile(
-  new URL("../electron/main/plugin-runtime.ts", import.meta.url),
-  "utf8",
+const pluginRuntimeSource = readContractModules(
+  "../electron/main/plugin-runtime.ts",
+  "../electron/main/plugin-file-access.ts",
+  "../electron/main/plugin-file-api.ts",
 );
 const browserPluginSource = await readFile(
   new URL("../resources/plugins/pi.browser/main.js", import.meta.url),

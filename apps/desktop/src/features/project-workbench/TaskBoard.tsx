@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { ProjectTask, ProjectTaskStatus, ResourceListing } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
-import { Button } from "../../components/ui";
+import { Select, Button, Checkbox } from "../../components/ui";
 import { taskPrompt } from "./task-prompt";
 
 const STATUS_KEYS: Record<ProjectTaskStatus, string> = {
@@ -217,7 +217,8 @@ export function TaskBoard({
           // board instead of in the start-folder row at the bottom.
           <label className="mc-workbench-task-folder">
             <span className="mc-workbench-muted">{t("mcProject.taskStartFolderLabel")}</span>
-            <select
+            <Select
+              appearance="embedded"
               className="mc-workbench-select"
               value={startFolder}
               onChange={(event) => onStartFolderChange(event.target.value)}
@@ -227,7 +228,7 @@ export function TaskBoard({
                   {option.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         ) : null}
         <Button size="sm" variant="ghost" onClick={() => setCreating((value) => !value)}>
@@ -263,8 +264,7 @@ export function TaskBoard({
               <legend className="mc-workbench-label">{t("mcProject.taskResourcesLabel")}</legend>
               {selectable.map((item) => (
                 <label key={item.key} className="mc-workbench-check">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={draft.resources.includes(item.key)}
                     onChange={(event) =>
                       setDraft({

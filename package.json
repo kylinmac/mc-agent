@@ -83,6 +83,8 @@
     "test:e2e:send-now-subagents": "node scripts/e2e-send-now-subagents.mjs",
     "test:e2e:subagent-parent-error": "node scripts/e2e-subagent-parent-error.mjs",
     "test:e2e:subagent-models": "node scripts/e2e-subagent-models.mjs",
+    "check:architecture": "node --test scripts/check-architecture.test.mjs apps/desktop/test/renderer-import-boundary.test.mjs && node scripts/check-architecture.mjs",
+    "check:ui": "pnpm --filter @pi-desktop/desktop lint",
     "check:marketplace": "node scripts/check-marketplace-catalog.mjs",
     "check:pi-dependencies": "node scripts/check-pi-dependencies.mjs",
     "check:pi-patches": "node scripts/check-pi-patches.mjs",
@@ -123,6 +125,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.13",
-    "@pi-desktop/plugin-devkit": "workspace:*"
+    "@pi-desktop/plugin-devkit": "workspace:*",
+    "postcss": "8.5.26",
+    "typescript": "5.9.3"
   }
 }

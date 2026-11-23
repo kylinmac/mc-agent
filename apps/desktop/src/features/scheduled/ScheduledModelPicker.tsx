@@ -7,9 +7,9 @@ import {
   composerModelsForProvider,
   sameComposerModelId,
 } from "../../lib/composer-models";
-import { ComposerModelPicker } from "../chat/composer/ComposerModelPicker";
-import { useComposerModelMenu } from "../chat/composer/hooks/useComposerModelMenu";
-import { thinkingLevelForProvider, thinkingProviderForModel } from "../chat/composer/model";
+import { ComposerModelPicker } from "../../components/model-picker/ComposerModelPicker";
+import { useComposerModelMenu } from "../../components/model-picker/useComposerModelMenu";
+import { thinkingLevelForProvider, thinkingProviderForModel } from "../../lib/composer-models";
 import type { ScheduledModelSelection } from "./ScheduledExecutionSettings";
 
 /** The same Composer view/controller, with a task-draft persistence callback. */

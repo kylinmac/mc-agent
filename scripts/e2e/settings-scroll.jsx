@@ -48,7 +48,7 @@ window.piDesktop = {
       case IPC.invoke.pluginScenicThemesDestinations: data = destinations; break;
       case IPC.invoke.settingsGet: data = settings; break;
       case IPC.invoke.settingsSet:
-        settings = input;
+        settings = { ...settings, ...input };
         data = settings;
         if (settings.updatePreference === "automatic" || settings.updatePreference === "manual") {
           updateState = {

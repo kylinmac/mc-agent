@@ -4,7 +4,7 @@ import {
   buildProjectFolderIndex,
   mergeProjectEntries,
   sessionFolderLabel,
-} from "../src/features/project-sidebar/project-merge.ts";
+} from "../src/lib/projects/project-folders.ts";
 
 const normalize = (path) => (path ? path.replace(/\/+$/, "") : null);
 const groups = [

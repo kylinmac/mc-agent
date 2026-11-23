@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
 import { catalogs } from "@pi-desktop/i18n";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 import { fileURLToPath } from "node:url";
 
 /*
@@ -22,7 +22,6 @@ import { fileURLToPath } from "node:url";
  * layer stubbed, so the assertion is what the user actually sees.
  */
 
-const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const HOOK = fileURLToPath(new URL("./helpers/background-tasks-hook.stub.ts", import.meta.url));
 
 const task = (id, state, exitCode) => ({
@@ -36,13 +35,8 @@ const task = (id, state, exitCode) => ({
 });
 
 async function withDockRender(run) {
-  const server = await createServer({
-    root: ROOT,
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
+  const server = await createDesktopSsrServer({
     esbuild: { jsx: "automatic" },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
     plugins: [
       {
         // The registry read is the container's data source; stub it only.
@@ -55,7 +49,7 @@ async function withDockRender(run) {
     ],
   });
   try {
-    const { TaskDock } = await server.ssrLoadModule("/src/components/TaskDock.tsx");
+    const { TaskDock } = await server.ssrLoadModule("/src/features/chat/TaskDock.tsx");
     const { useAppStore } = await server.ssrLoadModule("/src/stores/app-store.ts");
     const i18n = createInstance();
     await i18n.init({ lng: "en", resources: { en: { translation: catalogs.en } } });

@@ -108,7 +108,7 @@ test("R36: Settings and slot pages pin the left navigation sidebar, hiding colla
 test("P1: ReviewChangeCard scopes annotations to pane SlotSessionProvider rather than global activeSessionId", () => {
   const cardSource = readFileSync(new URL("../src/components/ReviewChangeCard.tsx", import.meta.url), "utf8");
   const subagentSource = readFileSync(
-    new URL("../src/components/workpanel/SubagentTranscriptTab.tsx", import.meta.url),
+    new URL("../src/features/chat/SubagentTranscriptTab.tsx", import.meta.url),
     "utf8",
   );
 

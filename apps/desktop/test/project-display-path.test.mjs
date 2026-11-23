@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { projectDisplayPath } from "../src/features/project-workbench/display-path.ts";
+import { projectDisplayPath } from "../src/lib/projects/display-path.ts";
 
 test("a project row shows its first workspace, not its resource folder", () => {
   assert.equal(

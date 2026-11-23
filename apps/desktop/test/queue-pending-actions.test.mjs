@@ -1,19 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 import { IPC } from "@pi-desktop/shared";
 
 test("sending the first prompt derives a replaceable title instead of renaming", async (t) => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   const previousWindow = globalThis.window;
   try {
     const { createQueueSlice } = await server.ssrLoadModule("/src/stores/slices/queue-slice.ts");
@@ -83,11 +76,7 @@ test("sending the first prompt derives a replaceable title instead of renaming",
 });
 
 test("Send now promotes queued input without stopping the running session", async () => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)), configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false }, appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   const previousWindow = globalThis.window;
   try {
     const { createQueueSlice } = await server.ssrLoadModule("/src/stores/slices/queue-slice.ts");
@@ -131,14 +120,7 @@ test("Send now promotes queued input without stopping the running session", asyn
 });
 
 test("pending queue actions stay locked until admission succeeds", async (t) => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    esbuild: { jsx: "automatic" },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer({ esbuild: { jsx: "automatic" } });
   const previousWindow = globalThis.window;
   try {
     const { createQueueSlice } = await server.ssrLoadModule("/src/stores/slices/queue-slice.ts");
@@ -245,13 +227,7 @@ test("pending queue actions stay locked until admission succeeds", async (t) => 
 });
 
 test("editing a restored queue preserves attachments when resubmitted", async (t) => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   const previousWindow = globalThis.window;
   try {
     const { createQueueSlice } = await server.ssrLoadModule("/src/stores/slices/queue-slice.ts");

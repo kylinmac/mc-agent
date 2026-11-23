@@ -12,7 +12,6 @@ const png = new Uint8Array([
 
 describe("generated image URL downloads", () => {
   const fakeIpAnswer = [{ address: "198.18.0.10", family: 4 }] as unknown as Awaited<ReturnType<typeof lookup>>;
-  const privateAnswer = [{ address: "10.0.0.4", family: 4 }] as unknown as Awaited<ReturnType<typeof lookup>>;
 
   beforeEach(() => lookupMock.mockReset());
 

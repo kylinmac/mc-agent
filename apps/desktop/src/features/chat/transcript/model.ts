@@ -1,20 +1,6 @@
 import type { ThinkingLevel, UiMessage } from "@pi-desktop/shared";
 import { THINKING_LEVELS } from "@pi-desktop/shared";
-import type { SubagentRun } from "../../../lib/assistant-turns";
 import { toolResultPayload } from "../../../lib/tool-presentation";
-
-export function delegateAgentName(
-  message: UiMessage,
-  delegate?: SubagentRun,
-): string {
-  if (delegate?.agentName) return delegate.agentName;
-  const args = message.toolArgs;
-  if (args && typeof args === "object" && !Array.isArray(args)) {
-    const requested = (args as { agent?: unknown }).agent;
-    if (typeof requested === "string") return requested;
-  }
-  return "";
-}
 
 /** Effective model resolved for this delegation, recorded by the Task result. */
 export function delegateModelId(message: UiMessage): string {

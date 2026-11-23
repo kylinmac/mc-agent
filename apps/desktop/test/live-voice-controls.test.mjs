@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 // The widget window draws the bar; the owner frame (the main window) runs the
 // actions and owns the toast surface, so both sources are read here.
@@ -46,17 +45,11 @@ test("Live Voice separates idle entry and compact call presentation", async (t) 
     else delete globalThis.window;
   });
 
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   const React = await import("react");
   const { renderToStaticMarkup } = await import("react-dom/server");
-  const { LiveVoiceControls } = await server.ssrLoadModule("/src/features/voice/live/LiveVoiceControls.tsx");
+  const { LiveVoiceControls } = await server.ssrLoadModule("/src/features/voice/LiveVoiceControls.tsx");
   const { LiveVoiceCallBar } = await server.ssrLoadModule("/src/features/voice/live/LiveVoiceCallBar.tsx");
   const { getLiveCallController } = await server.ssrLoadModule("/src/features/voice/live/live-call-controller.ts");
   const { liveVoiceMode, liveVoiceIssue, liveReadinessMessage, hasUnconfirmedMediaRelease, liveVoiceWidgetSnapshot, liveVoiceWidgetVisible } = await server.ssrLoadModule("/src/features/voice/live/live-voice-presentation.ts");

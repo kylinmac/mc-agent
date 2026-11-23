@@ -47,7 +47,7 @@ import { ProjectWorkbench } from "../features/project-workbench/ProjectWorkbench
 import {
   chooseStartFolder,
   rememberedStartFolder,
-} from "../features/project-workbench/start-folder";
+} from "../lib/projects/start-folder";
 
 export function ProjectsPage() {
   const { t, i18n } = useTranslation();

@@ -6,7 +6,7 @@ import "@xterm/xterm/css/xterm.css";
 import { HelpIcon } from "../../components/ui";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
-import { terminalTabIds } from "./tool-tabs";
+import { terminalTabIds } from "../../lib/work-panel/tool-tabs";
 import { terminalCopyKeyHandler } from "./terminal-clipboard";
 
 /*

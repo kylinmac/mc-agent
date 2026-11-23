@@ -16,7 +16,7 @@ const anchoredSurfaceSources = await Promise.all(
     "../src/components/settings/AgentCapabilityLayout.tsx",
     "../src/components/extensions/ScopeControl.tsx",
     readComposerSource(),
-    "../src/components/ComposerAutocomplete.tsx",
+    "../src/features/chat/ComposerAutocomplete.tsx",
     "../src/components/PlanApprovalBar.tsx",
     "../src/components/HomeProjectSwitcher.tsx",
   ].map((source) =>

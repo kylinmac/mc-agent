@@ -8,6 +8,8 @@ import {
 } from "react";
 import { api } from "../lib/api";
 
+type ReloadOptions = { throwOnError?: boolean };
+
 export type HostCollection<T> = {
   data: T;
   setData: Dispatch<SetStateAction<T>>;
@@ -15,7 +17,7 @@ export type HostCollection<T> = {
   loading: boolean;
   /** Later reloads keep the rows on screen and only dim them. */
   refreshing: boolean;
-  reload: () => Promise<void>;
+  reload: (options?: ReloadOptions) => Promise<void>;
 };
 
 /**
@@ -44,7 +46,7 @@ export function useHostCollection<T>(
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (options?: ReloadOptions) => {
     const requestId = ++latestRequest.current;
     const isCurrent = () => requestId === latestRequest.current;
     if (hydrated.current) setRefreshing(true);
@@ -56,8 +58,9 @@ export function useHostCollection<T>(
       hydrated.current = true;
     } catch (error) {
       if (!isCurrent()) return;
-      onErrorRef.current(error);
       setData(emptyRef.current);
+      if (options?.throwOnError) throw error;
+      onErrorRef.current(error);
     } finally {
       if (isCurrent()) {
         setLoading(false);

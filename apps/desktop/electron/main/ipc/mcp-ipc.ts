@@ -4,6 +4,7 @@ import type { HostProcess } from "../host-process";
 import type { McpRegistrySearchResult } from "../mcp-registry-catalog";
 import type { UserMcpRuntime } from "../user-mcp";
 import type { IpcRegistrar } from "./types";
+import { mcpSettingsRecord, mcpSettingsStatus } from "../mcp-settings-view";
 
 export type McpIpcDependencies = {
   registrar: IpcRegistrar;
@@ -33,17 +34,9 @@ export function registerMcpIpc({
   sendToRenderer,
   searchMcpMarket,
 }: McpIpcDependencies): void {
-  let host: HostProcess | null = null;
-  const handle = (channel: string, fn: (...args: any[]) => Promise<any>) => {
-    registrar.handle(channel, async (...args) => {
-      host = getHost();
-      return fn(...args);
-    });
-  };
+  const { handle } = registrar;
 
-  // The market's source aggregator never touches the host process, so it
-  // registers outside the host-bound wrapper.
-  registrar.handle(
+  handle(
     IPC.invoke.mcpMarketSearch,
     async ({
       query,
@@ -53,7 +46,8 @@ export function registerMcpIpc({
       searchMcpMarket(query ?? "", Array.isArray(sources) ? sources : [], { more: more === true }),
   );
 
-handle(IPC.invoke.mcpList, async (query: Partial<AgentCapabilityQuery> = {}) => {
+  handle(IPC.invoke.mcpList, async (query: Partial<AgentCapabilityQuery> = {}) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const result = await host.call<{ servers: McpServerRecord[]; statuses?: McpServerStatus[] }>(
       "mcp.list",
@@ -64,14 +58,15 @@ handle(IPC.invoke.mcpList, async (query: Partial<AgentCapabilityQuery> = {}) => 
     await refreshUserMcp(currentWorkspacePath());
     const statuses = await Promise.all(
       (await userMcp.refreshStatuses()).map(async (status) => ({
-        ...status,
+        ...mcpSettingsStatus(status),
         hasOauth: oauth ? await oauth.hasOAuth(status.serverId) : false,
       })),
     );
-    return { servers: result.servers ?? [], statuses };
+    return { servers: (result.servers ?? []).map(mcpSettingsRecord), statuses };
   });
 
   handle(IPC.invoke.mcpUpsert, async (server: McpServerInput) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const res = await host.call<{ server: McpServerRecord }>("mcp.upsert", { server });
     await refreshUserMcp(currentWorkspacePath());
@@ -84,12 +79,13 @@ handle(IPC.invoke.mcpList, async (query: Partial<AgentCapabilityQuery> = {}) => 
         })
         .catch(() => {});
     }
-    return res;
+    return { server: mcpSettingsRecord(res.server) };
   });
 
   handle(
     IPC.invoke.mcpRemove,
     async (payload: { id: string } & Partial<AgentCapabilityQuery>) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const res = await host.call("mcp.remove", payload);
       await oauth?.deleteOAuth(payload.id);
@@ -102,22 +98,24 @@ handle(IPC.invoke.mcpList, async (query: Partial<AgentCapabilityQuery> = {}) => 
   handle(
     IPC.invoke.mcpSetEnabled,
     async (payload: { id: string; enabled: boolean } & Partial<AgentCapabilityQuery>) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
-      const res = await host.call("mcp.setEnabled", payload);
+      const res = await host.call<{ server: McpServerRecord }>("mcp.setEnabled", payload);
       await refreshUserMcp(currentWorkspacePath());
       sendToRenderer(IPC.event.pluginChanged,{ reason: "mcp", pluginId: payload.id });
-      return res;
+      return { server: mcpSettingsRecord(res.server) };
     },
   );
 
   handle(
     IPC.invoke.mcpSetScope,
     async (payload: { id: string; scope: ActivationScope }) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
-      const res = await host.call("mcp.setScope", payload);
+      const res = await host.call<{ server: McpServerRecord }>("mcp.setScope", payload);
       await refreshUserMcp(currentWorkspacePath());
       sendToRenderer(IPC.event.pluginChanged,{ reason: "mcp", pluginId: payload.id });
-      return res;
+      return { server: mcpSettingsRecord(res.server) };
     },
   );
 
@@ -129,6 +127,7 @@ handle(IPC.invoke.mcpList, async (query: Partial<AgentCapabilityQuery> = {}) => 
    * an occupied destination renames it.
    */
   handle(IPC.invoke.mcpTransfer, async (payload: AgentCapabilityMove) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const res = await host.call<{ server: McpServerRecord }>("mcp.transfer", payload);
     if (res.server?.id && payload.id && payload.id !== res.server.id) {
@@ -136,12 +135,13 @@ handle(IPC.invoke.mcpList, async (query: Partial<AgentCapabilityQuery> = {}) => 
     }
     await refreshUserMcp(currentWorkspacePath());
     sendToRenderer(IPC.event.pluginChanged,{ reason: "mcp", pluginId: res.server?.id });
-    return res;
+    return { server: mcpSettingsRecord(res.server) };
   });
 
   handle(
     IPC.invoke.mcpTest,
     async (payload: { id: string } & Partial<AgentCapabilityQuery>) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       const query = {
         ...(payload.level ? { level: payload.level } : {}),
@@ -159,13 +159,14 @@ handle(IPC.invoke.mcpList, async (query: Partial<AgentCapabilityQuery> = {}) => 
       await refreshUserMcp(currentWorkspacePath());
       sendToRenderer(IPC.event.pluginChanged,{ reason: "mcp", pluginId: payload.id });
       const hasOauth = oauth ? await oauth.hasOAuth(payload.id) : false;
-      return { status: { ...status, hasOauth } };
+      return { status: { ...mcpSettingsStatus(status), hasOauth } };
     },
   );
 
   handle(
     IPC.invoke.mcpOauthStart,
     async (payload: { id: string } & Partial<AgentCapabilityQuery>) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       if (!oauth) throw new Error("OAuth manager unavailable");
       const query = {
@@ -197,23 +198,24 @@ handle(IPC.invoke.mcpList, async (query: Partial<AgentCapabilityQuery> = {}) => 
    * single bad entry costs that entry rather than the whole paste.
    */
   handle(IPC.invoke.mcpImport, async (payload: { text: string }) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const parsed = parseMcpImport(String(payload?.text ?? ""));
     const imported: McpServerRecord[] = [];
     const failed = [...parsed.skipped];
     for (const server of parsed.servers) {
       try {
-        const res = await host.call<{ server: McpServerRecord }>("mcp.upsert", { server });
+        const res = await host.call<{ server: McpServerRecord }>("mcp.upsert", { server, createOnly: true });
         imported.push(res.server);
       } catch (error) {
-        failed.push({ id: server.id, reason: describeError(error) });
+        failed.push({ id: server.id, reason: /already exists/i.test(describeError(error)) ? "already exists" : "import failed" });
       }
     }
     await refreshUserMcp(currentWorkspacePath());
     if (imported.length) {
       sendToRenderer(IPC.event.pluginChanged,{ reason: "mcp" });
     }
-    return { imported, failed };
+    return { imported: imported.map(mcpSettingsRecord), failed };
   });
 
 }

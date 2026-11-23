@@ -12,8 +12,8 @@ import {
 import { MAX_PROJECT_NAME_CHARS } from "../lib/sidebar-preferences";
 import { OverlayBackdrop, Button, Input, TooltipButton } from "./ui";
 import { ProjectPromptPicker, usePromptConfig } from "./ProjectPromptPicker";
-import { projectPromptTemplateId } from "../features/project-workbench/project-prompt";
-import { saveProjectPromptTemplate } from "../features/project-workbench/project-prompt-save";
+import { projectPromptTemplateId } from "../lib/projects/project-prompt";
+import { saveProjectPromptTemplate } from "../lib/projects/project-prompt-save";
 import {
   IconClose,
   IconFolder,

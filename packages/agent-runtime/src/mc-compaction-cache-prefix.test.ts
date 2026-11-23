@@ -96,23 +96,6 @@ function codexSseText(text: string, usage?: Record<string, unknown>): Response {
   return new Response(body, { headers: { "content-type": "text/event-stream" } });
 }
 
-function codexSseToolCall(id: string, name: string, args: Record<string, unknown>): Response {
-  const item = {
-    type: "function_call",
-    id: `fc_${randomUUID()}`,
-    call_id: id,
-    name,
-    arguments: JSON.stringify(args),
-  };
-  const body =
-    `event: response.output_item.done\ndata: ${JSON.stringify({ type: "response.output_item.done", output_index: 0, item })}\n\n` +
-    `event: response.completed\ndata: ${JSON.stringify({
-      type: "response.completed",
-      response: { id: `resp_${randomUUID()}`, status: "completed", output: [item] },
-    })}\n\n`;
-  return new Response(body, { headers: { "content-type": "text/event-stream" } });
-}
-
 function chatSse(delta: unknown, finish: string, usage?: Record<string, unknown>): Response {
   const chunk = (value: unknown, reason: string | null, u?: Record<string, unknown>) =>
     `data: ${JSON.stringify({
@@ -497,7 +480,6 @@ describe("R21.3 / #122: cache-sharing compaction summary with automatic fallback
   });
 
   it("omits duplicate <previous-summary> block when cache-shared prefix already includes it (#151)", async () => {
-    const dir = makeTempDir("mc-r213-dup-prev-");
     const capturedSharedBodies: string[] = [];
     const priorSummary = "UNIQUE-PRIOR-CHECKPOINT-MARKER-9482";
     const prov = completionsProvider();

@@ -6,6 +6,7 @@ import {
   useState,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
   type Ref,
   type SelectHTMLAttributes,
@@ -632,8 +633,10 @@ export function Textarea({ className, spellCheck = false, autoCorrect = "off", a
   );
 }
 
-export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className={cx("field-select", className)} {...props} />;
+export function Select({
+  className, appearance = "field", ...props
+}: SelectHTMLAttributes<HTMLSelectElement> & { appearance?: "field" | "embedded" }) {
+  return <select className={cx(appearance === "field" && "field-select", className)} {...props} />;
 }
 
 export function Field({
@@ -722,13 +725,35 @@ export function SegmentedControl<T extends string>({
   disabled?: boolean;
 }) {
   const itemRole = role === "tablist" ? "tab" : role === "radiogroup" ? "radio" : undefined;
+  const tabStop = Math.max(0, options.findIndex((option) => option.value === value));
+  function moveFocus(event: ReactKeyboardEvent<HTMLButtonElement>, index: number) {
+    if (!itemRole || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    let next: number;
+    switch (event.key) {
+      case "Home": next = 0; break;
+      case "End": next = options.length - 1; break;
+      case "ArrowUp":
+      case "ArrowDown":
+        if (itemRole !== "radio") return;
+        next = index + (event.key === "ArrowUp" ? -1 : 1);
+        break;
+      case "ArrowLeft": next = index - 1; break;
+      case "ArrowRight": next = index + 1; break;
+      default: return;
+    }
+    event.preventDefault();
+    next = (next + options.length) % options.length;
+    const target = event.currentTarget.parentElement?.children.item(next);
+    if (target instanceof HTMLButtonElement) target.focus();
+    if (options[next].value !== value) onChange(options[next].value);
+  }
   return (
     <div
       className={cx("settings-segment", className)}
       role={role}
       aria-label={label}
     >
-      {options.map((option) => (
+      {options.map((option, index) => (
         <button
           key={option.value}
           type="button"
@@ -743,6 +768,8 @@ export function SegmentedControl<T extends string>({
             itemClassName,
           )}
           disabled={disabled}
+          tabIndex={itemRole ? (index === tabStop ? 0 : -1) : undefined}
+          onKeyDown={itemRole ? (event) => moveFocus(event, index) : undefined}
           onClick={() => onChange(option.value)}
         >
           {option.label}
@@ -759,19 +786,24 @@ export function Checkbox({
   indeterminate = false,
   ...props
 }: Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "ref"> & {
-  label: ReactNode;
+  /** Omit when the surrounding row provides the label or the input has an accessible name. */
+  label?: ReactNode;
   indeterminate?: boolean;
 }) {
+  const input = (
+    <input
+      type="checkbox"
+      ref={(node) => {
+        if (node) node.indeterminate = indeterminate;
+      }}
+      className={label === undefined ? className : "ds-checkbox"}
+      {...props}
+    />
+  );
+  if (label === undefined) return input;
   return (
     <label className={cx("ui-checkbox", className)}>
-      <input
-        type="checkbox"
-        ref={(node) => {
-          if (node) node.indeterminate = indeterminate;
-        }}
-        className="ds-checkbox"
-        {...props}
-      />
+      {input}
       <span>{label}</span>
     </label>
   );

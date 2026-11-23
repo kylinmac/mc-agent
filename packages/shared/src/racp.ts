@@ -14,6 +14,7 @@
 import Type from "typebox";
 
 import { ErrorCodes } from "./errors.js";
+import { SESSION_MODES } from "./types/common.js";
 import type { AgentEvent } from "./types.js";
 
 type Static<T extends Type.TSchema> = Type.Static<T>;
@@ -45,7 +46,7 @@ export const RACP_PERMISSION_MODES = ["ask", "accept-edits", "auto"] as const;
 export type RacpPermissionMode = (typeof RACP_PERMISSION_MODES)[number];
 export const RacpPermissionModeSchema = Type.Union([Type.Literal("ask"), Type.Literal("accept-edits"), Type.Literal("auto")]);
 
-export const RACP_SESSION_MODES = ["agent", "plan", "goal"] as const;
+export const RACP_SESSION_MODES = SESSION_MODES;
 export type RacpSessionMode = (typeof RACP_SESSION_MODES)[number];
 export const RacpSessionModeSchema = Type.Union([Type.Literal("agent"), Type.Literal("plan"), Type.Literal("goal")]);
 

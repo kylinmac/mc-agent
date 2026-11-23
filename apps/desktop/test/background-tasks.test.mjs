@@ -1,3 +1,4 @@
+import { readContractModules } from "./helpers/source-contracts.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -10,9 +11,10 @@ import test from "node:test";
  * process lifecycle).
  */
 
-const runtime = await readFile(
-  new URL("../../../packages/agent-runtime/src/runtime.ts", import.meta.url),
-  "utf8",
+const runtime = readContractModules(
+  "../../../packages/agent-runtime/src/runtime.ts",
+  "../../../packages/agent-runtime/src/builtin-tool-schemas.ts",
+  "../../../packages/agent-runtime/src/command-shell-policy.ts",
 );
 const toolSources = await readFile(
   new URL("../../../crates/host-core/src/tools/mod.rs", import.meta.url),
@@ -22,12 +24,13 @@ const rpcSources = await readFile(
   new URL("../../../crates/host-core/src/rpc/mod.rs", import.meta.url),
   "utf8",
 );
+const projectRpc = await readFile(new URL("../../../crates/host-core/src/rpc/project_rpc.rs", import.meta.url), "utf8");
 const backgroundTasks = await readFile(
   new URL("../../../crates/host-core/src/background_tasks.rs", import.meta.url),
   "utf8",
 );
 const bar = await readFile(
-  new URL("../src/components/TaskDock.tsx", import.meta.url),
+  new URL("../src/features/chat/TaskDock.tsx", import.meta.url),
   "utf8",
 );
 const controller = await readFile(
@@ -36,7 +39,7 @@ const controller = await readFile(
 );
 const api = await readFile(new URL("../src/lib/api.ts", import.meta.url), "utf8");
 const composer = await readFile(
-  new URL("../src/components/Composer.tsx", import.meta.url),
+  new URL("../src/features/chat/Composer.tsx", import.meta.url),
   "utf8",
 );
 const styles = await readFile(
@@ -183,7 +186,7 @@ test("deleting a session signals its tasks from the shared cleanup path only", (
   assert.match(cleanup[1], /st\.background_tasks\.stop_session_running\(id\);/);
   // Deleting is the only caller of that cleanup, and no archive method exists.
   assert.equal(
-    rpcSources.match(/drop_session_side_data\(&st, id\);/g)?.length,
+    (rpcSources + projectRpc).match(/drop_session_side_data\(&st, id\);/g)?.length,
     2,
     "both deletion paths reach the shared cleanup",
   );

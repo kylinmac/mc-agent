@@ -6,9 +6,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
-const { externalMcpDisplayMeta } = await import(
-  "../src/features/settings/imports/import-format.ts"
+const { mcpImportPreview } = await import(
+  "../electron/main/ipc/agent-import-ipc.ts"
 );
+
+const externalMcpDisplayMeta = (candidate) => mcpImportPreview(candidate, "test-selection").displayMeta;
 
 test("MCP candidate metadata never exposes URL credentials or query values", () => {
   const meta = externalMcpDisplayMeta({

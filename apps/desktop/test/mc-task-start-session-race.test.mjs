@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { register } from "node:module";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
 const { createSessionSlice } = await import("../src/stores/slices/session-slice.ts");
@@ -108,14 +107,7 @@ test("newSession({ fresh: true }) ignores reusable empty sessions and returns nu
 });
 
 test("startProjectTaskRun never binds or sends to another session when creation is superseded or fails", async () => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    esbuild: { jsx: "automatic" },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer({ esbuild: { jsx: "automatic" } });
   try {
     const { startProjectTaskRun } = await server.ssrLoadModule(
       "/src/features/project-workbench/TaskBoard.tsx",

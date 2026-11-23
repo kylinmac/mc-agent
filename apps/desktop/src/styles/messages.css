@@ -3895,14 +3895,14 @@
 }
 
 .hosted-search-source-host {
-  color: var(--ds-text-tertiary);
+  color: var(--ds-text-muted);
   flex: none;
 }
 
 .hosted-search-more {
   display: inline-block;
   margin-top: 4px;
-  color: var(--ds-text-tertiary);
+  color: var(--ds-text-secondary);
   font-size: var(--text-sm);
 }
 

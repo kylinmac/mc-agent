@@ -46,11 +46,7 @@ export type ModelConfigImportDraft = ModelConfigImportCandidate & {
   supportsReasoning?: boolean;
 };
 
-export type ModelConfigImportRunResult = {
-  imported: number;
-  skipped: number;
-  failed: number;
-};
+export type { ImportRunResult as ModelConfigImportRunResult } from "./types/external-import.js";
 
 export type ModelConfigImportEnv = Record<string, string | undefined>;
 

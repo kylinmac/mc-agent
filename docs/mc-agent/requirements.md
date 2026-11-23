@@ -566,7 +566,8 @@ P9；V106：在不暴露本地明文端口、不依赖公网 IP 的前提下，�
 | --- | --- |
 | 独立传输 sidecar | `crates/mc-mobile-gateway` 使用 `iroh`（ALPN `mc-agent/mobile/1` + mDNS `_mc-agent._udp` 局域网直连 + Relay 自动降级），Ed25519 密钥与已配对设备清单存在 `<数据目录>/mobile/`；与 Electron Main 仅通过 stdio NDJSON 通信，不开任何本机 TCP 端口，退出随主进程自动清理 |
 | 默认关闭与配对管理 | 默认 `enabled: false`（`<数据目录>/mobile/config.json`）；在「设置 → 手机访问」（`MobileAccessPage.tsx`）开关网关、生成带倒计时的一次性 `mc-pair://v1?...` 二维码与配对码、查看设备在线状态并即时吊销（吊销立即踢断当前连接并拒绝对方重连） |
-| 小词汇表权限边界 | `apps/desktop/electron/main/mobile-bridge/` 仅开放 `MC_MOBILE_METHODS` 白名单内的 20 个方法（`host.info`、`attention.list`、`projects.list`、`sessions.list`、`session.create`、`session.configure`、`session.history`、`session.subscribe`/`unsubscribe`、`turn.send`/`stop`、`approval.respond`、`ask.respond`、`proposal.respond`、`diff.summary`/`file`、`canvas.list`/`get`/`createWhiteboard`/`saveWhiteboard`），非白名单调用一律返回 `FORBIDDEN`；手机端绝不接触全局设置写入、密钥导出、删项目或任意文件读写 |
+| 小词汇表权限边界 | 配对设备可调用 [`MC_MOBILE_METHODS`](../../packages/shared/src/mc-mobile.ts) 中的主机信息、模型列表、会话、审批、差异与画布操作。其余调用返回 `FORBIDDEN`。全局设置写入、密钥导出、项目删除与任意文件读写均由桌面控制。 |
+| 会话创建与配置 | `session.create` 只接收项目路径、标题、会话模式与权限模式。省略权限时继承全局默认。指定 `inherit`、`ask`、`accept-edits` 或 `auto` 时，宿主把选择与新会话写入同一事务。无效选择在创建前返回错误。已有会话沿用 `session.configure` 的运行中回合与计划审批检查。 手机历史按桌面的 `defaultPermissionMode` 解析继承值。全局设置不可读时，仍返回会话自己的选择，继承的有效值留空。 |
 | 流式事件与白板实时同步 | 通过 `sendToRenderer` 单行观察挂钩向已订阅手机连接推送带单调游标（断线可按 `afterCursor` 重放，单会话上限 300 条）的流式事件、`attention.updated` 与 `canvas.changed`；手机端白板保存后即时同步桌面端 R38 `canvas.whiteboard.*` 并刷新桌面画布 |
 
 ## R44 定时任务创建时确认运行权限（2026-11-21 已确认）

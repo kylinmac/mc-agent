@@ -7,14 +7,30 @@ R17 语音输入：`packages/shared/src/dictation.ts` 定义配置和限额；`a
 mc-agent 新增功能（R1–R10）的代码见文末“mc-agent 项目管理”一节。
 
 
+## 跨功能开发入口
+
+| 需求 | 修改位置 |
+|---|---|
+| 多个会话入口共用的模型与权限选择 | 桌面 `src/components/model-picker/`、`src/lib/composer-models.ts`。聊天、定时任务、创作对话分别在自己的功能文件里装配 |
+| 项目提示词、启动目录与工作区分组 | 桌面 `src/lib/projects/`、`src/hooks/useProjectFolderIndex.ts`；Rust `crates/host-core/src/rpc/project_rpc.rs` |
+| 会话检查器、分栏与工作面板 | 桌面 `src/lib/work-panel/`、`src/lib/session-subagents.ts`、`src/hooks/useSessionContextBreakdown.ts` |
+| Agent 压缩记录与恢复 | `packages/agent-runtime/src/compaction-checkpoint.ts`、`compaction-tail.ts`、`tool-result-content.ts` |
+| 插件服务崩溃及重新启动 | `apps/desktop/electron/main/plugin-service-restarts.ts` 持有重试与取消；`plugin-runtime.ts` 停止子进程并清理贡献 |
+| 聊天输入、草稿和任务栏 | 桌面 `src/features/chat/Composer.tsx`、`composer/`、`TaskDock.tsx`；插件消费 `features/chat/plugin-draft.ts` |
+| 侧栏项目与会话排序、重排、菜单及宽度 | 桌面 `src/components/sidebar/` 中的 `useSidebarProjects`、`useProjectReorder`、`useSidebarMenus`、`useSidebarResize` |
+| 会话持久化 | `crates/host-core/src/sessions.rs` 为门面；追加消息看 `sessions/append.rs`，历史版本看 `revisions.rs`，分叉看 `fork.rs`，恢复看 `recovery.rs` |
+| Agent 历史重放、委派与工具描述 | `packages/agent-runtime/src/transcript-replay.ts`、`delegation-registry.ts`、`builtin-tool-schemas.ts` |
+| 插件文件权限、文件操作、子进程调用 | Electron Main 的 `plugin-file-access.ts`、`plugin-file-api.ts`、`plugin-process-calls.ts` |
+
 ## 启动与窗口
 
 | 功能 | 代码 |
 |---|---|
 | Electron 主入口 | `apps/desktop/electron/main/index.ts` |
 | 启动、生命周期、关窗行为 | `apps/desktop/electron/main/bootstrap/` |
-| preload / IPC 白名单 | `apps/desktop/electron/preload/index.ts` |
+| preload / IPC 白名单 | `apps/desktop/electron/preload/index.ts`、`packages/shared/src/protocol.ts`，窗口接口 `packages/shared/src/types/desktop-bridge.ts` |
 | IPC 注册 | `apps/desktop/electron/main/ipc/register.ts` |
+| 应用偏好 | `apps/desktop/electron/main/ipc/settings-ipc.ts` 处理桌面副作用，`crates/host-core/src/rpc/settings_rpc.rs` 负责持久化、校验和旧设置兼容 |
 | 应用 IPC（窗口、菜单、更新） | `apps/desktop/electron/main/ipc/app-ipc.ts`、`apps/desktop/electron/main/ipc/window-ipc.ts` |
 | 托盘、未读角标 | `apps/desktop/electron/main/tray-sessions.ts`、`apps/desktop/electron/main/taskbar-unread-badge.ts` |
 | 更新 | `apps/desktop/electron/main/updater.ts`、`apps/desktop/electron/main/update-policy.ts`、`apps/desktop/electron/main/update-cache.ts` |
@@ -41,6 +57,7 @@ mc-agent 新增功能（R1–R10）的代码见文末“mc-agent 项目管理”
 |---|---|
 | sidecar 进程入口 | `packages/agent-runtime/src/sidecar.ts` |
 | 运行时包装 | `packages/agent-runtime/src/runtime.ts` |
+| 工具结果与恢复 | `packages/agent-runtime/src/tool-result-content.ts` 解析 MCP 与插件结果，主会话在 `runtime.ts` 接入，子代理恢复在 `delegation-history.ts` 接入 |
 | 压缩 | `packages/agent-runtime/src/compaction-*.ts`、`packages/agent-runtime/src/pi-runtime-compaction-*.ts`、`packages/agent-runtime/src/context-budget.ts` |
 | Fast 速度开关（R24） | 界面 `apps/desktop/src/features/chat/composer/ComposerFastMode.tsx`；偏好与适用范围 `packages/shared/src/fast-mode.ts`；请求参数 `packages/agent-runtime/src/fast-mode.ts`；主／子代理接线 `session-launch.ts`、`sidecar.ts` |
 | 压缩后回查原文（R21.1） | 工具 `packages/agent-runtime/src/mc-context-history-tool.ts`，接线在 `runtime.ts`（`buildContextHistoryTool`、摘要提示）；宿主读取 `crates/host-core/src/transcripts/history.rs`，RPC `rpc/mc_session_history_rpc.rs`（`session.historyRead`）；会话归属 `packages/host-runtime/src/agent-sidecar.ts`（`launchedSessions`） |
@@ -64,7 +81,7 @@ mc-agent 新增功能（R1–R10）的代码见文末“mc-agent 项目管理”
 | 密钥 | `crates/host-core/src/secrets.rs` |
 | 传输重试、代理 | `packages/agent-runtime/src/provider-retry.ts`、`packages/agent-runtime/src/provider-transport-recovery.ts`、`packages/agent-runtime/src/socks5.ts`、`packages/agent-runtime/src/system-proxy-relay.ts` |
 | 从 Claude / Codex / OpenCode / Pi 导入 | `apps/desktop/electron/main/importers/` |
-| 导入项目与对话（mc） | 界面 `apps/desktop/src/features/project-import/`（`ProjectImportDialog.tsx`、`import-model.ts`），入口在 `components/Sidebar.tsx`；PI-Desktop 来源 `electron/main/importers/pi-desktop.ts` → host-core `src/mc_import.rs`（`mcImport.*`）；通道 `ipc/session-ipc.ts` 的 `sessionImportScan/Run` |
+| 导入项目与对话（mc） | 界面 `apps/desktop/src/features/project-import/`，来源与稳定 ID 在 `packages/shared/src/session-import.ts`。会话和模型配置的扫描、批量提交经 `apps/desktop/electron/main/ipc/session-import-ipc.ts`。PI-Desktop 来源由 `importers/pi-desktop.ts` 调 `crates/host-core/src/mc_import.rs` |
 | 系统提示词（mc） | 查看器 `apps/desktop/src/features/session-info/SystemPromptDialog.tsx`（运行时 `systemPromptView`、sidecar `agent.systemPrompt`）；模板设置页 `src/features/settings/SystemPromptsPage.tsx`；存储 host-core `src/mc_prompts.rs`（`mcPrompts.*`）；匹配 `electron/main/mc-system-prompts.ts`，在 `runtime/session-launch.ts` 应用；新建对话的模板选择器 `src/features/chat/composer/ComposerPromptTemplatePicker.tsx`（`mcPrompts.sessionGet / sessionSet`） |
 | 用量统计（mc） | host-core `src/mc_usage.rs`（`mcUsage.summary`）；页面 `apps/desktop/src/features/settings/UsagePage.tsx`、`usage-model.ts`；通道在 `ipc/mc-usage-ipc.ts` |
 
@@ -96,6 +113,7 @@ host-core 也可作为内部工具子进程启动（`tools::INTERNAL_TOOL_RUNNER
 | 插件页 | `apps/desktop/src/pages/PluginsPage.tsx`、`apps/desktop/src/features/plugins/` |
 | 作者 SDK / 打包 | `packages/plugin-sdk`、`packages/plugin-devkit` |
 | 技能 | `crates/host-core/src/user_skills/`；主进程 `apps/desktop/electron/main/builtin-skills.ts`、`apps/desktop/electron/main/skill-market-catalog.ts` |
+| 导入外部技能和 MCP | [传输类型](../../packages/shared/src/types/external-import.ts) → [Main 批量导入](../../apps/desktop/electron/main/ipc/agent-import-ipc.ts) → [宿主注册表 RPC](../../crates/host-core/src/rpc/capability_rpc.rs) |
 
 ## 项目、worktree、计划、定时
 
@@ -170,7 +188,7 @@ host-core 也可作为内部工具子进程启动（`tools::INTERNAL_TOOL_RUNNER
 |---|---|
 | 资料目录标记、挂载、Worker 目标工作区校验 | `crates/host-core/src/db/project_resources.rs`；`project_groups.rs` 中的 `kind` 字段 |
 | 资料目录创建、模板、改名跟随 | `crates/host-core/src/resource_dirs.rs`；路径改写复用 `data_relocation.rs::rewrite_database_paths` |
-| 新建类型、转换与解除（R1.7） | 对话框 `apps/desktop/src/features/project-workbench/ProjectKindPicker.tsx`；转换 `ConvertToManaged.tsx`；解除 `db/project_resources.rs::detach_project_resource_root`；接回旧目录在 `resource_dirs.rs::ensure_project_resources` |
+| 新建类型、转换与解除（R1.7） | 对话框 `apps/desktop/src/features/project-create/ProjectKindPicker.tsx`；转换 `ConvertToManaged.tsx`；解除 `db/project_resources.rs::detach_project_resource_root`；接回旧目录在 `resource_dirs.rs::ensure_project_resources` |
 | 用对话新建项目（R16，MC-ADR-0023） | 共享类型与参数校验 `packages/shared/src/mc-project-proposal.ts`；工具声明 `packages/agent-runtime/src/mc-project-tools.ts`；工具实现与卡片中转 `apps/desktop/electron/main/mc-project-create.ts`、IPC `ipc/mc-project-create-ipc.ts`；技能 `apps/desktop/resources/skills/new-project.md`；界面 `apps/desktop/src/features/project-create/`（方案卡片、完成卡片、首页建议条、创建步骤）；只用这一次的模板 `crates/host-core/src/project_draft_template.rs`（`project.resources.ensureDraft`） |
 | 工作区说明（`workspaces.md`） | `crates/host-core/src/workspace_notes.rs` |
 | 资料清单、确认、项目目标 | `crates/host-core/src/resource_catalog.rs`；分类索引 `resource_index.rs`（`INDEX.md`）；总索引 `resource_overview.rs`（`RESOURCES.md`）；模板元数据 `resource_templates.rs` |
@@ -215,4 +233,4 @@ Main：`apps/desktop/electron/main/work-panel-agent/`；UI：`features/work-tool
 | 工作区落盘与面板指引（R40） | 共享规则 `packages/shared/src/mc-workspace-guide.ts`；三条启动与刷新路径接线 `packages/host-runtime/src/launch-resolver.ts`、`apps/desktop/electron/main/runtime/session-launch.ts`、`apps/desktop/electron/main/runtime/sidecar.ts` |
 | 炼丹炉引用与提案卡片（R41） | 共享 URI 与提案契约 `packages/shared/src/mc-alchemy.ts`；工具声明 `packages/agent-runtime/src/mc-alchemy-tools.ts`；Main 服务与 IPC `apps/desktop/electron/main/mc-alchemy.ts`、`ipc/mc-alchemy-ipc.ts`；引导技能 `apps/desktop/resources/skills/alchemy.md`；卡片界面 `apps/desktop/src/features/alchemy/`、样式 `styles/mc-alchemy.css` |
 | tty7 外部终端内置插件（R42） | 插件清单与 MCP 桥接 `apps/desktop/resources/plugins/mc.tty7/`（`manifest.json`、`mcp-server.mjs`、`skills/tty7.md`）；回归测试 `apps/desktop/test/mc-tty7-plugin.test.mjs` |
-| 手机远程操作网关与配对控制平面（R43） | Rust `iroh` sidecar `crates/mc-mobile-gateway/`；共享协议与 19 方法白名单 `packages/shared/src/mc-mobile.ts`；Main 桥接 `apps/desktop/electron/main/mobile-bridge/` 与 `ipc/mc-mobile-ipc.ts`；设置页 `apps/desktop/src/features/settings/MobileAccessPage.tsx`、样式 `styles/mc-mobile.css`；测试 `apps/desktop/test/mc-mobile-bridge.test.mjs` |
+| 手机远程操作网关与配对控制平面（R43） | Rust `iroh` sidecar `crates/mc-mobile-gateway/`；共享协议与 `MC_MOBILE_METHODS` 白名单 `packages/shared/src/mc-mobile.ts`；Main 配对会话 `apps/desktop/electron/main/mobile-bridge/session-settings.ts` 与设置 IPC `ipc/mc-mobile-ipc.ts`；可信创建落库 `crates/host-core/src/rpc/session_create.rs`；设置页 `apps/desktop/src/features/settings/MobileAccessPage.tsx`、样式 `styles/mc-mobile.css`；测试 `apps/desktop/test/mc-mobile-bridge.test.mjs` |

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useLiveVoiceSnapshot } from "../live-status";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { LiveVoiceWidgetAction } from "@pi-desktop/shared";
 import { useAppStore } from "../../../stores/app-store";
@@ -24,7 +25,7 @@ import "../../../styles/voice.css";
 export function LiveVoiceStatusHost() {
   const { t } = useTranslation();
   const controller = getLiveCallController();
-  const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
+  const snapshot = useLiveVoiceSnapshot();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [actionFailure, setActionFailure] = useState<{ callId?: string; code: string } | null>(null);
   const anchorRef = useRef<HTMLDivElement>(null);

@@ -12,8 +12,8 @@ import {
 import type { AppState } from "../../../stores/app-store";
 import { useAppStore } from "../../../stores/app-store";
 import { ComposerModePicker } from "./ComposerModePicker";
-import { ComposerPermissionPicker } from "./ComposerPermissionPicker";
-import { ContextUsageInspector } from "../../../components/ContextUsageInspector";
+import { ComposerPermissionPicker } from "../../../components/model-picker/ComposerPermissionPicker";
+import { ContextUsageInspector } from "../ContextUsageInspector";
 import { ComposerControlSlots } from "./ComposerControlSlots";
 import { ComposerPromptTemplatePicker } from "./ComposerPromptTemplatePicker";
 import { TooltipButton } from "../../../components/ui";
@@ -24,11 +24,11 @@ import {
   IconStop,
   IconUndo2,
 } from "../../../components/icons";
-import { LiveVoiceControls } from "../../voice/live/LiveVoiceControls";
-import { ComposerModelPicker } from "./ComposerModelPicker";
-import { ComposerConfigurationNotice } from "./ComposerConfigurationNotice";
+import { LiveVoiceControls } from "../../voice/LiveVoiceControls";
+import { ComposerModelPicker } from "../../../components/model-picker/ComposerModelPicker";
+import { ComposerConfigurationNotice } from "../../../components/model-picker/ComposerConfigurationNotice";
 import { SubscriptionQuotaChip } from "./SubscriptionQuotaChip";
-import type { useComposerModelMenu } from "./hooks/useComposerModelMenu";
+import type { useComposerModelMenu } from "../../../components/model-picker/useComposerModelMenu";
 
 type ModelMenuController = ReturnType<typeof useComposerModelMenu>;
 type ContextUsage = Parameters<typeof ContextUsageInspector>[0];

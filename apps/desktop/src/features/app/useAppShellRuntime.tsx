@@ -43,7 +43,7 @@ import { useSidebarTransition } from "./useSidebarTransition";
 import { useStartupWatchdog } from "./useStartupWatchdog";
 import { useTraySessions } from "./useTraySessions";
 import { runLiveVoiceShortcut } from "../voice/live/live-voice-shortcuts";
-import { beginDictationHold } from "../voice/dictation/dictation-hold";
+import { beginDictationHold } from "../voice/dictation-hold";
 
 const MODIFIER_ONLY_KEYS = new Set([
   "Alt",

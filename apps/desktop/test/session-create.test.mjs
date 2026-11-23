@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { register } from "node:module";
 import test from "node:test";
+import { IPC } from "../../../packages/shared/src/protocol.ts";
+import { registerSessionIpc, rendererApi } from "./helpers/session-ipc.mjs";
 
 register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
 
@@ -14,6 +16,36 @@ const { createSessionRuntime } = await import("../src/stores/runtime/session-run
 
 const sessionSlice = await readStoreModule("slices/session-slice.ts");
 const sessionCoordination = await readStoreModule("runtime/session-coordination.ts");
+
+test("the renderer creates with its selected permission and waits for metadata before committing", async () => {
+  const handlers = new Map();
+  const calls = [];
+  let ready = true;
+  registerSessionIpc({
+    registrar: { handle: (channel, handler) => handlers.set(channel, handler) },
+    getHost: () => ({
+      call: async (method, input) => {
+        calls.push({ method, input });
+        const permissionMode = method === "session.create" ? "inherit" : input.permissionMode;
+        return { session: { id: "s1", mode: "plan", permissionMode } };
+      },
+    }),
+    sessionCapabilityContext: async () => {
+      if (!ready) throw new Error("metadata unavailable");
+      return { providers: [], defaults: {} };
+    },
+    enrichSession: (session) => session,
+    logger: { app() {} },
+  });
+  const { api } = rendererApi(async (channel, ...args) => ({ ok: true, data: await handlers.get(channel)(...args) }));
+  assert.equal((await api.createSession({ permissionMode: "ask" })).session.permissionMode, "ask");
+  assert.equal((await api.createSession({})).session.permissionMode, "inherit");
+  // A plugin's ordinary IPC operation keeps worker inheritance when the payload contains permissionMode.
+  assert.equal((await handlers.get(IPC.invoke.sessionCreate)({ permissionMode: "auto" })).session.permissionMode, "inherit");
+  ready = false;
+  await assert.rejects(api.createSession({ permissionMode: "auto" }), /metadata unavailable/);
+  assert.deepEqual(calls.map(({ method }) => method), ["session.createConfigured", "session.create", "session.create"]);
+});
 
 test("an empty latest session is reusable only when the renderer agrees", () => {
   const empty = { messageCount: 0 };

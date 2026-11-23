@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./ssr-server.mjs";
 
 export const owner = { webContentsId: 4, frameProcessId: 1, frameRoutingId: 2, url: "file:///app/index.html" };
 export const otherOwner = { ...owner, frameRoutingId: 3 };
@@ -8,13 +7,7 @@ export const binding = { id: "codex-main", adapterId: "codex-live", providerId: 
 export const requestId = "3d7d68a1-6283-4cfb-a40e-2dd1a74fd19f";
 
 export async function loadModules(t) {
-  const server = await createServer({
-    root: fileURLToPath(new URL("../..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   return {
     ...(await server.ssrLoadModule("/electron/main/live-voice/call-service.ts")),

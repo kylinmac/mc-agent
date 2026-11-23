@@ -21,5 +21,5 @@
 ## 影响
 
 - 新增：`docs/mc-agent/adr/mc-0030-whiteboard-canvas.md`、`packages/shared/src/mc-whiteboard.ts`、`crates/host-core/src/mc_canvas/whiteboard.rs`、`apps/desktop/src/features/canvas/WhiteboardView.tsx`、`apps/desktop/src/features/canvas/use-toolbar-focusgroup.ts`。
-- 扩展：`packages/shared/src/mc-canvas.ts`、`crates/host-core/src/mc_canvas/mod.rs`、`crates/host-core/src/rpc/mc_canvas_rpc.rs`、`crates/host-core/src/sessions.rs`（临时会话画布删除清理）、`packages/agent-runtime/src/mc-canvas-tools.ts`、`packages/agent-runtime/src/runtime.ts`、`apps/desktop/electron/main/canvas/canvas-tools.ts`、`apps/desktop/electron/main/ipc/mc-canvas-ipc.ts`、`apps/desktop/src/features/canvas/*`、`apps/desktop/src/components/Composer.tsx`（合入白板快照图片引用）。
+- 扩展：`packages/shared/src/mc-canvas.ts`、`crates/host-core/src/mc_canvas/mod.rs`、`crates/host-core/src/rpc/mc_canvas_rpc.rs`、`crates/host-core/src/sessions.rs`（临时会话画布删除清理）、`packages/agent-runtime/src/mc-canvas-tools.ts`、`packages/agent-runtime/src/runtime.ts`、`apps/desktop/electron/main/canvas/canvas-tools.ts`、`apps/desktop/electron/main/ipc/mc-canvas-ipc.ts`、`apps/desktop/src/features/canvas/*`、`apps/desktop/src/features/chat/Composer.tsx`（合入白板快照图片引用）。
 - 现有 `prototype` 类型画布的协议（`mc-canvas://board/...`）、HTML 沙箱校验、元素拾取与评论线程行为保持不变。

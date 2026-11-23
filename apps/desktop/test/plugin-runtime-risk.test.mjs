@@ -1,3 +1,4 @@
+import { readContractModules } from "./helpers/source-contracts.mjs";
 import {
   readMainModuleSync,
   readPluginsSourceSync,
@@ -21,7 +22,11 @@ const here = dirname(fileURLToPath(import.meta.url));
 const desktopRoot = join(here, "..");
 const repoRoot = join(desktopRoot, "../..");
 
-const runtimeSrc = readFileSync(join(desktopRoot, "electron/main/plugin-runtime.ts"), "utf8");
+const runtimeSrc = readContractModules(
+  "../electron/main/plugin-runtime.ts",
+  "../electron/main/plugin-file-access.ts",
+  "../electron/main/plugin-file-api.ts",
+);
 const panelSrc = readFileSync(join(desktopRoot, "electron/main/plugin-panel-host.ts"), "utf8");
 const mainSrc = readMainSourceSync();
 const pageSrc = readPluginsSourceSync();
@@ -88,7 +93,7 @@ test("workspace deletion and panel operations stay bounded", () => {
   // Deleting goes to the OS trash, so a delete this gate got wrong is still
   // recoverable; `rmSync` survives only as the fallback for a host that has no
   // trash to offer.
-  assert.match(runtimeSrc, /this\.services\.trashItem\(full\)/);
+  assert.match(runtimeSrc, /access\.services\.trashItem\(full\)/);
   // A single-file remove in a loop empties a workspace as well as `rm -rf`;
   // the rolling window is what tells the two apart.
   assert.match(runtimeSrc, /MAX_DELETES_PER_WINDOW/);

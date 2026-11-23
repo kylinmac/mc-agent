@@ -7,7 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
 const { formatElapsed, sessionSubagents } = await import(
-  "../src/features/session-info/session-subagents.ts"
+  "../src/lib/session-subagents.ts"
 );
 
 // mc-agent session info "Subtasks": the conversation's `Task` subagents.

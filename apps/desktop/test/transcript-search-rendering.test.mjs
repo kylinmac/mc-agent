@@ -5,18 +5,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
 import { catalogs } from "@pi-desktop/i18n";
-import { createServer } from "vite";
-import { fileURLToPath } from "node:url";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 test("rendered Markdown and file chips map source-only hits to their visible owner", async () => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    esbuild: { jsx: "automatic" },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer({ esbuild: { jsx: "automatic" } });
   const originalDocument = globalThis.document;
   const originalFilter = globalThis.NodeFilter;
   try {
@@ -25,7 +17,7 @@ test("rendered Markdown and file chips map source-only hits to their visible own
       "/src/features/chat/transcript/shared.tsx",
     );
     const { SubagentTranscriptTab } = await server.ssrLoadModule(
-      "/src/components/workpanel/SubagentTranscriptTab.tsx",
+      "/src/features/chat/SubagentTranscriptTab.tsx",
     );
     const { useAppStore } = await server.ssrLoadModule("/src/stores/app-store.ts");
     const { ActivityGroup } = await server.ssrLoadModule(

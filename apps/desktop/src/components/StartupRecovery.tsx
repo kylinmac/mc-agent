@@ -6,6 +6,7 @@ import {
   type StartupPhase,
 } from "../lib/startup-watchdog";
 import { useAppStore } from "../stores/app-store";
+import { Button } from "./ui";
 import { BrandLogo } from "./BrandLogo";
 
 type CopyState = "idle" | "copied" | "failed";
@@ -121,40 +122,40 @@ export function StartupRecovery({
         )}
         <div className="startup-recovery-actions no-drag">
           {stalled && (
-            <button
+            <Button
               type="button"
-              className="btn btn-primary"
+              variant="primary"
               onClick={onRetry}
               disabled={retrying}
             >
               {retrying ? t("startup.retrying") : t("errors.action.retry")}
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             type="button"
-            className="btn btn-secondary"
+            variant="secondary"
             onClick={() => void api.openLogs().catch(() => undefined)}
           >
             {t("status.openLogs")}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="btn btn-secondary"
+            variant="secondary"
             onClick={() => void copyDiagnostics()}
           >
             {/* The label is the only outcome of the copy: announce it. */}
             <span aria-live="polite">{copyLabel}</span>
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="btn btn-secondary"
+            variant="secondary"
             onClick={() => {
               // The answer may never arrive: quitting tears this window down.
               void api.quitApp().catch(() => undefined);
             }}
           >
             {t("tray.quit")}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

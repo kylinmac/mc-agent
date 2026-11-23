@@ -9,7 +9,7 @@ import {
   composerModelsForProvider,
   sameComposerModelId,
 } from "../src/lib/composer-models.ts";
-import { thinkingProviderForModel } from "../src/features/chat/composer/model.ts";
+import { thinkingProviderForModel } from "../src/lib/composer-models.ts";
 
 const binding = (id) => ({
   id,

@@ -1,3 +1,5 @@
+import { THINKING_LEVELS } from "@pi-desktop/shared";
+import { readModelPickerModule } from "./helpers/composer-source.mjs";
 import {
   readComposerModule,
   readComposerSource,
@@ -14,8 +16,8 @@ import { loadStyles } from "./helpers/styles.mjs";
 
 const composerSource = await readComposerSource();
 const composerToolbarSource = await readComposerModule("ComposerToolbar.tsx");
-const composerModelPickerSource = await readComposerModule("ComposerModelPicker.tsx");
-const composerPermissionPickerSource = await readComposerModule("ComposerPermissionPicker.tsx");
+const composerModelPickerSource = await readModelPickerModule("ComposerModelPicker.tsx");
+const composerPermissionPickerSource = await readModelPickerModule("ComposerPermissionPicker.tsx");
 const scheduledModelPickerSource = await readFile(
   new URL("../src/features/scheduled/ScheduledModelPicker.tsx", import.meta.url),
   "utf8",
@@ -40,7 +42,7 @@ const storeSource = await readStoreSource();
 const sessionCoordinationSource = await readStoreModule("runtime/session-coordination.ts");
 const modelMenuSource = await readFile(
   new URL(
-    "../src/features/chat/composer/hooks/useComposerModelMenu.ts",
+    "../src/components/model-picker/useComposerModelMenu.ts",
     import.meta.url,
   ),
   "utf8",
@@ -57,7 +59,7 @@ const topbarSource = await readFile(
 const settingsSource = (
   await Promise.all(
     [
-      "../src/components/settings/ModelConfigPage.tsx",
+      "../src/features/settings/ModelConfigPage.tsx",
       "../src/components/settings/ProviderSetupDialog.tsx",
       // The picker both credential kinds render owns the thinking chips (D270).
       "../src/components/settings/ModelSelectionPanes.tsx",
@@ -69,9 +71,9 @@ const settingsSource = (
 const stylesSource = await loadStyles();
 
 test("composer exposes the runtime thinking level order and provider filtering", () => {
-  for (const level of ["off", "minimal", "low", "medium", "high", "xhigh", "max", "omit"]) {
-    assert.match(composerSource, new RegExp(`"${level}"`));
-  }
+  assert.deepEqual(THINKING_LEVELS, ["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
+  assert.match(composerSource, /THINKING_LEVELS/);
+  assert.match(composerSource, /"omit"/);
   assert.match(composerSource, /supportedThinkingLevels/);
   assert.match(composerSource, /supportsReasoning/);
   assert.match(composerSource, /thinkingLevelForProvider/);

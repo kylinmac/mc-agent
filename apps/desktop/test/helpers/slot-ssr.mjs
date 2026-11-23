@@ -3,8 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
 import { catalogs } from "@pi-desktop/i18n";
-import { createServer } from "vite";
-import { fileURLToPath } from "node:url";
+import { createDesktopSsrServer } from "./ssr-server.mjs";
 
 /**
  * Slot outlets rendered through Vite SSR with the production modules: the
@@ -17,15 +16,10 @@ import { fileURLToPath } from "node:url";
  * is covered at the logic layer or in the Electron E2E.
  */
 export async function slotSsr(t, { translationOverrides = {}, plugins = [] } = {}) {
-  const server = await createServer({
-    root: fileURLToPath(new URL("../..", import.meta.url)),
-    configFile: false,
+  const server = await createDesktopSsrServer({
     plugins,
     logLevel: "silent",
-    server: { middlewareMode: true, hmr: false, ws: false },
     esbuild: { jsx: "automatic" },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
   });
   const originalDocument = globalThis.document;
   // `useThemeMode` reads the theme off the document during render.

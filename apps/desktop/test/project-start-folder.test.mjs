@@ -4,7 +4,7 @@ import {
   chooseStartFolder,
   rememberedStartFolder,
   rememberStartFolder,
-} from "../src/features/project-workbench/start-folder.ts";
+} from "../src/lib/projects/start-folder.ts";
 
 const roots = [
   { path: "/docs/App", kind: "resources" },
@@ -46,7 +46,7 @@ test("unavailable storage never throws", () => {
 });
 
 test("a multi-folder sidebar project offers each folder, the remembered one selected (#41)", async () => {
-  const { buildProjectFolderIndex } = await import("../src/features/project-sidebar/project-merge.ts");
+  const { buildProjectFolderIndex } = await import("../src/lib/projects/project-folders.ts");
   const { projectStartFolderChoices } = await import("../src/features/project-sidebar/start-folder-menu.ts");
   const normalize = (path) => path.replace(/\/+$/, "");
   const index = buildProjectFolderIndex(

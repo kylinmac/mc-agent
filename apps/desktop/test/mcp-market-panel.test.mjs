@@ -7,7 +7,7 @@ const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
 const [panel, page, en, zh] = await Promise.all([
   read("../src/components/settings/McpMarketPanel.tsx"),
-  read("../src/components/settings/AgentMcpPage.tsx"),
+  read("../src/features/settings/AgentMcpPage.tsx"),
   read("../../../packages/i18n/src/locales/en/index.ts"),
   read("../../../packages/i18n/src/locales/zh-CN/index.ts"),
 ]);

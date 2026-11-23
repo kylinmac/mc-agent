@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 test("Voice settings render cloud dictation and Live Voice, preserving legacy settings", async (t) => {
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
@@ -23,13 +22,7 @@ test("Voice settings render cloud dictation and Live Voice, preserving legacy se
     else delete globalThis.window;
   });
 
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
 
   const React = await import("react");
@@ -84,7 +77,7 @@ test("Voice settings render cloud dictation and Live Voice, preserving legacy se
 
 test("Composer adds cloud dictation alongside Live Voice without local model controls", async () => {
   const composer = await readFile(
-    new URL("../src/components/Composer.tsx", import.meta.url),
+    new URL("../src/features/chat/Composer.tsx", import.meta.url),
     "utf8",
   );
   const toolbar = await readFile(

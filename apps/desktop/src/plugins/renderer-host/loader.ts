@@ -31,7 +31,7 @@ import {
   type PluginRendererDescriptor,
   type PluginSummary,
 } from "@pi-desktop/shared";
-import { composerDraftBridge } from "../../features/chat/composer/plugins/draft-bridge";
+import { composerDraftBridge } from "../../features/chat/plugin-draft";
 import { PluginRendererError } from "../renderer-error";
 import { pluginLayers } from "../renderer-layers/layer-stack";
 import { slotRegistry, type SlotRegistry } from "../renderer-slots/registry";

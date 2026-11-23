@@ -1,0 +1,61 @@
+# mc-agent 架构审查与迭代入口
+
+2026-11-22。审查基点为 `c50eb9f07`。范围涵盖桌面壳、导入、Agent 循环、Rust 宿主、无头与手机接入、插件和开发检查。逐条核对关键入口、调用方及测试，运行结果记录在本次 PR 的验证栏。
+
+## 从案例移植了什么
+
+参考目录为本机 `agent-study/ai-dev-case-studies`。tty7 的 `.github/scripts/check-host-boundary.sh` 把宿主边界变成能失败的检查。openidea 的 `.agents/skills/issue-fix/SKILL.md` 用用户操作复现并验收修复。在 mc-agent 中，前者对应本地与 CI 共用的 `pnpm check:architecture`，后者对应下面的导入、恢复和设置回归用例。
+
+界面沿用 mc-agent 自己的两列外壳和主题。参考 tty7 的 `docs/design-system.md`，按工作内容、操作和状态分配视觉层次。参考 openidea 的 `src/styles/customProperties.test.ts` 和 `spacingScale.test.ts`，把变量引用检查接入 CI，并给共用间距命名。设计选择和可运行的验收入口见[桌面 UI 开发规范](ui-guidelines.md)。
+
+## 源码审查与处置
+
+| 用户路径 | 状态或权限归属 | 本次处置与验证入口 |
+|---|---|---|
+| 窗口调用宿主 | Preload 控制通道，Main 编排，Rust 执行特权操作 | 统一窗口和 Preload 对错误信封 `Result<T>` 的声明。依赖检查覆盖 Renderer、shared 和供浏览器使用的语音子入口 |
+| 设置中选择项目并勾选导入项 | 共享控件负责焦点、选中和半选，页面负责导入 | 修复复选标记颜色与分段选择的方向键操作。检查器发现 10 个缺少基础定义的设计变量名和 6 处单行规则中的裸字号、字重或圆角。替换错误引用并为现有面板宽度提供默认值。Electron 用例在 800、1100 像素宽度和两种主题检查导入 |
+| 批量导入对话、模型配置 | Main 持有本轮扫描清单，Rust 写入目标数据 | 会话只回传公开字段，按来源和外部 ID 匹配。旧版本导入 ID 继续去重。重扫、重新注册、批量执行中更换宿主由 `session-import-ipc.test.mjs` 覆盖 |
+| 添加或迁移技能、MCP | Main 识别来源，Rust 注册表拥有配置、启用状态及项目作用域 | 19 个 RPC 方法移入能力模块。导入结果使用宿主最终状态；停用状态写入失败时不会发布新定义。真实宿主测试覆盖项目间及全局迁移，设置页测试覆盖点击导入 |
+| 会话、插件、工作区等 IPC 跨过一次等待 | 每次调用使用启动它的宿主或 sidecar | 去掉九个注册模块中会被下一次请求覆盖的后端引用。批量粘贴 MCP 时插入一次重启与第二个 IPC，验证原批次的两个条目都留在原宿主 |
+| Agent 恢复对话和子代理 | agent-runtime 负责恢复提供给模型的内容，host-core 负责保存记录 | 共用工具结果解析，覆盖资源文本、链接、图片与旧版 Read 结果。子代理回归直接检查恢复后的模型消息，沿用原工具调用 ID 与 ToolSearch 元数据规则 |
+| 保存应用偏好 | Rust 拥有合并、校验、旧值修复和写库，Main 应用桌面副作用 | `settings.get/set` 交给独立模块。无效写入返回既有 `INVALID_PARAMS`；历史非对象值首次读取时恢复默认。RPC 测试核对原偏好及落库值 |
+| 无头、远程、手机和插件 | `apps/pi-host` 与桌面共用 `host-runtime`、`agent-host`。手机网关经 Main 分发，插件经独立进程调用受控能力 | 无头包加入反向依赖检查。对照了手机桥与插件加载和卸载入口；无头配对、读取工作区、断线重连可用 `pnpm test:e2e:remote-host` 验收 |
+| 本地检查与 CI | 仓库脚本、桌面测试入口和 GitHub Actions | 大小预算按工作树内容检查新文件。桌面单测收集 `test/` 和 `electron/test/`，带显示环境的 CI 单独执行设置导入。错误码测试扫描拆分后的 Rust 路由，并补登记四个已存在的宿主错误 |
+
+桌面测试有 69 处使用 Vite 只读加载固定模块，各自创建项目文件监听。一次 macOS 本机对照中，加载同一个语音服务模块并关闭服务，默认监听约 118 秒，其中关闭耗时约 82 秒。关闭监听时全程约 0.9 秒。已统一到 `apps/desktop/test/helpers/ssr-server.mjs`，各测试仍使用各自需要的插件、模块替身与清理时机。这是单次模块测量，整套测试耗时另计。
+
+## 对照 openidea 再审功能边界
+
+复核从 PR 的 `df4162957` 开始。openidea 的 `AGENTS.md` 与 `docs/en/contribute/architecture/frontend.mdx` 将界面原语、工作台装配、功能状态及扩展点分开。其 GitHub 评审代码仍引用 VCS 状态，VCS 日志也引用搜索书签。mc-agent 采用可检查的依赖方向，保留自己的 Electron 桥、Rust 写库和插件权限模型。
+
+用 TypeScript 解析器逐文件扫描 `apps/desktop/src` 的生产模块。复核基点有 23 个功能目录，29 个文件直接引用了其他功能的 63 处模块，共 39 对依赖方向。发现 4 条循环，涉及项目创建、设置、项目工作台、会话信息和工作面板。项目 store 还反向引用了工作台里的提示词保存规则。
+
+| 维护路径 | 当前代码归属 | 可复查的行为 |
+|---|---|---|
+| 在聊天、定时任务或创作对话中切换模型 | 模型选择控件与提交队列在 `components/model-picker/`，模型能力、推理档位归 `lib/composer-models.ts` 和共享类型 | 三个入口使用同一组控件和规则。Electron 的 `test:e2e:composer-model-selection` 覆盖切换、保存中和失败状态 |
+| 创建项目、项目标签和并排对话 | 项目提示词、启动目录、文件夹索引在 `lib/projects/`；相关 hook 在 `src/hooks/`；面板布局和标签在 `lib/work-panel/` | 项目 store、设置页、标签页与工作面板可独立使用同一规则。CI 检查循环依赖、跨功能私有导入及共享层反向引用 |
+| 打开工作区、改项目组、移除项目 | Rust 总路由在握手后将 `project.*`、`projects.*`、`workspace.*` 交给 `rpc/project_rpc.rs`。资源目录、任务与 SQLite 仍各有所有者 | 用实际 RPC 覆盖本地和远端工作区及运行中会话阻止删除。删除时分组、计划任务和会话在同一事务内更新；提交后才清理转录文件。回归注入最后一步写入失败，验证原会话、转录、分组仍在，重试成功 |
+| 摘要失败后继续、重启后恢复工具结果 | `compaction-checkpoint.ts` 负责检查点文件清单、代次、恢复摘要、保留窗口和旧记录重放。`runtime.ts` 负责调模型和落库。主会话与委派读取同一工具结果解析器 | 普通插件返回的对象数组、标量列表和空列表在恢复后保留 JSON。MCP 文本资源、图片、资源链接及二进制过滤分别验证 |
+| 插件崩溃后停用、退出应用 | `plugin-service-restarts.ts` 持有退避计数、计时器与取消信号。插件宿主保持权限检查、子进程和贡献注册 | 实际子进程回归覆盖崩溃后停用、退出、重启正在创建子进程时停用；用模拟时钟检查重试上限和恢复周期 |
+| 导入外部 MCP 或技能 | Main 用本轮扫描的选择标识查回原配置或路径，Rust 注册表执行同作用域的原子添加。管理界面按字段保留已有凭据 | 同 ID 不覆盖已保存配置，多请求竞争由写入者裁决。选择失效、编辑时保留已有值、实际设置窗口的操作见 [MC-ADR-0009](adr/mc-0009-import-from-other-agents.md) |
+| 通过桌面、手机或无头控制器创建会话 | 可信入口在 Rust 同一事务中写入新会话及选定权限。通用插件与 agent 的创建接口继续继承权限 | 用临时数据库比对创建响应和读回值。手机历史按正式设置键 `defaultPermissionMode` 解析继承权限。非法选项、失败回滚及 sidecar 的方法边界均有回归 |
+
+11 月 22 日复核后，直接跨功能的静态引用为 29 处、23 对，静态功能依赖无环。`lib/`、`stores/`、`hooks/` 指向 feature 的引用为 0。这里统计源码 import、re-export、字面量动态 import 和 require；运行时事件、插件发现与组件装配另由用户路径验证。数字是此轮快照，CI 检查的是规则。
+
+## 11 月 23 日继续拆分
+
+前一次复核在 `src/components/` 找到 32 处对其他功能内部模块的引用，其中 Composer 占 16 处。本次把会话输入、任务栏、上下文检查器和子代理转录交给聊天功能，把三张设置页交给设置功能。插件渲染宿主原先的 5 处草稿内部引用也改走 `features/chat/plugin-draft.ts`。这两层现在各有 0 处引用功能内部模块。装配代码迁入功能目录后，功能间统计为 38 处静态引用、26 对方向，无环。
+
+| 用户路径 | 代码归属 | 验证入口 |
+|---|---|---|
+| 输入提示词、选择模型、调用插件草稿动作 | `features/chat/Composer.tsx` 组合输入控件，插件宿主持有动作分发。插件工具条控件空间不足时换行 | `test:e2e:composer-model-selection`、`test:e2e:plugin-ui-slots` |
+| 查看项目与会话、调宽侧栏、打开菜单、重排项目 | `components/sidebar/` 分别持有项目与会话排序、菜单定位和焦点、拖放与键盘重排、宽度与指针捕获。Sidebar 组合这些交互 | `sidebar-project-reorder`、`sidebar-resize` 与 `test:e2e:sidebar-menu` |
+| 读写、恢复、分叉会话与切换消息版本 | `sessions.rs` 作为 Rust 门面。消息编解码、显示、索引、查询、追加、修订、分叉、恢复与回合分别有实现模块。原有 97 个会话测试保留，用例按领域迁入 `sessions/tests/` | `cargo test -p host-core --locked` |
+| 恢复模型上下文、启动子代理、获取下一条提示建议 | `transcript-replay.ts` 重建历史，`builtin-tool-schemas.ts` 声明内置工具。`delegation-registry.ts` 管委派生命周期，`next-prompt-suggestion.ts` 管建议请求的合并、取消与缓存。主循环仍持有当前模型和压缩时机 | agent-runtime 离线运行时及恢复测试 |
+| 受理重复请求、向插件子进程发起调用、读写文件 | AgentHost 通过 `turn-idempotency.ts` 核对重复输入。Electron 的 `plugin-process-calls.ts` 管子进程请求、超时与取消，`plugin-file-access.ts` 校验范围和同意状态，`plugin-file-api.ts` 实现文件操作 | agent-host、插件文件范围和卸载测试，插件插槽端到端测试 |
+
+`runtime.ts` 仍编排回合、模型调用及压缩，`plugin-runtime.ts` 仍装配贡献和宿主服务，`Sidebar.tsx` 仍负责导航布局与会话操作。修改这些入口时，按表中的用户路径验证。
+
+11 月 23 日对同一批模块补查了经共享组件和重导出的路径。26 对直接功能依赖之外，还能识别出 17 对间接依赖，合并后未发现静态跨功能环。架构检查也会提示删除已达标或已移除文件的大小豁免。
+
+当前架构决定见 [MC-ADR-0032](adr/mc-0032-domain-contracts.md)，模块入口见[代码索引](code-index.md)，进程关系见[现状架构](as-built-architecture.md)。

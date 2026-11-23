@@ -5,7 +5,7 @@ import { I18nextProvider } from "react-i18next";
 import { en } from "@pi-desktop/i18n";
 import { IPC } from "@pi-desktop/shared";
 import { BackgroundTasksBar } from "../../apps/desktop/src/components/BackgroundTasksBar";
-import { TodoDock } from "../../apps/desktop/src/components/TodoDock";
+import { TodoDock } from "../../apps/desktop/src/features/chat/TodoDock";
 import { AskToolCard } from "../../apps/desktop/src/components/AskToolCard";
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";
 import type { BackgroundTaskOutput, BackgroundTaskSummary } from "../../apps/desktop/src/lib/api";

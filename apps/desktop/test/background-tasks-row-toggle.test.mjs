@@ -9,7 +9,7 @@ import test from "node:test";
  */
 
 const [dock, composerStyles] = await Promise.all([
-  readFile(new URL("../src/components/TaskDock.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../src/features/chat/TaskDock.tsx", import.meta.url), "utf8"),
   readFile(new URL("../src/styles/composer.css", import.meta.url), "utf8"),
 ]);
 

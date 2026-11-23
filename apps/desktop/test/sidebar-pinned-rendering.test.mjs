@@ -1,23 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import i18n from "i18next";
 import { I18nextProvider } from "react-i18next";
 import { catalogs } from "@pi-desktop/i18n";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 test("sidebar renders global pins once, outside project folding and history limits", async () => {
   const previousDocument = globalThis.document;
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    esbuild: { jsx: "automatic" },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer({ esbuild: { jsx: "automatic" } });
   try {
     const { Sidebar } = await server.ssrLoadModule("/src/components/Sidebar.tsx");
     const { useAppStore } = await server.ssrLoadModule("/src/stores/app-store.ts");

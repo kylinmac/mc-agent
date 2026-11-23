@@ -293,6 +293,7 @@ const MEASURE = `(() => {
     sidebarKind: sidebar ? String(sidebar.className).split(" ")[0] : null,
     main: round(main),
     panel: round(panel),
+    stacked: Boolean(panel?.closest(".mc-stacked-dock")),
     handle: handle
       ? {
           x: Math.round(handle.getBoundingClientRect().left + handle.getBoundingClientRect().width / 2),
@@ -402,10 +403,9 @@ async function main() {
     const clickSidebarToggle = async () => {
       await cdp.evaluate(
         `(() => {
-          const toggle =
-            document.querySelector(".ct-lead .ct-icon-btn") ??
-            document.querySelector('.window-chrome-row [data-nav="toggle-sidebar"]') ??
-            document.querySelector('.sidebar [data-nav="toggle-sidebar"]');
+          const toggle = [...document.querySelectorAll(
+            '.ct-lead .ct-icon-btn, .window-chrome-row [data-nav="toggle-sidebar"], .main-titlebar [data-nav="toggle-sidebar"], .sidebar [data-nav="toggle-sidebar"]',
+          )].find((button) => button.getClientRects().length);
           toggle?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
         })()`,
       );
@@ -704,13 +704,10 @@ async function main() {
     check(
       narrowCollapsed.panel === 360 &&
         narrowReopened.sidebarKind === "sidebar" &&
-        narrowReopened.main === MAIN_PANE_REOPEN_TARGET_WIDTH &&
-        narrowReopened.panel ===
-          narrowReopened.windowWidth -
-            narrowReopened.sidebar -
-            MAIN_PANE_REOPEN_TARGET_WIDTH &&
-        narrowReopened.panel < WORK_PANEL_MIN_WIDTH,
-      "a narrow reopen shows the panel below its regular minimum",
+        narrowReopened.stacked &&
+        narrowReopened.panel === narrowReopened.main &&
+        narrowReopened.handle === null,
+      "a narrow reopen stacks the panel below the chat",
       JSON.stringify({ narrowCollapsed, narrowReopened }),
     );
     const storedAfterNarrowReopen = await cdp.evaluate(
@@ -804,15 +801,15 @@ async function main() {
     );
     await rig(`window.__PI_DESKTOP__.setWorkPanelWidth(500)`);
     await waitFor(
-      () => cdp.evaluate(`!!document.querySelector(".work-panel-new-tab")`),
+      () => cdp.evaluate(`!!document.querySelector(".mc-quick-tool:not(:disabled)")`),
       "work panel new-tab action",
     );
     await cdp.evaluate(
-      `document.querySelector(".work-panel-new-tab")?.click?.()`,
+      `document.querySelector(".mc-quick-tool:not(:disabled)")?.click?.()`,
     );
     await waitFor(
-      () => cdp.evaluate(`!!document.querySelector(".work-panel-tab")`),
-      "work panel tab mounted before preview mode",
+      () => cdp.evaluate(`!!document.querySelector(".mc-pane-header")`),
+      "work pane mounted before preview mode",
     );
     // The panel's `+`, maximize, and the viewport-fixed collapse toggle are one
     // button group. Only the rendered box proves it: a stylesheet contract
@@ -876,9 +873,9 @@ async function main() {
         const row = document.querySelector(".window-chrome-row");
         const spacer = document.querySelector(".window-chrome-drag");
         const header = document.querySelector(".work-panel-header");
-        const actions = [...row.querySelectorAll("[data-nav]")];
+        const actions = [...row.querySelectorAll("[data-nav]")].filter((action) => action.getClientRects().length);
         const headerBox = header.getBoundingClientRect();
-        const firstTab = document.querySelector(".work-panel-tab");
+        const firstTab = document.querySelector(".mc-quick-tool");
         const controls = document.querySelector(".window-controls");
         const sidebar = document.querySelector(".sidebar");
         const platform = document.documentElement.dataset.platform;
@@ -1007,7 +1004,7 @@ async function main() {
         ),
       "plugin route remains visible after preview mode",
     );
-    // E2E: a plugin modal covers the window chrome. The 46px band is an opaque
+    // E2E: a plugin modal covers the window chrome. The titlebar band is an opaque
     // absolute row, and the route surface must not hold a stacking context that
     // leaves the modal's veil underneath it — that is what put the band over
     // the install consent. The viewport-fixed work-panel toggle sits inside the
@@ -1229,8 +1226,8 @@ async function main() {
       const handle = document.querySelector(".sidebar-resize-handle");
       const panel = document.querySelector('[data-testid="work-panel"]');
       const panelHeader = document.querySelector(".work-panel-header");
-      const panelTabStrip = document.querySelector(".work-panel-tab-strip");
-      const firstPanelTab = document.querySelector(".work-panel-tab");
+      const panelTabStrip = document.querySelector(".mc-quick-tools");
+      const firstPanelTab = document.querySelector(".mc-quick-tool");
       const controlsBox = controls ? controls.getBoundingClientRect() : null;
       const firstAction =
         document.querySelector('.window-chrome-row [data-nav="toggle-sidebar"]') ??
@@ -1317,8 +1314,8 @@ async function main() {
       JSON.stringify(e2eChromePreview),
     );
     check(
-      e2eChromePreview.bandHeight === 46 && e2eChromePreview.bandPointerEvents === "none",
-      "the preview band is a 46px pass-through strip",
+      e2eChromePreview.bandHeight === 38 && e2eChromePreview.bandPointerEvents === "none",
+      "the preview band uses the 38px shell titlebar and passes pointer events through",
       JSON.stringify(e2eChromePreview),
     );
     check(
@@ -1355,94 +1352,35 @@ async function main() {
 
     await rig(`window.__PI_DESKTOP__.collapseWorkPanel()`);
     const originalTheme = await cdp.evaluate(`document.documentElement.dataset.theme`);
-    const routeActionSelector = ".main-titlebar .title-nav-btn";
-    const readChromeAction = (selector) => cdp.evaluate(`(() => {
-      const control = document.querySelector(${JSON.stringify(selector)});
-      if (!control) throw new Error("Chrome action missing");
-      const box = control.getBoundingClientRect();
-      const style = getComputedStyle(control);
-      return {
-        width: box.width, height: box.height,
-        x: box.left + box.width / 2, y: box.top + box.height / 2,
-        background: style.backgroundColor, color: style.color,
-        radius: style.borderRadius, border: style.borderWidth,
-        display: style.display, align: style.alignItems, justify: style.justifyContent,
-        flex: style.flex, cursor: style.cursor,
-        hovered: control.matches(":hover"),
-      };
-    })()`);
-    const movePointer = async (x, y) => {
-      await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
-      await delay(220);
-    };
+    // Plugins and scheduled tasks now project their own navigation into the pinned sidebar.
     for (const route of ["plugins", "scheduled"]) {
-      if ((await measure()).sidebarKind !== "sidebar") await clickSidebarToggle();
+      if ((await measure()).sidebarKind === "sidebar") await clickSidebarToggle();
       await rig(`window.__PI_DESKTOP__.setPage(${JSON.stringify(route)})`);
       await waitFor(
-        () => cdp.evaluate(`!!document.querySelector(".route-page .page-frame") && !!document.querySelector(".main-titlebar")`),
-        `${route} route mounted`,
-      );
-      await clickSidebarToggle();
-      await waitFor(
-        () => cdp.evaluate(`!document.querySelector(".sidebar") && document.querySelectorAll(${JSON.stringify(routeActionSelector)}).length === 2`),
-        `${route} collapsed-sidebar actions`,
-      );
-      check(
-        await cdp.evaluate(`!document.querySelector(".window-chrome-row")`),
-        `${route} exercises the ordinary titlebar, not preview chrome`,
+        () => cdp.evaluate(`!!document.querySelector(".route-page .page-frame") && !!document.querySelector(".sidebar:not(.is-exiting)")`),
+        `${route} opens its sidebar navigation`,
       );
       for (const theme of ["light", "dark"]) {
-        await cdp.evaluate(`window.__PI_DESKTOP__.setThemeAttr(${JSON.stringify(theme)})`);
-        await movePointer(500, 300);
-        const reference = await readChromeAction(".app-work-panel-toggle");
-        await movePointer(reference.x, reference.y);
-        const referenceHover = await readChromeAction(".app-work-panel-toggle");
-        check(
-          reference.background === "rgba(0, 0, 0, 0)" &&
-            referenceHover.hovered && referenceHover.background !== reference.background,
-          `${route}/${theme} shared chrome reference has transparent rest and hover wash`,
-          JSON.stringify({ reference, referenceHover }),
-        );
-        for (const action of ["toggle-sidebar", "new-task"]) {
-          const selector = `${routeActionSelector}[data-nav="${action}"]`;
-          await movePointer(500, 300);
-          const rest = await readChromeAction(selector);
-          check(
-            Math.abs(rest.width - 28) < 0.1 && Math.abs(rest.height - 28) < 0.1 &&
-              ["background", "color", "radius", "border", "display", "align", "justify", "flex", "cursor"].every(
-                (property) => rest[property] === reference[property],
-              ),
-            `${route}/${theme} ${action} shares the rendered 28px chrome target and rest style`,
-            JSON.stringify(rest),
-          );
-          await movePointer(rest.x, rest.y);
-          const hover = await readChromeAction(selector);
-          check(
-            hover.hovered && hover.background === referenceHover.background &&
-              hover.color === referenceHover.color &&
-              hover.width === rest.width && hover.height === rest.height,
-            `${route}/${theme} ${action} shares the hover wash without changing geometry (CDP)`,
-            JSON.stringify(hover),
-          );
-        }
+        await rig(`window.__PI_DESKTOP__.setThemeAttr(${JSON.stringify(theme)})`);
+        const chrome = await cdp.evaluate(`(() => {
+          const home = document.querySelector('.sidebar [data-nav="rail-home"]');
+          const box = home?.getBoundingClientRect();
+          return {
+            homeLabel: home?.getAttribute("aria-label"),
+            homeVisible: box?.width > 0 && box?.height > 0,
+            toggle: !!document.querySelector('.sidebar [data-nav="toggle-sidebar"]'),
+            previewChrome: !!document.querySelector(".window-chrome-row"),
+          };
+        })()`);
+        check(chrome.homeVisible && !!chrome.homeLabel && !chrome.toggle && !chrome.previewChrome,
+          `${route} pins navigation and keeps an accessible home action (${theme})`, JSON.stringify(chrome));
       }
-      await cdp.evaluate(`document.querySelector('${routeActionSelector}[data-nav="toggle-sidebar"]').click()`);
+      await cdp.evaluate(`document.querySelector('.sidebar [data-nav="rail-home"]').click()`);
       await waitFor(
-        () => cdp.evaluate(`!!document.querySelector(".sidebar:not(.is-exiting)") && !document.querySelector(${JSON.stringify(routeActionSelector)})`),
-        `${route} sidebar reopens through its titlebar action`,
+        () => cdp.evaluate(`!!document.querySelector(".conversation-topbar") && !document.querySelector(".route-page")`),
+        `${route} home action returns to chat`,
       );
-      check(true, `${route} titlebar sidebar action reopens navigation (DOM)`);
-      await clickSidebarToggle();
-      await waitFor(
-        () => cdp.evaluate(`!document.querySelector(".sidebar") && !!document.querySelector('${routeActionSelector}[data-nav="new-task"]')`),
-        `${route} new-task action after recollapse`,
-      );
-      await cdp.evaluate(`document.querySelector('${routeActionSelector}[data-nav="new-task"]').click()`);
-      await waitFor(
-        () => cdp.evaluate(`!!document.querySelector(".conversation-topbar") && !!document.querySelector(".composer-input:not(:disabled)") && !document.querySelector(".route-page")`),
-        `${route} new task returns to an editable chat composer`,
-      );
-      check(true, `${route} titlebar new-task action returns to chat (DOM)`);
+      check(true, `${route} returns to the conversation through the visible home action`);
     }
     await cdp.evaluate(`document.documentElement.dataset.theme = ${JSON.stringify(originalTheme)}`);
 

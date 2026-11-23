@@ -243,6 +243,51 @@ describe("taskObjectiveFromArgs", () => {
 });
 
 describe("seedDelegateMessages", () => {
+  it("recovers ordinary plugin rows, including an empty list, as JSON on resume", () => {
+    const results = [
+      [{ id: "note-1", title: "Review" }],
+      [{ id: "i2", type: "image", name: "cover.png" }, { id: "i1", type: "text", title: "Review" }],
+      [7, false], [],
+    ];
+    const messages = seedDelegateMessages({
+      originalTask: "review the results",
+      rows: results.map((result, index) => delegateTool(`t${index}`, "Lookup", {}, result, "call-1")),
+      provider: provider(), model: buildProviderModel(provider()), budget: generousBudget(),
+    });
+    const restored = messages.filter((message) => message.role === "toolResult");
+    expect(restored.map((message) => message.content)).toEqual(
+      results.map((result) => [{ type: "text", text: JSON.stringify(result) }]),
+    );
+  });
+
+  it("restores MCP resources and image blocks when resuming a delegate", () => {
+    const image = { type: "image", mimeType: "image/png", data: "aW1hZ2U=" };
+    const rows = [
+      delegateTool("t1", "Lookup", {}, { content: [
+        { type: "text", text: "Found" },
+        { type: "resource", resource: { uri: "file:///note", text: "the note" } },
+        { type: "resource_link", name: "next", uri: "file:///next" },
+      ] }, "call-1"),
+      delegateTool("t2", "Preview", {}, [image], "call-1"),
+      delegateTool("t3", "Read", {}, { images: [image] }, "call-1"),
+      delegateTool("t4", "Lookup", {}, [
+        { type: "text", text: "metadata" }, { id: "note-1" },
+        { type: "resource", resource: { uri: "file:///binary", blob: "private-bytes" } },
+      ], "call-1"),
+    ];
+    const messages = seedDelegateMessages({
+      originalTask: "review the results", rows, provider: provider(),
+      model: buildProviderModel(provider()), budget: generousBudget(),
+    });
+    expectWellFormedPairs(messages);
+    expect(messages.filter((message) => message.role === "toolResult").map((message) => message.content)).toEqual([
+      [{ type: "text", text: "Found" }, { type: "text", text: "the note" }, { type: "text", text: "[resource link] next: file:///next" }],
+      [image],
+      [{ type: "text", text: "{}" }, image],
+      [{ type: "text", text: "metadata" }, { type: "text", text: JSON.stringify({ id: "note-1" }) }],
+    ]);
+  });
+
   it("prepends the original task once and keeps tool pairs ordered", () => {
     const rows: UiMessage[] = [
       delegateAssistant("a1", "looking", "call-1"),

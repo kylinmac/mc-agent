@@ -6,10 +6,10 @@ import type { IconProps } from "../../components/icons";
 import { IconActivity, IconBrowser, IconDiff, IconFolder, IconGlobe, IconTerminal } from "../../components/icons";
 import { pluginWorkPanelTab, toolWorkPanelTab } from "../../lib/work-panel-tabs";
 import { isRemoteSession } from "../../lib/remote-session-safety";
-import { backgroundTab, browserTab, canvasTab, FILES_VIEW, terminalTab } from "./tool-tabs";
+import { backgroundTab, browserTab, canvasTab, FILES_VIEW, terminalTab } from "../../lib/work-panel/tool-tabs";
 import { useBackgroundShells } from "./background-shells";
-import { paneOf, type PaneId } from "./work-panes-model";
-import { expandPane } from "./pane-layout";
+import { paneOf, type PaneId } from "../../lib/work-panel/work-panes-model";
+import { expandPane } from "../../lib/work-panel/pane-layout";
 
 /** The folder a new terminal starts in: the conversation's start folder. */
 export function useTerminalCwd(): string | undefined {

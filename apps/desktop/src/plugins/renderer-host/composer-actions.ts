@@ -12,13 +12,13 @@ import {
   type PluginRendererActionName,
   type PluginRendererErrorCode,
 } from "@pi-desktop/plugin-sdk";
-import type {
-  AttachmentInput,
-  ComposerDraftBridge,
-  DraftReplaceInput,
-} from "../../features/chat/composer/plugins/draft-bridge";
-import type { DraftMarkInput } from "../../features/chat/composer/plugins/plugin-draft";
-import { sanitizeTriggerItem } from "../../features/chat/composer/plugins/plugin-triggers";
+import {
+  sanitizeTriggerItem,
+  type AttachmentInput,
+  type ComposerDraftBridge,
+  type DraftMarkInput,
+  type DraftReplaceInput,
+} from "../../features/chat/plugin-draft";
 import { PluginRendererError } from "../renderer-error";
 
 /** The bridge calls the composer words end in. */

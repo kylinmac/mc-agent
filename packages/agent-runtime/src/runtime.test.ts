@@ -1,3 +1,4 @@
+import { NextPromptSuggestions } from "./next-prompt-suggestion.js";
 import { builtinSystemPrompt } from "./builtin-system-prompt.js";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -2328,7 +2329,7 @@ describe("DesktopAgentRuntime live activity", () => {
       lastPhase: "waiting-model",
       startedEpoch: 1,
     };
-    (runtime as any).delegations.set(record.delegationId, record);
+    (runtime as any).delegations.register(record);
     (runtime as any).beginDelegationWait([record]);
     expect(runtime.getStatus().activity).toEqual({
       phase: "waiting-subagents",
@@ -9306,7 +9307,7 @@ describe("DesktopAgentRuntime subagents", () => {
     await expect(
       (runtime as any).agent.afterToolCall({ toolCall: { id: "task-over" } }),
     ).resolves.toEqual({ isError: true });
-    expect((runtime as any).runningDelegations()).toHaveLength(MAX);
+    expect(runtime["delegations"].running()).toHaveLength(MAX);
 
     // Freeing one slot (via stop) makes room again.
     const stop = (runtime as any).agent.state.tools.find(
@@ -9314,7 +9315,7 @@ describe("DesktopAgentRuntime subagents", () => {
     );
     await stop.execute("stop-1", { delegationIds: [ids[0]] });
     await vi.waitFor(() => {
-      expect((runtime as any).runningDelegations()).toHaveLength(MAX - 1);
+      expect(runtime["delegations"].running()).toHaveLength(MAX - 1);
     });
     const again = await tool.execute("task-again", {
       agent: "explorer",
@@ -9339,13 +9340,13 @@ describe("DesktopAgentRuntime subagents", () => {
       task: "Find it.",
     });
     const delegationId = (started.details as any).delegationId as string;
-    expect((runtime as any).runningDelegations()).toHaveLength(1);
+    expect(runtime["delegations"].running()).toHaveLength(1);
 
     await (runtime as any).handleAgentEvent({ type: "agent_end" });
     expect((runtime as any).delegations.get(delegationId).status).toBe(
       "running",
     );
-    expect((runtime as any).runningDelegations()).toHaveLength(1);
+    expect(runtime["delegations"].running()).toHaveLength(1);
 
     subagentRuns.deferred = false;
     await runtime.dispose();
@@ -9371,7 +9372,7 @@ describe("DesktopAgentRuntime subagents", () => {
         "aborted",
       );
     });
-    expect((runtime as any).runningDelegations()).toHaveLength(0);
+    expect(runtime["delegations"].running()).toHaveLength(0);
 
     subagentRuns.deferred = false;
     await runtime.dispose();
@@ -9392,7 +9393,7 @@ describe("DesktopAgentRuntime subagents", () => {
       task: "Find it.",
     });
     const delegationId = (started.details as any).delegationId as string;
-    expect((runtime as any).runningDelegations()).toHaveLength(1);
+    expect(runtime["delegations"].running()).toHaveLength(1);
 
     (runtime as any).providerRateLimitRetryAttempt =
       PROVIDER_RATE_LIMIT_MAX_RETRIES;
@@ -10053,7 +10054,7 @@ describe("DesktopAgentRuntime subagents", () => {
         await vi.waitFor(() => {
           expect(ids.map((id) => internals.delegations.get(id).status)).toEqual(["failed", "failed"]);
         });
-        expect(internals.runningDelegations()).toHaveLength(0);
+        expect(runtime["delegations"].running()).toHaveLength(0);
         for (const id of ids) {
           expect(internals.delegations.get(id).result).toMatchObject({ status: "failed",
             error: { code: "SUBAGENT_PARENT_FAILED", resumeId: id } });
@@ -11684,7 +11685,7 @@ describe("compaction fallback retention (#827)", () => {
       true,
     );
 
-    const checkpoint = appendedCheckpoint(host);
+    expect(appendedCheckpoint(host)).toBeDefined();
     const replayed = replayedMessages(runtime);
     expect(replayed.map((message: any) => message.role)).toEqual([
       "compactionSummary",
@@ -12165,7 +12166,7 @@ describe("DesktopAgentRuntime delegation wait settlement safety", () => {
       });
 
       expect(String((started.details as any)?.error)).toMatch(/initialize/i);
-      expect((runtime as any).runningDelegations()).toHaveLength(0);
+      expect(runtime["delegations"].running()).toHaveLength(0);
       await expect((runtime as any).resumeAfterDelegations()).resolves.toBeUndefined();
     } finally {
       subagentRuns.constructorError = undefined;
@@ -13242,6 +13243,26 @@ describe("next-prompt suggestion (mc-agent)", () => {
     expect(thinkingChangesPromptCache({ api: "bedrock-converse-stream", id: "amazon.nova-pro" })).toBe(false);
     expect(thinkingChangesPromptCache({ api: "openai-completions", id: "grok-4.7" })).toBe(false);
     expect(thinkingChangesPromptCache({ api: "openai-codex-responses", id: "gpt-5.5" })).toBe(false);
+  });
+
+  it("shares a pending suggestion and ignores a late result from the previous reply", async () => {
+    const suggestions = new NextPromptSuggestions();
+    const first = {};
+    const next = {};
+    let finish!: (text: string) => void;
+    const pending = new Promise<string>((resolve) => { finish = resolve; });
+    const request = vi.fn((_signal: AbortSignal) => pending);
+    const old = suggestions.forReply(first, request);
+    const duplicate = suggestions.forReply(first, request);
+    expect(request).toHaveBeenCalledTimes(1);
+
+    const fresh = vi.fn(async () => "next");
+    expect(await suggestions.forReply(next, fresh)).toBe("next");
+    expect(request.mock.calls[0][0].aborted).toBe(true);
+    finish("outdated");
+    expect(await Promise.all([old, duplicate])).toEqual([null, null]);
+    expect(await suggestions.forReply(next, fresh)).toBe("next");
+    expect(fresh).toHaveBeenCalledTimes(1);
   });
 
   it("keeps only one short line and drops tool calls", () => {

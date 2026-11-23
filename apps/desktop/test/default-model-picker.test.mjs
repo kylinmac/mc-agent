@@ -4,7 +4,7 @@ import test from "node:test";
 const read = (rel) => readFile(new URL(rel, import.meta.url), "utf8");
 
 test("model settings expose image selection but no fixed chat default", async () => {
-  const page = await read("../src/components/settings/ModelConfigPage.tsx");
+  const page = await read("../src/features/settings/ModelConfigPage.tsx");
   const list = await read("../src/components/settings/ServiceList.tsx");
   assert.doesNotMatch(page, /"settings\.defaultModel"|changeDefaultModel|setDefaultModel|pickingDefault/);
   assert.doesNotMatch(list, /settings\.makeDefault|onMakeDefault|defaultProviderId/);

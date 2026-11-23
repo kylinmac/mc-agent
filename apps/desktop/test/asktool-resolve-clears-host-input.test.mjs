@@ -1,11 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 import { IPC } from "@pi-desktop/shared";
-
-const here = dirname(fileURLToPath(import.meta.url));
 
 const askRequest = {
   requestId: "ask_1",
@@ -33,13 +29,7 @@ function ingestAsk(bridge) {
 }
 
 test("resolveAskByRequestId settles the Host input so the card does not come back", async (t) => {
-  const server = await createServer({
-    root: dirname(here),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   const { createAgentHostBridge } = await server.ssrLoadModule("/electron/main/agent-host-bridge.ts");
   const calls = [];
@@ -70,13 +60,7 @@ test("resolveAskByRequestId settles the Host input so the card does not come bac
 });
 
 test("resolveAskByRequestId returns null for unknown requests", async (t) => {
-  const server = await createServer({
-    root: dirname(here),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   const { createAgentHostBridge } = await server.ssrLoadModule("/electron/main/agent-host-bridge.ts");
   let invoked = 0;
@@ -113,13 +97,7 @@ test("resolveAskByRequestId returns null for unknown requests", async (t) => {
  * real handler.
  */
 test("a Host-owned answer does not re-enter its own IPC handler", async (t) => {
-  const server = await createServer({
-    root: dirname(here),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   const { createAgentHostBridge } = await server.ssrLoadModule("/electron/main/agent-host-bridge.ts");
   const { registerAgentIpc } = await server.ssrLoadModule("/electron/main/ipc/agent-ipc.ts");

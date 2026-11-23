@@ -1,15 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { EventEmitter } from "node:events";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 async function fixture(t) {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)), configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false }, appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   const { sendJsonConfirmed, waitForSocketReady } = await server.ssrLoadModule("/electron/main/live-voice/websocket-wire.ts");
   const socket = new EventEmitter();
@@ -98,12 +93,7 @@ test("Gemini Live does not send setup when cancellation follows WebSocket open",
   };
   globalThis[key] = async () => socket;
 
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
+  const server = await createDesktopSsrServer({
     plugins: [{
       name: "live-gemini-open-cancel-fixture",
       enforce: "pre",

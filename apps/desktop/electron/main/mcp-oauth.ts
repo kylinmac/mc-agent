@@ -9,6 +9,7 @@ import {
   type McpServerStatus,
 } from "@pi-desktop/shared";
 import { allowInsecureUserEndpointsEnabled } from "./endpoint-policy.ts";
+import { mcpSettingsStatus } from "./mcp-settings-view.ts";
 import { authorizationMetadataUrls, parseBearerChallenge, selectOAuthScope } from "./mcp-oauth-discovery.ts";
 export type StoredMcpOAuthToken = {
   clientId: string;
@@ -758,7 +759,7 @@ export class McpOAuthManager {
         serverId: session.serverId,
         kind: "done",
         status: status
-          ? { ...status, hasOauth: true }
+          ? { ...mcpSettingsStatus(status), hasOauth: true }
           : {
               serverId: session.serverId,
               state: "ready",

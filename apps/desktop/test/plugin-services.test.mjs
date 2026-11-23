@@ -16,6 +16,9 @@ const hostProcessEntry = join(desktopRoot, "electron/main/plugin-host-process.mj
 register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
 const { PluginRuntime } = await import("../electron/main/plugin-runtime.ts");
 
+const { PluginServiceRestarts } = await import("../electron/main/plugin-service-restarts.ts");
+const { McpServerClient } = await import("../electron/main/plugin-mcp.ts");
+
 const hostSrc = readFileSync(hostProcessEntry, "utf8");
 const runtimeSrc = readFileSync(join(desktopRoot, "electron/main/plugin-runtime.ts"), "utf8");
 const mainSrc = readMainSourceSync();
@@ -54,12 +57,12 @@ function fakePluginProcess() {
   };
 }
 
-function createRuntime(t) {
+function createRuntime(t, spawnProcess = forkPluginProcess) {
   const audits = [];
   const changes = [];
   const runtime = new PluginRuntime({
     hostEntry: hostProcessEntry,
-    spawnProcess: forkPluginProcess,
+    spawnProcess,
     audit: (entry) => audits.push(entry),
     onServiceChange: (status) => changes.push(status),
   });
@@ -329,6 +332,102 @@ test("a crash raises one toast, not one per reporting path", () => {
   assert.match(runtimeSrc, /showToast\(`Plugin stopped unexpectedly/);
 });
 
+for (const stop of ["unload", "disposeAll"]) {
+  test(stop + " cancels a restart after the crashed plugin left the loaded registry", async (t) => {
+    const { dir, manifest, startsFile } = writeServicePlugin({
+      main: COUNTER_PRELUDE + `
+        module.exports.onLoad = () => pi.services.register({
+          id: "worker",
+          start: () => { if (countStart() === 1) setTimeout(() => process.exit(7), 30); },
+        });
+      `,
+    });
+    const { runtime, audits } = createRuntime(t);
+    await runtime.loadFromPath(dir);
+    const scheduled = await waitFor(() => audits.find((entry) => entry.api === "plugin.service.restart.scheduled"));
+    assert.deepEqual(runtime.listLoaded(), []);
+    if (stop === "unload") await runtime.unload(manifest.id);
+    else await runtime.disposeAll();
+    await new Promise((resolve) => setTimeout(resolve, scheduled.delayMs + 200));
+    assert.equal(readFileSync(startsFile, "utf8"), "1");
+    assert.deepEqual(runtime.getServiceStates(), []);
+  });
+}
+
+test("unloading while a restarted child is spawning stops that child before it registers", async (t) => {
+  const { dir, manifest } = writeServicePlugin({
+    main: `module.exports.onLoad = () => pi.services.register({
+      id: "worker", start: () => { setTimeout(() => process.exit(7), 30); }
+    });`,
+  });
+  const spawning = Promise.withResolvers();
+  const release = Promise.withResolvers();
+  const exited = Promise.withResolvers();
+  let spawns = 0;
+  const { runtime } = createRuntime(t, async (options) => {
+    if (++spawns === 1) return forkPluginProcess(options);
+    spawning.resolve();
+    await release.promise;
+    const child = forkPluginProcess(options);
+    child.onExit(exited.resolve);
+    return child;
+  });
+  await runtime.loadFromPath(dir);
+  await spawning.promise;
+  try {
+    await runtime.unload(manifest.id);
+  } finally {
+    release.resolve();
+  }
+  await exited.promise;
+  assert.deepEqual(runtime.listLoaded(), []);
+  assert.deepEqual(runtime.getServiceStates(), []);
+});
+
+test("unload closes pending MCP discovery and ignores a late tool catalog", async (t) => {
+  const { dir, manifest } = writeServicePlugin({ permissions: ["mcp.server.local"], services: [], main: "" });
+  manifest.contributes.mcpServers = [{ id: "books", transport: "stdio", command: "node", args: ["./server.js"] }];
+  writeFileSync(join(dir, "manifest.json"), JSON.stringify(manifest));
+  const discovering = Promise.withResolvers();
+  const reply = Promise.withResolvers();
+  t.mock.method(McpServerClient.prototype, "connect", () => {
+    discovering.resolve();
+    return reply.promise;
+  });
+  const close = t.mock.method(McpServerClient.prototype, "close");
+  const { runtime } = createRuntime(t);
+  const stopped = assert.rejects(runtime.loadFromPath(dir), /plugin stopped/);
+  await discovering.promise;
+  try {
+    await runtime.unload(manifest.id);
+    assert.equal(close.mock.callCount(), 1);
+  } finally {
+    reply.resolve([{ name: "ListBooks", inputSchema: { type: "object" } }]);
+  }
+  await stopped;
+  assert.deepEqual(runtime.getTools(), []);
+  assert.deepEqual(runtime.listLoaded(), []);
+});
+
+test("a crash during the restarted service's start preserves the next retry", async (t) => {
+  const { dir, startsFile } = writeServicePlugin({
+    main: COUNTER_PRELUDE + `
+      module.exports.onLoad = () => pi.services.register({
+        id: "worker", start: () => {
+          const n = countStart();
+          if (n === 1) setTimeout(() => process.exit(7), 30);
+          if (n === 2) process.exit(7);
+        }
+      });
+    `,
+  });
+  const { runtime, audits } = createRuntime(t);
+  await runtime.loadFromPath(dir);
+  await waitFor(() => runtime.getServiceStates().some((service) => service.state === "running" && service.restarts === 2));
+  assert.equal(readFileSync(startsFile, "utf8"), "3");
+  assert.deepEqual(audits.filter((entry) => entry.api === "plugin.service.restart.scheduled").map((entry) => entry.attempt), [1, 2]);
+});
+
 test("a crashed host process is restarted with backoff and the restart is counted", async (t) => {
   const { dir, startsFile } = writeServicePlugin({
     main: `${COUNTER_PRELUDE}
@@ -451,20 +550,24 @@ test("autoRestart:false leaves a crashed service down", async (t) => {
   assert.equal(runtime.getServiceStates()[0].state, "failed");
 });
 
-test("supervision gives up after a bounded number of restarts", () => {
-  const supervise = runtimeSrc.slice(
-    runtimeSrc.indexOf("private superviseCrash"),
-    runtimeSrc.indexOf("private restartAfterCrash"),
-  );
-  assert.match(runtimeSrc, /MAX_SERVICE_RESTARTS = 5/);
-  assert.match(runtimeSrc, /SERVICE_RESTART_MAX_DELAY_MS = 30_000/);
-  assert.match(supervise, /record\.attempts > MAX_SERVICE_RESTARTS/);
-  assert.match(supervise, /restart limit reached/);
-  assert.match(supervise, /SERVICE_RESTART_MAX_DELAY_MS/);
-  // A healthy run clears the counter so old crashes never shorten a later life.
-  assert.match(runtimeSrc, /SERVICE_HEALTHY_MS = 60_000/);
-  assert.match(runtimeSrc, /private scheduleHealthyReset/);
-  assert.match(runtimeSrc, /MAX_SERVICES_PER_PLUGIN = 4/);
+test("supervision bounds retries and a healthy process starts a fresh retry budget", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const restarts = new PluginServiceRestarts();
+  const resumed = [];
+  for (const delay of [1000, 2000, 4000, 8000, 16000]) {
+    const expectedAttempt = resumed.length + 1;
+    const scheduled = restarts.schedule("a", (attempt) => resumed.push(attempt));
+    assert.deepEqual(scheduled, { attempt: expectedAttempt, delayMs: delay });
+    t.mock.timers.tick(delay);
+    assert.equal(resumed.at(-1), expectedAttempt);
+  }
+  assert.equal(restarts.schedule("a", () => assert.fail("over limit")), undefined);
+  restarts.healthy("a");
+  t.mock.timers.tick(60_000);
+  assert.equal(restarts.attempts("a"), 0);
+  assert.equal(restarts.schedule("a", () => assert.fail("cancelled"))?.attempt, 1);
+  restarts.cancelAll();
+  t.mock.timers.tick(60_000);
 });
 
 test("the plugin process owns service callables and forgets them on unload", () => {

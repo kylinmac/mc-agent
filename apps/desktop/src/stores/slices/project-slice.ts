@@ -34,7 +34,7 @@ import {
   normalizeProjectPath,
   sessionMatchesProject,
 } from "../../lib/sidebar-session-groups";
-import { saveProjectPromptTemplate } from "../../features/project-workbench/project-prompt-save";
+import { saveProjectPromptTemplate } from "../../lib/projects/project-prompt-save";
 import type { AppState } from "../app-state";
 import type { SessionRuntime } from "../runtime/session-runtime";
 import type { StoreAccess } from "./types";

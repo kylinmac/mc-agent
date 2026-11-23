@@ -1,16 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 async function loadScope(t) {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   return server.ssrLoadModule("/electron/main/live-voice/work-scope.ts");
 }
@@ -92,13 +85,7 @@ test("a work session removed while Host metadata is being read cannot pass reval
 });
 
 test("selection references are opaque, call-scoped, short-lived, and removed with the call", async (t) => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   const { LiveWorkSelectionRegistry } = await server.ssrLoadModule("/electron/main/live-voice/work-selections.ts");
   let now = 10;
@@ -128,13 +115,7 @@ test("selection references are opaque, call-scoped, short-lived, and removed wit
 
 
 test("live work backend port keeps prompt, stop, queue, and capability calls on each session source", async (t) => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   const { createLiveWorkBackendPort } = await server.ssrLoadModule("/electron/main/live-voice/live-work-backend-port.ts");
   const calls = [];
@@ -221,13 +202,7 @@ test("live work backend port keeps prompt, stop, queue, and capability calls on 
 });
 
 test("initial Native Pi and Remote targets subscribe without a local AgentHost bridge", async (t) => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   const { createLiveWorkBridge } = await server.ssrLoadModule("/electron/main/live-voice/work-bridge.ts");
   const remoteSubscriptions = [];
@@ -274,13 +249,7 @@ test("initial Native Pi and Remote targets subscribe without a local AgentHost b
 });
 
 test("fresh live work catalog resolves Composer targets from all backends and rejects ambiguous IDs", async (t) => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   const { listLiveWorkSessions, requireLiveWorkSession } = await server.ssrLoadModule("/electron/main/live-voice/live-work-backend-port.ts");
   const sidecarCalls = [];
@@ -319,13 +288,7 @@ test("fresh live work catalog resolves Composer targets from all backends and re
 });
 
 test("live work attaches the desktop list before projects.list settles (#1732)", async (t) => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   const { listLiveWorkSessions } = await server.ssrLoadModule("/electron/main/live-voice/live-work-backend-port.ts");
   let releaseProjects;

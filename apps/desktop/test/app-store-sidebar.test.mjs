@@ -1,3 +1,4 @@
+import { readContractModules } from "./helpers/source-contracts.mjs";
 import { readStoreSource, readStoreModule } from "./helpers/source-contracts.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -5,9 +6,10 @@ import test from "node:test";
 
 const storeSource = await readStoreSource();
 const projectSliceSource = await readStoreModule("slices/project-slice.ts");
-const sidebarSource = await readFile(
-  new URL("../src/components/Sidebar.tsx", import.meta.url),
-  "utf8",
+const sidebarSource = readContractModules(
+  "../src/components/Sidebar.tsx",
+  "../src/components/sidebar/useSidebarProjects.ts",
+  "../src/components/sidebar/useProjectReorder.ts",
 );
 const hoverSource = await readFile(
   new URL("../src/features/sessions/SessionHoverCard.tsx", import.meta.url),

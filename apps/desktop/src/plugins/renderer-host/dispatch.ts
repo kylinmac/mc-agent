@@ -17,7 +17,7 @@ import {
   type PluginRendererActionName,
   type PluginRendererDispatch,
 } from "@pi-desktop/plugin-sdk";
-import { composerDraftBridge } from "../../features/chat/composer/plugins/draft-bridge";
+import { composerDraftBridge } from "../../features/chat/plugin-draft";
 import { api } from "../../lib/api";
 import { PluginRendererError } from "../renderer-error";
 import { isUserGesture, runComposerAction, type ComposerRoutes } from "./composer-actions";

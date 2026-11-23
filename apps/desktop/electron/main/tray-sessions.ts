@@ -14,6 +14,7 @@ import type { Logger } from "./logger";
 
 const REFRESH_AFTER_INVOKE = new Set<string>([
   IPC.invoke.sessionCreate,
+  IPC.invoke.sessionCreateConfigured,
   IPC.invoke.sessionFork,
   IPC.invoke.sessionRename,
   IPC.invoke.sessionDelete,

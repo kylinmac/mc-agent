@@ -472,8 +472,7 @@ export function ModelSelectionPanes({
                 }
               }}
             >
-              <input
-                type="checkbox"
+              <Checkbox
                 className="provider-models-check"
                 checked={selected.has(row.id.toLowerCase())}
                 disabled={busy}
@@ -504,14 +503,11 @@ export function ModelSelectionPanes({
         <div className="provider-models-head">
           <div className="provider-models-heading">
             {visibleRows.length > 0 ? (
-              <input
-                type="checkbox"
+              <Checkbox
                 className="provider-models-check provider-models-select-all"
                 checked={allVisibleSelected}
                 disabled={busy}
-                ref={(el) => {
-                  if (el) el.indeterminate = someVisibleSelected;
-                }}
+                indeterminate={someVisibleSelected}
                 aria-label={
                   allVisibleSelected
                     ? t("settings.deselectAllVisibleModels")
@@ -989,8 +985,7 @@ export function ModelSelectionPanes({
                         ) : null}
                         <span className="provider-chosen-delegation">
                           <label className="provider-chosen-capability">
-                            <input
-                              type="checkbox"
+                            <Checkbox
                               checked={binding.availableForSubagents ?? false}
                               onChange={(event) =>
                                 updateBinding(binding.id, {
@@ -1011,8 +1006,7 @@ export function ModelSelectionPanes({
                         </span>
                         <span className="provider-chosen-delegation">
                           <label className="provider-chosen-capability">
-                            <input
-                              type="checkbox"
+                            <Checkbox
                               checked={binding.nativeWebSearch === true}
                               disabled={!nativeWebSearchWireCapable}
                               onChange={(event) =>
@@ -1101,8 +1095,7 @@ function CapabilityToggle({ label, published, value, onChange }: CapabilityToggl
   const effective = typeof value === "boolean" ? value : published;
   return (
     <label className="provider-chosen-capability">
-      <input
-        type="checkbox"
+      <Checkbox
         checked={effective}
         onChange={(event) => onChange(event.target.checked)}
       />

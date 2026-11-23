@@ -1,3 +1,4 @@
+import { readContractModules } from "./helpers/source-contracts.mjs";
 import { readMainModule, readMainSource } from "./helpers/source-contracts.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -19,9 +20,9 @@ const mainSource = await readMainSource();
 const plansSource = await readMainModule("runtime/plans.ts");
 const shutdownModuleSource = await readMainModule("bootstrap/shutdown.ts");
 const mainIndexSource = await readMainModule("index.ts");
-const runtimeSource = await readFile(
-  new URL("../../../packages/agent-runtime/src/runtime.ts", import.meta.url),
-  "utf8",
+const runtimeSource = readContractModules(
+  "../../../packages/agent-runtime/src/runtime.ts",
+  "../../../packages/agent-runtime/src/command-shell-policy.ts",
 );
 const rpcTimeoutSource = await readFile(
   new URL("../../../packages/shared/src/rpc-timeouts.ts", import.meta.url),

@@ -5,8 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
 import { catalogs } from "@pi-desktop/i18n";
-import { createServer } from "vite";
-import { fileURLToPath } from "node:url";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 const tool = (id, offsetSeconds, extra = {}) => ({
   kind: "tool",
@@ -32,14 +31,7 @@ const answer = {
 };
 
 test("the top-level header keeps only status, duration, tool count and an inline caret", async () => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    esbuild: { jsx: "automatic" },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer({ esbuild: { jsx: "automatic" } });
   try {
     const { TurnProcess } = await server.ssrLoadModule(
       "/src/features/chat/transcript/TurnProcess.tsx",

@@ -19,13 +19,8 @@ import {
   MobileGatewayProcess,
   type GatewayRpcRequest,
 } from "./gateway-process.ts";
-import {
-  asNonEmptyString,
-  dispatchMobileRpc,
-  rpcError,
-  type HostLike,
-  type RpcHandlerContext,
-} from "./rpc-handlers.ts";
+import { asNonEmptyString, rpcError, type HostLike, type RpcHandlerContext } from "./rpc-context.ts";
+import { dispatchMobileRpc } from "./rpc-handlers.ts";
 
 export type MobileBridgeDependencies = {
   dataDir: string;

@@ -1,4 +1,4 @@
-import { OverlayBackdrop } from "./ui";
+import { Button, OverlayBackdrop } from "./ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
@@ -408,9 +408,9 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
           {query.trim() && search.error ? (
             <div className="search-empty" role="alert">
               {t("search.failed")}
-              <button type="button" className="btn btn-secondary" onClick={search.retry}>
+              <Button type="button" onClick={search.retry}>
                 {t("search.retry")}
-              </button>
+              </Button>
             </div>
           ) : null}
           {query.trim() && search.nextOffset !== null ? (

@@ -18,7 +18,7 @@ import { catalogs, flattenCatalog } from "@pi-desktop/i18n";
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";
 import { ToolRow } from "../../apps/desktop/src/features/chat/transcript/ToolRow";
 import { SubagentTopology } from "../../apps/desktop/src/features/chat/transcript/SubagentDetail";
-import { SubagentTranscriptTab } from "../../apps/desktop/src/components/workpanel/SubagentTranscriptTab";
+import { SubagentTranscriptTab } from "../../apps/desktop/src/features/chat/SubagentTranscriptTab";
 import { SlotSessionProvider } from "../../apps/desktop/src/plugins/renderer-slots/use-slots";
 
 await i18n.use(initReactI18next).init({ lng: "en", keySeparator: false,

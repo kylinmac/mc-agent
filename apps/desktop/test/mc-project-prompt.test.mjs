@@ -6,7 +6,7 @@ import test from "node:test";
 
 register("./helpers/ts-import-hooks.mjs", import.meta.url);
 const { projectPromptTemplateId, withProjectPromptTemplate } = await import(
-  "../src/features/project-workbench/project-prompt.ts"
+  "../src/lib/projects/project-prompt.ts"
 );
 
 const config = (projectRules) => ({

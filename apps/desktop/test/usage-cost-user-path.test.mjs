@@ -22,7 +22,7 @@ import { flushSync } from "react-dom";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import { catalogs, flattenCatalog } from "@pi-desktop/i18n";
-import { ContextUsageInspector } from "../../apps/desktop/src/components/ContextUsageInspector";
+import { ContextUsageInspector } from "../../apps/desktop/src/features/chat/ContextUsageInspector";
 import { TurnUsageCapsule } from "../../apps/desktop/src/features/chat/transcript/TurnUsageCapsule";
 import { api } from "../../apps/desktop/src/lib/api";
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";

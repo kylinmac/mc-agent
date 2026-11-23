@@ -70,6 +70,15 @@ export type McpServerRecord = {
   updatedAt: string;
 };
 
+/** Display and edit metadata. Existing launch arguments, URLs and credential values stay in the host. */
+export type McpServerSettingsRecord = Omit<McpServerRecord, "command" | "args" | "env" | "url" | "headers"> & {
+  commandLabel?: string;
+  urlOrigin?: string;
+  hasArgs: boolean;
+  envKeys: string[];
+  headerKeys: string[];
+};
+
 /** Fields accepted when creating or editing a user MCP server. */
 export type McpServerInput = {
   id: string;
@@ -83,6 +92,8 @@ export type McpServerInput = {
   env?: Record<string, string>;
   url?: string;
   headers?: Record<string, string>;
+  keepEnvKeys?: string[];
+  keepHeaderKeys?: string[];
   /** Set to null to clear an existing server-specific timeout override. */
   timeoutSeconds?: number | null;
   enabled?: boolean;

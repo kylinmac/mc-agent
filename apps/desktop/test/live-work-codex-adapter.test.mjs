@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 import { createProductionWorkHarness, settleUntil, WORK_INSTRUCTION, WORK_RESULT, WORK_SESSION_ID } from "./helpers/live-work-production.mjs";
 
 async function codexHarness(t) {
@@ -71,10 +70,7 @@ async function codexHarness(t) {
   Object.defineProperty(globalThis, "AudioContext", { configurable: true, value: class {
     state = "running"; async resume() {} async close() { this.state = "closed"; }
   } });
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)), configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false }, appType: "custom", optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   const { LiveCallService } = await server.ssrLoadModule("/electron/main/live-voice/call-service.ts");
   const { createCodexAdapter } = await server.ssrLoadModule("/electron/main/live-voice/codex-adapter.ts");

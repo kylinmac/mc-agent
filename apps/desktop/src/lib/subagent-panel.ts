@@ -1,3 +1,4 @@
+import type { SubagentRun } from "./assistant-turns";
 import type { UiMessage } from "@pi-desktop/shared";
 import { toolResultPayload } from "./tool-presentation";
 
@@ -13,4 +14,17 @@ export function delegationIdForMessage(message: UiMessage): string {
     if (typeof delegationId === "string" && delegationId) return delegationId;
   }
   return message.toolCallId || message.id;
+}
+
+export function delegateAgentName(
+  message: UiMessage,
+  delegate?: SubagentRun,
+): string {
+  if (delegate?.agentName) return delegate.agentName;
+  const args = message.toolArgs;
+  if (args && typeof args === "object" && !Array.isArray(args)) {
+    const requested = (args as { agent?: unknown }).agent;
+    if (typeof requested === "string") return requested;
+  }
+  return "";
 }

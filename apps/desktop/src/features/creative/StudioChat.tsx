@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { SessionThinkingLevel, UiMessage } from "@pi-desktop/shared";
-import { imageGenerationBindings, isImageGenerationModel } from "@pi-desktop/shared";
+import { imageGenerationBindings, isImageGenerationModel, isSessionThinkingLevel } from "@pi-desktop/shared";
 import { TooltipButton } from "../../components/ui";
 import { IconArrowUp, IconExternal, IconPlus, IconStop } from "../../components/icons";
 import { Markdown } from "../../components/Markdown";
@@ -13,14 +13,11 @@ import { useHeldSession } from "../../lib/use-held-session";
 import { untitledTaskTitle } from "../../lib/session-title-utils";
 import { useTranscriptView } from "../../hooks/use-transcript-view";
 import { useAppStore } from "../../stores/app-store";
-import { ToolRow } from "../chat/transcript/ToolRow";
-import { AssistantErrorMessage, ThinkingRow } from "../chat/transcript/shared";
-import { TranscriptDisclosureProvider } from "../chat/transcript/disclosure";
-import { composerModelDisplayName } from "../../lib/composer-models";
+import { AssistantErrorMessage, ThinkingRow, ToolRow, TranscriptDisclosureProvider } from "../chat/transcript";
+import { composerModelDisplayName, thinkingLevelForProvider, thinkingProviderForModel } from "../../lib/composer-models";
 import { inheritedSessionModelBinding } from "../../lib/session-model";
-import { ComposerModelPicker } from "../chat/composer/ComposerModelPicker";
-import { useComposerModelMenu } from "../chat/composer/hooks/useComposerModelMenu";
-import { isThinkingLevel, thinkingLevelForProvider, thinkingProviderForModel } from "../chat/composer/model";
+import { ComposerModelPicker } from "../../components/model-picker/ComposerModelPicker";
+import { useComposerModelMenu } from "../../components/model-picker/useComposerModelMenu";
 
 /*
   mc-agent creative studio: a compact conversation inside the studio, in the
@@ -151,7 +148,7 @@ export function StudioChat({
   const modelId = selected.modelId;
   const thinkingProvider = thinkingProviderForModel(provider, modelId, provider ? providerModels[provider.id] : undefined);
   const storedLevel = session?.thinkingLevel ?? draftModel?.thinkingLevel;
-  const thinkingLevel = thinkingLevelForProvider(thinkingProvider, isThinkingLevel(storedLevel) ? storedLevel : "off");
+  const thinkingLevel = thinkingLevelForProvider(thinkingProvider, isSessionThinkingLevel(storedLevel) ? storedLevel : "off");
   const imageCandidates = useMemo(
     () => imageGenerationBindings(settings?.imageGenerationModels, settings?.imageGeneration),
     [settings?.imageGenerationModels, settings?.imageGeneration],

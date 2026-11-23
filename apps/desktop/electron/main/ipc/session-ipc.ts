@@ -4,24 +4,10 @@ import { mkdirSync } from "node:fs";
 import {
   ErrorCodes,
   IPC,
-  modelConfigImportKey,
-  publicModelConfigCandidate,
-  draftMatchesExisting,
-  providerCreateInputFromDraft,
-  isModelConfigImportSource,
-  type ModelConfigImportDraft,
   type Mode,
   type SessionThinkingLevel,
 } from "@pi-desktop/shared";
-import {
-  convertSession,
-  importPiDesktop,
-  scanAllSources,
-  scanModelConfigs,
-  scanPiDesktop,
-  type ExternalSessionSummary,
-  type ExternalSource,
-} from "../importers";
+import { registerSessionImportIpc } from "./session-import-ipc";
 import type { AgentSidecar } from "../agent-sidecar";
 import type { HostProcess } from "../host-process";
 import type { Logger } from "../logger";
@@ -41,54 +27,12 @@ type RuntimeSession = {
   [key: string]: unknown;
 };
 
-let scannedImportSessions = new Map<string, ExternalSessionSummary>();
-let scannedModelConfigs = new Map<string, ModelConfigImportDraft>();
-
-const IMPORT_SOURCES = new Set<ExternalSource>([
-  "claude-code",
-  "opencode",
-  "codex",
-  "pi",
-  "pi-desktop",
-  "grok",
-  "hermes",
-]);
-
-function importSelectionKey(value: unknown): string | null {
-  if (!value || typeof value !== "object") return null;
-  const source = Reflect.get(value, "source");
-  const externalId = Reflect.get(value, "externalId");
-  if (
-    typeof source !== "string" ||
-    !IMPORT_SOURCES.has(source as ExternalSource) ||
-    typeof externalId !== "string" ||
-    !externalId
-  ) {
-    return null;
-  }
-  return `${source}:${externalId}`;
-}
-
 function rejectNativeMutation(sessionId: unknown, action: string): void {
   if (typeof sessionId === "string" && sessionId.startsWith("native-pi:")) {
     throw Object.assign(new Error(`Native Pi session ${action} is not supported`), {
       errorCode: ErrorCodes.INVALID_ARGUMENT,
     });
   }
-}
-
-function modelConfigSelectionKey(value: unknown): string | null {
-  if (!value || typeof value !== "object") return null;
-  const source = Reflect.get(value, "source");
-  const externalId = Reflect.get(value, "externalId");
-  if (
-    !isModelConfigImportSource(source) ||
-    typeof externalId !== "string" ||
-    !externalId
-  ) {
-    return null;
-  }
-  return modelConfigImportKey(source, externalId);
 }
 
 export type SessionIpcDependencies = {
@@ -129,15 +73,8 @@ export function registerSessionIpc({
   forgetTranscriptRewriteHistory,
   stripWinLongPrefix,
 }: SessionIpcDependencies): void {
-  let host: HostProcess | null = null;
-  let sidecar: AgentSidecar | null = null;
-  const handle = (channel: string, fn: (...args: any[]) => Promise<any>) => {
-    registrar.handle(channel, async (...args) => {
-      host = getHost();
-      sidecar = getSidecar();
-      return fn(...args);
-    });
-  };
+  registerSessionImportIpc({ registrar, getHost, logger });
+  const { handle } = registrar;
 
   /**
    * The one gate for the two transcript-rewrite entrances — replacement and
@@ -157,6 +94,7 @@ export function registerSessionIpc({
     sessionId: string,
     purpose: string,
     currentHost: HostProcess,
+    sidecar: AgentSidecar | null,
     run: () => Promise<T>,
   ): Promise<T> => {
     rejectNativeMutation(sessionId, purpose);
@@ -190,14 +128,18 @@ export function registerSessionIpc({
   };
 
   handle(IPC.invoke.sessionSearch, async (input) => {
+    const host = getHost();
+    const sidecar = getSidecar();
     if (!host) throw new Error("host unavailable");
     return searchSessionsAcrossSources(host, sidecar, input);
   });
   handle(IPC.invoke.sessionSearchContext, async (input) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     return host.call("search.context", input);
   });
   handle(IPC.invoke.todosGet, async (input: { sessionId?: unknown } = {}) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     if (typeof input.sessionId !== "string" || !input.sessionId.trim()) {
       throw Object.assign(new Error("sessionId is required"), {
@@ -207,6 +149,8 @@ export function registerSessionIpc({
     return host.call("todos.get", { sessionId: input.sessionId });
   });
   handle(IPC.invoke.sessionList, async () => {
+    const host = getHost();
+    const sidecar = getSidecar();
     if (!host) throw new Error("host unavailable");
     const [projectPaths, result, { providers, defaults }] = await Promise.all([
       localNativeProjectPaths(host),
@@ -230,23 +174,30 @@ export function registerSessionIpc({
       ].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))),
     };
   });
-  handle(IPC.invoke.sessionCreate, async (input = {}) => {
+  const createSession = async (method: "session.create" | "session.createConfigured", input: unknown) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
-    const capabilityPromise = sessionCapabilityContext();
+    // Resolve enrichment before the write so a failed lookup cannot leave a new session behind.
+    const { providers, defaults } = await sessionCapabilityContext();
     const res = await host.call<{ session?: (RuntimeSession & { id?: string }) | null }>(
-      "session.create",
+      method,
       input,
     );
     logger.app("session", "info", "session created", { sessionId: res.session?.id });
     if (!res.session) return res;
-    const { providers, defaults } = await capabilityPromise;
     return { ...res, session: enrichSession(res.session, providers, defaults) };
-  });
+  };
+  // MCP and plugins share the ordinary create handler. Their separate permission
+  // configuration operation requires confirmation; keep the selected-mode channel out of their catalog.
+  handle(IPC.invoke.sessionCreate, (input = {}) => createSession("session.create", input));
+  handle(IPC.invoke.sessionCreateConfigured, (input) => createSession("session.createConfigured", input));
   handle(
     IPC.invoke.sessionFork,
     async (
       input: { sessionId?: string; title?: string; throughMessageId?: string } = {},
     ) => {
+      const host = getHost();
+      const sidecar = getSidecar();
       const sessionId = String(input.sessionId ?? "").trim();
       if (sessionId.startsWith("native-pi:")) {
         // Native forks read the canonical JSONL and publish a new child file in
@@ -328,6 +279,8 @@ export function registerSessionIpc({
             contentLimit?: number;
           },
     ) => {
+      const host = getHost();
+      const sidecar = getSidecar();
       if (!host) throw new Error("host unavailable");
       const request = typeof input === "string" ? { id: input } : input ?? {};
       const id = String(request.id ?? "").trim();
@@ -360,6 +313,8 @@ export function registerSessionIpc({
     },
   );
   handle(IPC.invoke.sessionCollaboration, async (input?: { sessionId?: unknown }) => {
+    const host = getHost();
+    const sidecar = getSidecar();
     if (!host) throw new Error("host unavailable");
     const sessionId = typeof input?.sessionId === "string" ? input.sessionId.trim() : "";
     rejectNativeMutation(sessionId, "collaboration");
@@ -371,6 +326,7 @@ export function registerSessionIpc({
     return readSessionCollaboration(host, sidecar, sessionId);
   });
   handle(IPC.invoke.sessionUsageCost, async (input?: { sessionId?: unknown }) => {
+    const host = getHost();
     const sessionId = typeof input?.sessionId === "string" ? input.sessionId.trim() : "";
     if (!sessionId || sessionId.length > 256) {
       throw Object.assign(new Error("sessionId must be a non-empty string of at most 256 characters"), {
@@ -385,6 +341,8 @@ export function registerSessionIpc({
     return host.call("session.usageCost", { sessionId });
   });
   handle(IPC.invoke.sessionOpen, async (rawSessionId: string) => {
+    const host = getHost();
+    const sidecar = getSidecar();
     if (!host) throw new Error("host unavailable");
     const sessionId = String(rawSessionId ?? "").trim();
     if (!sessionId) throw new Error("session id required");
@@ -407,6 +365,8 @@ export function registerSessionIpc({
     return { ...result, session: enrichSession(result.session, providers, defaults) };
   });
   handle(IPC.invoke.sessionDelete, async (id: string) => {
+    const host = getHost();
+    const sidecar = getSidecar();
     if (id.startsWith("native-pi:")) {
       // mc-agent: a Pi CLI session is the Pi CLI's own file; it goes to the
       // Trash (recoverable) rather than being erased.
@@ -434,6 +394,7 @@ export function registerSessionIpc({
     return res;
   });
   handle(IPC.invoke.sessionRename, async (id: string, title: string) => {
+    const host = getHost();
     if (id.startsWith("native-pi:")) {
       throw Object.assign(new Error("Native Pi session rename is not supported"), {
         errorCode: ErrorCodes.INVALID_ARGUMENT,
@@ -443,6 +404,7 @@ export function registerSessionIpc({
     return host.call("session.rename", { id, title });
   });
   handle(IPC.invoke.sessionDeriveTitle, async (id: string, title: string) => {
+    const host = getHost();
     if (id.startsWith("native-pi:")) {
       throw Object.assign(new Error("Native Pi session title derivation is not supported"), {
         errorCode: ErrorCodes.INVALID_ARGUMENT,
@@ -454,6 +416,8 @@ export function registerSessionIpc({
   handle(
     IPC.invoke.sessionMoveProject,
     async (input: { sessionId?: string; projectPath?: string } = {}) => {
+      const host = getHost();
+      const sidecar = getSidecar();
       if (!host) throw new Error("host unavailable");
       const sessionId = String(input.sessionId ?? "").trim();
       rejectNativeMutation(sessionId, "project move");
@@ -521,14 +485,16 @@ export function registerSessionIpc({
   handle(
     IPC.invoke.sessionReplaceMessages,
     async (input: { sessionId: string; messages: unknown[] }) => {
-      if (!host) throw new Error("host unavailable");
+      const currentHost = getHost();
+      const sidecar = getSidecar();
+      if (!currentHost) throw new Error("host unavailable");
       const sessionId = String(input?.sessionId || "");
       if (!sessionId) throw new Error("sessionId required");
-      const currentHost = host;
       return runTranscriptRewrite(
         sessionId,
         "transcript replacement",
         currentHost,
+        sidecar,
         () =>
           currentHost.call("session.replaceMessages", {
             sessionId,
@@ -545,6 +511,7 @@ export function registerSessionIpc({
       messages: unknown[];
       makeActive?: boolean;
     }) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       rejectNativeMutation(input?.sessionId, "revision save");
       return host.call("session.saveRevision", {
@@ -558,6 +525,7 @@ export function registerSessionIpc({
   handle(
     IPC.invoke.sessionListRevisions,
     async (input: { sessionId: string; rootUserId: string }) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       rejectNativeMutation(input?.sessionId, "revision listing");
       return host.call("session.listRevisions", {
@@ -574,14 +542,16 @@ export function registerSessionIpc({
       revisionIndex: number;
       prefix?: unknown[];
     }) => {
-      if (!host) throw new Error("host unavailable");
+      const currentHost = getHost();
+      const sidecar = getSidecar();
+      if (!currentHost) throw new Error("host unavailable");
       const sessionId = String(input?.sessionId || "");
       if (!sessionId) throw new Error("sessionId required");
-      const currentHost = host;
       return runTranscriptRewrite(
         sessionId,
         "revision activation",
         currentHost,
+        sidecar,
         () =>
           currentHost.call("session.activateRevision", {
             sessionId,
@@ -593,6 +563,7 @@ export function registerSessionIpc({
     },
   );
   handle(IPC.invoke.sessionGetScratchPath, async (input: { sessionId: string }) => {
+    const host = getHost();
     rejectNativeMutation(input?.sessionId, "scratch access");
     if (!host) throw new Error("host unavailable");
     return host.call<{ path: string }>("session.getScratchPath", {
@@ -600,6 +571,7 @@ export function registerSessionIpc({
     });
   });
   handle(IPC.invoke.sessionOpenScratchPath, async (input: { sessionId: string }) => {
+    const host = getHost();
     rejectNativeMutation(input?.sessionId, "scratch access");
     if (!host) throw new Error("host unavailable");
     const sessionId = String(input?.sessionId || "").trim();
@@ -631,6 +603,7 @@ export function registerSessionIpc({
         permissionMode?: "inherit" | "ask" | "accept-edits" | "auto";
       },
     ) => {
+      const host = getHost();
       rejectNativeMutation(id, "configuration");
       if (!host) throw new Error("host unavailable");
       const result = await host.call<{ session?: RuntimeSession | null }>(
@@ -660,195 +633,4 @@ export function registerSessionIpc({
       return { ...result, session };
     },
   );
-
-  handle(IPC.invoke.sessionImportScan, async () => {
-    const scanned = await scanAllSources();
-    const { truncated } = scanned;
-    // mc-agent (MC-ADR-0009): an installed PI-Desktop, copied by host-core.
-    let piDesktop: ExternalSessionSummary[] = [];
-    if (host) {
-      try {
-        piDesktop = await scanPiDesktop(host);
-      } catch (error) {
-        logger.app("session", "warn", "pi-desktop import scan failed", { data: { error: String(error) } });
-      }
-    }
-    const sessions = [...scanned.sessions, ...piDesktop].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
-    scannedImportSessions = new Map(
-      sessions.map((session) => [`${session.source}:${session.externalId}`, session]),
-    );
-    return {
-      sessions: sessions.map(({ filePath: _filePath, filePaths: _filePaths, historyDb: _historyDb, ...candidate }) => candidate),
-      ...(Object.keys(truncated).length > 0 ? { truncated } : {}),
-    };
-  });
-
-  handle(
-    IPC.invoke.sessionImportRun,
-    async (selections: unknown) => {
-      if (!host) throw new Error("host unavailable");
-      let imported = 0;
-      let skipped = 0;
-      let failed = 0;
-      const items = Array.isArray(selections) ? selections : [];
-      const piDesktopIds: string[] = [];
-      for (const selection of items) {
-        const key = importSelectionKey(selection);
-        const item = key ? scannedImportSessions.get(key) : undefined;
-        if (item?.source === "pi-desktop") {
-          piDesktopIds.push(item.externalId);
-          continue;
-        }
-        if (!item) {
-          failed += 1;
-          logger.app("session", "warn", "session import selection rejected", {
-            data: { reason: "candidate was not returned by the latest scan" },
-          });
-          continue;
-        }
-        try {
-          const converted = await convertSession(item);
-          const res = await host.call<{ imported?: boolean }>("session.import", {
-            // mc-agent (MC-ADR-0009): another agent's model is not configured
-            // here; the conversation continues on this app's default model.
-            session: { ...converted.session, modelId: null, providerId: null },
-            messages: converted.messages,
-          });
-          if (res.imported) imported += 1;
-          else skipped += 1;
-        } catch (e) {
-          failed += 1;
-          logger.app("session", "warn", "session import failed", {
-            data: { source: item?.source, externalId: item?.externalId, error: String(e) },
-          });
-        }
-      }
-      if (piDesktopIds.length) {
-        try {
-          const outcome = await importPiDesktop(host, piDesktopIds);
-          imported += outcome.imported;
-          skipped += outcome.skipped;
-          failed += outcome.failed;
-        } catch (e) {
-          failed += piDesktopIds.length;
-          logger.app("session", "warn", "pi-desktop import failed", { data: { error: String(e) } });
-        }
-      }
-      logger.app("session", "info", "session import finished", {
-        data: { imported, skipped, failed },
-      });
-      return { imported, skipped, failed };
-    },
-  );
-
-  handle(IPC.invoke.modelConfigImportScan, async () => {
-    const drafts = await scanModelConfigs();
-    scannedModelConfigs = new Map(
-      drafts.map((draft) => [modelConfigImportKey(draft.source, draft.externalId), draft]),
-    );
-    return { providers: drafts.map(publicModelConfigCandidate) };
-  });
-  handle(
-    IPC.invoke.modelConfigImportRun,
-    async (selections: unknown) => {
-      if (!host) throw new Error("host unavailable");
-      let imported = 0;
-      let skipped = 0;
-      let failed = 0;
-      const items = Array.isArray(selections) ? selections : [];
-      const existing = await host.call<{
-        providers: Array<{
-          id: string;
-          baseUrl?: string | null;
-          apiStyle?: string | null;
-          vendorKey?: string | null;
-          hasSecret?: boolean;
-        }>;
-      }>("providers.list", { includeDisabled: true });
-      // Matching an import by endpoint alone collapses distinct credentials.
-      // Resolve existing API keys in Electron main so same-endpoint profiles
-      // remain independent without exposing secrets to the renderer.
-      const known = await Promise.all(
-        (existing.providers ?? []).map(async (provider) => {
-          let secretValue: string | undefined;
-          if (provider.hasSecret) {
-            try {
-              secretValue = (
-                await host!.call<{ value?: string }>("providers.getSecret", {
-                  id: provider.id,
-                })
-              ).value;
-            } catch {
-              // A provider may only have an OAuth credential, or its secret
-              // backend may be temporarily unavailable. In either case,
-              // failing closed here avoids collapsing a new profile.
-            }
-          }
-          return { ...provider, secretValue };
-        }),
-      );
-      let firstImported:
-        | { id: string; defaultModelId?: string; models?: Array<{ id: string }> }
-        | undefined;
-      for (const selection of items) {
-        const key = modelConfigSelectionKey(selection);
-        const draft = key ? scannedModelConfigs.get(key) : undefined;
-        if (!draft) {
-          failed += 1;
-          logger.app("provider", "warn", "model config import selection rejected", {
-            data: { reason: "candidate was not returned by the latest scan" },
-          });
-          continue;
-        }
-        if (draftMatchesExisting(draft, known)) {
-          skipped += 1;
-          continue;
-        }
-        try {
-          const created = await host.call<{
-            provider: { id: string; defaultModelId?: string; models?: Array<{ id: string }> };
-          }>("providers.create", providerCreateInputFromDraft(draft));
-          imported += 1;
-          known.push({
-            ...draft,
-            id: created.provider.id,
-            secretValue: draft.secretValue,
-          });
-          firstImported ??= created.provider;
-        } catch (e) {
-          failed += 1;
-          logger.app("provider", "warn", "model config import failed", {
-            data: {
-              source: draft.source,
-              externalId: draft.externalId,
-              name: draft.name,
-              hasSecret: draft.hasSecret,
-              error: String(e),
-            },
-          });
-        }
-      }
-      if (firstImported) {
-        try {
-          const settings = await host.call<{ defaultProviderId?: string }>("settings.get");
-          if (!settings?.defaultProviderId) {
-            await host.call("settings.set", {
-              defaultProviderId: firstImported.id,
-              defaultModelId:
-                firstImported.models?.[0]?.id ?? firstImported.defaultModelId,
-            });
-          }
-        } catch (e) {
-          logger.app("provider", "warn", "model config import default not set", {
-            data: { error: String(e) },
-          });
-        }
-      }
-      logger.app("provider", "info", "model config import finished", {
-        data: { imported, skipped, failed },
-      });
-      return { imported, skipped, failed };
-    },
-  );
-
 }

@@ -1,13 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 import { KEYBOARD_SHORTCUTS, isAllowedKeybinding, keybindingsConflict } from "@pi-desktop/shared";
 
 test("hold to talk: the key-down starts, any key-up or leaving the window ends", async (t) => {
-  const server = await createServer({ root: fileURLToPath(new URL("..", import.meta.url)), configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false }, appType: "custom", optimizeDeps: { noDiscovery: true, include: [] } });
+  const server = await createDesktopSsrServer();
   t.after(() => server.close());
   const originals = new Map(["window", "document"].map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
   t.after(() => { for (const [name, descriptor] of originals) { if (descriptor) Object.defineProperty(globalThis, name, descriptor); else delete globalThis[name]; } });
@@ -19,7 +17,7 @@ test("hold to talk: the key-down starts, any key-up or leaving the window ends",
   } });
   let active = null;
   Object.defineProperty(globalThis, "document", { configurable: true, value: { get activeElement() { return active; } } });
-  const { beginDictationHold, registerDictationHoldTarget } = await server.ssrLoadModule("/src/features/voice/dictation/dictation-hold.ts");
+  const { beginDictationHold, registerDictationHoldTarget } = await server.ssrLoadModule("/src/features/voice/dictation-hold.ts");
 
   assert.equal(beginDictationHold(), false, "no composer, nothing to take the hold");
 
@@ -67,7 +65,7 @@ test("the hold shortcut is configurable, allowed and free by default", () => {
 });
 
 test("a short tap is dropped and a release while the microphone opens still ends the hold", () => {
-  const button = readFileSync(new URL("../src/features/voice/dictation/DictationButton.tsx", import.meta.url), "utf8");
+  const button = readFileSync(new URL("../src/features/voice/DictationButton.tsx", import.meta.url), "utf8");
   const shell = readFileSync(new URL("../src/features/app/useAppShellRuntime.tsx", import.meta.url), "utf8");
   assert.match(button, /const HOLD_MIN_MS = 400;/);
   assert.match(button, /Date\.now\(\) - pressed\.pressedAt < HOLD_MIN_MS\) void cancel\(\)/);

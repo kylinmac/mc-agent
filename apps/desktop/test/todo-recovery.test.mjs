@@ -6,8 +6,7 @@ import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
 import { catalogs } from "@pi-desktop/i18n";
 import { IPC } from "@pi-desktop/shared";
-import { createServer } from "vite";
-import { fileURLToPath } from "node:url";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 // Run the production component's effects explicitly. The only substituted
 // internal primitive is React's scheduler; API, recovery and store remain real.
@@ -31,9 +30,7 @@ async function harness() {
       return () => bucket.delete(listener);
     },
   } };
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
+  const server = await createDesktopSsrServer({
     plugins: [{ name: "todo-effect-scheduler", enforce: "pre", transform(source, id) {
       if (!id.endsWith("/TodoDock.tsx") && !id.endsWith("/useSessionTodosRecovery.ts")) return;
       return source.replace(/import \{ useEffect(?:, useState)? \} from "react";/,
@@ -41,11 +38,9 @@ async function harness() {
           ? 'import { useState } from "react"; const useEffect = globalThis.__todoRecoveryEffect;'
           : 'const useEffect = globalThis.__todoRecoveryEffect;');
     } }],
-    server: { middlewareMode: true, hmr: false, ws: false },
-    esbuild: { jsx: "automatic" }, appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
+    esbuild: { jsx: "automatic" },
   });
-  const { TodoDock } = await server.ssrLoadModule("/src/components/TodoDock.tsx");
+  const { TodoDock } = await server.ssrLoadModule("/src/features/chat/TodoDock.tsx");
   const { useAppStore } = await server.ssrLoadModule("/src/stores/app-store.ts");
   const { api } = await server.ssrLoadModule("/src/lib/api.ts");
   const offTodos = api.onTodosChanged(useAppStore.getState().applyTodosChanged);

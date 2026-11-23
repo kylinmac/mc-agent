@@ -83,8 +83,8 @@ export function parseMcpImport(text: string): McpImportResult {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
-  } catch (error) {
-    throw new Error(`not valid JSON: ${(error as Error).message}`);
+  } catch {
+    throw new Error("not valid JSON");
   }
   const root = asRecord(parsed);
   if (!root) throw new Error("expected a JSON object");

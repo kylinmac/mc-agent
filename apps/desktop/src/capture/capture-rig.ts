@@ -9,7 +9,7 @@
  * monkey-patch `api.*` list calls) and must never run from a stray call.
  */
 import type {
-  McpServerRecord,
+  McpServerSettingsRecord,
   McpServerStatus,
   PluginSummary,
   PluginTheme,
@@ -748,7 +748,7 @@ export function installCaptureRig(): CaptureRig {
       // One server per connection state, so the row glyph's whole colour range
       // is exercised, and one per activation state.
       const stamp = "2026-08-04T09:00:00.000Z";
-      const servers: McpServerRecord[] = (
+      const servers: McpServerSettingsRecord[] = (
         [
         {
           id: "context7",
@@ -756,9 +756,9 @@ export function installCaptureRig(): CaptureRig {
           level: "global",
           description: "Up-to-date library documentation.",
           transport: "stdio",
-          command: "npx",
-          args: ["-y", "@upstash/context7-mcp"],
-          env: {},
+          commandLabel: "npx",
+          hasArgs: true,
+          envKeys: [], headerKeys: [],
           enabled: true,
           scope: { mode: "global", projects: [] },
         },
@@ -768,8 +768,8 @@ export function installCaptureRig(): CaptureRig {
           level: "global",
           description: "Issues and cycles for the work tracker.",
           transport: "http",
-          url: "https://mcp.linear.app/sse",
-          headers: { Authorization: "Bearer •••" },
+          urlOrigin: "https://mcp.linear.app",
+          headerKeys: ["Authorization"], envKeys: [], hasArgs: false,
           enabled: true,
           scope: { mode: "projects", projects: ["/Users/pi/work/api"] },
         },
@@ -780,9 +780,9 @@ export function installCaptureRig(): CaptureRig {
           projectPath: "/Users/pi/work/api",
           description: "Runs read-only queries against the dev database.",
           transport: "stdio",
-          command: "mcp-server-postgres",
-          args: ["postgresql://localhost/dev"],
-          env: {},
+          commandLabel: "mcp-server-postgres",
+          hasArgs: true,
+          envKeys: [], headerKeys: [],
           enabled: true,
           scope: { mode: "projects", projects: [] },
         },
@@ -793,13 +793,13 @@ export function installCaptureRig(): CaptureRig {
           projectPath: "/Users/pi/work/api",
           description: "Reads frames and design tokens from a file.",
           transport: "stdio",
-          command: "figma-mcp",
-          args: [],
-          env: {},
+          commandLabel: "figma-mcp",
+          hasArgs: true,
+          envKeys: [], headerKeys: [],
           enabled: false,
           scope: { mode: "global", projects: [] },
         },
-        ] as Array<Omit<McpServerRecord, "createdAt" | "updatedAt">>
+        ] satisfies Array<Omit<McpServerSettingsRecord, "createdAt" | "updatedAt">>
       ).map((server) => ({ ...server, createdAt: stamp, updatedAt: stamp }));
       const statuses: McpServerStatus[] = [
         {

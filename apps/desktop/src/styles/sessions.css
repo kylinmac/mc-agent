@@ -22,6 +22,27 @@
   gap: 10px;
 }
 
+fieldset.import-workbench {
+  min-inline-size: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.import-feedback {
+  min-inline-size: 0;
+  margin: 0;
+  padding-inline-start: var(--ds-space-16);
+  overflow-wrap: anywhere;
+}
+
+.import-row-error {
+  color: var(--ds-error);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+  overflow-wrap: anywhere;
+}
+
 /* One action row per kind: both counts on the left, options and actions right. */
 .import-toolbar {
   display: flex;
@@ -194,10 +215,10 @@
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 10px;
+  gap: var(--ds-space-8);
   border-radius: var(--radius-md);
   background: var(--ds-tile);
-  padding: 6px 10px;
+  padding: var(--ds-space-6) var(--ds-space-12);
   cursor: pointer;
   transition: background var(--motion-duration-fast) var(--motion-ease-out);
 }
@@ -230,7 +251,7 @@
   min-width: 0;
   flex: 1;
   align-items: center;
-  gap: 10px;
+  gap: var(--ds-space-8);
 }
 
 .import-group-checkbox > span {

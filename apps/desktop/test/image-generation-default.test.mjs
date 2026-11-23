@@ -467,7 +467,7 @@ test("the settings row and the settings page compose one candidate list", async 
   const read = (rel) => readFile(new URL(rel, import.meta.url), "utf8");
   const [row, page] = await Promise.all([
     read("../src/components/settings/ImageGenerationModelRow.tsx"),
-    read("../src/components/settings/ModelConfigPage.tsx"),
+    read("../src/features/settings/ModelConfigPage.tsx"),
   ]);
   // Rendering the options and validating the choice must read the same helper.
   assert.match(row, /imageGenerationPickerCandidates\(/);

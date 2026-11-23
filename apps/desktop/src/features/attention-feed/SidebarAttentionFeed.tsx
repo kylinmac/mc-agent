@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, cx } from "../../components/ui";
 import { useAppStore } from "../../stores/app-store";
-import { useProjectFolderIndex } from "../project-sidebar/useProjectFolderIndex";
+import { useProjectFolderIndex } from "../../hooks/useProjectFolderIndex";
 import {
   DEFAULT_ATTENTION_LIMIT,
   buildAttentionItems,

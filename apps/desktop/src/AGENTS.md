@@ -3,6 +3,10 @@
 Scoped rules for `apps/desktop/src/`. These tighten the root `AGENTS.md`;
 on conflict the rules here win.
 
+布局、字号、间距、主题、键盘交互和 PR 验收见[桌面 UI 开发规范](../../../docs/mc-agent/ui-guidelines.md)。从仓库根目录运行 `pnpm check:ui`。
+
+跨功能只引用对方的根级公开模块，保持直接依赖无环。桌面装配入口是 `features/app/`。`lib/`、`hooks/` 和 `stores/` 只依赖其他共享层。模型选择、项目与面板的现有入口见[功能代码索引](../../../docs/mc-agent/code-index.md)。用 `pnpm check:architecture` 检查依赖方向。
+
 ---
 
 ## Shared UI primitives are mandatory

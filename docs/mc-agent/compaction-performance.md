@@ -36,7 +36,7 @@
 | [摘要流](../../packages/agent-runtime/src/compaction-stream.ts)、[请求适配](../../packages/agent-runtime/src/compaction-request.ts) | 复用普通对话的静默保护，逐次请求隔离取消，保留认证、请求头、会话关联和用量归属 |
 | [RPC 等待](../../packages/shared/src/rpc-timeouts.ts) | 修正旧实现把静默预算当成总时长的假设；旧常量仅为导入兼容保留，不再用于手动压缩 RPC |
 | [配置协调](../../apps/desktop/src/stores/runtime/session-coordination.ts)、[配置入口](../../apps/desktop/src/stores/slices/session-slice.ts) | 连续设置按会话串行，刷新保留待生效选择；显式配置失败仍拒绝，避免调用方用旧模型继续操作 |
-| [压缩显示](../../apps/desktop/src/features/chat/transcript/TurnProcess.tsx)、[模型菜单](../../apps/desktop/src/features/chat/composer/ComposerModelPicker.tsx) | 阶段与压缩独立计时；待生效／应用中／失败提示 |
+| [压缩显示](../../apps/desktop/src/features/chat/transcript/TurnProcess.tsx)、[模型菜单](../../apps/desktop/src/components/model-picker/ComposerModelPicker.tsx) | 阶段与压缩独立计时；待生效／应用中／失败提示 |
 
 保留继承自 ADR 0282 / 0302 的有限重试、分块覆盖全部消息及近期上下文恢复。原始会话记录不删除；失败仍明确标为恢复状态，不能承诺降级后的模型上下文包含整段原文。
 

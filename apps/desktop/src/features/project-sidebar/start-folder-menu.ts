@@ -1,5 +1,5 @@
-import { chooseStartFolder } from "../project-workbench/start-folder.ts";
-import type { ProjectFolderIndex } from "./project-merge.ts";
+import { chooseStartFolder } from "../../lib/projects/start-folder.ts";
+import type { ProjectFolderIndex } from "../../lib/projects/project-folders.ts";
 
 /*
   mc-agent (#41): the folders a new task of a sidebar project can start in.

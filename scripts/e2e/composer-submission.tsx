@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import type { i18n } from "i18next";
 import { I18nextProvider } from "react-i18next";
-import { Composer } from "../../apps/desktop/src/components/Composer";
+import { Composer } from "../../apps/desktop/src/features/chat/Composer";
 import { useAppStore } from "../../apps/desktop/src/stores/app-store";
 import { api } from "../../apps/desktop/src/lib/api";
 import { writeComposerDraft, deleteComposerDraft } from "../../apps/desktop/src/lib/composer-draft-cache";

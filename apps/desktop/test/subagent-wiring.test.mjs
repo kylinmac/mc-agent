@@ -1,3 +1,4 @@
+import { readContractModules } from "./helpers/source-contracts.mjs";
 import { readMainModule } from "./helpers/source-contracts.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -12,9 +13,9 @@ const sidecarSource = await readFile(
   new URL("../../../packages/agent-runtime/src/sidecar.ts", import.meta.url),
   "utf8",
 );
-const hostSessionsSource = await readFile(
-  new URL("../../../crates/host-core/src/sessions.rs", import.meta.url),
-  "utf8",
+const hostSessionsSource = readContractModules(
+  "../../../crates/host-core/src/sessions/types.rs",
+  "../../../crates/host-core/src/sessions/message_codec.rs",
 );
 const pageSource = await readFile(
   new URL("../src/components/settings/AgentSubagentsPage.tsx", import.meta.url),

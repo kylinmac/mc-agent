@@ -57,11 +57,13 @@ function isSourcePath(filePath) {
   return sourceExtensions.has(extname(filePath));
 }
 
-function trackedSourceFiles() {
-  return git(["ls-files", "-co", "--exclude-standard"])
-    .split("\n")
-    .filter(Boolean)
-    .filter(isSourcePath);
+function sourcePaths(args) {
+  return git(args).split("\0").filter(isSourcePath);
+}
+
+function workingTreeSourceFiles() {
+  return sourcePaths(["ls-files", "-coz", "--exclude-standard"])
+    .filter((filePath) => existsSync(resolve(root, filePath)));
 }
 
 function locFor(filePath) {
@@ -107,10 +109,10 @@ function fallbackBase() {
 
 function addedSourceFiles(base) {
   if (!base) return [];
-  return git(["diff", "--name-only", "--diff-filter=A", base + "...HEAD"])
-    .split("\n")
-    .filter(Boolean)
-    .filter(isSourcePath);
+  const mergeBase = git(["merge-base", base, "HEAD"]);
+  const added = sourcePaths(["diff", "--name-only", "-z", "--diff-filter=A", mergeBase, "--"]);
+  const untracked = sourcePaths(["ls-files", "-oz", "--exclude-standard"]);
+  return [...new Set([...added, ...untracked])];
 }
 
 function readAllowlist() {
@@ -146,10 +148,22 @@ if (requestedBase && requestedBase !== base) {
   );
 }
 
-const metrics = collectMetrics(trackedSourceFiles());
+const metrics = collectMetrics(workingTreeSourceFiles());
 const byPath = new Map(metrics.map((entry) => [entry.path, entry]));
 const allowlist = readAllowlist();
 const failures = [];
+
+for (const [entries, limit, extensions] of [
+  [allowlist.rust, limits.rust.max, [".rs"]],
+  [allowlist.typescript, limits.newTypeScript.max, [".ts", ".tsx"]],
+]) {
+  for (const path of Object.keys(entries)) {
+    const file = byPath.get(path);
+    if (!file || !extensions.includes(extname(path)) || path.endsWith(".d.ts") || file.loc <= limit) {
+      failures.push("Remove obsolete size exemption: " + path);
+    }
+  }
+}
 
 const counts = new Map([
   [">500", metrics.filter((entry) => entry.loc > 500).length],
@@ -179,15 +193,10 @@ for (const entry of largeRust) {
 }
 
 const addedFiles = addedSourceFiles(base);
-const largeNewTypeScript = addedFiles
+const newTypeScript = addedFiles
   .map((path) => byPath.get(path))
-  .filter(
-    (entry) =>
-      entry &&
-      [".ts", ".tsx"].includes(extname(entry.path)) &&
-      entry.loc > limits.newTypeScript.max &&
-      !entry.path.endsWith(".d.ts"),
-  );
+  .filter((entry) => entry && [".ts", ".tsx"].includes(extname(entry.path)) && !entry.path.endsWith(".d.ts"));
+const largeNewTypeScript = newTypeScript.filter((entry) => entry.loc > limits.newTypeScript.max);
 for (const entry of largeNewTypeScript) {
   if (!allowlistReason(allowlist.typescript, entry.path)) {
     failures.push(
@@ -238,7 +247,7 @@ console.log(
 );
 console.log(
   "  New TS/TSX files checked: " +
-    (base ? addedFiles.length : "skipped; no usable base"),
+    (base ? newTypeScript.length : "skipped; no usable base"),
 );
 
 if (largeNewTypeScript.length > 0) {

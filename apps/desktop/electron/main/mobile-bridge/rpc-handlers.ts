@@ -20,39 +20,14 @@ import {
   type CanvasSummary,
   type CanvasWhiteboardScene,
   type MobileAttentionItem,
-  type MobileGatewayStatus,
   type PendingInteractiveRequests,
   type SessionDetail,
   type SessionSummary,
-  type WorkspaceDiff,
 } from "@pi-desktop/shared";
 import { alchemyProposalDecisionOf, alchemyProposals } from "../mc-alchemy.ts";
 import { projectProposalDecisionOf, projectProposals } from "../mc-project-create.ts";
-
-export type HostLike = {
-  call: <T = unknown>(method: string, params?: unknown) => Promise<T>;
-};
-
-export type RpcHandlerContext = {
-  dataDir: string;
-  appVersion: string;
-  hostname?: string;
-  getHost: () => HostLike | null;
-  invoke: (channel: string, args: unknown[]) => Promise<unknown>;
-  activeTurns: ReadonlyMap<string, string>;
-  sendToRenderer: (channel: string, payload: unknown) => void;
-  collectDiff: (cwd: string) => Promise<WorkspaceDiff>;
-  getGatewayStatus: () => MobileGatewayStatus;
-  pushGatewayEvent: (event: string, payload: unknown, connId?: string) => void;
-  subscribeSession: (connId: string, sessionId: string, afterCursor: number) => {
-    sessionId: string;
-    cursor: number;
-    replayedCount: number;
-    isRunning: boolean;
-  };
-  unsubscribeSession: (connId: string, sessionId: string) => void;
-  latestCursorFor: (sessionId: string) => number;
-};
+import { asNonEmptyString, asRecord, rpcError, type HostLike, type RpcHandlerContext } from "./rpc-context.ts";
+import { configureMobileSession, createMobileSession, effectiveSessionSettings, readSessionDefaults } from "./session-settings.ts";
 
 type RawImageInput = {
   name?: unknown;
@@ -67,23 +42,6 @@ const ALLOWED_IMAGE_MIMES: Record<string, string> = {
   "image/webp": "webp",
   "image/gif": "gif",
 };
-
-export function rpcError(code: string, message: string): Error & { rpcCode: string } {
-  return Object.assign(new Error(message), { rpcCode: code });
-}
-
-export function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
-
-export function asNonEmptyString(value: unknown, maxLen = 512): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!trimmed || trimmed.length > maxLen) return null;
-  return trimmed;
-}
 
 function requireHost(ctx: RpcHandlerContext): HostLike {
   const host = ctx.getHost();
@@ -379,19 +337,8 @@ export async function dispatchMobileRpc(
       };
     }
 
-    case "session.create": {
-      const payload: Record<string, unknown> = {};
-      for (const [key, max] of [
-        ["projectPath", 1024],
-        ["title", 200],
-        ["mode", 40],
-        ["permissionMode", 40],
-      ] as const) {
-        const val = asNonEmptyString(input[key], max);
-        if (val) payload[key] = val;
-      }
-      return ctx.invoke(IPC.invoke.sessionCreate, [payload]);
-    }
+    case "session.create":
+      return createMobileSession(ctx, params);
 
     case "models.list": {
       const [provRes, globalSettings] = await Promise.all([
@@ -405,11 +352,7 @@ export async function dispatchMobileRpc(
             models?: Array<{ id?: string; alias?: string }>;
           }>;
         }>,
-        ctx
-          .getHost()
-          ?.call<{ defaultProviderId?: string; defaultModelId?: string }>("settings.get", {})
-          .catch(() => ({ defaultProviderId: undefined, defaultModelId: undefined })) ??
-          Promise.resolve({ defaultProviderId: undefined, defaultModelId: undefined }),
+        readSessionDefaults(ctx.getHost()),
       ]);
       const rawProviders = Array.isArray(provRes?.providers) ? provRes.providers : [];
       const providers = rawProviders
@@ -443,46 +386,8 @@ export async function dispatchMobileRpc(
       };
     }
 
-    case "session.configure": {
-      const sessionId = asNonEmptyString(input.sessionId, 128);
-      if (!sessionId) throw rpcError("INVALID_ARGUMENT", "sessionId is required");
-      const allowedPerm = new Set(["inherit", "ask", "accept-edits", "auto"]);
-      const allowedMode = new Set(["agent", "plan", "goal"]);
-      const allowedThinking = new Set(["off", "minimal", "low", "medium", "high", "xhigh", "max", "omit"]);
-      const permissionMode = asNonEmptyString(input.permissionMode, 32);
-      const nextMode = asNonEmptyString(input.mode, 32);
-      const providerId = asNonEmptyString(input.providerId, 128);
-      const modelId = asNonEmptyString(input.modelId, 256);
-      const thinkingLevel = asNonEmptyString(input.thinkingLevel, 32);
-      if (permissionMode && !allowedPerm.has(permissionMode)) {
-        throw rpcError("INVALID_ARGUMENT", `Invalid permissionMode: ${permissionMode}`);
-      }
-      if (nextMode && !allowedMode.has(nextMode)) {
-        throw rpcError("INVALID_ARGUMENT", `Invalid mode: ${nextMode}`);
-      }
-      if (thinkingLevel && !allowedThinking.has(thinkingLevel)) {
-        throw rpcError("INVALID_ARGUMENT", `Invalid thinkingLevel: ${thinkingLevel}`);
-      }
-      if ((providerId && !modelId) || (!providerId && modelId)) {
-        throw rpcError("INVALID_ARGUMENT", "providerId and modelId must be provided together");
-      }
-      if (!permissionMode && !nextMode && !modelId && !thinkingLevel) {
-        throw rpcError("INVALID_ARGUMENT", "At least one session configuration field is required");
-      }
-      const existing = (await ctx.invoke(IPC.invoke.sessionGet, [
-        { id: sessionId, messageLimit: 1 },
-      ])) as { session?: SessionDetail | null };
-      if (!existing?.session) throw rpcError("NOT_FOUND", `Session not found: ${sessionId}`);
-      const config = {
-        mode: nextMode ?? existing.session.mode ?? "agent",
-        ...(permissionMode ? { permissionMode } : {}),
-        ...(providerId && modelId ? { providerId, modelId } : {}),
-        ...(thinkingLevel ? { thinkingLevel } : {}),
-      };
-      const updated = await ctx.invoke(IPC.invoke.sessionConfigure, [sessionId, config]);
-      ctx.sendToRenderer(IPC.event.sessionsChanged, { reason: "mobile-configure" });
-      return updated;
-    }
+    case "session.configure":
+      return configureMobileSession(ctx, params);
 
     case "session.history": {
       const sessionId = asNonEmptyString(input.sessionId, 128);
@@ -497,37 +402,12 @@ export async function dispatchMobileRpc(
         }>,
         safePendingInteractive(ctx, sessionId),
         safePlansPending(ctx, sessionId),
-        ctx
-          .getHost()
-          ?.call<{
-            permissionMode?: string;
-            defaultProviderId?: string;
-            defaultModelId?: string;
-          }>("settings.get", {})
-          .catch(() => ({
-            permissionMode: undefined,
-            defaultProviderId: undefined,
-            defaultModelId: undefined,
-          })) ??
-          Promise.resolve({
-            permissionMode: undefined,
-            defaultProviderId: undefined,
-            defaultModelId: undefined,
-          }),
+        readSessionDefaults(ctx.getHost()),
       ]);
       if (!detailRes?.session) throw rpcError("NOT_FOUND", `Session not found: ${sessionId}`);
-      const rawPerm = detailRes.session.permissionMode ?? "inherit";
-      const effectivePermissionMode =
-        rawPerm === "inherit" ? (globalSettings?.permissionMode ?? "ask") : rawPerm;
-      const effectiveProviderId =
-        detailRes.session.providerId || globalSettings?.defaultProviderId || null;
-      const effectiveModelId =
-        detailRes.session.modelId || globalSettings?.defaultModelId || null;
       return {
         session: detailRes.session,
-        effectivePermissionMode,
-        effectiveProviderId,
-        effectiveModelId,
+        ...effectiveSessionSettings(detailRes.session, globalSettings),
         isRunning: ctx.activeTurns.has(sessionId),
         activeTurnId: ctx.activeTurns.get(sessionId) ?? null,
         cursor: ctx.latestCursorFor(sessionId),

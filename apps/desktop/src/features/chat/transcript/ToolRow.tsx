@@ -1,3 +1,4 @@
+import { delegateAgentName } from "../../../lib/subagent-panel";
 import { useChatSessionCapability } from "../../../hooks/use-chat-session-capability";
 import { SubagentStopButton } from "./SubagentStopButton";
 import { PlanHistoryCard } from "./PlanHistoryCard";
@@ -80,7 +81,6 @@ import {
   useMessageRevealRequest,
 } from "./shared";
 import {
-  delegateAgentName,
   delegateModelId,
   delegateThinkingLevel,
 } from "./model";

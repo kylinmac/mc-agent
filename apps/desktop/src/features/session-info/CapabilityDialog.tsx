@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import type { BuiltinSkillRecord, McpServerRecord, McpServerStatus, UserSkillRecord } from "@pi-desktop/shared";
+import type { BuiltinSkillRecord, McpServerSettingsRecord, McpServerStatus, UserSkillRecord } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { useBlockingOverlay } from "../../lib/blocking-overlay";
 import type { SettingsTabId } from "../../lib/settings-search";
@@ -31,7 +31,7 @@ async function mcpRows(projectPath: string | null, t: (key: string) => string): 
   const queries = [api.listMcpServers({ level: "global" })];
   if (projectPath) queries.push(api.listMcpServers({ level: "project", projectPath }));
   const results = await Promise.allSettled(queries);
-  const servers: McpServerRecord[] = [];
+  const servers: McpServerSettingsRecord[] = [];
   const statuses = new Map<string, McpServerStatus>();
   for (const result of results) {
     if (result.status !== "fulfilled") continue;

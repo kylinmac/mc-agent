@@ -7,8 +7,8 @@ import type {
 import { api } from "../../lib/api";
 import { normalizeProjectPath } from "../../lib/sidebar-preferences";
 import { useAppStore } from "../../stores/app-store";
-import { saveProjectPromptTemplate } from "../project-workbench/project-prompt-save";
-import { withProjectPromptTemplate } from "../project-workbench/project-prompt";
+import { saveProjectPromptTemplate } from "../../lib/projects/project-prompt-save";
+import { withProjectPromptTemplate } from "../../lib/projects/project-prompt";
 import { freeTemplateName, type ConfirmedPlan, type StepState } from "./plan";
 
 /*

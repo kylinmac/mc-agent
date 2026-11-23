@@ -45,7 +45,7 @@
 }
 
 .mc-quota-chip:focus-visible {
-  box-shadow: 0 0 0 2px var(--ds-focus-ring);
+  box-shadow: 0 0 0 2px var(--ds-focus);
 }
 
 .mc-quota-chip-body {

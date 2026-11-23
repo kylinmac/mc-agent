@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 export {
   readMainSource,
   readMainModule,
@@ -19,6 +20,7 @@ export {
 export {
   readComposerSource,
   readComposerModule,
+  readModelPickerModule,
   readComposerSourceSync,
   readComposerModuleSync,
 } from "./composer-source.mjs";
@@ -34,3 +36,7 @@ export {
   readSettingsSource,
   readSettingsSourceSync,
 } from "./domain-source.mjs";
+
+export function readContractModules(...paths) {
+  return paths.map((path) => readFileSync(new URL(path, new URL("../", import.meta.url)), "utf8")).join("\n");
+}

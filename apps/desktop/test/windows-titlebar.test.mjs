@@ -5,8 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
 import { catalogs } from "@pi-desktop/i18n";
-import { createServer } from "vite";
-import { fileURLToPath } from "node:url";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 import { loadStyles } from "./helpers/styles.mjs";
 
 test("Windows navigation stays below modal search and above work panels", async () => {
@@ -21,11 +20,7 @@ test("Windows navigation stays below modal search and above work panels", async 
 });
 
 test("Windows has one persistent notification trigger; other platforms keep the tab trigger", async () => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)), configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    esbuild: { jsx: "automatic" }, appType: "custom", optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer({ esbuild: { jsx: "automatic" } });
   const previousWindow = globalThis.window;
   try {
     const { ConversationTopbar } = await server.ssrLoadModule("/src/components/ConversationTopbar.tsx");

@@ -1,43 +1,8 @@
 import assert from "node:assert/strict";
-import * as crypto from "node:crypto";
-import * as fs from "node:fs";
-import * as path from "node:path";
-import i18n from "i18next";
 import test from "node:test";
-import ts from "typescript";
 import { ErrorCodes } from "../../../packages/shared/src/errors.ts";
 import { IPC, IPC_WHITELIST } from "../../../packages/shared/src/protocol.ts";
-
-function load(relative, imports, globals = {}) {
-  const file = new URL(relative, import.meta.url);
-  const { outputText } = ts.transpileModule(fs.readFileSync(file, "utf8"), {
-    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
-    fileName: file.pathname,
-  });
-  const module = { exports: {} };
-  new Function("require", "exports", "module", ...Object.keys(globals), outputText)((id) => {
-    assert.ok(Object.hasOwn(imports, id), `unexpected IPC dependency: ${id}`);
-    return imports[id];
-  }, module.exports, module, ...Object.values(globals));
-  return module.exports;
-}
-
-const shared = { ErrorCodes, IPC, IPC_WHITELIST };
-const collaboration = load("../electron/main/services/session-collaboration.ts", {
-  "node:crypto": crypto,
-  "../agent-host-bridge": {},
-  "../plugin-agent-complete": {},
-});
-const { registerSessionIpc } = load("../electron/main/ipc/session-ipc.ts", {
-  electron: { shell: {} },
-  "node:fs": fs,
-  "node:path": path,
-  "@pi-desktop/shared": shared,
-  "../importers": {},
-  "../services/session-collaboration": collaboration,
-  "../bootstrap/remote-hosts.js": { getActiveRemoteHostsBoot: () => null },
-  "../services/session-search": { searchSessionsAcrossSources: async () => ({ hits: [], nextOffset: null }) },
-});
+import { registerSessionIpc, rendererApi } from "./helpers/session-ipc.mjs";
 const summary = {
   sessionId: "worker-session-id",
   title: "Review",
@@ -72,34 +37,6 @@ function harness(read = async () => summary, sidecar = null) {
   const handle = handlers.get(IPC.invoke.sessionCollaboration);
   assert.equal(typeof handle, "function");
   return { handle, calls, clearHost: () => { host = null; } };
-}
-
-function rendererApi(invoke) {
-  let bridge;
-  load("../electron/preload/index.ts", {
-    electron: {
-      contextBridge: { exposeInMainWorld: (name, value) => {
-        assert.equal(name, "piDesktop");
-        bridge = value;
-      } },
-      ipcRenderer: { invoke },
-      webUtils: {},
-    },
-    "@pi-desktop/shared": shared,
-    "@pi-desktop/shared/protocol": shared,
-  });
-  const { api } = load("../src/lib/api.ts", {
-    "@pi-desktop/shared": shared,
-    "./plan-history": load("../src/lib/plan-history.ts", {}),
-    "./remote-ipc-safety": load("../src/lib/remote-ipc-safety.ts", {
-      "@pi-desktop/shared": shared,
-      i18next: { default: i18n },
-    }),
-    "./remote-session-safety": load("../src/lib/remote-session-safety.ts", {}),
-  }, {
-    window: { piDesktop: bridge },
-  });
-  return { api, bridge };
 }
 
 test("the renderer reaches only the summary RPC through the allowed preload channel", async () => {

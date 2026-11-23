@@ -12,7 +12,7 @@ const { CONTEXT_INSPECTOR_MARGIN, placeContextInspector } = await import(
 );
 
 const inspectorSource = await readFile(
-  new URL("../src/components/ContextUsageInspector.tsx", import.meta.url),
+  new URL("../src/features/chat/ContextUsageInspector.tsx", import.meta.url),
   "utf8",
 );
 const chatShellStyles = await readFile(

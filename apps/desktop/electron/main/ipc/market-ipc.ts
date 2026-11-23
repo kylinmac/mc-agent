@@ -26,19 +26,15 @@ export function registerMarketIpc({
   pluginActiveInProject,
   sendToRenderer,
 }: MarketIpcDependencies): void {
-  let host: HostProcess | null = null;
-  const handle = (channel: string, fn: (...args: any[]) => Promise<any>) => {
-    registrar.handle(channel, async (...args) => {
-      host = getHost();
-      return fn(...args);
-    });
-  };
+  const { handle } = registrar;
   handle(IPC.invoke.marketRefresh, async (payload?: { force?: boolean }) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     return host.call("market.refresh", { force: payload?.force ?? true });
   });
 
   handle(IPC.invoke.marketSearch, async (payload?: { query?: string; category?: string }) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     return host.call("market.search", {
       query: payload?.query ?? "",
@@ -47,6 +43,7 @@ export function registerMarketIpc({
   });
 
   handle(IPC.invoke.marketGetDetail, async (id: string) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     return host.call("market.getDetail", { id });
   });
@@ -58,6 +55,7 @@ export function registerMarketIpc({
     autoUpdate?: boolean;
     grantedPermissions?: string[];
   }) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const installed = await host.call<{ result: any }>("market.install", payload);
     const plugin = installed.result?.plugin;
@@ -74,6 +72,7 @@ export function registerMarketIpc({
   handle(
     IPC.invoke.marketCheckUpdates,
     async (payload?: { refreshRemote?: boolean }) => {
+      const host = getHost();
       if (!host) throw new Error("host unavailable");
       return host.call("market.checkUpdates", {
         refreshRemote: payload?.refreshRemote ?? true,
@@ -82,6 +81,7 @@ export function registerMarketIpc({
   );
 
   handle(IPC.invoke.marketApplyUpdates, async (payload?: { onlyAuto?: boolean }) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const applied = await host.call<{ results: any[]; plugins: any[] }>("market.applyUpdates", {
       onlyAuto: payload?.onlyAuto ?? true,
@@ -97,6 +97,7 @@ export function registerMarketIpc({
   });
 
   handle(IPC.invoke.marketCancelInstall, async (payload: { id: string }) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     // The host answers whether an install was actually running: only a
     // download can be interrupted, and the surface says so rather than
@@ -108,18 +109,21 @@ export function registerMarketIpc({
   // plugin ids or one query, and host-core owns the trusted center origin,
   // the bounds, and the error mapping. Nothing here authenticates or mutates.
   handle(IPC.invoke.marketReviewSummaries, async (payload?: { pluginIds?: unknown }) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const pluginIds = Array.isArray(payload?.pluginIds) ? payload.pluginIds : [];
     return host.call("market.reviewSummaries", { pluginIds });
   });
 
   handle(IPC.invoke.marketReviewTickers, async (payload?: { pluginIds?: unknown }) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     const pluginIds = Array.isArray(payload?.pluginIds) ? payload.pluginIds : [];
     return host.call("market.reviewTickers", { pluginIds });
   });
 
   handle(IPC.invoke.marketReviews, async (payload?: Partial<PluginReviewQuery>) => {
+    const host = getHost();
     if (!host) throw new Error("host unavailable");
     return host.call("market.reviews", { ...(payload ?? {}) });
   });

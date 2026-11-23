@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { TooltipButton, cx } from "../ui";
 import { IconPlus, IconX } from "../icons";
 
-export type KeyValuePair = { key: string; value: string };
+export type KeyValuePair = { key: string; value: string; saved?: boolean };
 
 /**
  * Editable key/value rows for MCP env vars and HTTP headers.
@@ -32,7 +32,7 @@ export function KeyValueRows({
   const groupId = useId();
 
   const setAt = (index: number, patch: Partial<KeyValuePair>) => {
-    onChange(pairs.map((pair, i) => (i === index ? { ...pair, ...patch } : pair)));
+    onChange(pairs.map((pair, i) => (i === index ? { ...pair, ...patch, saved: false } : pair)));
   };
 
   return (
@@ -53,7 +53,7 @@ export function KeyValueRows({
             className="field-input kv-value"
             value={pair.value}
             type={secret ? "password" : "text"}
-            placeholder={valuePlaceholder}
+            placeholder={pair.saved ? "••••••••" : valuePlaceholder}
             spellCheck={false}
             autoCapitalize="off"
             autoCorrect="off"

@@ -160,14 +160,8 @@ test("cached activity timing exactly preserves invalid timestamps and fallback d
 
 
 test("memo boundaries check scalar changes before identity and skip stable child scans", async () => {
-  const { createServer } = await import("vite");
-  const { fileURLToPath } = await import("node:url");
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)), configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    esbuild: { jsx: "automatic" }, appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const { createDesktopSsrServer } = await import("./helpers/ssr-server.mjs");
+  const server = await createDesktopSsrServer({ esbuild: { jsx: "automatic" } });
   try {
     const { AssistantTurn, TranscriptHistory, TranscriptTail } = await server.ssrLoadModule("/src/features/chat/transcript/AssistantTurn.tsx");
     const { ActivityGroup, activityItemsEqual } = await server.ssrLoadModule("/src/features/chat/transcript/ActivityGroup.tsx");

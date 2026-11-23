@@ -1,3 +1,4 @@
+import { readContractModules } from "./helpers/source-contracts.mjs";
 /**
  * Automatic session titles have two layers: host-core derives a deterministic
  * title from the first prompt so a new session is readable offline, and an
@@ -26,7 +27,10 @@ const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 const [api, protocol, host, rpc, queueSlice, main, store] = await Promise.all([
   read("../src/lib/api.ts"),
   read("../../../packages/shared/src/protocol.ts"),
-  read("../../../crates/host-core/src/sessions.rs"),
+  readContractModules(
+  "../../../crates/host-core/src/sessions/titles.rs",
+  "../../../crates/host-core/src/sessions/tests/titles.rs",
+),
   read("../../../crates/host-core/src/rpc/mod.rs"),
   read("../src/stores/slices/queue-slice.ts"),
   readMainSource(),

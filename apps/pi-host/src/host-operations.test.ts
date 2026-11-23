@@ -22,8 +22,9 @@ function fakeHost(calls: Array<{ method: string; params: unknown }>, projectPath
           return { sessions: [...sessions.values()] } as T;
         case "session.get":
           return { session: sessions.get(String(params.id)) ?? null } as T;
-        case "session.create": {
-          const created = { id: "s2", title: params.title ?? "New", mode: params.mode ?? "agent", permissionMode: "ask", projectPath: params.projectPath };
+        case "session.create":
+        case "session.createConfigured": {
+          const created = { id: "s2", title: params.title ?? "New", mode: params.mode ?? "agent", permissionMode: method === "session.createConfigured" ? params.permissionMode : "inherit", projectPath: params.projectPath };
           sessions.set("s2", created);
           return { session: created } as T;
         }
@@ -63,7 +64,8 @@ describe("pi-host operations over host-core", () => {
     expect(listed[0]).toMatchObject({ id: "s1", workspaceLabel: root.split("/").pop() });
     const created = await operations.sessions.create({ title: "T", projectId: "7", permissionMode: "auto" }, { subject: "d", roles: ["owner"] });
     expect(created.permissionMode).toBe("auto");
-    expect(calls.find((call) => call.method === "session.create")?.params).toMatchObject({ projectPath: root });
+    expect(calls.filter((call) => call.method.startsWith("session.create") || call.method === "session.configure"))
+      .toEqual([{ method: "session.createConfigured", params: { projectPath: root, title: "T", permissionMode: "auto" } }]);
     await expect(operations.sessions.create({ projectId: "99" }, { subject: "d", roles: ["owner"] })).rejects.toMatchObject({ code: "NOT_FOUND" });
     busy = true;
     await expect(operations.sessions.configure("s1", { mode: "plan" })).rejects.toMatchObject({ code: "CONFLICT" });

@@ -74,6 +74,8 @@
   --ds-sidebar-glass-sheen-bottom: color-mix(in oklab, var(--gray-0) 4%, transparent);
   --ds-bg-chip: color-mix(in oklab, var(--gray-0) 6%, transparent);
   --ds-text-primary: var(--gray-0);
+  /* Scenic previews keep a dark scrim over artwork in both themes. */
+  --ds-text-on-image: var(--gray-0);
   /*
     One white-alpha ramp for the whole secondary/muted/faint tier. gray-500 and
     gray-600 used to sit here, but those are ink values for a pale surface: on
@@ -151,6 +153,14 @@
   /* D297: the composer lifts by shadow alone; the hairline stroke is gone. */
   --ds-shadow-composer: 0 3px 7.5px #0000000a, 0 0 20px #0000000d;
   --ds-bg-elevated-primary: color-mix(in oklab, var(--gray-800) 96%, transparent);
+  /* Fixed chrome spacing in CSS pixels. Text and field height follow font scale. */
+  --ds-space-2: 2px;
+  --ds-space-4: 4px;
+  --ds-space-6: 6px;
+  --ds-space-8: 8px;
+  --ds-space-12: 12px;
+  --ds-space-16: 16px;
+  --ds-main-pane-min-width: 450px;
   --ds-sidebar-width: clamp(240px, 275px, min(520px, calc(100vw - 320px)));
   /* Settings rail border-box width, including its 1px right border. The
    * settings drag band starts after the rail so the rail keeps a single
@@ -381,6 +391,7 @@
   --leading-tight: 1.25;
   --leading-compact: 1.3;
   --leading-compact-plus: 1.35;
+  --leading-snug: 1.375;
   --leading-normal: 1.4;
   --leading-body: 1.45;
   --leading-relaxed: 1.5;

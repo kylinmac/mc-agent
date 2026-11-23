@@ -1,42 +1,56 @@
+import { DelegationRegistry } from "./delegation-registry.js";
 import { toolExecutionModeFor } from "./mc-parallel-tools.js";
 import {
-  keepsRetainedUserMessage, preparedSummaryDiscardReason, shouldPrepareSummary,
-  usageAnchorIsStale, USAGE_STALE_BEFORE_KEY, type PreparedSummaryBasis,
+  keepsRetainedUserMessage,
+  preparedSummaryDiscardReason,
+  shouldPrepareSummary,
+  usageAnchorIsStale,
+  USAGE_STALE_BEFORE_KEY,
+  type PreparedSummaryBasis,
 } from "./mc-background-compaction.js";
 import { RunRecoveryState } from "./mc-run-recovery.js";
 import { REPEATED_TOOL_CALL_ERROR_CODE, RepeatedToolCallTracker } from "./mc-repeated-tool-calls.js";
 import { applyToolResultPruning, planToolResultPruning, pruningUsageCredit } from "./mc-tool-result-pruning.js";
 import { taskThinkingParameter, taskThinkingOverride } from "./mc-task-thinking.js";
 import { buildProjectHistoryTool, PROJECT_HISTORY_TOOL_NAME } from "./mc-project-history-tool.js";
-import { buildProjectResourcesTool, buildProjectTasksTool, PROJECT_RESOURCES_TOOL_NAME, PROJECT_TASKS_TOOL_NAME } from "./mc-project-work-tools.js";
+import {
+  buildProjectResourcesTool,
+  buildProjectTasksTool,
+  PROJECT_RESOURCES_TOOL_NAME,
+  PROJECT_TASKS_TOOL_NAME,
+} from "./mc-project-work-tools.js";
 import { contextIdKey, contextRequestShape, verifiedContextRestore } from "./mc-context-integrity.js";
 import { compactionBoundaryId, restorableCompaction } from "./mc-compaction-boundary.js";
 import { supportsCacheSharedCompaction, type CompactionCachePrefix } from "./mc-compaction-cache-prefix.js";
 import { RUNTIME_CORE_RULES, RUNTIME_DELEGATION_RULES, RUNTIME_EDITING_RULES } from "./builtin-system-prompt.js";
 import {
-  MAX_MUTATION_RECOVERY_FAILURES, BASH_PATCH_FAILURE_KEY,
-  RECOVERABLE_MUTATION_ERROR_CODES, mutationFailureKey, isPatchCommand,
-  mutationTerminationAdvice, mutationTerminationMessage,
+  MAX_MUTATION_RECOVERY_FAILURES,
+  BASH_PATCH_FAILURE_KEY,
+  RECOVERABLE_MUTATION_ERROR_CODES,
+  mutationFailureKey,
+  isPatchCommand,
+  mutationTerminationAdvice,
+  mutationTerminationMessage,
 } from "./mutation-recovery.js";
 import { resolveMcpToolSelection } from "./mcp-tool-selection.js";
-import { TOOL_ACTIVATION_SECTION, toolDeclarationPolicy, toolActivationSection, restoredToolActivation, syncToolActivation, type ToolDeclarationPolicy } from "./fixed-tool-declarations.js";
-import { orderSystemRows, SystemTranscriptJournal } from "./system-transcript-journal.js";
+import {
+  TOOL_ACTIVATION_SECTION,
+  toolDeclarationPolicy,
+  toolActivationSection,
+  restoredToolActivation,
+  syncToolActivation,
+  type ToolDeclarationPolicy,
+} from "./fixed-tool-declarations.js";
+import { SystemTranscriptJournal } from "./system-transcript-journal.js";
 import { planWorkspaceRequiredResult } from "./plan-workspace-error.js";
 import { accountModelStream } from "./request-usage.js";
 import { modeToolDenial, retainModeToolDeclaration, withModeExecutionGuard } from "./mode-tool-access.js";
-import { restoreHostedSearchReplay } from "./hosted-search-replay.js";
 import { requestExtensionUi } from "./extensions/ui-request.js";
 import { readLocalRequestErrorDetails } from "./local-request-errors.js";
-import {
-  imageGenerationDescription,
-  imageGenerationParameters,
-  saveCreativeAssetDescription,
-  saveCreativeAssetParameters,
-} from "./image-generation/tool.js";
 import { forkBrief, forkableParentMessages } from "./mc-subagent-fork.js";
 import type { McUserHook } from "@pi-desktop/shared";
 import { runUserHooks, hookFeedbackText, MAX_STOP_CONTINUATIONS } from "./mc-user-hooks.js";
-import { REMEMBER_TOOL_NAME, rememberDescription, rememberParameters } from "./mc-memory-tool.js";
+import { REMEMBER_TOOL_NAME } from "./mc-memory-tool.js";
 import {
   CONTEXT_HISTORY_MAX_LIMIT,
   CONTEXT_HISTORY_TOOL_NAME,
@@ -52,40 +66,18 @@ import {
   restoreCandidates,
   type RestoreRead,
 } from "./mc-compaction-file-restore.js";
-import { PANEL_TOOL_NAMES, panelToolDescriptions, panelToolParameters } from "./mc-work-panel-tools.js";
-import { CANVAS_TOOL_NAMES, canvasToolDescriptions, canvasToolParameters } from "./mc-canvas-tools.js";
-import {
-  CREATE_PROJECT_TOOL_NAME,
-  PROJECT_TEMPLATES_TOOL_NAME,
-  createProjectDescription,
-  createProjectParameters,
-  projectTemplatesDescription,
-  projectTemplatesParameters,
-} from "./mc-project-tools.js";
-import {
-  PROPOSE_ALCHEMY_TOOL_NAME,
-  RESOLVE_REF_TOOL_NAME,
-  proposeAlchemyDescription,
-  proposeAlchemyParameters,
-  resolveRefDescription,
-  resolveRefParameters,
-} from "./mc-alchemy-tools.js";
-import {
-  buildRunScriptTool,
-  RUN_SCRIPT_TOOL_NAME,
-  RunScriptController,
-} from "./mc-run-script.js";
-import { todoWriteDescription, todoWriteParameters } from "./todo-tool.js";
+import { PANEL_TOOL_NAMES } from "./mc-work-panel-tools.js";
+import { CANVAS_TOOL_NAMES } from "./mc-canvas-tools.js";
+import { CREATE_PROJECT_TOOL_NAME, PROJECT_TEMPLATES_TOOL_NAME } from "./mc-project-tools.js";
+import { PROPOSE_ALCHEMY_TOOL_NAME, RESOLVE_REF_TOOL_NAME } from "./mc-alchemy-tools.js";
+import { buildRunScriptTool, RUN_SCRIPT_TOOL_NAME, RunScriptController } from "./mc-run-script.js";
 import { createJevClassifierTool } from "./jev-classifier-tool.js";
-import { scheduledToolParameters, scheduledToolDescriptions } from "./scheduled-tools.js";
+import { scheduledToolParameters } from "./scheduled-tools.js";
 import { withPiFileOpToolNames } from "./pi-file-ops.js";
 import { remoteMutationIdentity } from "./remote-workspace.js";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
-import {
-  settledDelegationMessage,
-  taskMessageSnapshot,
-} from "./delegation-message.js";
+import { settledDelegationMessage, taskMessageSnapshot } from "./delegation-message.js";
 import {
   Agent,
   type AgentContext,
@@ -110,35 +102,26 @@ import {
   type Api,
   type AssistantMessage,
   type Context,
-  type ImageContent,
   type Model,
   type Models,
   type SimpleStreamOptions,
-  type ToolResultMessage,
   type Usage,
   type UserMessage,
 } from "@earendil-works/pi-ai";
 import {
-  DEFAULT_COMMAND_TIMEOUT_MS,
   OAUTH_AUTH_KIND,
   type TrustedExtensionCommand,
   type TrustedExtensionDiagnostic,
   type TrustedExtensionSpec,
   type TrustedExtensionUiResponse,
 } from "@pi-desktop/shared";
-import type {
-  TrustedExtensionRunner,
-  RegisteredTrustedExtensionAgent,
-  TrustedExtensionBridge,
-} from "./extensions/runner.js";
+import type { TrustedExtensionRunner, RegisteredTrustedExtensionAgent, TrustedExtensionBridge } from "./extensions/runner.js";
 import type {
   AgentActivity,
-  AgentActivityAgent,
   AgentActivityAgentPhase,
   AgentActivityError,
   AgentEventEnvelope,
   AgentStatus,
-  AgentPromptAttachment,
   AskToolQuestion,
   AskToolRequest,
   AskToolResolution,
@@ -149,14 +132,11 @@ import type {
   ContextCompactionSettings,
   MessageUsage,
   Mode,
-  MessageAttachment,
-  SessionMessageOrigin,
   PlanExecution,
   PlanProposal,
   PlanningState,
   Risk,
   SubagentDefinition,
-  SubagentRunStatus,
   SessionThinkingLevel,
   SubagentThinkingLevel,
   ThinkingLevel,
@@ -182,7 +162,6 @@ import {
   normalizeSubagentName,
   proposalKindForMode,
   resolveSubagentToolNames,
-  splitInlineContent,
   subagentModelKey,
   subagentToolsLabel,
   type ProposalKind,
@@ -196,6 +175,7 @@ import {
   assistantContent,
   isRecord,
   nowIso,
+  safeJson,
   timestampMs,
   toJsonObject,
   toJsonValue,
@@ -203,18 +183,23 @@ import {
   usageFromPi,
   usageToPi,
 } from "./agent-messages.js";
+import { isMissingToolResultPlaceholder, liveToolResultContent } from "./tool-result-content.js";
+import {
+  checkpointDetailsWithGeneration,
+  checkpointFileDetails,
+  COMPACTION_FALLBACK_KEEP_RECENT_RATIO,
+  COMPACTION_FALLBACK_MAX_SUMMARY_CHARS,
+  fallbackRetainedTail,
+  fallbackSummary,
+  retainedTailForContext,
+  stripCompactionFallbackNotice,
+  type CompactionRetentionMode,
+} from "./compaction-checkpoint.js";
 import { withExplicitRequired } from "./tool-schema.js";
 import { buildSessionContext } from "./session-context.js";
-import {
-  collectMessageFileOperations,
-  prepareCompaction,
-} from "./pi-runtime-compaction-plan.js";
+import { collectMessageFileOperations, prepareCompaction } from "./pi-runtime-compaction-plan.js";
 import { compact } from "./pi-runtime-compaction-summary.js";
-import {
-  ESTIMATED_TEXT_CHARS_PER_TOKEN,
-  estimateContextTokens,
-  estimateTokens,
-} from "./pi-runtime-estimates.js";
+import { ESTIMATED_TEXT_CHARS_PER_TOKEN, estimateContextTokens, estimateTokens } from "./pi-runtime-estimates.js";
 import { convertToLlm } from "./pi-runtime-messages.js";
 import type {
   CompactionEntry,
@@ -235,13 +220,8 @@ import {
   replaceSystemPrompt,
   systemPromptContent,
 } from "./system-transcript.js";
+import { dedupeToolCallMessages, createToolCallIdentity, reportDuplicateToolCallDrop } from "./tool-call-dedupe.js";
 import {
-  dedupeToolCallMessages,
-  createToolCallIdentity,
-  reportDuplicateToolCallDrop,
-} from "./tool-call-dedupe.js";
-import {
-  apiBindingForProviderModel,
   buildProviderModel,
   copilotRequestHeaders,
   createExtensionAgentModels,
@@ -287,16 +267,14 @@ import {
   type SubagentRunResult,
   type SubagentToolOutcome,
 } from "./subagent.js";
+import { composeModeSystemPrompt, DEFAULT_RUNTIME_SYSTEM_PROMPT } from "./mode-prompts.js";
 import {
-  composeModeSystemPrompt,
-  DEFAULT_RUNTIME_SYSTEM_PROMPT,
-} from "./mode-prompts.js";
-import { agentThinkingLevel, clampThinkingLevel, omitThinkingModel, requestThinkingLevel } from "./thinking-level.js";
-import {
-  alignRetainedReasoningIdentity,
-  harvestRetainedReasoning,
-  type ReasoningReplayIdentity,
-} from "./reasoning-replay.js";
+  agentThinkingLevel,
+  clampThinkingLevel,
+  omitThinkingModel,
+  requestThinkingLevel,
+} from "./thinking-level.js";
+import { alignRetainedReasoningIdentity, harvestRetainedReasoning, type ReasoningReplayIdentity } from "./reasoning-replay.js";
 import { genericModelConfig, visionFromModelConfig } from "./model-capabilities.js";
 import type { ProjectInstructions } from "./project-instructions.js";
 import { projectInstructionsPrompt } from "./project-instructions-prompt.js";
@@ -310,10 +288,7 @@ import {
   type PluginSkillDef,
 } from "./plugin-skills-prompt.js";
 import { pluginSkillsDigest } from "./plugin-skills.js";
-import {
-  openCodeEndpointFromProvider,
-  withOpenCodeSessionHeaders,
-} from "./opencode-session-headers.js";
+import { openCodeEndpointFromProvider, withOpenCodeSessionHeaders } from "./opencode-session-headers.js";
 import { withSessionAffinityOptions } from "./session-affinity.js";
 import { withCompactionRequestHeaders } from "./compaction-request.js";
 import type { CompactionRequestShape } from "./compaction-diagnostics.js";
@@ -327,17 +302,8 @@ import {
   planSummaryChunks,
   reduceSummaryInput,
 } from "./compaction-summary-input.js";
-import {
-  CHECKPOINT_TRUNCATION_MARKER,
-  COMPACTION_RETAINED_TAIL_SHAPE,
-  replayRetainedTail,
-  selectRecentTail,
-} from "./compaction-tail.js";
-import {
-  mergeProviderHeaders,
-  providerHeadersEqual,
-  withProviderHeaders,
-} from "./provider-headers.js";
+import { CHECKPOINT_TRUNCATION_MARKER, COMPACTION_RETAINED_TAIL_SHAPE } from "./compaction-tail.js";
+import { mergeProviderHeaders, providerHeadersEqual, withProviderHeaders } from "./provider-headers.js";
 import {
   captureProviderResponse,
   classifyProviderError,
@@ -352,12 +318,7 @@ import {
   streamIdleTimeoutMs,
   withStreamIdleTimeout,
 } from "./provider-retry.js";
-
-import {
-  ContextEstimateCalibration,
-  type ContextCalibration,
-} from "./context-calibration.js";
-
+import { ContextEstimateCalibration, type ContextCalibration } from "./context-calibration.js";
 import { rebuildNodeNetworkTransport } from "./node-proxy.js";
 import {
   createProviderTransportHealth,
@@ -366,173 +327,71 @@ import {
   type ProviderFetchFailure,
   type ProviderTransportHealth,
 } from "./provider-transport-recovery.js";
+import { type RuntimePrompt, promptContent } from "./runtime-prompt.js";
+import {
+  type DelegationRecord,
+  delegationSummary,
+  agentActivityEqual,
+  waitingSubagentsActivity,
+  formatDelegationHeartbeat,
+  DELEGATION_RESUME_PROMPT,
+  formatDelegationResults,
+} from "./delegation-status.js";
+import {
+  SILENT_TURN_NUDGE,
+  PROGRESS_TURN_NUDGE,
+  looksLikePseudoToolCall,
+  messageRequestsTools,
+  isProgressOnlyAssistantTurn,
+} from "./turn-continuation.js";
+import {
+  NEXT_PROMPT_SUGGESTION_REQUEST,
+  NextPromptSuggestions,
+  NEXT_PROMPT_SUGGESTION_SETTLE_MS,
+  nextPromptSuggestionText,
+} from "./next-prompt-suggestion.js";
+import {
+  shellScratchVariable,
+  formatScratchDirForShell,
+  commandShellGuidance,
+  requireAliasedParams,
+  normalizeToolParams,
+  commandTimeoutMs,
+} from "./command-shell-policy.js";
+import { ASK_TOOL_NAME, builtinToolSchemas } from "./builtin-tool-schemas.js";
+import { historyToEntries, toolResultFromUi, toolSearchActivatedNames, TOOL_SEARCH_NAME } from "./transcript-replay.js";
+export { TOOL_SEARCH_NAME, toolResultFromUi } from "./transcript-replay.js";
+
+export {
+  type RuntimePromptAttachment,
+  type RuntimePrompt,
+  sessionReferenceBlock,
+} from "./runtime-prompt.js";
+export {
+  type DelegationStatus,
+  type DelegationRecord,
+} from "./delegation-status.js";
+export {
+  looksLikePseudoToolCall,
+  isProgressOnlyAssistantTurn,
+} from "./turn-continuation.js";
+export {
+  nextPromptSuggestionText,
+} from "./next-prompt-suggestion.js";
+export {
+  formatScratchDirForShell,
+  commandShellGuidance,
+} from "./command-shell-policy.js";
+export { COMPACTION_FALLBACK_MARKER } from "./compaction-checkpoint.js";
 
 export type { RuntimeProviderConfig } from "./provider-binding.js";
-
-export type RuntimePromptAttachment = Omit<AgentPromptAttachment, "kind"> & {
-  /**
-   * `session` is written by Electron main for a resolved
-   * `pi-desktop://session/<id>` reference; the renderer never sends it.
-   */
-  kind: AgentPromptAttachment["kind"] | "session";
-  /** Base64 payload is transient and only crosses the sidecar for this turn. */
-  data?: string;
-  /** Bounded excerpt of a referenced conversation (`kind: "session"`). */
-  text?: string;
-};
-
-export type RuntimePrompt = {
-  text: string;
-  /** Explicit user selection, resolved against the host-provided tool catalog. */
-  mcpServerIds?: string[];
-  mcpToolNames?: string[];
-  sessionMessage?: SessionMessageOrigin;
-  attachments?: RuntimePromptAttachment[];
-};
-
-/**
- * The user's own words plus one quoted block per referenced conversation. The
- * visible prompt is never rewritten: references are additive, and the model
- * must receive this text — a reference accounted for by compaction but absent
- * from the provider request would be context the user never got.
- */
-function promptText(input: RuntimePrompt): string {
-  const references = (input.attachments ?? [])
-    .map((attachment) => sessionReferenceBlock(attachment))
-    .filter((block): block is string => block !== null);
-  return references.length
-    ? `${input.text}\n\n${references.join("\n\n")}`.trim()
-    : input.text;
-}
-
-/** One provider image block for an attachment whose bytes crossed this turn. */
-function promptImageBlock(attachment: RuntimePromptAttachment): ImageContent {
-  return {
-    type: "image" as const,
-    data: attachment.data!,
-    mimeType: attachment.mimeType || "image/png",
-  };
-}
-
-/** Attachments carrying image bytes this call may inline for the model. */
-function promptImages(input: RuntimePrompt): RuntimePromptAttachment[] {
-  return (input.attachments ?? []).filter(
-    (attachment) =>
-      attachment.kind === "image" &&
-      typeof attachment.data === "string" &&
-      attachment.data.length > 0,
-  );
-}
-
-/**
- * The prompt the model receives. An image the user placed between words carries
- * the `@path` the Composer serialized, so it becomes a block at that position
- * instead of following every text block (the pre-placement behavior, which is
- * still what an image without an `inlinePath` gets).
- */
-function promptContent(input: string | RuntimePrompt): UserMessage["content"] {
-  if (typeof input === "string") return input;
-  const text = promptText(input);
-  const images = promptImages(input);
-  if (!images.length) return text;
-  const { parts, trailing } = splitInlineContent(text, images);
-  const blocks: Array<{ type: "text"; text: string } | ImageContent> = parts.flatMap(
-    (part): Array<{ type: "text"; text: string } | ImageContent> =>
-      part.kind === "text"
-        ? part.text
-          ? [{ type: "text" as const, text: part.text }]
-          : []
-        : [promptImageBlock(part.attachment)],
-  );
-  blocks.push(...trailing.map(promptImageBlock));
-  return blocks;
-}
-
-function runtimeAttachmentFromMessage(
-  attachment: MessageAttachment,
-  data?: string,
-): RuntimePromptAttachment {
-  return {
-    path: attachment.ref,
-    name: attachment.name,
-    kind: attachment.kind,
-    ...(attachment.mimeType ? { mimeType: attachment.mimeType } : {}),
-    ...(attachment.size !== undefined ? { size: attachment.size } : {}),
-    ...(attachment.text ? { text: attachment.text } : {}),
-    // Recorded placement: the message content names this image at that spot, so
-    // the restored prompt keeps the block there too.
-    ...(attachment.inlinePath ? { inlinePath: attachment.inlinePath } : {}),
-    ...(data ? { data } : {}),
-  };
-}
-
-/** Attribute-safe text: a session title may contain quotes or angle brackets. */
-function escapeAttribute(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
-
-/**
- * A referenced conversation travels with the user's message as one delimited
- * block: it is quoted context, not the user's own words (a session link in the
- * draft produced it), so the model reads it as reference material.
- */
-export function sessionReferenceBlock(attachment: RuntimePromptAttachment): string | null {
-  const text = attachment.text?.trim();
-  if (!text) return null;
-  const title = escapeAttribute(attachment.name || attachment.path);
-  return `<session_reference name="${title}" session="${escapeAttribute(attachment.path)}">\n${text}\n</session_reference>`;
-}
 
 // pi-ai's adapter retry is disabled here so setup and mid-stream 429s share
 // one runtime-owned budget instead of multiplying nested retry loops.
 const PROVIDER_REQUEST_MAX_RETRIES = 0;
-export const TOOL_SEARCH_NAME = "ToolSearch";
-/** Stands in for a persisted tool row that never recorded a result. */
-const MISSING_TOOL_RESULT_PLACEHOLDER = "[no tool result recorded]";
 
-function toolNameList(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return [
-    ...new Set(
-      value.filter(
-        (name: unknown): name is string =>
-          typeof name === "string" && name.length > 0,
-      ),
-    ),
-  ];
-}
 
-/** Read canonical and historical activation markers from a ToolSearch row. */
-function toolSearchActivatedNames(
-  details: unknown,
-  legacyAddedToolNames?: unknown,
-): string[] {
-  const record = isRecord(details) ? details : undefined;
-  const candidates = [
-    record?.addedToolNames,
-    record?.activated,
-    legacyAddedToolNames,
-  ];
-  for (const candidate of candidates) {
-    const names = toolNameList(candidate);
-    if (names.length > 0) return names;
-  }
-  return [];
-}
 
-function isMissingToolResultPlaceholder(
-  content: ToolResultMessage["content"],
-): boolean {
-  return (
-    content.length === 1 &&
-    content[0].type === "text" &&
-    content[0].text === MISSING_TOOL_RESULT_PLACEHOLDER
-  );
-}
 
 /** Narrow view of the `tool_end` agent event; the envelope carries the rest. */
 type ToolEndEvent = {
@@ -550,7 +409,7 @@ type ToolStartEvent = {
   args?: unknown;
 };
 
-export const ASK_TOOL_NAME = "asktool";
+export { ASK_TOOL_NAME } from "./builtin-tool-schemas.js";
 /**
  * Delegation lifecycle (ADR 0089): `Task` starts a subagent in the background
  * and returns immediately; `TaskWait` converges on running delegations;
@@ -558,7 +417,7 @@ export const ASK_TOOL_NAME = "asktool";
  * session's lifetime (bounded by pruning below), so a settled delegation can
  * be re-read by id without re-running it.
  */
-const MAX_RETAINED_DELEGATIONS = 100;
+
 const DELEGATION_MODEL_OPT_IN_GUIDANCE =
   'To authorize a model override, open Settings → Models, edit the service or account, expand its model Advanced settings, enable "Available for AI delegation", and save. Use an exact key from the delegation catalog; never guess a provider/model key.';
 const DELEGATION_DEFAULT_MODEL_GUIDANCE =
@@ -572,226 +431,6 @@ const DELEGATION_DEFAULT_MODEL_GUIDANCE =
  */
 const TASKWAIT_DEFAULT_TIMEOUT_SECONDS = 600;
 const TASKWAIT_MAX_TIMEOUT_SECONDS = 900;
-/**
- * A `TaskWait` result is the parent's context; like a delegate's report, it
- * must not become the context problem delegation exists to avoid.
- */
-const MAX_TASKWAIT_RESULT_CHARS = 50_000;
-
-export type DelegationStatus =
-  | "running"
-  | SubagentRunStatus
-  | "stopped";
-
-/**
- * One background delegation owned by the session runtime. `completion`
- * resolves when the delegate settles; `abort` stops the delegate's agent.
- */
-export type DelegationRecord = {
-  delegationId: string;
-  /**
-   * Chain id under which host-core keeps this Write/Edit subagent's own git
-   * worktree in an isolated session (ADR 0329); absent otherwise.
-   */
-  worktreeKey?: string;
-  /** Original Task transcript snapshot, available after its immediate result. */
-  taskMessage?: UiMessage;
-  taskTurnId?: string;
-  agentName: string;
-  modelId: string;
-  thinkingLevel: SubagentThinkingLevel;
-  status: DelegationStatus;
-  startedAt: number;
-  completedAt?: number;
-  result?: SubagentRunResult;
-  completion: Promise<void>;
-  resolveCompletion: () => void;
-  abort: () => void;
-  /** True when `TaskStop` asked for this stop, so an aborted run reads as
-   * `stopped` rather than `aborted`. */
-  stopRequested: boolean;
-  /** System interruption preserves resume eligibility; explicit Stop wins. */
-  parentErrorInterrupted?: boolean;
-  turns: number;
-  toolCalls: number;
-  lastToolName?: string;
-  lastPhase?: AgentActivityAgentPhase;
-  lastActivityAt: number;
-  /** `prompt()` / `executeApprovedPlan()` generation that started this run.
-   * Resume-after-idle only waits for the current turn's delegates (D352). */
-  startedEpoch: number;
-  /** The settled report reached the parent's context once: through a
-   * `TaskWait` result or the resume-after-idle prompt. Auto-delivery is a
-   * single shot per record. */
-  reportDelivered: boolean;
-  /** Stable chain identity; never appears in a tool parameter (ADR 0279). */
-  delegateSessionId: string;
-  /** Prior `delegationId` this run continues, when `Task.resume` was set. */
-  resumedFrom?: string;
-  /** Model the run kept before the resume could not re-resolve it (ADR 0279
-   * §4): recorded so the parent can see that the delegate's binding moved. */
-  modelChangedFrom?: string;
-  /** `toolCallId`s of this run's calls that have not ended yet: dropped when the
-   * run settles, so an aborted call cannot pin its captured arguments. */
-  pendingToolCallIds?: Set<string>;
-};
-
-
-function delegationSummary(record: DelegationRecord): Record<string, unknown> {
-  return {
-    delegationId: record.delegationId,
-    agent: record.agentName,
-    modelId: record.modelId,
-    thinkingLevel: record.thinkingLevel,
-    status: record.status,
-    startedAt: record.startedAt,
-    turns: record.result?.turns ?? record.turns,
-    toolCalls: record.result?.toolCalls ?? record.toolCalls,
-    ...(record.lastToolName ? { lastToolName: record.lastToolName } : {}),
-    ...(record.completedAt ? { completedAt: record.completedAt } : {}),
-    ...(record.result?.modelFailures ? { modelFailures: record.result.modelFailures } : {}),
-    ...(record.result?.error ? { error: record.result.error } : {}),
-    // A delegate that compacted or lost history says so in its lifecycle
-    // details, not only in the report text (ADR 0299, decision 4).
-    ...(record.result?.contextCompactions
-      ? { contextCompactions: record.result.contextCompactions }
-      : {}),
-    ...(record.result?.contextDegraded
-      ? { contextDegraded: record.result.contextDegraded }
-      : {}),
-    ...(record.result?.scratchReportPath
-      ? { scratchReportPath: record.result.scratchReportPath }
-      : {}),
-    ...(record.resumedFrom ? { resumedFrom: record.resumedFrom } : {}),
-    ...(record.modelChangedFrom
-      ? { modelChangedFrom: record.modelChangedFrom }
-      : {}),
-  };
-}
-
-function elapsedSeconds(record: DelegationRecord, now = Date.now()): number {
-  const end = record.completedAt ?? now;
-  return Math.max(1, Math.round((end - record.startedAt) / 1000));
-}
-
-function agentActivityEqual(
-  left?: AgentActivity,
-  right?: AgentActivity,
-): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
-}
-
-function waitingSubagentSnapshot(
-  record: DelegationRecord,
-): AgentActivityAgent {
-  return {
-    name: record.agentName,
-    ...(record.lastPhase ? { lastPhase: record.lastPhase } : {}),
-    ...(record.lastToolName ? { lastToolName: record.lastToolName } : {}),
-  };
-}
-
-function waitingSubagentsActivity(
-  targets: DelegationRecord[],
-  since: number,
-): Extract<AgentActivity, { phase: "waiting-subagents" }> {
-  const running = targets.filter((record) => record.status === "running");
-  return {
-    phase: "waiting-subagents",
-    since,
-    subagentCount: running.length,
-    ...(running.length > 0
-      ? { agents: running.map(waitingSubagentSnapshot) }
-      : {}),
-  };
-}
-
-function formatDelegationHeartbeat(record: DelegationRecord): string {
-  const parts = [
-    `${record.agentName} (${record.delegationId})`,
-    record.status,
-    `${elapsedSeconds(record)}s`,
-  ];
-  const turns = record.result?.turns ?? record.turns;
-  const toolCalls = record.result?.toolCalls ?? record.toolCalls;
-  if (turns > 0) parts.push(`${turns} turns`);
-  if (toolCalls > 0) parts.push(`${toolCalls} tool calls`);
-  if (record.lastToolName) parts.push(`last tool ${record.lastToolName}`);
-  return parts.join(", ");
-}
-
-const DELEGATION_RESUME_PROMPT =
-  "The following subagents have finished. Integrate their reports and continue the user's original task. Call TaskStop only if you have decided a still-running delegate should not continue.";
-
-/** Join delegation results into one bounded text block for the model. */
-function formatDelegationResults(
-  results: Array<{ delegationId: string; agent: string; status: string; report: string }>,
-  note?: string,
-): { text: string; includedDelegationIds: Set<string> } {
-  const parts: string[] = [];
-  const includedDelegationIds = new Set<string>();
-  let total = 0;
-  let omitted = 0;
-  for (const result of results) {
-    const block = `## ${result.agent} (${result.delegationId}) — ${result.status}\n${result.report}`;
-    if (total + block.length > MAX_TASKWAIT_RESULT_CHARS) {
-      omitted += 1;
-      continue;
-    }
-    parts.push(block);
-    includedDelegationIds.add(result.delegationId);
-    total += block.length + 2;
-  }
-  if (omitted > 0) {
-    parts.push(
-      `[${omitted} more result${omitted === 1 ? "" : "s"} omitted to protect this context; call TaskWait with their delegationIds to re-read one.]`,
-    );
-  }
-  return {
-    text: [note, ...parts].filter((part) => part?.trim()).join("\n\n"),
-    includedDelegationIds,
-  };
-}
-const COMPACTION_FALLBACK_MAX_SUMMARY_CHARS = 12_000;
-/**
- * Room held back from a fallback's tail for the recovery notice the checkpoint
- * appends after the carried-forward summary.
- */
-const COMPACTION_FALLBACK_NOTICE_TOKENS = 512;
-/**
- * Share of the safe budget a failure's retained window may occupy. The window
- * is bounded by the keep-recent target as well, so it never carries more
- * history than a successful checkpoint would (`fallbackRetainedTail`).
- */
-const COMPACTION_FALLBACK_KEEP_RECENT_RATIO = 0.25;
-export const COMPACTION_FALLBACK_MARKER =
-  "[automatic context recovery: older context was omitted after summary generation failed]";
-/** Stored in place of a carried-forward summary when a fallback had none. */
-const COMPACTION_FALLBACK_NO_SUMMARY =
-  "No previous context checkpoint is available.";
-
-/**
- * A retained-tail fallback stores any carried-forward summary ahead of the
- * recovery notice, separated by `COMPACTION_FALLBACK_MARKER` (see
- * `createFallbackCheckpoint`). Only the notice is synthetic: the text before
- * the marker is the real summary the failed compaction was carrying forward.
- * Strip the notice — and the "no previous summary" placeholder — so the next
- * summarization rebuilds from that real summary instead of updating a notice
- * that never was a summary (#224), without discarding the history it carried.
- */
-function stripCompactionFallbackNotice(
-  summary: string | undefined,
-): string | undefined {
-  if (!summary) return undefined;
-  const markerIndex = summary.indexOf(COMPACTION_FALLBACK_MARKER);
-  if (markerIndex === -1) return summary;
-  const carried = summary.slice(0, markerIndex).trim();
-  if (carried.length === 0 || carried === COMPACTION_FALLBACK_NO_SUMMARY) {
-    return undefined;
-  }
-  return carried;
-}
-
 /**
  * File operations for a summary chunk that must not re-append the checkpoint's
  * file lists: the last chunk carries the real ones, so a chained summary names
@@ -889,49 +528,6 @@ function pathInstructionScope(path: string): string {
 }
 
 /**
- * Appended for one automatic re-run after a turn that produced nothing the
- * user can see. Two shapes were observed: a wholly empty response, and a
- * finished conclusion written into reasoning while the visible text stayed
- * empty. The same nudge covers both, because both need the same next move.
- */
-const SILENT_TURN_NUDGE = [
-  "<no_output_recovery>",
-  "Your previous turn ended with no visible text and no tool call, so the user saw nothing happen.",
-  "Your reasoning is never shown to the user. If you already reached the answer, state it now in plain text.",
-  "Otherwise continue the unfinished work, starting with one sentence about what you are doing.",
-  "</no_output_recovery>",
-].join("\n");
-
-/**
- * Autonomous plan/goal execution: collaboration prompts ask the model to
- * narrate progress ("Writing it now.") then call a tool. Models often emit
- * that narration as a finished assistant message with `finish_reason: stop`
- * and no toolCall, so the runtime treats it as the final answer and ends the
- * run mid-task (#43). One automatic continue with this nudge, then stop.
- */
-const PROGRESS_TURN_NUDGE = [
-  "<progress_only_recovery>",
-  "Your last message announced next steps but contained no tool call, so the autonomous run would have stopped mid-task.",
-  "Continue the approved plan now: either call the tools for the work you just described, or write the final self-contained completion report.",
-  "Do not announce intent without a tool call in the same message.",
-  "</progress_only_recovery>",
-].join("\n");
-
-/**
- * Some OpenAI-style models emit their internal parallel-call wrapper as
- * assistant text (`to=multi_tool_use.parallel code:{"tool_uses":[…]}`) instead
- * of real tool calls. PI-Desktop has no such tool, so the whole batch lands as
- * prose and silently does nothing — the turn looks finished while no work ran.
- * Rare (2 occurrences across 255 recorded sessions) but indistinguishable from
- * a stuck agent when it happens.
- */
-export function looksLikePseudoToolCall(text: string): boolean {
-  return (
-    text.includes("multi_tool_use.parallel") || text.includes('{"tool_uses":')
-  );
-}
-
-/**
  * Automatic protection is on unless a caller explicitly disables it. The token
  * thresholds carried by the legacy settings shape are ignored: they are derived
  * from the active model's context window in `contextBudget`, because no single
@@ -998,21 +594,6 @@ const CONTEXT_COMPACTION_TOOL_DESCRIPTION =
  */
 const CONTEXT_COMPACTION_ALREADY_DONE =
   "A new context window was already started in this turn. Do not call new_context again; continue the task, or end your reply if nothing else is needed.";
-/**
- * mc-agent: the request appended after a finished reply to suggest the user's
- * next message. Everything before it is the conversation exactly as the last
- * request sent it, so the provider's prompt cache covers it.
- */
-const NEXT_PROMPT_SUGGESTION_REQUEST = [
-  "[Input suggestion request from the app, not from the user]",
-  "Predict the next message the user is most likely to send in this conversation.",
-  "Write it as the user would type it, in the language the user writes in, as one short sentence or command.",
-  "Reply with only that text: no quotes, no explanation, no tool calls.",
-  "If there is no clear next step, reply with nothing.",
-].join("\n");
-const NEXT_PROMPT_SUGGESTION_MAX_CHARS = 300;
-const NEXT_PROMPT_SUGGESTION_TIMEOUT_MS = 60_000;
-const NEXT_PROMPT_SUGGESTION_SETTLE_MS = 5_000;
 
 /**
  * Whether changing the thinking setting would make a request miss the cached
@@ -1023,20 +604,6 @@ const NEXT_PROMPT_SUGGESTION_SETTLE_MS = 5_000;
 export function thinkingChangesPromptCache(model: Pick<Model<Api>, "api" | "id">): boolean {
   if (model.api === "anthropic-messages") return true;
   return model.api.startsWith("bedrock") && /claude|anthropic/i.test(model.id);
-}
-
-/** The suggestion text from a model reply, or null when there is none to show. */
-export function nextPromptSuggestionText(message: AssistantMessage): string | null {
-  if (message.stopReason === "error" || message.stopReason === "aborted") return null;
-  if (message.content.some((block) => block.type === "toolCall")) return null;
-  const text = message.content
-    .flatMap((block) => (block.type === "text" ? [block.text] : []))
-    .join("")
-    .trim();
-  const line = text.split(/\r?\n/).find((part) => part.trim())?.trim() ?? "";
-  const unquoted = line.replace(/^["'“”「『](.*)["'“”」』]$/u, "$1").trim();
-  if (!unquoted || unquoted.length > NEXT_PROMPT_SUGGESTION_MAX_CHARS) return null;
-  return unquoted;
 }
 
 const CONTEXT_COMPACTION_TOOL_REPLY: Record<CompactionStrategy, string> = {
@@ -1229,53 +796,7 @@ function trustedExtensionIds(specs: TrustedExtensionSpec[]): string {
   return specs.map((spec) => spec.id).sort().join("\n");
 }
 
-function messageRequestsTools(message: unknown): boolean {
-  const content = isRecord(message) ? message.content : undefined;
-  return (
-    Array.isArray(content) &&
-    content.some((part) => isRecord(part) && part.type === "toolCall")
-  );
-}
-
-const PROGRESS_FORWARD_INTENT_PATTERNS = [
-  /\b(?:about to|going to|will|next|then|still(?: need| have to)?|remaining|left to|working on|writing|reading|updating|implementing|checking|running|creating|fixing|reviewing|proceed(?:ing)?|continu(?:e|ing)|starting|moving on)\b/i,
-  /(?:接下来|下一步|还需要|仍需|剩下|正在|将要|继续|开始)/i,
-];
-const PROGRESS_TERMINAL_LEAD =
-  /^(?:done|all done|complete(?:d)?|finished|implemented|resolved|verified|successful(?:ly)?|the (?:approved )?(?:plan|goal) is complete)\b/i;
-
-function hasProgressForwardIntent(text: string): boolean {
-  return PROGRESS_FORWARD_INTENT_PATTERNS.some((pattern) => pattern.test(text));
-}
-
-/** Clearly forward-looking visible assistant text without a toolCall. */
-export function isProgressOnlyAssistantTurn(message: unknown): boolean {
-  if (!isRecord(message) || message.role !== "assistant") return false;
-  if (messageRequestsTools(message)) return false;
-  const content = isRecord(message) ? message.content : undefined;
-  const text = assistantContent(content).text.trim();
-  if (!text || !hasProgressForwardIntent(text)) return false;
-  if (!PROGRESS_TERMINAL_LEAD.test(text)) return true;
-
-  // A report can mention a completed step and still announce the next one.
-  // Only recover a terminal-looking lead when a later clause carries the
-  // forward intent that distinguishes it from a normal final report.
-  return hasProgressForwardIntent(text.replace(PROGRESS_TERMINAL_LEAD, ""));
-}
-
-function boundedText(value: string, maxChars: number): string {
-  const text = value.trim();
-  if (text.length <= maxChars) return text;
-  const marker = "\n\n[context recovery summary shortened]\n\n";
-  const available = Math.max(2, maxChars - marker.length);
-  const headChars = Math.ceil(available / 2);
-  const tailChars = Math.floor(available / 2);
-  return `${text.slice(0, headChars)}${marker}${text.slice(-tailChars)}`;
-}
-
 type CheckpointPersistResult = "persisted" | "oversized" | "failed";
-
-type CompactionRetentionMode = "active_turn" | "completed_turn";
 
 /**
  * A pi preparation plus the anchor the checkpoint is filed against.
@@ -1329,96 +850,6 @@ type CheckpointBuildFailure = {
 };
 
 type CheckpointBuild = CheckpointBuildSuccess | CheckpointBuildFailure;
-
-function compactionRetentionMode(details: unknown): CompactionRetentionMode {
-  // Checkpoints written before the task-boundary fix did not record whether
-  // their retained users belonged to an in-progress turn. Treat those
-  // records as active, but still reduce them to one latest user message so a
-  // restart cannot restore a sequence of executable-looking old requests.
-  return isRecord(details) && details.retainedTailMode === "completed_turn"
-    ? "completed_turn"
-    : "active_turn";
-}
-
-/**
- * The messages a stored checkpoint replays as real context after its summary.
- *
- * A checkpoint that recorded {@link COMPACTION_RETAINED_TAIL_SHAPE} keeps the
- * whole window it stored: it is a failed compaction's only record of the range
- * behind it, so narrowing the tail back to one user message would reinstate
- * exactly the amnesia the window fixes (#827). Records written before that
- * marker existed — and every successful checkpoint — keep the older
- * normalization: at most the latest user message, and none at all once the turn
- * is complete, so a restart cannot restore a sequence of executable-looking old
- * requests.
- */
-function retainedTailForContext(
-  value: unknown,
-  details?: unknown,
-): AgentMessage[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  if (
-    isRecord(details) &&
-    details.retainedTailShape === COMPACTION_RETAINED_TAIL_SHAPE
-  ) {
-    return replayRetainedTail(value) ?? [];
-  }
-  const messages = value
-    .filter(isRecord)
-    .filter((message) => message.role === "user") as unknown as AgentMessage[];
-  if (compactionRetentionMode(details) === "completed_turn") return [];
-  const latestUser = messages.at(-1);
-  return latestUser ? [latestUser] : [];
-}
-
-function safeJson(value: unknown): string {
-  try {
-    return JSON.stringify(value) ?? String(value);
-  } catch {
-    return String(value);
-  }
-}
-
-const MIN_COMMAND_TIMEOUT_SECONDS = 1;
-/** Host safety bound so every spawn still has a finite deadline (D329). */
-const MAX_COMMAND_TIMEOUT_SECONDS = 21_600;
-/**
- * Schema ceiling for `Bash.timeout`, not an honoured duration. It has to admit
- * millisecond values models send, then the runtime reads those as seconds and
- * clamps to {@link MAX_COMMAND_TIMEOUT_SECONDS} (D273 / D329).
- */
-const MAX_ACCEPTED_COMMAND_TIMEOUT = 100_000_000;
-/**
- * Argument names models reach for instead of ours, mapped to the canonical
- * name. Every strong model has `file_path`/`query` burned in from pretraining
- * and sends them regardless of what the schema says, so the schema accepts both
- * spellings and {@link normalizeToolParams} folds the alias away before the
- * host sees the call (D273). Weaker models — issue #454 pinned longcat 2.0 —
- * reach for `filepath` / `filename` / `filePath` / `file` instead; folding
- * those the same way rescues the turn before the model gives up on the tool
- * and silently falls back to Bash.
- */
-const PATH_ARG_ALIASES = {
-  file_path: "path",
-  filepath: "path",
-  filePath: "path",
-  filename: "path",
-  fileName: "path",
-  file: "path",
-} as const;
-const TOOL_PARAM_ALIASES: Record<string, Record<string, string>> = {
-  Read: { ...PATH_ARG_ALIASES },
-  Write: { ...PATH_ARG_ALIASES },
-  Edit: { ...PATH_ARG_ALIASES },
-  BrowserPreview: { ...PATH_ARG_ALIASES },
-  Glob: { query: "pattern" },
-  Grep: { query: "pattern" },
-  // mc-agent background commands (MC-ADR-0006). Bash's optional
-  // `run_in_background` spelling is read by host-core, since aliases here are
-  // required parameters.
-  BashOutput: { bash_id: "backgroundId", shell_id: "backgroundId" },
-  KillBash: { bash_id: "backgroundId", shell_id: "backgroundId" },
-};
 const TOOL_OUTPUT_UPDATE_THROTTLE_MS = 100;
 const READ_ONLY_CORE_TOOLS = new Set(["Read", "Glob", "Grep"]);
 /**
@@ -1431,189 +862,6 @@ const TOOL_ABORT_GRACE_MS = 10_000;
 const MAX_TOOL_PROGRESS_CHARS = 64 * 1024;
 const TOOL_PROGRESS_TRUNCATION_MARKER =
   "\n\n[tool output progress truncated]\n\n";
-
-function shellScratchVariable(shell: CommandShellOption): string {
-  switch (shell.dialect) {
-    case "powershell":
-      return "$env:PI_SCRATCH_DIR";
-    case "cmd":
-      return "%PI_SCRATCH_DIR%";
-    case "posix":
-      return "$PI_SCRATCH_DIR";
-  }
-}
-
-function shellSyntaxGuidance(shell: CommandShellOption): string {
-  switch (shell.dialect) {
-    case "powershell":
-      return "Use native Windows PowerShell syntax and Windows paths such as `C:\\work\\file.txt` or `.\\file.txt`.";
-    case "cmd":
-      return "Use native cmd.exe syntax and Windows paths such as `C:\\work\\file.txt` or `.\\file.txt`.";
-    case "posix":
-      return "Use native POSIX shell syntax and forward-slash paths such as `/work/file.txt` or `./file.txt`.";
-  }
-}
-
-export function formatScratchDirForShell(
-  shell: CommandShellOption,
-  scratchDir?: string,
-): string | undefined {
-  if (!scratchDir) return undefined;
-  if (shell.dialect === "posix") {
-    // POSIX shells (including Git Bash on Windows) require forward slashes.
-    return scratchDir.replaceAll("\\", "/");
-  }
-  return scratchDir;
-}
-
-export function commandShellGuidance(
-  shell: CommandShellOption,
-  scratchDir?: string,
-): string {
-  const scratchVariable = shellScratchVariable(shell);
-  const formattedScratch = formatScratchDirForShell(shell, scratchDir);
-  const scratch = formattedScratch
-    ? `The session scratch directory is \`${formattedScratch}\`; use ${scratchVariable} for it and keep temporary files there.`
-    : `When PI_SCRATCH_DIR is available, use ${scratchVariable} for the session scratch directory and keep temporary files there.`;
-  return [
-    `Shell commands run through ${shell.label} (${shell.id}). The protocol tool remains named Bash for compatibility, even when the active shell is PowerShell or cmd.`,
-    shellSyntaxGuidance(shell),
-    scratch,
-  ].join(" ");
-}
-
-function commandShellToolDescription(
-  shell: CommandShellOption,
-  scratchDir?: string,
-): string {
-  const formattedScratch = formatScratchDirForShell(shell, scratchDir);
-  return [
-    `Run a non-interactive command through ${shell.label} in the workspace root.`,
-    "The protocol tool remains named Bash for compatibility; write commands for the active shell dialect.",
-    shellSyntaxGuidance(shell),
-    `The session scratch directory variable is ${shellScratchVariable(shell)}.`,
-    `An optional timeout from 1 to ${MAX_COMMAND_TIMEOUT_SECONDS} seconds may be supplied; without it, the command defaults to a 60-second timeout.`,
-    `Set runInBackground: true for long-lived processes the user needs after the turn ends (dev servers, watchers, builds). A background call returns a backgroundTaskId immediately, survives turn aborts and timeouts, and its output is visible in the composer's running-tasks bar; do not set it for commands whose output the current turn depends on. When a background command exits on its own you get an automatic notice with its exit code and last output, even after your turn has ended, so never sleep or poll in a loop waiting for one to finish.`,
-    ...(formattedScratch ? [`The session scratch directory is ${formattedScratch}.`] : []),
-  ].join(" ");
-}
-
-/**
- * A canonical argument that an alias can stand in for. It has to be optional in
- * the schema — the alias satisfies it — so {@link requireAliasedParams} enforces
- * "exactly one spelling" after {@link normalizeToolParams} has run.
- */
-function pathParam(description: string) {
-  return Type.Optional(Type.String({ description }));
-}
-
-/** The alias spelling of `canonical`, accepted but never advertised as first choice. */
-function aliasParam(canonical: string) {
-  return Type.Optional(
-    Type.String({ description: `Alias for \`${canonical}\`.` }),
-  );
-}
-
-/**
- * Fails a call that named neither the canonical argument nor its alias. Without
- * this the now-optional canonical argument would reach the host as `undefined`
- * and surface as a confusing host-side error instead of a schema one.
- */
-function requireAliasedParams(toolName: string, params: unknown): void {
-  const aliases = TOOL_PARAM_ALIASES[toolName];
-  if (!aliases || !isRecord(params)) return;
-  for (const canonical of new Set(Object.values(aliases))) {
-    if (params[canonical] !== undefined) continue;
-    // A weaker model that keeps hitting this error gives up on the tool and
-    // silently switches to Bash (issue #454). Naming the accepted spellings and
-    // showing a minimal example lets the next call self-correct instead of the
-    // whole turn falling back to shell.
-    const acceptedAliases = Object.keys(aliases).filter(
-      (alias) => aliases[alias] === canonical,
-    );
-    const aliasHint =
-      acceptedAliases.length > 0
-        ? ` (the alias${acceptedAliases.length > 1 ? "es" : ""} ${acceptedAliases
-            .map((name) => `\`${name}\``)
-            .join(", ")} ${acceptedAliases.length > 1 ? "are" : "is"} also accepted)`
-        : "";
-    throw Object.assign(
-      new Error(
-        `Invalid arguments for ${toolName}: \`${canonical}\` is required${aliasHint}. Example: {"${canonical}": "..."}.`,
-      ),
-      { errorCode: "INVALID_ARGUMENT" },
-    );
-  }
-}
-
-/**
- * Folds aliased argument names onto the canonical ones and reads a Bash
- * `timeout` that arrived in milliseconds as seconds (D273). Both rewrites are
- * silent: the call succeeds as the model intended rather than costing a turn on
- * a validation error the model cannot see. Returns `params` unchanged when
- * there is nothing to rewrite so the common path allocates nothing.
- */
-function normalizeToolParams(toolName: string, params: unknown): unknown {
-  if (!isRecord(params)) return params;
-  const aliases = TOOL_PARAM_ALIASES[toolName];
-  // A value above the honoured seconds ceiling is the millisecond habit (D273 /
-  // D329). In-range values, including 600 and 1800, are seconds the agent chose.
-  const timeoutIsMs =
-    toolName === "Bash" &&
-    typeof params.timeout === "number" &&
-    Number.isFinite(params.timeout) &&
-    params.timeout > MAX_COMMAND_TIMEOUT_SECONDS;
-  const aliased = aliases
-    ? Object.keys(aliases).filter((alias) => params[alias] !== undefined)
-    : [];
-  if (aliased.length === 0 && !timeoutIsMs) return params;
-  const next = { ...params };
-  for (const alias of aliased) {
-    const canonical = aliases![alias];
-    // The canonical spelling wins if a call carries both; either way the alias
-    // is dropped so the host and the transcript never see it.
-    if (next[canonical] === undefined) next[canonical] = next[alias];
-    delete next[alias];
-  }
-  if (timeoutIsMs) {
-    // Above the honoured seconds ceiling is milliseconds (D273 / D329).
-    next.timeout = Math.min(
-      MAX_COMMAND_TIMEOUT_SECONDS,
-      Math.max(
-        MIN_COMMAND_TIMEOUT_SECONDS,
-        Math.round((params.timeout as number) / 1000),
-      ),
-    );
-  }
-  return next;
-}
-
-function commandTimeoutMs(params: unknown): number {
-  const timeout = isRecord(params) ? params.timeout : undefined;
-  if (timeout === undefined) return DEFAULT_COMMAND_TIMEOUT_MS;
-  if (
-    typeof timeout !== "number" ||
-    !Number.isFinite(timeout) ||
-    timeout < MIN_COMMAND_TIMEOUT_SECONDS
-  ) {
-    throw Object.assign(
-      new Error(
-        `Invalid timeout: must be a finite number of seconds between ${MIN_COMMAND_TIMEOUT_SECONDS} and ${MAX_COMMAND_TIMEOUT_SECONDS}`,
-      ),
-      { errorCode: "INVALID_ARGUMENT" },
-    );
-  }
-  if (timeout > MAX_COMMAND_TIMEOUT_SECONDS) {
-    throw Object.assign(
-      new Error(
-        `Invalid timeout: maximum is ${MAX_COMMAND_TIMEOUT_SECONDS} seconds`,
-      ),
-      { errorCode: "INVALID_ARGUMENT" },
-    );
-  }
-  const timeoutMs = Math.ceil(timeout * 1000);
-  return timeoutMs;
-}
 
 function appendToolProgress(current: string, chunk: string): string {
   const combined = `${current}${chunk}`;
@@ -1688,165 +936,6 @@ function selectRetainedUserMessages(
   return selected.reverse();
 }
 
-/**
- * Model-visible text for one host tool content block. Besides plain `text`
- * blocks, MCP servers return file bodies as embedded text resources and large
- * payloads as resource links (github-mcp-server `get_file_contents` sends a
- * status line plus one of these), so dropping them next to a sibling text
- * block hides the actual result from the model. Binary resources and other
- * block kinds have no text to show and stay out of the text channel.
- */
-function hostContentBlockText(block: unknown): string | undefined {
-  if (!isRecord(block)) return undefined;
-  if (block.type === "text" && typeof block.text === "string") return block.text;
-  if (
-    block.type === "resource" &&
-    isRecord(block.resource) &&
-    typeof block.resource.text === "string"
-  ) {
-    return block.resource.text;
-  }
-  if (block.type === "resource_link" && typeof block.uri === "string") {
-    const name = typeof block.name === "string" && block.name.trim()
-      ? `${block.name.trim()}: `
-      : "";
-    return `[resource link] ${name}${block.uri}`;
-  }
-  return undefined;
-}
-
-/**
- * JSON text fallback for a host result that produced no text blocks. Image
- * `data` and resource `blob` bytes stay off the text channel; type, mimeType,
- * and uri remain so the model still sees what was attached.
- */
-function withoutInlineBinary(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map((entry) => withoutInlineBinary(entry));
-  if (!isRecord(value)) return value;
-  const next: Record<string, unknown> = {};
-  for (const [key, entry] of Object.entries(value)) {
-    if (key === "data" && value.type === "image") continue;
-    if (key === "resource" && value.type === "resource" && isRecord(entry)) {
-      const resource: Record<string, unknown> = {};
-      for (const [resourceKey, resourceValue] of Object.entries(entry)) {
-        if (resourceKey === "blob") continue;
-        resource[resourceKey] = withoutInlineBinary(resourceValue);
-      }
-      next.resource = resource;
-      continue;
-    }
-    next[key] = withoutInlineBinary(entry);
-  }
-  return next;
-}
-
-/** Rebuild a pi-ai tool result from a persisted tool row. Rows that never
- * finished (app quit / abort mid-tool) restore as errored results so the
- * model knows the call produced nothing. Exported for tests. */
-export function toolResultFromUi(
-  m: UiMessage,
-  timestamp: number,
-): ToolResultMessage {
-  const raw: unknown = m.toolResult;
-  const blocks: ToolResultMessage["content"] = [];
-  const rawBlocks =
-    isRecord(raw) && Array.isArray(raw.content) ? raw.content : undefined;
-  if (rawBlocks) {
-    for (const b of rawBlocks) {
-      if (!isRecord(b)) continue;
-      // Same text rule as live execution: embedded MCP resources and resource
-      // links stay visible after a session restore. Binary resources have no
-      // text and stay out.
-      const blockText = hostContentBlockText(b);
-      if (blockText !== undefined) {
-        blocks.push({ type: "text", text: blockText });
-      } else if (
-        b.type === "image" &&
-        typeof b.data === "string" &&
-        typeof b.mimeType === "string"
-      ) {
-        blocks.push({ type: "image", data: b.data, mimeType: b.mimeType });
-      }
-    }
-  } else if (Array.isArray(raw)) {
-    // Plugin tools may return a bare content-block array; restore its text
-    // and image blocks so a restart does not flatten them into JSON (#1360).
-    for (const b of raw) {
-      if (!isRecord(b)) continue;
-      const blockText = hostContentBlockText(b);
-      if (blockText !== undefined) {
-        blocks.push({ type: "text", text: blockText });
-      } else if (
-        b.type === "image" &&
-        typeof b.data === "string" &&
-        typeof b.mimeType === "string"
-      ) {
-        blocks.push({ type: "image", data: b.data, mimeType: b.mimeType });
-      }
-    }
-  } else if (typeof raw === "string" && raw.trim()) {
-    blocks.push({ type: "text", text: raw });
-  } else if (raw !== undefined && raw !== null) {
-    // A host Read of an image file returns a top-level `images` array rather
-    // than content blocks; restore those as real image content so the model
-    // sees the picture across a restart, not just the JSON text (#1073).
-    const rawObject = isRecord(raw) ? raw : undefined;
-    const images = rawObject?.images;
-    if (rawObject && Array.isArray(images)) {
-      const rest = { ...rawObject };
-      delete rest.images;
-      blocks.push({ type: "text", text: safeJson(rest) });
-      for (const image of images) {
-        if (
-          isRecord(image) &&
-          typeof image.data === "string" &&
-          typeof image.mimeType === "string"
-        ) {
-          blocks.push({ type: "image", data: image.data, mimeType: image.mimeType });
-        }
-      }
-    } else {
-      blocks.push({ type: "text", text: safeJson(raw) });
-    }
-  }
-  const interrupted = m.toolStatus === "running";
-  const rawRecord: Record<string, unknown> | undefined = isRecord(raw)
-    ? raw
-    : undefined;
-  const rawAddedToolNames = rawRecord?.addedToolNames;
-  const addedToolNames =
-    m.toolName === TOOL_SEARCH_NAME
-      ? toolSearchActivatedNames(rawRecord?.details, rawAddedToolNames)
-      : toolNameList(rawAddedToolNames);
-  if (blocks.length === 0) {
-    blocks.push({
-      type: "text",
-      text: interrupted
-        ? "[tool call was interrupted before a result was recorded]"
-        : MISSING_TOOL_RESULT_PLACEHOLDER,
-    });
-  }
-  return {
-    role: "toolResult",
-    toolCallId: m.toolCallId ?? "",
-    toolName: m.toolName ?? "",
-    content: blocks,
-    ...(toJsonValue(rawRecord?.details) !== undefined || addedToolNames.length > 0
-      ? {
-          details: {
-            ...toJsonObject(rawRecord?.details),
-            ...(addedToolNames.length > 0 ? { addedToolNames } : {}),
-          },
-        }
-      : {}),
-    isError:
-      interrupted ||
-      m.toolStatus === "error" ||
-      m.toolStatus === "denied" ||
-      m.isError === true,
-    timestamp,
-  };
-}
 
 function estimateToolTokenUsage(
   model: Model<Api>,
@@ -1988,7 +1077,7 @@ export class DesktopAgentRuntime {
    * Background delegations of this session (ADR 0089). `Task` starts one and
    * returns; `TaskWait`/`TaskList`/`TaskStop` drive it afterwards.
    */
-  private delegations = new Map<string, DelegationRecord>();
+  private readonly delegations = new DelegationRegistry();
   /** Resumable chains rebuilt from the transcript and updated as Task settles. */
   private readonly delegationChains = new DelegationChainRegistry();
   /** Transcript rows used to rebuild a resumed delegate's context (ADR 0279):
@@ -2239,11 +1328,7 @@ export class DesktopAgentRuntime {
     /** The assistant message this request produced, once it ended. */
     reply?: unknown;
   };
-  /** mc-agent: the in-flight next-prompt suggestion; a new turn cancels it. */
-  private suggestionAbort?: AbortController;
-  /** mc-agent: the suggestion made for a reply, and one still being made. */
-  private suggestion?: { reply: unknown; text: string | null };
-  private suggestionInFlight?: { reply: unknown; result: Promise<string | null | undefined> };
+  private readonly suggestions = new NextPromptSuggestions();
   /** One-shot request to finish the current turn at the next boundary. */
   private gracefulStopRequested = false;
   /** Codex's `claim_*` flags: one of each reminder per context window. */
@@ -2316,7 +1401,7 @@ export class DesktopAgentRuntime {
     const runtimeApiKey = providerRequestKey(this.provider);
 
     this.transcriptHistory = [...(opts.history ?? [])];
-    this.fullEntries = this.historyToEntries(this.transcriptHistory);
+    this.fullEntries = historyToEntries(this.transcriptHistory, this.provider, this.model, this.systemJournal);
     this.uniqueToolCalls = createToolCallIdentity(this.fullEntries.map((entry) => entry.message));
     this.activeCompaction = restorableCompaction(this.transcriptHistory,
       opts.compactions ?? (opts.compaction ? [opts.compaction] : []), this.fullEntries);
@@ -3452,154 +2537,6 @@ export class DesktopAgentRuntime {
    * turns after a restart. Losing either (the pre-D120 tool behavior)
    * collapsed a reseeded session to bare chat text. Failed assistant turns
    * stay transcript-only. */
-  private historyToEntries(history: UiMessage[]): MessageEntry[] {
-    const api = apiBindingForProviderModel(this.provider).api;
-    const deepSeekCompletionsReplay =
-      api === "openai-completions" &&
-      (
-        this.model.compat as
-          | { requiresReasoningContentOnAssistantMessages?: boolean }
-          | undefined
-      )?.requiresReasoningContentOnAssistantMessages === true;
-    const entries: MessageEntry[] = [];
-    const append = (id: string, message: AgentMessage): MessageEntry => {
-      const entry: MessageEntry = {
-        type: "message",
-        id,
-        seq: entries.length,
-        parentId: entries.at(-1)?.id ?? null,
-        timestamp: timestampMs(message.timestamp),
-        message,
-      };
-      entries.push(entry);
-      return entry;
-    };
-    // Tool rows attach their calls to the assistant message that made them
-    // (the nearest one above), keeping each call adjacent to its result as
-    // the provider APIs require.
-    let toolCarrier: AssistantMessage | undefined;
-    for (const m of orderSystemRows(history)) {
-      // Subagent rows belong to the transcript and to review, never to the
-      // parent's model context (ADR 0062): the parent only ever saw the `Task`
-      // report, and replaying a delegate's messages would both contradict that
-      // and reintroduce the context cost delegation exists to avoid.
-      if (m.parentToolCallId) continue;
-      const timestamp = Date.parse(m.createdAt) || Date.now();
-      if (m.role === "system" && m.modelSystem) {
-        // An update recorded while a tool ran sits between the call and its
-        // result. It keeps the carrier: Pi holds the update until the results
-        // are written, which is the shape the live request had.
-        append(m.id, this.systemJournal.restore(m));
-      } else if (m.role === "user") {
-        toolCarrier = undefined;
-        const attachments = (m.attachments ?? []).map((attachment) =>
-          runtimeAttachmentFromMessage(
-            attachment,
-            attachment.data,
-          ),
-        );
-        const content = promptContent({
-          text: m.sessionMessage ? formatSessionMessage(m.content, m.sessionMessage) : m.content,
-          attachments,
-        });
-        if (
-          !(m.content || "").trim() &&
-          !attachments.some((attachment) => attachment.data)
-        ) {
-          continue;
-        }
-        append(m.id, { role: "user", content, timestamp });
-      } else if (m.role === "assistant") {
-        toolCarrier = undefined;
-        // Failed provider responses belong in the transcript for diagnosis,
-        // but must never become model context on the next turn.
-        if (m.status === "error" || m.isError || m.error) continue;
-        const content: AssistantMessage["content"] = [];
-        if (m.thinking?.trim()) {
-          // Completions DeepSeek replay needs thinkingSignature so convertMessages
-          // maps the block to reasoning_content instead of dropping it (#296).
-          content.push({
-            type: "thinking" as const,
-            thinking: m.thinking,
-            ...(deepSeekCompletionsReplay
-              ? { thinkingSignature: "reasoning_content" as const }
-              : {}),
-          });
-        }
-        content.push(...restoreHostedSearchReplay(m.hostedSearch));
-        if (m.content?.trim()) {
-          content.push({ type: "text" as const, text: m.content });
-        }
-        // Kept even when empty: a call-only turn has no text of its own and
-        // becomes the carrier for the tool rows that follow. Assistants that
-        // end up with no content and no calls are dropped at the end.
-        const assistant: AssistantMessage = {
-          role: "assistant",
-          content,
-          api,
-          // Persisted providerId identifies a local account; Pi compares its
-          // vendor identity to decide whether native thinking can be replayed.
-          // Keep known account/model switches distinct; legacy rows have no
-          // source identity and retain the existing current-model fallback.
-          provider: !m.providerId || m.providerId === this.provider.id
-            ? this.model.provider : m.providerId,
-          model: m.modelId || this.model.id,
-          usage: usageToPi(m.usage),
-          stopReason: "stop",
-          timestamp,
-        };
-        append(m.id, assistant);
-        toolCarrier = assistant;
-      } else if (m.role === "tool") {
-        if (!m.toolCallId || !m.toolName) continue;
-        if (!toolCarrier) {
-          // Tool row whose assistant row was lost (truncated branch):
-          // synthesize a carrier so the call/result pair stays well-formed.
-          toolCarrier = {
-            role: "assistant",
-            content: [],
-            api,
-            provider: this.model.provider,
-            model: this.model.id,
-            usage: usageToPi(undefined),
-            stopReason: "toolUse",
-            timestamp,
-          };
-          append(`${m.id}:carrier`, toolCarrier);
-        }
-        toolCarrier.content.push({
-          type: "toolCall",
-          id: m.toolCallId,
-          name: m.toolName,
-          arguments: toJsonObject(m.toolArgs),
-        });
-        toolCarrier.stopReason = "toolUse";
-        append(m.id, toolResultFromUi(m, timestamp));
-      }
-    }
-    return entries.filter(
-      (entry) =>
-        entry.message.role !== "assistant" || entry.message.content.length > 0,
-    );
-  }
-
-  /**
-   * A `tool_use` id has to be unique across the request: Anthropic-family
-   * endpoints (DeepSeek's included) reject the whole turn with "tool_use ids
-   * must be unique" (issue #718), and a session that hits that 400 cannot
-   * continue. Every message the next request carries passes through here, so
-   * this is the one place that can guarantee the provider's rule for both a
-   * rebuilt context and one that grew during this process.
-   *
-   * The transcript is append-only and tolerates a retried append, so the same
-   * call can reach the request twice: under the same row id (which the host's
-   * keep-last dedupe already collapses) or a new one (which it cannot). The
-   * first pending occurrence wins; a later completed pair is retained under
-   * a fresh request id. New streamed executions are normalized before they
-   * reach this guard or the journal. What was dropped is logged with its ids,
-   * because the next report should name the writer instead of only the
-   * provider's sentence.
-   */
   private dropDuplicateToolCalls(messages: AgentMessage[]): AgentMessage[] {
     const drop = dedupeToolCallMessages(messages);
     reportDuplicateToolCallDrop(this.sessionId, drop);
@@ -3659,216 +2596,7 @@ export class DesktopAgentRuntime {
   }
 
   private buildToolDefinitions(): AgentTool[] {
-    // With a scratch dir provisioned, file tools accept absolute paths into
-    // it as a second root (D114); keep the wording in sync with host-core.
-    const scratchPathHint = this.scratchDir
-      ? " `path` is workspace-relative, or an absolute path inside the session scratch directory."
-      : "";
-    const externalPathHint =
-      " An explicit path outside the workspace and session scratch roots requires permission unless the effective mode is Auto.";
-    const describe = (toolName: string): string => {
-      if (toolName === "GenerateImages") return imageGenerationDescription;
-      // mc-agent creative studio (docs/mc-agent/creative-studio.md).
-      if (toolName === "SaveCreativeAsset") return saveCreativeAssetDescription;
-      // mc-agent project memory notes (MC-ADR-0019).
-      if (toolName === REMEMBER_TOOL_NAME) return rememberDescription;
-      // mc-agent prototype canvas (docs/mc-agent/prototype-canvas.md).
-      if (toolName in panelToolDescriptions) return panelToolDescriptions[toolName];
-      if (toolName in canvasToolDescriptions) return canvasToolDescriptions[toolName as keyof typeof canvasToolDescriptions];
-      // mc-agent project creation from the conversation (MC-ADR-0023).
-      if (toolName === PROJECT_TEMPLATES_TOOL_NAME) return projectTemplatesDescription;
-      if (toolName === CREATE_PROJECT_TOOL_NAME) return createProjectDescription;
-      // mc-agent alchemy references and artifact proposals (R41).
-      if (toolName === RESOLVE_REF_TOOL_NAME) return resolveRefDescription;
-      if (toolName === PROPOSE_ALCHEMY_TOOL_NAME) return proposeAlchemyDescription;
-      if (scheduledToolDescriptions[toolName]) return scheduledToolDescriptions[toolName];
-      switch (toolName) {
-        case "BrowserPreview":
-          return "Open an HTML file in PI-Desktop's built-in browser panel. `path` may be relative to a project folder or this session's scratch directory, or an absolute path inside those roots. No project is required for scratch previews. The preview live-reloads on later edits to the file or its sibling assets, so call once per page.";
-        case "Read":
-          return (
-            "Read a bounded window from an existing regular text file, never a directory. " +
-            "The result always includes `totalLines` so you know the file\'s scale upfront. " +
-            "`content` is line-numbered (`N:`) under a `[path#TAG]` header; `tag` is the whole-file 4-hex Edit anchor. " +
-            "`truncated` is true only when this window was cut short, not merely because the file continues. " +
-            "For files beyond the default window, use Grep to locate the target content first, then Read " +
-            "the relevant range with `offset` and `limit`. Activate and use Glob " +
-            "when a directory must be listed or the file name is uncertain." +
-            `${scratchPathHint}${externalPathHint}`
-          );
-        case "Glob":
-          return (
-            "List files by glob pattern, newest first. Use `path` to scope the " +
-            "directory and `limit` to bound results; patterns use `/` as a " +
-            "portable separator." +
-            `${scratchPathHint}${externalPathHint}`
-          );
-        case "Grep":
-          return (
-            "Search file contents with a Rust-compatible regex. `path` may name one file " +
-            "or a directory tree. Use `path` and " +
-            "`include` to narrow the scan, `headLimit` to bound results, and " +
-            'outputMode: "filesWithMatches" or "count" when content is unnecessary; ' +
-            "`path` accepts portable relative paths." +
-            `${scratchPathHint}${externalPathHint}`
-          );
-        case "Write":
-          return `Create or overwrite a file. Deliverables go into the workspace; temporary/intermediate files go into the scratch directory.${scratchPathHint}${externalPathHint}`;
-        case "Edit":
-          return `Replace, insert, or delete lines in an existing file. Names positions and supplies new content only — never old_string. Required: path, tag (4 hex from the latest Read/Grep/Write/Edit), ops. Ops: PUT N.=M: replace inclusive lines N–M; PUT <N: insert before N; PUT >N: insert after N; PUT >$: append; CUT N.=M delete; REM delete the file; MV DEST rename after other ops. Body rows are + plus the final line text. Every PUT with body rows must include the trailing colon, for example PUT 48.=48:; PUT 48.=48 followed by + rows is invalid. A colonless PUT is only for a register paste such as PUT <1 @name. No -old or context rows. Ranges name only the lines being changed. Re-ground on the tag returned by every successful write. After one failed Edit, classify the error: Read the live file for a stale tag or unseen lines (or retry unchanged on a complete EDIT_LINES_UNSEEN reveal), but correct syntax or range errors directly; do not guess. Do not edit the same path concurrently.${scratchPathHint}${externalPathHint}`;
-        case "Bash":
-          return `${commandShellToolDescription(this.commandShell, this.scratchDir)} Use Edit or Write instead of apply_patch, git apply, or patch; do not retry a failed shell patch command repeatedly.${this.mode === "agent" ? " Read a background command's new output with BashOutput and stop it with KillBash once it is no longer needed; both take the backgroundTaskId the call returned as backgroundId." : ""}`;
-        case "BashOutput":
-          return "Read the new output of a background command started with Bash runInBackground, since your last read, plus its status (running, exited, failed with exitCode, stopped). stdout is in output and stderr in stderr; when much was printed only the latest part is returned. You are notified automatically when a background command exits, so use this to check progress or read the full output, not to wait for the end.";
-        case "KillBash":
-          return "Stop a background command started with Bash runInBackground, including the processes it started. Stop servers and watchers you started once the task no longer needs them.";
-        case "TodoWrite":
-          return todoWriteDescription;
-        case ASK_TOOL_NAME:
-          return `Ask the user one or more questions. Keep each question to ${MAX_ASK_TOOL_QUESTION_CHARS} characters or fewer. Use Markdown in question text and option labels when formatting helps (for example, emphasis, inline code, or lists); the desktop card renders it safely. Plain strings and existing { label, description? } options are accepted; descriptions remain plain text and answers return the selected source label. The card always provides a custom user-input option. For a reversible, nonessential preference, set importance="optional" and recommendedOption to the exact label you recommend. If the user enabled automatic continuation, the runtime may use that recommendation after its deadline; this is an assumption, never a user answer or authorization. Keep important decisions, missing essential facts, destructive actions, access grants, and external commitments required (the default). Never use asktool to bypass tool permissions or plan/goal approval. A later user answer may revise the assumption; reconcile it with work already done.`;
-        case "PluginScaffold":
-          return "Create a PI-Desktop plugin from a template and load it for development. `directory` is workspace-relative and must be empty or new; `template` is one of panel-basic, agent-tool-basic, skill-pack, full-demo. Use this instead of hand-writing plugin files.";
-        case "PluginCheck":
-          return "Validate a PI-Desktop plugin directory against every rule the installer enforces (manifest, entry file, panel, skills, permissions, package limits). `directory` is workspace-relative. Run this before packaging.";
-        case "PluginPack":
-          return "Package a PI-Desktop plugin directory into an installable dist/<id>-<version>.piplug. `directory` is workspace-relative. Runs the same validation as PluginCheck first and refuses to package a plugin with errors. Never build a .piplug with shell tools — the installer only accepts uncompressed archives.";
-        default:
-          return `${toolName} tool via PI-Desktop host-core`;
-      }
-    };
-    // One entry per tool: the shapes diverge enough that a chain of ternaries
-    // stopped being readable.
-    const parameters: Record<string, Parameters<typeof Type.Object>[0]> = {
-      GenerateImages: imageGenerationParameters,
-      SaveCreativeAsset: saveCreativeAssetParameters,
-      [REMEMBER_TOOL_NAME]: rememberParameters,
-      ...canvasToolParameters,
-      ...panelToolParameters,
-      [PROJECT_TEMPLATES_TOOL_NAME]: projectTemplatesParameters,
-      [CREATE_PROJECT_TOOL_NAME]: createProjectParameters,
-      [RESOLVE_REF_TOOL_NAME]: resolveRefParameters,
-      [PROPOSE_ALCHEMY_TOOL_NAME]: proposeAlchemyParameters,
-      TodoWrite: todoWriteParameters,
-      Read: {
-        path: pathParam(
-          "Existing regular file only, never a directory; workspace-relative or explicitly approved.",
-        ),
-        file_path: aliasParam("path"),
-        offset: Type.Optional(
-          Type.Number({ minimum: 0, description: "0-based line offset; defaults to 0." }),
-        ),
-        limit: Type.Optional(
-          Type.Number({ minimum: 1, description: "Maximum lines to return; defaults to 2000." }),
-        ),
-      },
-      BrowserPreview: {
-        path: pathParam("File to preview inside the session's project folders or scratch directory."),
-        file_path: aliasParam("path"),
-      },
-      Glob: {
-        pattern: pathParam("Glob pattern, for example **/*.ts."),
-        query: aliasParam("pattern"),
-        path: Type.Optional(
-          Type.String({
-            description:
-              "Directory to search; defaults to the workspace root and accepts an absolute scratch path.",
-          }),
-        ),
-        limit: Type.Optional(
-          Type.Number({ minimum: 1, description: "Maximum entries; defaults to 100." }),
-        ),
-      },
-      Grep: {
-        pattern: pathParam("Rust-compatible regex matched per line."),
-        query: aliasParam("pattern"),
-        path: Type.Optional(
-          Type.String({
-            description:
-              "File or directory to search; defaults to the workspace root and accepts an absolute scratch path.",
-          }),
-        ),
-        include: Type.Optional(
-          Type.String({ description: "Glob filter, for example **/*.{ts,tsx}." }),
-        ),
-        outputMode: Type.Optional(
-          Type.Union([
-            Type.Literal("content"),
-            Type.Literal("filesWithMatches"),
-            Type.Literal("count"),
-          ]),
-        ),
-        headLimit: Type.Optional(
-          Type.Number({ minimum: 1, description: "Maximum matches or files; defaults to 200." }),
-        ),
-        caseInsensitive: Type.Optional(Type.Boolean()),
-      },
-      Write: {
-        path: pathParam("File to write; workspace-relative."),
-        file_path: aliasParam("path"),
-        content: Type.String(),
-      },
-      Edit: {
-        path: pathParam("File to edit; workspace-relative."),
-        file_path: aliasParam("path"),
-        tag: Type.Optional(
-          Type.String({
-            description:
-              "4 uppercase hex from the latest Read, Grep, Write, or Edit for this path. Required unless legacy old_string/new_string is used.",
-          }),
-        ),
-        ops: Type.Optional(
-          Type.String({
-            description:
-              "One or more operation headers with + body rows, newline separated. A PUT with body rows must end its header with `:` (for example, `PUT 48.=48:`); `PUT 48.=48` followed by + rows is invalid. A colonless PUT is only for a register paste such as `PUT <1 @name`. Required unless legacy old_string/new_string is used.",
-          }),
-        ),
-        old_string: Type.Optional(
-          Type.String({
-            description:
-              "Legacy text replacement: exact text to be replaced (must match exactly once in the target file).",
-          }),
-        ),
-        new_string: Type.Optional(
-          Type.String({
-            description:
-              "Legacy text replacement: new text to replace old_string with.",
-          }),
-        ),
-      },
-      BashOutput: {
-        backgroundId: Type.String({ description: "The backgroundTaskId returned by Bash runInBackground." }),
-      },
-      KillBash: {
-        backgroundId: Type.String({ description: "The backgroundTaskId returned by Bash runInBackground." }),
-      },
-      Bash: {
-        command: Type.String(),
-        timeout: Type.Optional(
-          Type.Number({
-            minimum: MIN_COMMAND_TIMEOUT_SECONDS,
-            // Models routinely send milliseconds; a wider schema bound lets the
-            // runtime read the intent instead of burning the turn (D273 / D329).
-            maximum: MAX_ACCEPTED_COMMAND_TIMEOUT,
-            description:
-              `Optional command timeout in seconds from 1 to ${MAX_COMMAND_TIMEOUT_SECONDS}; defaults to 60 seconds.`,
-          }),
-        ),
-        runInBackground: Type.Optional(
-          Type.Boolean({
-            description:
-              "Start the command as a background task that outlives the turn (dev servers, watchers, builds). Returns backgroundTaskId immediately; ignored with timeout.",
-          }),
-        ),
-      },
-      PluginScaffold: {
-        template: Type.String(),
-        directory: Type.String(),
-        id: Type.Optional(Type.String()),
-        name: Type.Optional(Type.String()),
-      },
-      PluginCheck: { directory: Type.String() },
-      PluginPack: { directory: Type.String() },
-    };
+    const { describe, parameters } = builtinToolSchemas(this.mode, this.commandShell, this.scratchDir);
     const exec = (toolName: string): AgentTool => {
       const run: AgentTool["execute"] = async (
         toolCallId,
@@ -4123,7 +2851,7 @@ export class DesktopAgentRuntime {
           failureKey !== undefined &&
           typeof result.errorCode === "string" &&
           RECOVERABLE_MUTATION_ERROR_CODES.has(result.errorCode)
-            ? `${failureKey} ${result.errorCode}`
+            ? `${failureKey}\0${result.errorCode}`
             : undefined;
         const grantedRecoveryGrace =
           graceKey !== undefined && !this.mutationRecoveryGraces.has(graceKey);
@@ -4156,7 +2884,7 @@ export class DesktopAgentRuntime {
           if (succeededKey !== undefined) {
             this.mutationFailureCounts.delete(succeededKey);
             for (const key of this.mutationRecoveryGraces) {
-              if (key.startsWith(`${succeededKey} `)) {
+              if (key.startsWith(`${succeededKey}\0`)) {
                 this.mutationRecoveryGraces.delete(key);
               }
             }
@@ -4187,97 +2915,13 @@ export class DesktopAgentRuntime {
             });
           }
         }
-        const rawContent = result.content;
-        const imageBlocks: Array<{ type: "image"; data: string; mimeType: string }> = [];
-        let text: string;
-        let details: unknown = rawContent;
-        const vision = visionFromModelConfig(this.provider.modelConfig);
-        // Collect image blocks from a content-block array; only well-formed
-        // image entries ({ type, data, mimeType }) are accepted.
-        const collectImageBlocks = (blocks: unknown[]): void => {
-          for (const block of blocks) {
-            if (
-              isRecord(block) &&
-              block.type === "image" &&
-              typeof block.data === "string" &&
-              typeof block.mimeType === "string"
-            ) {
-              if (vision) {
-                imageBlocks.push({
-                  type: "image",
-                  data: block.data,
-                  mimeType: block.mimeType,
-                });
-              }
-            }
-          }
-        };
-        if (typeof rawContent === "string") {
-          text = rawContent;
-        } else if (Array.isArray(rawContent)) {
-          // Plugin tools may return a bare content-block array
-          // ([{ type: "text" }, { type: "image" }]); render the text blocks
-          // and hand images to the model instead of stringifying (#1360).
-          const textParts: string[] = [];
-          for (const block of rawContent) {
-            const blockText = hostContentBlockText(block);
-            if (blockText !== undefined) textParts.push(blockText);
-          }
-          collectImageBlocks(rawContent);
-          text =
-            textParts.join("\n") ||
-            JSON.stringify(withoutInlineBinary(rawContent), null, 2);
-          details = { blocks: rawContent, imageCount: imageBlocks.length };
-        } else if (isRecord(rawContent) && Array.isArray(rawContent.content)) {
-          // MCP tools return `content: [{ type: "image" | "text", ... }]`.
-          const contentBlocks = rawContent.content;
-          const textParts: string[] = [];
-          for (const block of contentBlocks) {
-            const blockText = hostContentBlockText(block);
-            if (blockText !== undefined) textParts.push(blockText);
-          }
-          collectImageBlocks(contentBlocks);
-          text =
-            textParts.join("\n") ||
-            JSON.stringify(withoutInlineBinary(rawContent), null, 2);
-          details = { ...rawContent, imageCount: imageBlocks.length };
-        } else if (isRecord(rawContent) && Array.isArray(rawContent.images)) {
-          text =
-            typeof rawContent.text === "string"
-              ? rawContent.text
-              : JSON.stringify(
-                  { ...rawContent, images: undefined },
-                  null,
-                  2,
-                );
-          for (const image of rawContent.images) {
-            if (
-              !isRecord(image) ||
-              typeof image.data !== "string" ||
-              typeof image.mimeType !== "string"
-            ) {
-              continue;
-            }
-            if (vision) {
-              imageBlocks.push({
-                type: "image",
-                data: image.data,
-                mimeType: image.mimeType,
-              });
-            }
-          }
-          const { images: _images, ...rest } = rawContent;
-          details = {
-            ...rest,
-            ...(typeof rawContent.path === "string" ? { path: rawContent.path } : {}),
-            imageCount: imageBlocks.length,
-          };
-        } else {
-          text = JSON.stringify(rawContent, null, 2);
-        }
+        const { content, details } = liveToolResultContent(
+          result.content,
+          visionFromModelConfig(this.provider.modelConfig),
+        );
         if (!result.ok) this.failedHostToolCalls.add(toolCallId);
         return {
-          content: [{ type: "text", text }, ...imageBlocks],
+          content,
           details,
           ...(terminateAfterMutationFailure ? { terminate: true } : {}),
           isError: result.isError === true || result.ok === false,
@@ -4987,7 +3631,7 @@ export class DesktopAgentRuntime {
   /** Every delegation still working; a resume of one is a queueing attempt. */
   private runningDelegationIds(): Set<string> {
     return new Set(
-      this.runningDelegations().map((record) => record.delegationId),
+      this.delegations.running().map((record) => record.delegationId),
     );
   }
 
@@ -5352,7 +3996,7 @@ export class DesktopAgentRuntime {
           const current = this.resolveResumeChain(resume, definition.name);
           if (!current.ok) return this.subagentToolError(toolCallId, current.message);
         }
-        if (this.runningDelegations().length >= MAX_SUBAGENT_CONCURRENCY) {
+        if (this.delegations.running().length >= MAX_SUBAGENT_CONCURRENCY) {
           return this.subagentToolError(
             toolCallId,
             `${MAX_SUBAGENT_CONCURRENCY} subagents are already running for this session. Wait for some with TaskWait or stop them with TaskStop before delegating more.`,
@@ -5468,7 +4112,7 @@ export class DesktopAgentRuntime {
           ...(resumedChain ? { resumedFrom: resume } : {}),
           ...(modelChangedFrom ? { modelChangedFrom } : {}),
         };
-        this.delegations.set(delegationId, record);
+        this.delegations.register(record);
         let subagentRun: SubagentRun;
         try {
           const scopedTools = this.scopeDelegateTools(tools, definition, delegationId, worktreeKey);
@@ -5714,7 +4358,7 @@ export class DesktopAgentRuntime {
       this.clearMutationRecovery(record.delegationId);
       this.refreshDelegationWait();
       this.refreshResumablePrompt();
-      this.pruneFinishedDelegations();
+      this.delegations.prune();
     }
   }
 
@@ -5732,62 +4376,6 @@ export class DesktopAgentRuntime {
     );
   }
 
-  /** Cap retained history so a long session cannot grow the registry forever.
-   * Finished records are dropped oldest-first; running ones never are. */
-  private pruneFinishedDelegations(): void {
-    const finished = [...this.delegations.values()]
-      .filter((record) => record.status !== "running")
-      .sort((left, right) => (left.completedAt ?? 0) - (right.completedAt ?? 0));
-    const excess = finished.length - MAX_RETAINED_DELEGATIONS;
-    for (const record of finished.slice(0, Math.max(0, excess))) {
-      this.delegations.delete(record.delegationId);
-    }
-  }
-
-  private runningDelegations(): DelegationRecord[] {
-    return [...this.delegations.values()].filter(
-      (record) => record.status === "running",
-    );
-  }
-
-  /** Abort every running delegation (user Stop, dispose, parent fatal error). */
-  private abortRunningDelegations(parentErrorInterrupted = false): void {
-    for (const record of this.runningDelegations()) {
-      record.parentErrorInterrupted = parentErrorInterrupted;
-      record.abort();
-    }
-  }
-
-  private currentTurnDelegations(): DelegationRecord[] {
-    return this.runningDelegations().filter(
-      (record) => record.startedEpoch === this.turnEpoch,
-    );
-  }
-
-  /**
-   * Current-turn delegates whose report the parent has not seen yet: still
-   * running, or settled before the parent idled and never read through
-   * `TaskWait`. A delegate that finished in a few hundred milliseconds is
-   * "done and unpublished", not "unfinished"; keying the idle resume on
-   * running delegates alone dropped such reports (#226). Stopped and
-   * aborted runs are not auto-delivered.
-   */
-  private pendingCurrentTurnDelegations(): DelegationRecord[] {
-    return [...this.delegations.values()].filter(
-      (record) =>
-        record.startedEpoch === this.turnEpoch &&
-        !record.reportDelivered &&
-        record.status !== "stopped" &&
-        record.status !== "aborted",
-    );
-  }
-
-  private abortDelegationsFromPreviousTurns(): void {
-    for (const record of this.runningDelegations()) {
-      if (record.startedEpoch !== this.turnEpoch) record.abort();
-    }
-  }
-
   /**
    * Parent fatal error: abort leftover delegates so the session can go idle
    * and Continue is not rejected as `AGENT_BUSY` (D352).
@@ -5797,7 +4385,7 @@ export class DesktopAgentRuntime {
     this.acceptingSteering = false;
     this.steeringWaitAbort?.abort();
     this.retainPendingSteering();
-    this.abortRunningDelegations(!this.runCancelled && !this.disposed);
+    this.delegations.abortRunning(!this.runCancelled && !this.disposed);
     this.delegationWaitTargets = undefined;
     this.clearAgentActivity();
   }
@@ -5805,8 +4393,8 @@ export class DesktopAgentRuntime {
   /** D328 keeps the turn open on parent idle, not on a fatal parent error. */
   private keepTurnOpenForDelegates(): boolean {
     return (
-      (this.runningDelegations().length > 0 ||
-        this.pendingCurrentTurnDelegations().length > 0) &&
+      (this.delegations.running().length > 0 ||
+        this.delegations.unreportedForTurn(this.turnEpoch).length > 0) &&
       !this.runCancelled &&
       !this.turnHadError
     );
@@ -5980,9 +4568,9 @@ export class DesktopAgentRuntime {
       !this.runCancelled &&
       !this.turnHadError &&
       epoch === this.turnEpoch &&
-      this.pendingCurrentTurnDelegations().length > 0
+      this.delegations.unreportedForTurn(this.turnEpoch).length > 0
     ) {
-      const targets = this.pendingCurrentTurnDelegations();
+      const targets = this.delegations.unreportedForTurn(this.turnEpoch);
       this.beginDelegationWait(targets);
       const waitAbort = new AbortController();
       this.steeringWaitAbort = waitAbort;
@@ -6019,7 +4607,7 @@ export class DesktopAgentRuntime {
         report:
           record.result?.report ?? `(${record.status} without a report)`,
       }));
-      const still = this.currentTurnDelegations();
+      const still = this.delegations.runningForTurn(this.turnEpoch);
       const heartbeat =
         still.length > 0
           ? `Still running:\n${still.map(formatDelegationHeartbeat).join("\n")}`
@@ -6104,7 +4692,7 @@ export class DesktopAgentRuntime {
           ? ids
               .map((id) => this.delegations.get(id))
               .filter((record): record is DelegationRecord => record !== undefined)
-          : this.runningDelegations();
+          : this.delegations.running();
         if (targets.length === 0) {
           const text = ids.length
             ? "None of the requested delegation ids exist in this session. Call TaskList to see them."
@@ -6114,7 +4702,7 @@ export class DesktopAgentRuntime {
             details: { delegations: [] },
           };
         }
-        const unknownIds = ids.filter((id) => !this.delegations.has(id));
+        const unknownIds = ids.filter((id) => !this.delegations.get(id));
         const targetCompleted =
           mode === "all"
             ? targets.length
@@ -6255,7 +4843,7 @@ export class DesktopAgentRuntime {
       parameters: Type.Object({}),
       executionMode: "sequential",
       execute: async () => {
-        const delegations = [...this.delegations.values()].sort(
+        const delegations = this.delegations.all().sort(
           (left, right) => left.startedAt - right.startedAt,
         );
         const text =
@@ -6281,7 +4869,7 @@ export class DesktopAgentRuntime {
             (record): record is DelegationRecord =>
               record !== undefined && record.status === "running",
           )
-      : this.runningDelegations();
+      : this.delegations.running();
     for (const record of targets) {
       record.stopRequested = true;
       record.abort();
@@ -7932,18 +6520,6 @@ export class DesktopAgentRuntime {
     return retainedReasoning.length > 0 ? { retainedReasoning } : {};
   }
 
-  private checkpointDetails(preparation: ShapedPreparation) {
-    return {
-      readFiles: [...preparation.fileOps.read].sort(),
-      modifiedFiles: [
-        ...new Set([
-          ...preparation.fileOps.written,
-          ...preparation.fileOps.edited,
-        ]),
-      ].sort(),
-    };
-  }
-
   private createCheckpoint(
     preparation: ShapedPreparation,
     throughMessageId: string,
@@ -7959,30 +6535,10 @@ export class DesktopAgentRuntime {
       tokensBefore: preparation.tokensBefore,
       ...(usage ? { usage } : {}),
       retainedTail: preparation.retainedTail,
-      details: this.checkpointDetailsWithGeneration(details),
+      details: checkpointDetailsWithGeneration(details, this.activeCompaction),
       providerId: this.provider.id,
       modelId: this.provider.modelId,
       createdAt: nowIso(),
-    };
-  }
-
-  /**
-   * Stamp the checkpoint with its generation so the context inspector can show
-   * how many times a session has been compacted. A non-object `details` value
-   * is nested rather than dropped: it belongs to whoever produced it.
-   */
-  private checkpointDetailsWithGeneration(details: unknown): unknown {
-    const base =
-      details && typeof details === "object" && !Array.isArray(details)
-        ? (details as Record<string, unknown>)
-        : details === undefined
-          ? {}
-          : { value: details };
-    return {
-      ...base,
-      generation: this.activeCompaction
-        ? checkpointGeneration(this.activeCompaction.details) + 1
-        : 1,
     };
   }
 
@@ -8004,23 +6560,8 @@ export class DesktopAgentRuntime {
     budget: ContextBudget,
     failureReason: CompactionFailureReason,
   ): ContextCompactionRecord {
-    const previousSummary = preparation.previousSummary
-      ? boundedText(
-          preparation.previousSummary,
-          Math.min(COMPACTION_FALLBACK_MAX_SUMMARY_CHARS, maxSummaryChars),
-        )
-      : COMPACTION_FALLBACK_NO_SUMMARY;
-    const continuation =
-      retentionMode === "active_turn"
-        ? "The provider is continuing the active turn: the recent messages carried below are the tail of that turn and the carried summary is the older history. Continue the work they describe."
-        : "The previous turn is complete. Treat this summary and the recent messages below as historical context; the next user message is the only new task to execute.";
-    const summary = [
-      previousSummary,
-      COMPACTION_FALLBACK_MARKER,
-      "The automatic summary request did not complete. Older messages before this checkpoint are omitted from the next model request.",
-      `The complete transcript remains available in the session. ${continuation}`,
-    ].join("\n\n");
-    const retainedTail = this.fallbackRetainedTail(
+    const summary = fallbackSummary(preparation.previousSummary, maxSummaryChars, retentionMode);
+    const retainedTail = fallbackRetainedTail(
       preparation,
       budget,
       maxSummaryChars,
@@ -8035,7 +6576,7 @@ export class DesktopAgentRuntime {
       summary,
       undefined,
       {
-        ...this.checkpointDetails(preparation),
+        ...checkpointFileDetails(preparation),
         fallback: "retained_tail" satisfies ContextCompactionFallback,
         failureCode: "CONTEXT_COMPACTION_FAILED",
         failureReason,
@@ -8047,38 +6588,6 @@ export class DesktopAgentRuntime {
         retainedTailCount: retainedTail.length,
         ...this.retainedReasoningForCheckpoint(preparation),
       },
-    );
-  }
-
-  /**
-   * The recent window a fallback retains. Bounded by the keep-recent target so a
-   * failure never carries more history than a successful checkpoint would, and
-   * by what the safe budget leaves once the carried-forward summary and the
-   * recovery notice are paid for — `persistCheckpoint` re-estimates the installed
-   * context, and an oversized fallback would fail the run outright.
-   */
-  private fallbackRetainedTail(
-    preparation: ShapedPreparation,
-    budget: ContextBudget,
-    maxSummaryChars: number,
-    retentionMode: CompactionRetentionMode,
-  ): AgentMessage[] {
-    const summaryTokens = Math.ceil(maxSummaryChars / 4);
-    const available = Math.max(
-      1,
-      budget.hardLimit - summaryTokens - COMPACTION_FALLBACK_NOTICE_TOKENS,
-    );
-    const target = Math.max(
-      1,
-      Math.min(
-        budget.keepRecentTokens,
-        Math.floor(budget.hardLimit * COMPACTION_FALLBACK_KEEP_RECENT_RATIO),
-      ),
-    );
-    return selectRecentTail(
-      preparation.messagesToSummarize,
-      Math.min(target, available),
-      { latestUserGoal: retentionMode === "active_turn" },
     );
   }
 
@@ -8723,7 +7232,7 @@ export class DesktopAgentRuntime {
         CONTEXT_ROLLOVER_SUMMARY,
         undefined,
         {
-          ...this.checkpointDetails(rollover),
+          ...checkpointFileDetails(rollover),
           strategy: "fresh_window" satisfies CompactionStrategy,
           retainedTailMode: "completed_turn" satisfies CompactionRetentionMode,
         },
@@ -9004,6 +7513,7 @@ export class DesktopAgentRuntime {
       this.compactionAbort = undefined;
     }
     if (prepared.abort.signal.aborted) {
+      discard(this.disposed ? "disposed" : "aborted");
       this.emitCompactionFailure(reason, undefined, "Turn aborted while compacting context");
       return "stopped";
     }
@@ -9880,7 +8390,7 @@ export class DesktopAgentRuntime {
     this.pendingRepeatedCallTermination = undefined;
     this.resetRunRecoveryState();
     this.turnEpoch += 1;
-    this.abortDelegationsFromPreviousTurns();
+    this.delegations.abortPreviousTurns(this.turnEpoch);
     this.currentAssistant = undefined;
     this.requestStartedAt = Date.now();
     this.setMode("agent");
@@ -9977,7 +8487,7 @@ export class DesktopAgentRuntime {
   ): Promise<{ turnId: string }> {
     if (this.disposed) throw new Error("runtime disposed");
     this.assertNotRunning();
-    this.suggestionAbort?.abort();
+    this.suggestions.cancel();
     const turnId = durableTurnId?.trim() || randomUUID();
     return this.trackTurnOperation(turnId, () =>
       this.promptTurn(input, userMessageId, turnId),
@@ -10021,7 +8531,7 @@ export class DesktopAgentRuntime {
     this.turnEpoch += 1;
     this.repeatedToolCalls.delete("parent");
     this.pendingRepeatedCallTermination = undefined;
-    this.abortDelegationsFromPreviousTurns();
+    this.delegations.abortPreviousTurns(this.turnEpoch);
     this.requestStartedAt = Date.now();
     this.setAgentActivity({ phase: "starting", since: Date.now() });
     try {
@@ -10271,7 +8781,7 @@ export class DesktopAgentRuntime {
     this.steeringWaitAbort?.abort();
     this.extensionRunner?.cancelPending();
     this.resolvePendingAskTools();
-    this.abortRunningDelegations();
+    this.delegations.abortRunning();
     this.turnSubagentUsage = undefined;
     this.agent.abort();
     this.providerRetryAbort?.abort();
@@ -10355,29 +8865,15 @@ export class DesktopAgentRuntime {
     ) {
       return null;
     }
-    // One request per reply: asking again for the same reply costs nothing.
-    if (this.suggestion?.reply === reply) return this.suggestion.text;
-    if (this.suggestionInFlight?.reply === reply) return (await this.suggestionInFlight.result) ?? null;
-    const result = this.requestNextPrompt(last, reply);
-    this.suggestionInFlight = { reply, result };
-    try {
-      const text = await result;
-      if (text !== undefined) this.suggestion = { reply, text };
-      return text ?? null;
-    } finally {
-      if (this.suggestionInFlight?.result === result) this.suggestionInFlight = undefined;
-    }
+    return this.suggestions.forReply(reply, (signal) => this.requestNextPrompt(last, reply, signal));
   }
 
   /** The suggestion request itself; undefined when it was cancelled. */
   private async requestNextPrompt(
     last: NonNullable<DesktopAgentRuntime["lastModelRequest"]>,
     reply: AssistantMessage,
+    signal: AbortSignal,
   ): Promise<string | null | undefined> {
-    this.suggestionAbort?.abort();
-    const abort = new AbortController();
-    this.suggestionAbort = abort;
-    const timer = setTimeout(() => abort.abort(), NEXT_PROMPT_SUGGESTION_TIMEOUT_MS);
     const turnId = this.turnId;
     const m = last.model;
     const answered = [
@@ -10411,7 +8907,7 @@ export class DesktopAgentRuntime {
                 maxRetries: 0,
                 sessionId: this.sessionId,
                 fetch: providerRequestFetch(m.api, previous.fetch, this.provider.authKind),
-                signal: abort.signal,
+                signal,
               },
               { ...openCodeEndpointFromProvider(this.provider, m), sessionId: this.sessionId },
             ),
@@ -10446,13 +8942,11 @@ export class DesktopAgentRuntime {
         },
       );
       const message = await stream.result();
-      if (abort.signal.aborted) return undefined;
+      if (signal.aborted) return undefined;
       return nextPromptSuggestionText(message);
     } catch {
-      return abort.signal.aborted ? undefined : null;
-    } finally {
-      clearTimeout(timer);
-      if (this.suggestionAbort === abort) this.suggestionAbort = undefined;
+      return signal.aborted ? undefined : null;
+
     }
   }
 
@@ -10500,7 +8994,7 @@ export class DesktopAgentRuntime {
         this.agent.state.isStreaming ||
         this.compactionInProgress ||
         this.agentActivity !== undefined ||
-        (!this.turnHadError && !this.runCancelled && this.runningDelegations().length > 0),
+        (!this.turnHadError && !this.runCancelled && this.delegations.running().length > 0),
       currentTurnId: this.turnId,
       modelId: this.provider.modelId,
       pendingToolConfirmations: 0,
@@ -10524,7 +9018,7 @@ export class DesktopAgentRuntime {
     this.runScriptController.dispose();
     this.steeringWaitAbort?.abort();
     this.resolvePendingAskTools();
-    this.abortRunningDelegations();
+    this.delegations.abortRunning();
     this.delegationWaitTargets = undefined;
     this.pathInstructionClaims.clear();
     this.failedHostToolCalls.clear();
@@ -10540,7 +9034,7 @@ export class DesktopAgentRuntime {
     this.hostCloseUnsubscribe?.();
     this.hostCloseUnsubscribe = undefined;
     this.agent.abort();
-    this.suggestionAbort?.abort();
+    this.suggestions.cancel();
     this.providerRetryAbort?.abort();
     this.cleanupActiveToolProgress();
     if (this.compactionInProgress) this.compactionAborted = true;

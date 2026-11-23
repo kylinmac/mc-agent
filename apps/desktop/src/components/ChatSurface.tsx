@@ -4,7 +4,7 @@ import {
   messageHasTranscriptContent,
   vendorAccountOmitsSessionModel,
 } from "../lib/chat-launch-error";
-import { Composer } from "./Composer";
+import { Composer } from "../features/chat/Composer";
 import { HomeMascotLogo } from "./HomeMascotLogo";
 import { HomeProjectSwitcher } from "./HomeProjectSwitcher";
 import { IconX } from "./icons";

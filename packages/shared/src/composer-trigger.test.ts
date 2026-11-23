@@ -186,7 +186,7 @@ describe("applyCompletion", () => {
 
 describe("compact file references", () => {
   it("derives leaf labels across path separators without changing unicode", () => {
-    expect(fileReferenceLabel("src/components/Composer.tsx")).toBe("Composer.tsx");
+    expect(fileReferenceLabel("src/features/chat/Composer.tsx")).toBe("Composer.tsx");
     expect(fileReferenceLabel("C:\\work\\界面\\截图.png")).toBe("截图.png");
     expect(fileReferenceLabel("src/fallback.ts", "original name.ts")).toBe(
       "original name.ts",

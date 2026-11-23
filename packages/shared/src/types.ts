@@ -27,3 +27,5 @@ export * from "./types/speech.js";
 export * from "./types/remote-host.js";
 export * from "./types/config-sync.js";
 export * from "./types/live-voice.js";
+export * from "./types/external-import.js";
+export type * from "./types/desktop-bridge.js";

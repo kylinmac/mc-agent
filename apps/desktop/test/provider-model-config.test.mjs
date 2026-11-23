@@ -24,7 +24,7 @@ const read = (rel) => readFile(new URL(rel, import.meta.url), "utf8");
 
 const setupSource = await read("../src/components/settings/ProviderSetupDialog.tsx");
 const hookSource = await read("../src/components/settings/useProviderModels.ts");
-const pageSource = await read("../src/components/settings/ModelConfigPage.tsx");
+const pageSource = await read("../src/features/settings/ModelConfigPage.tsx");
 const vendorDialogSource = await read("../src/components/settings/VendorAccountDialog.tsx");
 const pickerSource = await read("../src/components/settings/ModelSelectionPanes.tsx");
 const fieldsSource = await read("../src/components/settings/ProviderConnectionFields.tsx");
@@ -211,7 +211,7 @@ test("the shared picker can select or clear every visible model at once", () => 
   assert.match(pickerSource, /toggleVisibleModels/);
   assert.match(pickerSource, /settings\.selectAllVisibleModels/);
   assert.match(pickerSource, /settings\.deselectAllVisibleModels/);
-  assert.match(pickerSource, /el\.indeterminate/);
+  assert.match(pickerSource, /indeterminate=\{someVisibleSelected\}/);
   // A filtered select-all must not drop models the filter is hiding.
   assert.match(pickerSource, /a filtered select-all does not touch hidden matches/);
   assert.match(pickerSource, /visibleRows\.length > 0/);

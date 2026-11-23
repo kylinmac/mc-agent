@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 const agent = await read("../electron/main/ipc/agent-ipc.ts");
 
-const composer = await read("../src/components/Composer.tsx");
+const composer = await read("../src/features/chat/Composer.tsx");
 const transcript = await read("../src/stores/slices/transcript-slice.ts");
 const events = await read("../src/stores/slices/events-slice.ts");
 const sidecarDispatch = await read("../../../packages/agent-runtime/src/sidecar.ts");
@@ -188,43 +188,20 @@ test("unknown or delayed durable acknowledgements never insert a duplicate rende
 });
 
 
-const { default: ts } = await import("typescript");
+const { loadTsModule } = await import("./helpers/load-ts-module.mjs");
 const sharedForIpc = await import("@pi-desktop/shared");
-const { readFileSync } = await import("node:fs");
 const nodePath = await import("node:path");
-
-/**
- * Load main-process TypeScript with injected CommonJS dependencies, matching
- * the existing session IPC test harness.
- */
-function loadSessionIpc(imports) {
-  const file = new URL("../electron/main/ipc/session-ipc.ts", import.meta.url);
-  const { outputText } = ts.transpileModule(readFileSync(file, "utf8"), {
-    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
-    fileName: file.pathname,
-  });
-  const module = { exports: {} };
-  new Function("require", "exports", "module", outputText)(
-    (id) => {
-      assert.ok(Object.hasOwn(imports, id), `unexpected IPC dependency: ${id}`);
-      return imports[id];
-    },
-    module.exports,
-    module,
-  );
-  return module.exports;
-}
 
 function forkHarness({ host, sidecar, activeTurns = new Map() }) {
   const handlers = new Map();
   const hostCalls = [];
   const sidecarCalls = [];
-  const { registerSessionIpc } = loadSessionIpc({
+  const { registerSessionIpc } = loadTsModule(new URL("../electron/main/ipc/session-ipc.ts", import.meta.url), {
     electron: { shell: {} },
     "node:path": nodePath,
     "node:fs": { mkdirSync() {} },
     "@pi-desktop/shared": sharedForIpc,
-    "../importers": { convertSession() {}, scanAllSources() {}, scanModelConfigs() {} },
+    "./session-import-ipc": { registerSessionImportIpc() {} },
     "../services/session-collaboration": { readSessionCollaboration() {} },
     "../services/session-search": { localNativeProjectPaths, searchSessionsAcrossSources },
     "../bootstrap/remote-hosts.js": { getActiveRemoteHostsBoot: () => null },

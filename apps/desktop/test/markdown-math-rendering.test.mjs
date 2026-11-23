@@ -5,8 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
 import { catalogs } from "@pi-desktop/i18n";
-import { createServer } from "vite";
-import { fileURLToPath } from "node:url";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 /*
  * Issue #449: assistant replies that emit TeX `\[ … \]` display delimiters used
@@ -16,14 +15,7 @@ import { fileURLToPath } from "node:url";
  * `rehype-sanitize` and `rehype-katex`.
  */
 test("TeX math and wrapped HTTP links render through the production Markdown pipeline", async () => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    esbuild: { jsx: "automatic" },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer({ esbuild: { jsx: "automatic" } });
   const originalDocument = globalThis.document;
   try {
     // `useThemeMode` reads the theme off the document during render.

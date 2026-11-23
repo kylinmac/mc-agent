@@ -1,18 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createServer } from "vite";
+import { createDesktopSsrServer } from "./helpers/ssr-server.mjs";
 
 test("segmented controls preserve selection semantics and stable tab-panel links", async () => {
-  const server = await createServer({
-    root: fileURLToPath(new URL("..", import.meta.url)),
-    configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
-    esbuild: { jsx: "automatic" },
-    appType: "custom",
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createDesktopSsrServer({ esbuild: { jsx: "automatic" } });
   try {
     const { SegmentedControl } = await server.ssrLoadModule("/src/components/ui.tsx");
     const options = [
@@ -29,6 +21,11 @@ test("segmented controls preserve selection semantics and stable tab-panel links
       assert.match(html, /role="tab" id="host-ssh" aria-controls="panel-ssh" aria-selected="true"/);
       assert.match(html, /role="tab" id="host-pair" aria-controls="panel-pair" aria-selected="false"/);
     }
+    for (const role of ["tablist", "radiogroup"]) {
+      assert.deepEqual(render({ role }).props.children.map((item) => item.props.tabIndex), [0, -1]);
+      assert.deepEqual(render({ role, value: "missing" }).props.children.map((item) => item.props.tabIndex), [0, -1]);
+    }
+    assert.deepEqual(render({ role: "group" }).props.children.map((item) => item.props.tabIndex), [undefined, undefined]);
     render().props.children.find((tab) => tab.props.id === "host-pair").props.onClick();
     assert.equal(value, "pair");
     const selected = renderToStaticMarkup(render());

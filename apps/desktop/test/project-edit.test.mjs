@@ -21,7 +21,7 @@ const [
     read("../src/components/ProjectEditDialog.tsx"),
     read("../src/lib/api.ts"),
     read("../../../packages/shared/src/protocol.ts"),
-    read("../../../crates/host-core/src/rpc/mod.rs"),
+    read("../../../crates/host-core/src/rpc/project_rpc.rs"),
     read("../electron/main/ipc/workspace-ipc.ts"),
     read("../../../packages/i18n/src/locales/en/index.ts"),
     read("../../../packages/i18n/src/locales/zh-CN/index.ts"),

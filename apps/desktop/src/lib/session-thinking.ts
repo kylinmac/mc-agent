@@ -1,16 +1,4 @@
-/** Canonical ladder; keep in lockstep with `@pi-desktop/shared` THINKING_LEVELS. */
-const THINKING_LEVELS = [
-  "off",
-  "minimal",
-  "low",
-  "medium",
-  "high",
-  "xhigh",
-  "max",
-] as const;
-
-type ThinkingLevel = (typeof THINKING_LEVELS)[number];
-type SessionThinkingLevel = ThinkingLevel | "omit";
+import { THINKING_LEVELS, type SessionThinkingLevel, type ThinkingLevel } from "@pi-desktop/shared";
 
 export type SessionThinkingSnapshot = {
   providerId?: string;

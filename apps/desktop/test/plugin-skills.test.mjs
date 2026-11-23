@@ -28,7 +28,7 @@ const desktopSidecarSrc = readFileSync(
   "utf8",
 );
 const composerAutocompleteSrc = readFileSync(
-  join(desktopRoot, "src/components/ComposerAutocomplete.tsx"),
+  join(desktopRoot, "src/features/chat/ComposerAutocomplete.tsx"),
   "utf8",
 );
 

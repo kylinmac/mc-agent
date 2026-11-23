@@ -1,3 +1,4 @@
+mod capability_rpc;
 mod config_sync_rpc;
 mod gen_ui;
 mod mc_canvas_rpc;
@@ -7,6 +8,7 @@ mod mc_project_history_rpc;
 mod mc_project_work_rpc;
 mod mc_session_history_rpc;
 mod plugin_reviews_rpc;
+mod project_rpc;
 mod project_tasks_rpc;
 mod remote_tools;
 mod resource_catalog_rpc;
@@ -14,6 +16,8 @@ mod resource_dirs_rpc;
 mod review_actions_rpc;
 mod scheduled_rpc;
 mod scheduled_tools;
+mod session_create;
+mod settings_rpc;
 mod todos;
 mod window_corner_rpc;
 mod worktree_rpc;
@@ -40,7 +44,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::{mpsc, oneshot, Mutex, Semaphore};
 
-use crate::agent_capabilities::CapabilityLevel;
+use settings_rpc::command_shell_catalog;
+
 use crate::artifacts;
 use crate::audit;
 use crate::background_tasks;
@@ -865,452 +870,6 @@ fn drop_session_side_data(st: &AppState, id: &str) {
     st.hashline.drop_session(id);
 }
 
-const DEFAULT_LARGE_PASTE_THRESHOLD: i64 = 600;
-const MIN_LARGE_PASTE_THRESHOLD: i64 = 1;
-const MAX_LARGE_PASTE_THRESHOLD: i64 = 1_000_000;
-/// Upper bound for a legacy prompt-enhancement template, in characters. The
-/// setting remains validated while older profiles and config-sync backups can
-/// still contain it for the optional plugin's one-time migration.
-const MAX_PROMPT_ENHANCEMENT_TEMPLATE_CHARS: usize = 8000;
-/// The placeholder a usable user template must carry.
-const PROMPT_ENHANCEMENT_DRAFT_VARIABLE: &str = "{{draft}}";
-
-/// A template override is either absent, blank (meaning "use the default"), or
-/// a non-blank string within the length bound; a user template must also carry
-/// the draft variable, or the draft never reaches the model.
-fn prompt_enhancement_template_error(field: &str, value: &Value) -> Option<String> {
-    let Some(text) = value.as_str() else {
-        return Some(format!("{field} must be a string"));
-    };
-    if text.trim().is_empty() {
-        return None;
-    }
-    if text.chars().count() > MAX_PROMPT_ENHANCEMENT_TEMPLATE_CHARS {
-        return Some(format!(
-            "{field} must not exceed {MAX_PROMPT_ENHANCEMENT_TEMPLATE_CHARS} characters"
-        ));
-    }
-    if field == "promptEnhancementUserTemplate" && !text.contains(PROMPT_ENHANCEMENT_DRAFT_VARIABLE)
-    {
-        return Some(format!(
-            "promptEnhancementUserTemplate must contain {PROMPT_ENHANCEMENT_DRAFT_VARIABLE}"
-        ));
-    }
-    None
-}
-
-fn normalize_settings_value(mut value: Value) -> Value {
-    if let Some(object) = value.as_object_mut() {
-        object.remove("planApprovalPermissionMode");
-        if object.get("defaultMode").and_then(Value::as_str) == Some("chat") {
-            object.insert("defaultMode".into(), Value::String("plan".into()));
-        }
-        let valid_command_shell = object
-            .get("defaultCommandShell")
-            .and_then(Value::as_str)
-            .is_some_and(tools::shell::is_known_shell_id);
-        if !valid_command_shell {
-            object.insert(
-                "defaultCommandShell".into(),
-                Value::String(tools::shell::default_shell_id().into()),
-            );
-        }
-        let valid_large_paste_threshold = object
-            .get("largePasteThreshold")
-            .and_then(Value::as_i64)
-            .is_some_and(|threshold| {
-                (MIN_LARGE_PASTE_THRESHOLD..=MAX_LARGE_PASTE_THRESHOLD).contains(&threshold)
-            });
-        if !valid_large_paste_threshold {
-            object.insert(
-                "largePasteThreshold".into(),
-                Value::Number(DEFAULT_LARGE_PASTE_THRESHOLD.into()),
-            );
-        }
-        // The network policy replaced three per-feature switches. A section that
-        // is present is written back in the shape
-        // `packages/shared/src/network-policy.ts` defines: a usable `mode`, plus
-        // the one-time notice flag when it is set. Anything unusable falls back
-        // to the documented default, `relaxed`; the plaintext flag of a build
-        // before the mode existed survives as `strict`, because its `false` was
-        // the user's own answer.
-        let stored_policy = object
-            .get("networkPolicy")
-            .filter(|value| !value.is_null())
-            .cloned();
-        if let Some(stored_policy) = stored_policy {
-            let policy = stored_policy.as_object().cloned().unwrap_or_default();
-            let mode = match policy.get("mode").and_then(Value::as_str) {
-                Some("relaxed") => "relaxed",
-                Some("strict") => "strict",
-                _ => {
-                    if policy.get("allowInsecureUserEndpoints") == Some(&Value::Bool(false)) {
-                        "strict"
-                    } else {
-                        "relaxed"
-                    }
-                }
-            };
-            let mut next = serde_json::Map::new();
-            next.insert("mode".into(), Value::String(mode.into()));
-            if policy.get("insecureNoticeAcknowledged") == Some(&Value::Bool(true)) {
-                next.insert("insecureNoticeAcknowledged".into(), Value::Bool(true));
-            }
-            object.insert("networkPolicy".into(), Value::Object(next));
-        }
-        // A blank override means "use the built-in default", and an unusable
-        // one (wrong type, oversized, or a user template without the draft
-        // variable) falls back to the default too, rather than leaving a
-        // prompt that would silently drop the user's draft.
-        // The system prompt is part of the feature contract, not a preference:
-        // an override written by an older build is dropped so the store cannot
-        // hold a value that would never be read.
-        object.remove("promptEnhancementSystemPrompt");
-        let template_field = "promptEnhancementUserTemplate";
-        let unusable_template = match object.get(template_field) {
-            None => false,
-            Some(value) => match prompt_enhancement_template_error(template_field, value) {
-                Some(_) => true,
-                None => value.as_str().is_some_and(|text| text.trim().is_empty()),
-            },
-        };
-        if unusable_template {
-            object.remove(template_field);
-        }
-    }
-    value
-}
-
-fn merge_settings_value(stored: Option<Value>, incoming: Value) -> Value {
-    let Value::Object(incoming) = incoming else {
-        return incoming;
-    };
-    let mut merged = match stored {
-        Some(Value::Object(object)) => object,
-        _ => serde_json::Map::new(),
-    };
-    merged.extend(incoming);
-    Value::Object(merged)
-}
-
-/// Drop image-generation bindings whose provider row is gone.
-///
-/// `settings.set` merges into the stored object and the shell writes whole
-/// snapshots back, so deleting a provider row used to leave `imageGeneration`
-/// naming an id that no longer resolves. Every `GenerateImages` call then
-/// answered `IMAGE_MODEL_UNAVAILABLE`, and once the candidate list was empty
-/// the settings row that owns the default hid itself, so the binding could
-/// neither run nor be repaired from the UI. A binding that cannot resolve is
-/// therefore not a preference the store keeps: the active default falls back
-/// to "no default" and the candidate list loses that entry, on read and on
-/// write alike. A provider that still exists but is disabled or carries no
-/// credential keeps its binding — that is a state the user repairs in
-/// Settings, and no reference to it is dropped here.
-///
-/// The same rule config sync already enforces when it applies a bundle
-/// (`validate_application_references`), applied to the local settings channel
-/// so a stale id cannot be written into or read out of the store.
-fn prune_unresolvable_image_bindings(
-    db: &crate::db::Database,
-    settings: &mut Value,
-) -> Result<bool> {
-    let Some(object) = settings.as_object_mut() else {
-        return Ok(false);
-    };
-    let resolves = |binding: &Value| -> Result<bool> {
-        match binding.get("providerId").and_then(Value::as_str) {
-            Some(provider_id) => providers::provider_exists(db, provider_id),
-            None => Ok(false),
-        }
-    };
-    let mut changed = false;
-    let active_is_stale = match object.get("imageGeneration") {
-        Some(binding) if !binding.is_null() => !resolves(binding)?,
-        _ => false,
-    };
-    if active_is_stale {
-        object.insert("imageGeneration".into(), Value::Null);
-        changed = true;
-    }
-    if let Some(Value::Array(candidates)) = object.get("imageGenerationModels").cloned() {
-        let mut kept = Vec::with_capacity(candidates.len());
-        let mut dropped = false;
-        for candidate in candidates {
-            if resolves(&candidate)? {
-                kept.push(candidate);
-            } else {
-                dropped = true;
-            }
-        }
-        if dropped {
-            object.insert("imageGenerationModels".into(), Value::Array(kept));
-            changed = true;
-        }
-    }
-    Ok(changed)
-}
-
-fn effective_command_shell_id(settings: Option<&Value>) -> Option<String> {
-    let configured = settings
-        .and_then(|value| value.get("defaultCommandShell"))
-        .and_then(Value::as_str);
-    tools::shell::catalog(configured)
-        .effective
-        .map(|shell| shell.id)
-}
-
-fn validate_settings_value(value: &Value) -> Result<(), JsonRpcError> {
-    let Some(object) = value.as_object() else {
-        return Ok(());
-    };
-    if let Some(model) = object.get("scheduledDefaultModel").filter(|v| !v.is_null()) {
-        scheduled_tools::approved_model(Some(model))?;
-        if !model["providerId"].is_string() || !model["modelId"].is_string() {
-            return Err(rpc_err(
-                1002,
-                "scheduled default requires a provider and model",
-                "INVALID_PARAMS",
-            ));
-        }
-    }
-    if let Some(policy) = object.get("networkPolicy").filter(|v| !v.is_null()) {
-        let Some(policy) = policy.as_object() else {
-            return Err(rpc_err(
-                1002,
-                "networkPolicy must be an object",
-                "INVALID_PARAMS",
-            ));
-        };
-        if policy
-            .get("mode")
-            .is_some_and(|mode| !matches!(mode.as_str(), Some("relaxed") | Some("strict")))
-        {
-            return Err(rpc_err(
-                1002,
-                "networkPolicy.mode must be relaxed or strict",
-                "INVALID_PARAMS",
-            ));
-        }
-        if policy
-            .get("insecureNoticeAcknowledged")
-            .is_some_and(|flag| !flag.is_boolean())
-        {
-            return Err(rpc_err(
-                1002,
-                "insecureNoticeAcknowledged must be a boolean",
-                "INVALID_PARAMS",
-            ));
-        }
-    }
-    if let Some(binding) = object.get("imageGeneration").filter(|v| !v.is_null()) {
-        for (key, max) in [("providerId", 128), ("modelId", 256)] {
-            if !binding
-                .get(key)
-                .and_then(Value::as_str)
-                .is_some_and(|s| !s.trim().is_empty() && s.len() <= max)
-            {
-                return Err(rpc_err(
-                    1002,
-                    "invalid image generation binding",
-                    "INVALID_PARAMS",
-                ));
-            }
-        }
-    }
-    if let Some(candidates) = object.get("imageGenerationModels").filter(|v| !v.is_null()) {
-        let Some(candidates) = candidates.as_array() else {
-            return Err(rpc_err(
-                1002,
-                "imageGenerationModels must be an array",
-                "INVALID_PARAMS",
-            ));
-        };
-        if candidates.len() > 128 {
-            return Err(rpc_err(
-                1002,
-                "imageGenerationModels contains too many models",
-                "INVALID_PARAMS",
-            ));
-        }
-        for binding in candidates {
-            for (key, max) in [("providerId", 128), ("modelId", 256)] {
-                if !binding
-                    .get(key)
-                    .and_then(Value::as_str)
-                    .is_some_and(|s| !s.trim().is_empty() && s.len() <= max)
-                {
-                    return Err(rpc_err(
-                        1002,
-                        "invalid image generation candidate",
-                        "INVALID_PARAMS",
-                    ));
-                }
-            }
-        }
-    }
-    if let Some(template_value) = object.get("promptEnhancementUserTemplate") {
-        if let Some(message) =
-            prompt_enhancement_template_error("promptEnhancementUserTemplate", template_value)
-        {
-            return Err(rpc_err(1002, message, "INVALID_PARAMS"));
-        }
-    }
-    if let Some(preference) = object.get("updatePreference") {
-        if !matches!(preference.as_str(), Some("automatic") | Some("manual")) {
-            return Err(rpc_err(
-                1002,
-                "updatePreference must be automatic or manual",
-                "INVALID_PARAMS",
-            ));
-        }
-    }
-    if let Some(version) = object.get("lastNotifiedUpdateVersion") {
-        let Some(version) = version.as_str() else {
-            return Err(rpc_err(
-                1002,
-                "lastNotifiedUpdateVersion must be a non-empty string",
-                "INVALID_PARAMS",
-            ));
-        };
-        if version.trim().is_empty() || version.len() > 128 {
-            return Err(rpc_err(
-                1002,
-                "lastNotifiedUpdateVersion must contain 1 to 128 characters",
-                "INVALID_PARAMS",
-            ));
-        }
-    }
-    if let Some(version) = object.get("updateDismissedVersion") {
-        match version {
-            serde_json::Value::Null => {}
-            serde_json::Value::String(version) => {
-                if version.trim().is_empty() || version.len() > 128 {
-                    return Err(rpc_err(
-                        1002,
-                        "updateDismissedVersion must contain 1 to 128 characters",
-                        "INVALID_PARAMS",
-                    ));
-                }
-            }
-            _ => {
-                return Err(rpc_err(
-                    1002,
-                    "updateDismissedVersion must be a string or null",
-                    "INVALID_PARAMS",
-                ));
-            }
-        }
-    }
-    if let Some(infinite_retry) = object.get("infiniteProviderRetry") {
-        if !infinite_retry.is_boolean() {
-            return Err(rpc_err(
-                1002,
-                "infiniteProviderRetry must be a boolean",
-                "INVALID_PARAMS",
-            ));
-        }
-    }
-    if let Some(keep_awake) = object.get("keepAwakeWhileRunning") {
-        if !keep_awake.is_boolean() {
-            return Err(rpc_err(
-                1002,
-                "keepAwakeWhileRunning must be a boolean",
-                "INVALID_PARAMS",
-            ));
-        }
-    }
-    if let Some(threshold_value) = object.get("largePasteThreshold") {
-        let Some(threshold) = threshold_value.as_i64() else {
-            return Err(rpc_err(
-                1002,
-                "largePasteThreshold must be an integer",
-                "INVALID_PARAMS",
-            ));
-        };
-        if !(MIN_LARGE_PASTE_THRESHOLD..=MAX_LARGE_PASTE_THRESHOLD).contains(&threshold) {
-            return Err(rpc_err(
-                1002,
-                format!(
-                    "largePasteThreshold must be between {MIN_LARGE_PASTE_THRESHOLD} and {MAX_LARGE_PASTE_THRESHOLD}"
-                ),
-                "INVALID_PARAMS",
-            ));
-        }
-    }
-    if let Err(message) = crate::network_proxy::validate_network_proxy(value) {
-        return Err(rpc_err(1002, message, "INVALID_PARAMS"));
-    }
-    let Some(shell_value) = object.get("defaultCommandShell") else {
-        return Ok(());
-    };
-    let Some(shell_id) = shell_value.as_str() else {
-        return Err(rpc_err(
-            1002,
-            "defaultCommandShell must be a supported command shell ID",
-            "COMMAND_SHELL_INVALID",
-        ));
-    };
-    if !tools::shell::is_known_shell_id(shell_id) {
-        return Err(rpc_err(
-            1002,
-            format!("unknown command shell ID '{shell_id}'"),
-            "COMMAND_SHELL_INVALID",
-        ));
-    }
-    let catalog = tools::shell::catalog(None);
-    if !catalog
-        .choices
-        .iter()
-        .any(|choice| choice.id == shell_id && choice.available)
-    {
-        return Err(rpc_err(
-            1002,
-            format!("command shell ID '{shell_id}' is unavailable on this platform"),
-            "COMMAND_SHELL_INVALID",
-        ));
-    }
-    Ok(())
-}
-
-fn gate_default_command_shell_setting(state: &AppState) -> Result<(), JsonRpcError> {
-    plans::expire_pending_approvals(&state.db)
-        .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-    let blocked: bool = state
-        .db
-        .conn()
-        .query_row(
-            "SELECT EXISTS(
-                 SELECT 1 FROM turns WHERE status = 'running'
-             ) OR EXISTS(
-                 SELECT 1 FROM plan_approvals WHERE status = 'pending'
-             ) OR EXISTS(
-                 SELECT 1 FROM plan_approvals
-                 WHERE execution_state IN ('queued', 'running')
-             )",
-            [],
-            |row| row.get(0),
-        )
-        .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-    if blocked {
-        return Err(rpc_err(
-            1008,
-            "defaultCommandShell can only change while all sessions are idle",
-            "PLAN_CONFIGURATION_BLOCKED",
-        ));
-    }
-    Ok(())
-}
-
-fn command_shell_catalog(state: &AppState) -> Result<tools::shell::ShellCatalog, JsonRpcError> {
-    let settings = state
-        .db
-        .get_setting("app")
-        .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
-        .unwrap_or_else(|| json!({}));
-    let configured_id = settings.get("defaultCommandShell").and_then(Value::as_str);
-    Ok(tools::shell::catalog(configured_id))
-}
-
 /// mc-agent (MC-ADR-0006): a background-command tool outcome as a tool result.
 fn background_tool_result(
     p: &ToolsExecuteParams,
@@ -1872,46 +1431,6 @@ fn plugin_err(err: impl ToString) -> JsonRpcError {
     }
 }
 
-/// Capability query failures have their own code so callers can distinguish
-/// a missing project context from a malformed MCP or skill document.
-fn capability_err(message: impl Into<String>) -> JsonRpcError {
-    rpc_err(1018, message, "CAPABILITY_INVALID")
-}
-
-/// Validation failures from the user-owned MCP registry are the user's typo,
-/// not an internal fault, so they get a distinct code the UI can show inline.
-fn scope_err(err: impl ToString) -> JsonRpcError {
-    let msg = err.to_string();
-    if msg.contains("CAPABILITY_INVALID") {
-        capability_err(msg)
-    } else if msg.contains("MCP_INVALID") {
-        rpc_err(1015, msg, "MCP_INVALID")
-    } else {
-        rpc_err(1000, msg, "INTERNAL")
-    }
-}
-
-fn skill_err(err: impl ToString) -> JsonRpcError {
-    let msg = err.to_string();
-    if msg.contains("CAPABILITY_INVALID") {
-        capability_err(msg)
-    } else if msg.contains("SKILL_INVALID") {
-        rpc_err(1016, msg, "SKILL_INVALID")
-    } else {
-        rpc_err(1000, msg, "INTERNAL")
-    }
-}
-
-/// Read the create/import/update payload for a user skill. Absent fields stay
-/// absent so `update` can distinguish "unchanged" from "cleared".
-fn parse_skill_input(params: &Value) -> Result<crate::user_skills::UserSkillInput, JsonRpcError> {
-    let raw = params
-        .get("skill")
-        .cloned()
-        .unwrap_or_else(|| params.clone());
-    serde_json::from_value(raw).map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))
-}
-
 fn subagent_err(err: impl ToString) -> JsonRpcError {
     let msg = err.to_string();
     if msg.contains("SUBAGENT_INVALID") {
@@ -1952,58 +1471,6 @@ fn parse_scope(params: &Value) -> Result<crate::activation::ActivationScope, Jso
         }),
     };
     serde_json::from_value(raw).map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))
-}
-
-fn parse_capability_query(
-    params: &Value,
-) -> Result<(CapabilityLevel, Option<String>), JsonRpcError> {
-    let level = CapabilityLevel::parse(params.get("level").and_then(Value::as_str))
-        .map_err(|error| capability_err(error.to_string()))?;
-    let project_path = params
-        .get("projectPath")
-        .and_then(Value::as_str)
-        .map(str::to_string)
-        .filter(|value| !value.trim().is_empty());
-    if level == CapabilityLevel::Project && project_path.is_none() {
-        return Err(capability_err(
-            "projectPath required for project capability queries",
-        ));
-    }
-    Ok((level, project_path))
-}
-
-/// Read one end of a move from a nested `{ level, projectPath }` object.
-///
-/// A move names two directories at once, so unlike the single-level queries it
-/// reads a named key instead of the flat params, and the two ends can never be
-/// confused for each other. `level` must be present and a string: defaulting a
-/// missing or non-string level to `global` would silently write a capability
-/// into the wrong directory, so it is rejected as invalid params instead.
-fn parse_capability_target(
-    params: &Value,
-    key: &str,
-) -> Result<crate::agent_capabilities::CapabilityTarget, JsonRpcError> {
-    let source = params
-        .get(key)
-        .ok_or_else(|| rpc_err(1002, format!("{key} required"), "INVALID_PARAMS"))?;
-    let level = match source.get("level") {
-        Some(Value::String(level)) => CapabilityLevel::parse(Some(level))
-            .map_err(|error| capability_err(error.to_string()))?,
-        _ => {
-            return Err(rpc_err(
-                1002,
-                format!("{key}.level must be 'global' or 'project'"),
-                "INVALID_PARAMS",
-            ))
-        }
-    };
-    let project_path = source
-        .get("projectPath")
-        .and_then(Value::as_str)
-        .map(str::to_string)
-        .filter(|value| !value.trim().is_empty());
-    crate::agent_capabilities::CapabilityTarget::new(level, project_path.as_deref())
-        .map_err(|error| capability_err(error.to_string()))
 }
 
 async fn handle_request(
@@ -2115,114 +1582,12 @@ async fn handle_request(
             "protocolVersion": PROTOCOL_VERSION
         })),
 
-        "workspace.get" => {
-            let st = state.lock().await;
-            Ok(json!({ "workspace": st.workspace.get() }))
-        }
-        "projects.list" => {
-            let st = state.lock().await;
-            let projects = st
-                .db
-                .list_projects()
-                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-            Ok(json!({ "projects": projects }))
-        }
-        "project.groups.list" => {
-            let st = state.lock().await;
-            let groups = st
-                .db
-                .list_project_groups()
-                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-            Ok(json!({ "groups": groups }))
-        }
-        "project.group.createRemote" => {
-            let name = params
-                .get("name")
-                .and_then(Value::as_str)
-                .ok_or_else(|| rpc_err(1002, "name required", "INVALID_PARAMS"))?;
-            let remote: crate::db::RemoteWorkspace =
-                serde_json::from_value(params.get("remote").cloned().unwrap_or(Value::Null))
-                    .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
-            let st = state.lock().await;
-            let group = st
-                .db
-                .create_remote_project_group(name, remote)
-                .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
-            Ok(json!({ "group": group }))
-        }
-        "project.group.create" => {
-            let name = params
-                .get("name")
-                .and_then(Value::as_str)
-                .ok_or_else(|| rpc_err(1002, "name required", "INVALID_PARAMS"))?;
-            let folders = params
-                .get("folders")
-                .and_then(Value::as_array)
-                .ok_or_else(|| rpc_err(1002, "folders required", "INVALID_PARAMS"))?
-                .iter()
-                .filter_map(Value::as_str)
-                .map(str::to_string)
-                .collect::<Vec<_>>();
-            let st = state.lock().await;
-            let group = st
-                .db
-                .create_project_group(name, &folders)
-                .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
-            Ok(json!({ "group": group }))
-        }
-        "project.group.update" => {
-            let group_id = params
-                .get("groupId")
-                .and_then(Value::as_str)
-                .ok_or_else(|| rpc_err(1002, "groupId required", "INVALID_PARAMS"))?;
-            let name = params
-                .get("name")
-                .and_then(Value::as_str)
-                .ok_or_else(|| rpc_err(1002, "name required", "INVALID_PARAMS"))?;
-            let folders = params
-                .get("folders")
-                .and_then(Value::as_array)
-                .ok_or_else(|| rpc_err(1002, "folders required", "INVALID_PARAMS"))?
-                .iter()
-                .filter_map(Value::as_str)
-                .map(str::to_string)
-                .collect::<Vec<_>>();
-            let primary = params.get("primary").and_then(Value::as_str);
-            let mut st = state.lock().await;
-            resource_dirs_rpc::rename_guard(&st, group_id, name)?;
-            let group = st
-                .db
-                .update_project_group(group_id, name, &folders, primary)
-                .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
-            resource_dirs_rpc::after_rename(&mut st, group)
-        }
-        "project.resources.templates" => {
-            let st = state.lock().await;
-            resource_dirs_rpc::templates(&st)
-        }
-        "project.resources.templates.save" | "project.resources.templates.delete" => {
-            let _st = state.lock().await;
-            resource_dirs_rpc::edit_template(method, &params)
-        }
-        "project.folders.missing" => {
-            let st = state.lock().await;
-            resource_dirs_rpc::missing_folders(&st)
-        }
-        "project.resources.ensure" => {
-            let st = state.lock().await;
-            resource_dirs_rpc::ensure(&st, &params)
-        }
-        "project.resources.ensureDraft" => {
-            let st = state.lock().await;
-            resource_dirs_rpc::ensure_draft(&st, &params)
-        }
-        method if method.starts_with("project.resources.home.") => {
-            let mut st = state.lock().await;
-            resource_dirs_rpc::home(&mut st, method, &params)
-        }
-        method if method.starts_with("project.tasks.") => {
-            let st = state.lock().await;
-            project_tasks_rpc::handle(&st, method, &params)
+        method
+            if method.starts_with("project.")
+                || method.starts_with("projects.")
+                || method.starts_with("workspace.") =>
+        {
+            project_rpc::handle(&state, method, params).await
         }
         // mc-agent: the prototype canvas of a project.
         method if method.starts_with("canvas.") => {
@@ -2233,275 +1598,6 @@ async fn handle_request(
         method if method.starts_with("creative.") => {
             let st = state.lock().await;
             mc_creative_rpc::handle(&st, method, &params)
-        }
-        method if method.starts_with("project.resources.catalog.") => {
-            let st = state.lock().await;
-            resource_catalog_rpc::handle(&st, method, &params)
-        }
-        "project.workspaces.notes" => {
-            let st = state.lock().await;
-            resource_dirs_rpc::notes(&st, &params)
-        }
-        "project.workspaces.setNote" => {
-            let st = state.lock().await;
-            resource_dirs_rpc::set_note(&st, &params)
-        }
-        "project.group.rename" => {
-            let id = params
-                .get("groupId")
-                .and_then(Value::as_str)
-                .ok_or_else(|| rpc_err(1002, "groupId required", "INVALID_PARAMS"))?;
-            let name = params
-                .get("name")
-                .and_then(Value::as_str)
-                .ok_or_else(|| rpc_err(1002, "name required", "INVALID_PARAMS"))?;
-            let mut st = state.lock().await;
-            resource_dirs_rpc::rename_guard(&st, id, name)?;
-            let group = st
-                .db
-                .rename_project_group(id, name)
-                .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
-            resource_dirs_rpc::after_rename(&mut st, group)
-        }
-        "project.group.memory.get" => {
-            let id = params
-                .get("groupId")
-                .and_then(Value::as_str)
-                .ok_or_else(|| rpc_err(1002, "groupId required", "INVALID_PARAMS"))?;
-            let st = state.lock().await;
-            let memory = st
-                .db
-                .get_project_group_memory(id)
-                .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
-            Ok(json!({ "memory": memory }))
-        }
-        "project.group.memory.set" => {
-            let id = params
-                .get("groupId")
-                .and_then(Value::as_str)
-                .ok_or_else(|| rpc_err(1002, "groupId required", "INVALID_PARAMS"))?;
-            let entries = params
-                .get("entries")
-                .ok_or_else(|| rpc_err(1002, "entries required", "INVALID_PARAMS"))?;
-            let st = state.lock().await;
-            if let Some(expected) = params.get("expectedMemory") {
-                let current = st
-                    .db
-                    .get_project_group_memory(id)
-                    .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
-                mc_memory_rpc::check_expected(expected, current)?;
-            }
-            let memory = st
-                .db
-                .set_project_group_memory(id, entries)
-                .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
-            Ok(json!({ "memory": memory }))
-        }
-        "project.group.instructions.get" => {
-            let id = params
-                .get("groupId")
-                .and_then(Value::as_str)
-                .ok_or_else(|| rpc_err(1002, "groupId required", "INVALID_PARAMS"))?;
-            let st = state.lock().await;
-            let content = st
-                .db
-                .get_project_group_instructions(id)
-                .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
-            Ok(json!({ "content": content }))
-        }
-        "project.group.instructions.set" => {
-            let id = params
-                .get("groupId")
-                .and_then(Value::as_str)
-                .ok_or_else(|| rpc_err(1002, "groupId required", "INVALID_PARAMS"))?;
-            let content = params
-                .get("content")
-                .and_then(Value::as_str)
-                .ok_or_else(|| rpc_err(1002, "content required", "INVALID_PARAMS"))?;
-            let st = state.lock().await;
-            let content = st
-                .db
-                .set_project_group_instructions(id, content)
-                .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
-            Ok(json!({ "content": content }))
-        }
-        "project.group.context" => {
-            let path = params
-                .get("path")
-                .and_then(Value::as_str)
-                .ok_or_else(|| rpc_err(1002, "path required", "INVALID_PARAMS"))?;
-            let st = state.lock().await;
-            resource_dirs_rpc::group_context(&st, path)
-        }
-        "projects.create" => {
-            let path = params
-                .get("path")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| rpc_err(1002, "path required", "INVALID_PARAMS"))?;
-            let st = state.lock().await;
-            let id = st
-                .db
-                .ensure_project(path, false)
-                .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
-            let project = st
-                .db
-                .get_project(id)
-                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
-                .ok_or_else(|| rpc_err(1000, "project disappeared after creation", "INTERNAL"))?;
-            Ok(json!({ "project": project }))
-        }
-
-        "projects.remove" => {
-            let path = params
-                .get("path")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| rpc_err(1002, "path required", "INVALID_PARAMS"))?;
-            let path = crate::db::canonical_project_path(path)
-                .ok_or_else(|| rpc_err(1002, "path required", "INVALID_PARAMS"))?;
-            let st = state.lock().await;
-            if crate::scheduled::project::has_running_tasks(&st.db, &path)
-                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
-            {
-                return Err(rpc_err(
-                    1008,
-                    "project has running scheduled tasks",
-                    "CONFLICT",
-                ));
-            }
-            let session_ids = st
-                .db
-                .project_session_ids(&path)
-                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-            // A running turn still owns its session's tools and working
-            // directory and is still writing to that session's transcript, so
-            // the bulk delete waits until every attached session is idle.
-            for id in &session_ids {
-                if sessions::session_has_running_turn(&st.db, id)
-                    .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
-                {
-                    return Err(rpc_err(1008, "project has running sessions", "CONFLICT"));
-                }
-            }
-            // Check for a running session before changing group membership.
-            // A busy project must remain in its original group.
-            // Once the project is known to be idle, detach its root as part of
-            // this delete because the group editor keeps its primary root
-            // fixed and preserves chats on detached non-primary roots (#1358).
-            // If the primary is removed, the first remaining root becomes primary. A
-            // single-folder group is just a wrapper around one project, so
-            // deleting that project also removes the now-empty group record.
-            if let Some(group) = st
-                .db
-                .stored_project_group_for_path(&path)
-                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
-            {
-                if group.roots.len() > 1 {
-                    st.db
-                        .remove_project_from_group(&group.id, &path)
-                        .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-                } else {
-                    st.db
-                        .delete_project_group_record(&group.id)
-                        .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-                }
-            }
-            crate::scheduled::project::pause(&st.db, &path)
-                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-            let mut sessions_removed = 0;
-            for id in &session_ids {
-                if sessions::delete_session(&st.db, id)
-                    .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
-                {
-                    drop_session_side_data(&st, id);
-                    sessions_removed += 1;
-                }
-            }
-            let removed = st
-                .db
-                .delete_project(&path)
-                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-            st.db
-                .delete_project_memory(&path)
-                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-            Ok(json!({ "removed": removed, "sessionsRemoved": sessions_removed }))
-        }
-        "project.memory.get" => {
-            let path = params
-                .get("path")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| rpc_err(1002, "path required", "INVALID_PARAMS"))?;
-            let st = state.lock().await;
-            let memory = st
-                .db
-                .get_project_memory(path)
-                .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
-            Ok(json!({ "memory": memory }))
-        }
-        "project.memory.set" => {
-            let path = params
-                .get("path")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| rpc_err(1002, "path required", "INVALID_PARAMS"))?;
-            let st = state.lock().await;
-            if let Some(expected) = params.get("expectedMemory") {
-                let current = st
-                    .db
-                    .get_project_memory(path)
-                    .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
-                mc_memory_rpc::check_expected(expected, current)?;
-            }
-            if let Some(entries) = params.get("entries") {
-                let memory = st
-                    .db
-                    .set_project_memory_entries(path, entries)
-                    .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
-                return Ok(json!({ "memory": memory }));
-            }
-            let content = params
-                .get("content")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| rpc_err(1002, "content required", "INVALID_PARAMS"))?;
-            let memory = st
-                .db
-                .set_project_memory(path, content)
-                .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
-            Ok(json!({ "memory": memory }))
-        }
-        "workspace.set" => {
-            let path = params
-                .get("path")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| rpc_err(1002, "path required", "INVALID_PARAMS"))?;
-            let mut st = state.lock().await;
-            st.hashline.drop_all();
-            let ws = if path.starts_with(crate::db::REMOTE_PROJECT_PREFIX) {
-                let group = st
-                    .db
-                    .project_group_for_path(path)
-                    .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?
-                    .filter(|group| group.remote.is_some())
-                    .ok_or_else(|| rpc_err(1007, "remote project not found", "NOT_FOUND"))?;
-                st.workspace.set_remote(&group)
-            } else {
-                st.workspace.set(PathBuf::from(path))
-            };
-            let pid = st
-                .db
-                .ensure_project(&ws.path, true)
-                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-            st.db
-                .kv_set("app", "currentProjectId", &json!(pid))
-                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-            Ok(json!({ "workspace": ws }))
-        }
-        "workspace.clear" => {
-            let mut st = state.lock().await;
-            st.hashline.drop_all();
-            st.workspace.clear();
-            st.db
-                .kv_delete("app", "currentProjectId")
-                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-            Ok(json!({ "ok": true }))
         }
         "review.turns" | "review.changes" | "review.context" => {
             let request = review::query::Request::parse(method, params)
@@ -2568,79 +1664,8 @@ async fn handle_request(
                 .map_err(|error| rpc_err(1000, error.to_string(), "INTERNAL"))?)
         }
 
-        "settings.get" => {
-            let st = state.lock().await;
-            let stored = st
-                .db
-                .get_setting("app")
-                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-            let mut settings = normalize_settings_value(stored.unwrap_or_else(|| {
-                json!({
-                    "defaultMode": "agent",
-                    "defaultCommandShell": tools::shell::default_shell_id(),
-                    "theme": "dark",
-                    "enterToSend": true,
-                    "largePasteThreshold": DEFAULT_LARGE_PASTE_THRESHOLD,
-                    "contextCompaction": {
-                        "enabled": true,
-                        "reserveTokens": 16384,
-                        "keepRecentTokens": 20000
-                    },
-                    "onboardingDismissed": false
-                })
-            }));
-            // Repair on read: a binding whose provider row is already gone —
-            // deleted by a build that did not prune, an uninstalled plugin, or
-            // synced bundle — is dropped here and the store is corrected, so
-            // the shell never presents a default the runtime must reject.
-            if prune_unresolvable_image_bindings(&st.db, &mut settings)
-                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
-            {
-                st.db
-                    .set_setting("app", &settings)
-                    .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-            }
-            Ok(settings)
-        }
-        "settings.set" => {
-            validate_settings_value(&params)?;
-            let mut st = state.lock().await;
-            let stored = st
-                .db
-                .get_setting("app")
-                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-            let incoming_shell = params.get("defaultCommandShell").and_then(Value::as_str);
-            let current_effective_shell = effective_command_shell_id(stored.as_ref());
-            if incoming_shell.is_some_and(|shell| current_effective_shell.as_deref() != Some(shell))
-            {
-                gate_default_command_shell_setting(&st)?;
-            }
-            let mut settings = normalize_settings_value(merge_settings_value(stored, params));
-            prune_unresolvable_image_bindings(&st.db, &mut settings)
-                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-            st.db
-                .set_setting("app", &settings)
-                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-            // Keep the marketplace channel in memory aligned with settings.
-            // Legacy source values are ignored, so this remains the official
-            // channel; the renderer owns remote refresh timing.
-            let (channel, custom_url) =
-                crate::plugins::market_channel_from_settings(Some(&settings));
-            st.plugins.set_market_channel(channel, custom_url);
-            // A concrete app language pins the plugin display locale here, so a
-            // shell that only writes settings still gets localized plugin rows.
-            // `auto` is resolved by the shell and pushed through
-            // `plugins.setLocale`.
-            if let Some(language) = settings.get("language").and_then(Value::as_str) {
-                if language != "auto" {
-                    st.plugins.set_locale(language);
-                }
-            }
-            crate::network_proxy::apply_from_settings(Some(&settings));
-            crate::network_policy::apply_from_settings(Some(&settings));
-            Ok(json!({ "ok": true }))
-        }
-
+        "settings.get" => settings_rpc::get(&state).await,
+        "settings.set" => settings_rpc::set(&state, params).await,
         "commandShells.list" => {
             let st = state.lock().await;
             let catalog = command_shell_catalog(&st)?;
@@ -2823,89 +1848,8 @@ async fn handle_request(
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(json!({ "sessions": sessions }))
         }
-        "session.create" => {
-            let thinking_level = thinking_level_param(&params)?;
-            let permission_parent = permission_parent_param(&params)?;
-            // ADR 0329: an isolated session gets its own git worktree.
-            let isolated = params
-                .get("isolated")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
-            let isolated_project = if isolated {
-                Some(
-                    params
-                        .get("projectPath")
-                        .and_then(|v| v.as_str())
-                        .map(str::to_string)
-                        .ok_or_else(|| {
-                            rpc_err(
-                                1002,
-                                "an isolated session needs a projectPath",
-                                "INVALID_PARAMS",
-                            )
-                        })?,
-                )
-            } else {
-                None
-            };
-            let st = state.lock().await;
-            if let Some(project) = isolated_project.as_deref() {
-                worktree_rpc::ensure_local_project(&st.db, project)?;
-            }
-            let permission_mode = if let Some(parent_id) = permission_parent {
-                Some(
-                    sessions::session_permission_mode(&st.db, &parent_id)
-                        .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
-                        .ok_or_else(|| rpc_err(1007, "parent session not found", "NOT_FOUND"))?,
-                )
-            } else {
-                None
-            };
-            let session = sessions::create_session_with_options(
-                &st.db,
-                sessions::SessionCreateOptions {
-                    title: params
-                        .get("title")
-                        .and_then(|v| v.as_str())
-                        .map(str::to_string),
-                    mode: params
-                        .get("mode")
-                        .and_then(|v| v.as_str())
-                        .map(str::to_string),
-                    provider_id: params
-                        .get("providerId")
-                        .and_then(|v| v.as_str())
-                        .map(str::to_string),
-                    model_id: params
-                        .get("modelId")
-                        .and_then(|v| v.as_str())
-                        .map(str::to_string),
-                    project_path: params
-                        .get("projectPath")
-                        .and_then(|v| v.as_str())
-                        .map(str::to_string),
-                    thinking_level,
-                    permission_mode,
-                },
-            )
-            .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
-            let Some(project) = isolated_project else {
-                let session = remote_tools::decorate_session(
-                    &st.db,
-                    serde_json::to_value(session)
-                        .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?,
-                )?;
-                return Ok(json!({ "session": session }));
-            };
-            drop(st);
-            let created = worktree_rpc::isolate_new_session(&state, &session.id, &project).await?;
-            let st = state.lock().await;
-            let session = sessions::session_summary(&st.db, &session.id)
-                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
-                .ok_or_else(|| rpc_err(1007, "session not found", "NOT_FOUND"))?;
-            let session = remote_tools::session_value(&st.db, session)?;
-            Ok(json!({ "session": session, "worktree": created }))
-        }
+        "session.create" => session_create::inherited(&state, &params).await,
+        "session.createConfigured" => session_create::configured(&state, &params).await,
         "session.fork" => {
             let session_id = params
                 .get("sessionId")
@@ -5506,194 +4450,8 @@ async fn handle_request(
             Ok(json!({ "plugin": plugin }))
         }
 
-        "mcp.list" => {
-            let (level, project_path) = parse_capability_query(&params)?;
-            let mut st = state.lock().await;
-            let servers = st
-                .mcp_servers
-                .list(level, project_path.as_deref())
-                .map_err(scope_err)?;
-            Ok(json!({ "servers": servers, "statuses": [] }))
-        }
-        "mcp.active" => {
-            let project_path = params.get("projectPath").and_then(Value::as_str);
-            let mut st = state.lock().await;
-            let servers = st.mcp_servers.active_for(project_path).map_err(scope_err)?;
-            Ok(json!({ "servers": servers, "statuses": [] }))
-        }
-        "mcp.upsert" => {
-            let input: crate::mcp_servers::McpServerInput =
-                serde_json::from_value(params.get("server").cloned().unwrap_or(params.clone()))
-                    .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
-            let mut st = state.lock().await;
-            let server = st.mcp_servers.upsert(input).map_err(scope_err)?;
-            Ok(json!({ "server": server }))
-        }
-        "mcp.remove" => {
-            let id = require_id(&params)?;
-            let (level, project_path) = parse_capability_query(&params)?;
-            let mut st = state.lock().await;
-            let ok = st
-                .mcp_servers
-                .remove(&id, Some(level), project_path.as_deref())
-                .map_err(scope_err)?;
-            Ok(json!({ "ok": ok }))
-        }
-        "mcp.setEnabled" => {
-            let id = require_id(&params)?;
-            let enabled = params
-                .get("enabled")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
-            let (level, project_path) = parse_capability_query(&params)?;
-            let mut st = state.lock().await;
-            let server = st
-                .mcp_servers
-                .set_enabled(&id, enabled, Some(level), project_path.as_deref())
-                .map_err(scope_err)?;
-            Ok(json!({ "server": server }))
-        }
-        "mcp.setScope" => {
-            let id = require_id(&params)?;
-            let scope = parse_scope(&params)?;
-            let mut st = state.lock().await;
-            let server = st.mcp_servers.set_scope(&id, scope).map_err(scope_err)?;
-            Ok(json!({ "server": server }))
-        }
-        "mcp.transfer" => {
-            let id = require_id(&params)?;
-            let from = parse_capability_target(&params, "from")?;
-            let to = parse_capability_target(&params, "to")?;
-            let mut st = state.lock().await;
-            let server = st
-                .mcp_servers
-                .transfer(&id, &from, &to)
-                .map_err(scope_err)?;
-            Ok(json!({ "server": server }))
-        }
-
-        "skills.list" => {
-            let (level, project_path) = parse_capability_query(&params)?;
-            let mut st = state.lock().await;
-            let skills = st
-                .user_skills
-                .list(level, project_path.as_deref())
-                .map_err(skill_err)?;
-            Ok(json!({ "skills": skills }))
-        }
-        "skills.active" => {
-            let project_path = params.get("projectPath").and_then(Value::as_str);
-            let mut st = state.lock().await;
-            let skills = st.user_skills.active_for(project_path).map_err(skill_err)?;
-            Ok(json!({ "skills": skills }))
-        }
-        "skills.disabledBuiltins" => {
-            let st = state.lock().await;
-            Ok(json!({ "disabled": st.user_skills.disabled_builtins() }))
-        }
-        "skills.setBuiltinEnabled" => {
-            let id = require_id(&params)?;
-            let enabled = params
-                .get("enabled")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
-            let mut st = state.lock().await;
-            let id = st
-                .user_skills
-                .set_builtin_enabled(&id, enabled)
-                .map_err(skill_err)?;
-            Ok(json!({ "id": id, "enabled": enabled }))
-        }
-        "skills.create" => {
-            let input = parse_skill_input(&params)?;
-            let mut st = state.lock().await;
-            let skill = st.user_skills.create(input).map_err(skill_err)?;
-            Ok(json!({ "skill": skill }))
-        }
-        "skills.import" => {
-            let source = params
-                .get("path")
-                .and_then(Value::as_str)
-                .ok_or_else(|| rpc_err(1002, "path required", "INVALID_PARAMS"))?
-                .to_string();
-            let input = parse_skill_input(&params)?;
-            let mut st = state.lock().await;
-            let skill = st.user_skills.import(&source, input).map_err(skill_err)?;
-            Ok(json!({ "skill": skill }))
-        }
-        "skills.update" => {
-            let id = require_id(&params)?;
-            let input = parse_skill_input(&params)?;
-            let mut st = state.lock().await;
-            let skill = st.user_skills.update(&id, input).map_err(skill_err)?;
-            Ok(json!({ "skill": skill }))
-        }
-        "skills.read" => {
-            let id = require_id(&params)?;
-            let level = params
-                .get("level")
-                .and_then(Value::as_str)
-                .map(|value| CapabilityLevel::parse(Some(value)))
-                .transpose()
-                .map_err(|error| rpc_err(1002, error.to_string(), "INVALID_PARAMS"))?;
-            let project_path = params.get("projectPath").and_then(Value::as_str);
-            let mut st = state.lock().await;
-            match st
-                .user_skills
-                .read(&id, level, project_path)
-                .map_err(skill_err)?
-            {
-                Some((skill, body)) => Ok(json!({ "skill": skill, "body": body })),
-                None => Ok(json!({ "skill": null, "body": null })),
-            }
-        }
-        "skills.remove" => {
-            let id = require_id(&params)?;
-            let level = params
-                .get("level")
-                .and_then(Value::as_str)
-                .map(|value| CapabilityLevel::parse(Some(value)))
-                .transpose()
-                .map_err(|error| rpc_err(1002, error.to_string(), "INVALID_PARAMS"))?;
-            let project_path = params.get("projectPath").and_then(Value::as_str);
-            let mut st = state.lock().await;
-            let ok = st
-                .user_skills
-                .remove(&id, level, project_path)
-                .map_err(skill_err)?;
-            Ok(json!({ "ok": ok }))
-        }
-        "skills.setEnabled" => {
-            let id = require_id(&params)?;
-            let enabled = params
-                .get("enabled")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
-            let (level, project_path) = parse_capability_query(&params)?;
-            let mut st = state.lock().await;
-            let skill = st
-                .user_skills
-                .set_enabled(&id, enabled, Some(level), project_path.as_deref())
-                .map_err(skill_err)?;
-            Ok(json!({ "skill": skill }))
-        }
-        "skills.setScope" => {
-            let id = require_id(&params)?;
-            let scope = parse_scope(&params)?;
-            let mut st = state.lock().await;
-            let skill = st.user_skills.set_scope(&id, scope).map_err(skill_err)?;
-            Ok(json!({ "skill": skill }))
-        }
-        "skills.transfer" => {
-            let id = require_id(&params)?;
-            let from = parse_capability_target(&params, "from")?;
-            let to = parse_capability_target(&params, "to")?;
-            let mut st = state.lock().await;
-            let skill = st
-                .user_skills
-                .transfer(&id, &from, &to)
-                .map_err(skill_err)?;
-            Ok(json!({ "skill": skill }))
+        method if method.starts_with("mcp.") || method.starts_with("skills.") => {
+            capability_rpc::handle(&state, method, params).await
         }
 
         "agents.list" => {
@@ -5966,13 +4724,11 @@ mod tests {
     use tokio::sync::{mpsc, Mutex};
 
     use super::{
-        capability_err, handle_request, parse_capability_query, parse_capability_target,
-        peek_jsonrpc_id, provider_rpc_err, request_budget_ms, resolve_plan_workspace,
-        resolve_tool_workspace, resolve_tool_workspace_for_call, response_for, rpc_err, scope_err,
-        skill_err, tool_call_of, with_request_budget, withdraw_approval_after_budget, JsonRpcError,
-        RPC_REQUEST_BUDGET_MS,
+        handle_request, peek_jsonrpc_id, provider_rpc_err, request_budget_ms,
+        resolve_plan_workspace, resolve_tool_workspace, resolve_tool_workspace_for_call,
+        response_for, rpc_err, tool_call_of, with_request_budget, withdraw_approval_after_budget,
+        JsonRpcError, RPC_REQUEST_BUDGET_MS,
     };
-    use crate::agent_capabilities::CapabilityLevel;
     use crate::plans::{PlanResolveParams, PlanSubmitParams};
     use crate::scheduled;
     use crate::sessions;
@@ -6290,39 +5046,6 @@ mod tests {
         assert_eq!(request_budget_ms("tools.execute", &unbounded), None);
     }
 
-    #[test]
-    fn capability_errors_keep_their_protocol_code() {
-        let missing_project = parse_capability_query(&json!({ "level": "project" }))
-            .expect_err("project queries require a project path");
-        assert_eq!(
-            missing_project.data.unwrap()["errorCode"],
-            "CAPABILITY_INVALID"
-        );
-
-        let unknown_level = parse_capability_query(&json!({ "level": "workspace" }))
-            .expect_err("unknown capability levels are invalid");
-        assert_eq!(
-            unknown_level.data.unwrap()["errorCode"],
-            "CAPABILITY_INVALID"
-        );
-        assert_eq!(
-            scope_err("CAPABILITY_INVALID: missing project")
-                .data
-                .unwrap()["errorCode"],
-            "CAPABILITY_INVALID"
-        );
-        assert_eq!(
-            skill_err("CAPABILITY_INVALID: missing project")
-                .data
-                .unwrap()["errorCode"],
-            "CAPABILITY_INVALID"
-        );
-        assert_eq!(
-            capability_err("missing project").data.unwrap()["errorCode"],
-            "CAPABILITY_INVALID"
-        );
-    }
-
     /// A request whose transcript lines never reached the device must not answer
     /// success, and a handler that failed anyway keeps its own error.
     #[test]
@@ -6354,42 +5077,6 @@ mod tests {
         let answered = response_for(Value::Null, Ok(json!({ "ok": true })), Ok(()));
         assert!(answered.error.is_none());
         assert_eq!(answered.result.unwrap()["ok"], true);
-    }
-
-    #[test]
-    fn capability_target_requires_an_explicit_string_level() {
-        // A missing or non-string level must not fall back to `global`: that
-        // would write the capability into the wrong directory without telling
-        // the caller.
-        let missing = parse_capability_target(&json!({ "to": { "projectPath": "/p" } }), "to")
-            .expect_err("a target without a level is invalid");
-        assert_eq!(missing.code, 1002);
-        assert_eq!(
-            missing.data.as_ref().unwrap()["errorCode"],
-            json!("INVALID_PARAMS")
-        );
-
-        let wrong_type = parse_capability_target(&json!({ "to": { "level": 5 } }), "to")
-            .expect_err("a non-string level is invalid");
-        assert_eq!(wrong_type.code, 1002);
-        assert_eq!(
-            wrong_type.data.as_ref().unwrap()["errorCode"],
-            json!("INVALID_PARAMS")
-        );
-
-        let absent = parse_capability_target(&json!({}), "from")
-            .expect_err("the named end of a move is required");
-        assert_eq!(absent.code, 1002);
-
-        let project = parse_capability_target(
-            &json!({ "to": { "level": "project", "projectPath": "/p" } }),
-            "to",
-        )
-        .unwrap();
-        assert_eq!(project.level, CapabilityLevel::Project);
-        let global =
-            parse_capability_target(&json!({ "to": { "level": "global" } }), "to").unwrap();
-        assert_eq!(global.level, CapabilityLevel::Global);
     }
 
     #[test]
@@ -6771,6 +5458,61 @@ mod tests {
         )
         .await
         .unwrap();
+    }
+
+    #[tokio::test]
+    async fn project_removal_restores_membership_and_transcripts_when_a_late_write_fails() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("workspace");
+        fs::create_dir(&path).unwrap();
+        let path = path.to_str().unwrap().to_owned();
+        let mut app = AppState::open(dir.path()).unwrap();
+        app.handshook = true;
+        let group = app
+            .db
+            .create_project_group("Saved", std::slice::from_ref(&path))
+            .unwrap();
+        let session = sessions::create_session_with_options(
+            &app.db,
+            sessions::SessionCreateOptions {
+                project_path: Some(path.clone()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        app.db.conn().execute_batch("CREATE TRIGGER keep_project BEFORE DELETE ON projects BEGIN SELECT RAISE(ABORT, 'write rejected'); END;").unwrap();
+        let state = Arc::new(Mutex::new(app));
+        append_test_message(state.clone(), &session.id, "saved message").await;
+        let transcript = crate::transcripts::transcript_path(dir.path(), &session.id).unwrap();
+        let bytes = fs::read(&transcript).unwrap();
+        let remove = || {
+            handle_request(
+                state.clone(),
+                "projects.remove",
+                json!({ "path": path }),
+                mpsc::unbounded_channel().0,
+            )
+        };
+        assert!(remove().await.is_err());
+        {
+            let app = state.lock().await;
+            assert_eq!(app.db.project_session_ids(&path).unwrap(), [session.id]);
+            assert_eq!(
+                app.db
+                    .stored_project_group_for_path(&path)
+                    .unwrap()
+                    .unwrap()
+                    .id,
+                group.id
+            );
+            assert_eq!(fs::read(&transcript).unwrap(), bytes);
+            app.db
+                .conn()
+                .execute_batch("DROP TRIGGER keep_project")
+                .unwrap();
+        }
+        assert_eq!(remove().await.unwrap()["sessionsRemoved"], 1);
+        assert!(!transcript.exists());
     }
 
     #[tokio::test]
@@ -8055,6 +6797,52 @@ mod tests {
         assert!(content.contains("temporary"), "{content}");
         assert_eq!(read.content["tag"].as_str().unwrap().len(), 4);
         assert!(!active_project.join("notes.txt").exists());
+    }
+
+    #[tokio::test]
+    async fn settings_rejects_non_object_updates_and_recovers_legacy_values() {
+        let data_dir = tempfile::tempdir().unwrap();
+        let mut app = AppState::open(data_dir.path()).unwrap();
+        app.handshook = true;
+        let state = Arc::new(Mutex::new(app));
+        let (tx, _rx) = mpsc::unbounded_channel();
+        handle_request(
+            state.clone(),
+            "settings.set",
+            json!({"theme":"light"}),
+            tx.clone(),
+        )
+        .await
+        .unwrap();
+        for value in [Value::Null, json!([]), json!("light")] {
+            let error = handle_request(state.clone(), "settings.set", value, tx.clone())
+                .await
+                .unwrap_err();
+            assert_eq!(error.data.unwrap()["errorCode"], "INVALID_PARAMS");
+        }
+        let stored = handle_request(state.clone(), "settings.get", json!({}), tx.clone())
+            .await
+            .unwrap();
+        assert_eq!(stored["theme"], "light");
+
+        state
+            .lock()
+            .await
+            .db
+            .set_setting("app", &json!([]))
+            .unwrap();
+        let recovered = handle_request(state.clone(), "settings.get", json!({}), tx)
+            .await
+            .unwrap();
+        assert_eq!(recovered["theme"], "dark");
+        assert_eq!(
+            recovered["defaultCommandShell"],
+            crate::tools::shell::default_shell_id()
+        );
+        assert_eq!(
+            state.lock().await.db.get_setting("app").unwrap(),
+            Some(recovered)
+        );
     }
 
     #[tokio::test]
@@ -11025,71 +9813,5 @@ mod tests {
         }
         let st = state.lock().await;
         assert_eq!(st.plugins.locale(), "en-US");
-    }
-}
-
-#[cfg(test)]
-mod image_generation_settings_tests {
-    use super::*;
-    #[test]
-    fn validates_optional_image_binding() {
-        for value in [
-            json!({}),
-            json!({"imageGeneration": null}),
-            json!({"imageGeneration": {"providerId": "p", "modelId": "image"}}),
-            json!({"imageGenerationModels": null}),
-            json!({"imageGenerationModels": []}),
-            json!({"imageGenerationModels": [
-                {"providerId": "p", "modelId": "image-one"},
-                {"providerId": "q", "modelId": "image-two"}
-            ]}),
-        ] {
-            assert!(validate_settings_value(&value).is_ok());
-        }
-        for value in [
-            json!(false),
-            json!({}),
-            json!({"providerId": "p", "modelId": " "}),
-        ] {
-            assert!(validate_settings_value(&json!({"imageGeneration": value})).is_err());
-        }
-        for value in [
-            json!(false),
-            json!({}),
-            json!([{"providerId": "p", "modelId": " "}]),
-        ] {
-            assert!(validate_settings_value(&json!({"imageGenerationModels": value})).is_err());
-        }
-    }
-}
-
-#[cfg(test)]
-mod update_settings_tests {
-    use super::*;
-
-    #[test]
-    fn validates_update_preference_and_reminder_version() {
-        for value in [
-            json!({}),
-            json!({"updatePreference": "automatic"}),
-            json!({"updatePreference": "manual"}),
-            json!({"lastNotifiedUpdateVersion": "0.15.9"}),
-            json!({"updateDismissedVersion": "0.15.9"}),
-            json!({"updateDismissedVersion": null}),
-        ] {
-            assert!(validate_settings_value(&value).is_ok(), "{value}");
-        }
-        for value in [
-            json!({"updatePreference": "sometimes"}),
-            json!({"updatePreference": null}),
-            json!({"lastNotifiedUpdateVersion": "  "}),
-            json!({"lastNotifiedUpdateVersion": 12}),
-            json!({"lastNotifiedUpdateVersion": "x".repeat(129)}),
-            json!({"updateDismissedVersion": "  "}),
-            json!({"updateDismissedVersion": 12}),
-            json!({"updateDismissedVersion": "x".repeat(129)}),
-        ] {
-            assert!(validate_settings_value(&value).is_err(), "{value}");
-        }
     }
 }

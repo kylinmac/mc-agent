@@ -351,7 +351,7 @@
 .transcript-skeleton-line {
   display: block;
   height: 14px;
-  border-radius: var(--radius-sm, 6px);
+  border-radius: var(--radius-sm);
   background: color-mix(in oklab, var(--ds-text-primary) 8%, transparent);
   animation: transcript-skeleton-pulse 1.4s var(--motion-ease-standard) infinite;
 }

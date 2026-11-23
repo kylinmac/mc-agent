@@ -80,11 +80,25 @@ const customColors = {
 const canvas = document.createElement("canvas");
 canvas.width = canvas.height = 1;
 const context = canvas.getContext("2d", { willReadFrequently: true });
-function rgba(color) {
+function rgba(...layers) {
   context.clearRect(0, 0, 1, 1);
-  context.fillStyle = color;
-  context.fillRect(0, 0, 1, 1);
+  for (const color of layers) {
+    context.fillStyle = color;
+    context.fillRect(0, 0, 1, 1);
+  }
   return [...context.getImageData(0, 0, 1, 1).data];
+}
+function luminance([r, g, b]) {
+  function linear(byte) {
+    const c = byte / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  }
+  return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
+}
+function textContrast(ink, ...background) {
+  const surface = luminance(rgba(...background));
+  const text = luminance(rgba(...background, ink));
+  return (Math.max(surface, text) + 0.05) / (Math.min(surface, text) + 0.05);
 }
 async function settle() {
   await document.fonts.ready;
@@ -145,13 +159,21 @@ globalThis.themeSurfacesProbe = async (theme, custom) => {
       if (String(values[id].rgba) !== String(rgba(customColors["--ds-field-inset-focus-bg"]))) failures.push(`${id} ignores focus token`);
     }
   }
+  const contrast = {};
   if (!custom) {
+    const action = sample(".btn-primary");
+    const page = getComputedStyle(document.body).backgroundColor;
+    contrast.primaryAction = textContrast(action.ink, page, action.color);
+    contrast.settingsSearch = textContrast(values.search.ink, page, values.rail.color, values.search.color);
+    for (const [name, ratio] of Object.entries(contrast)) {
+      if (ratio < 4.5) failures.push(name + " text contrast " + ratio.toFixed(2) + " is below 4.5:1");
+    }
     for (const [id, value] of Object.entries(values)) {
       if (String(value.rgba) !== String(DEFAULT_RGBA[theme][id])) failures.push(`${id} changed built-in paint`);
       if (value.shadow !== (DEFAULT_SHADOWS[theme][id] ?? "none")) failures.push(`${id} changed built-in shadow`);
     }
   }
-  return { ok: failures.length === 0, theme, custom, values, failures,
+  return { ok: failures.length === 0, theme, custom, values, contrast, failures,
     elevatedToken: getComputedStyle(document.documentElement).getPropertyValue("--ds-bg-elevated-primary").trim(),
     elevatedRgba: rgba(getComputedStyle(document.documentElement).getPropertyValue("--ds-bg-elevated-primary").trim()) };
 };
