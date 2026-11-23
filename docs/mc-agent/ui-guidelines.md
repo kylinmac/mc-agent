@@ -27,6 +27,8 @@ Renderer 的设计变量集中在 `apps/desktop/src/styles/tokens.css`。基础�
 
 新文案进 `packages/i18n`，至少补齐英文和简体中文。路径、命令和用户生成内容应可读取或复制。省略长名称时保留可访问的全名，操作按钮保持可达。各控件的源码位置见 [Renderer 组件目录](https://github.com/kylinmac/mc-agent/blob/main/apps/desktop/src/AGENTS.md)。
 
+Composer 工具栏优先给会话操作保留点击区域。插件贡献的按钮空间不足时按完整控件换行；普通输入栏在窄窗口折叠模型标签。验证入口为 `pnpm test:e2e:plugin-ui-slots` 和 `pnpm test:e2e:layout`。
+
 ## 开发与验收
 
 | 改动 | 怎么验证 |

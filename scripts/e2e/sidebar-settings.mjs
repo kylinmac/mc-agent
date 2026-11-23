@@ -48,6 +48,13 @@ export async function checkSidebarSettings({ cdp, check, waitFor, artifactDir })
     const el = document.querySelector(${JSON.stringify(selector)});
     const style = getComputedStyle(el);
     const rect = el.getBoundingClientRect();
+    const surfaceColor = (element) => {
+      for (let current = element; current; current = current.parentElement) {
+        const color = getComputedStyle(current).backgroundColor;
+        if (color !== 'rgba(0, 0, 0, 0)') return color;
+      }
+      return null;
+    };
     const ancestors = [];
     for (let parent = el.parentElement; parent; parent = parent.parentElement) {
       ancestors.push(getComputedStyle(parent).backgroundColor);
@@ -57,11 +64,9 @@ export async function checkSidebarSettings({ cdp, check, waitFor, artifactDir })
       size: style.backgroundSize, repeat: style.backgroundRepeat,
       animation: style.animationName, opacity: style.opacity,
       width: rect.width, height: rect.height, top: rect.top, ancestors,
-      content: getComputedStyle(document.querySelector('.settings-content, .main-pane')).backgroundColor,
-      titlebar: document.querySelector('.settings-titlebar')
-        ? getComputedStyle(document.querySelector('.settings-titlebar')).backgroundColor : null,
-      shellAnimation: document.querySelector('.settings-shell')
-        ? getComputedStyle(document.querySelector('.settings-shell')).animationName : null,
+      content: surfaceColor(document.querySelector('.settings-content, .main-pane')),
+      titlebar: document.querySelector('.main-titlebar')
+        ? surfaceColor(document.querySelector('.main-titlebar')) : null,
     };
   })()`);
   const startTrace = async () => {
@@ -98,34 +103,21 @@ export async function checkSidebarSettings({ cdp, check, waitFor, artifactDir })
       return { frames: trace.frames, animations: trace.animations };
     })()`);
   };
+  const chatIdentity = () => cdp.evaluate(`document.querySelector('.mc-session-tab[aria-selected="true"]')?.dataset.tabKey ??
+    document.querySelector('.thread-item.active')?.dataset.sidebarSessionRow ??
+    document.querySelector('[data-home-session-kind]')?.dataset.homeSessionKind ?? null`);
+  const originalChat = await chatIdentity();
+  check(!!originalChat, "settings round trips start from an identifiable conversation", String(originalChat));
   const returnToApp = async (width, label, collapsed = false) => {
-    const retainedChat = await cdp.evaluate(`(() => {
-      const chatShell = document.querySelector('.app-chat-shell');
-      const chatSurface = chatShell?.querySelector('.chat-surface');
-      window.__settingsReturnChatSurface = chatSurface ?? null;
-      return {
-        hidden: chatShell?.hidden === true,
-        mounted: chatSurface?.isConnected === true,
-      };
-    })()`);
-    check(
-      retainedChat.hidden && retainedChat.mounted,
-      `${label}: Settings hides the chat while keeping it mounted`,
-      JSON.stringify(retainedChat),
-    );
+    const settingsTab = await cdp.evaluate(`!!document.querySelector('.mc-settings-tab .settings-content') &&
+      !!document.querySelector('.sidebar .settings-nav') && !!document.querySelector('.main-titlebar')`);
+    check(settingsTab, `${label}: settings occupies a title tab and the shared sidebar`);
     await startTrace();
-    await click('[data-nav="back-to-app"]');
-    await waitFor(() => cdp.evaluate("!document.querySelector('.settings-shell')"), "settings closes");
-    const sameChat = await cdp.evaluate(`(() => {
-      const original = window.__settingsReturnChatSurface;
-      delete window.__settingsReturnChatSurface;
-      return Boolean(original?.isConnected && document.querySelector('.chat-surface') === original);
-    })()`);
-    check(
-      sameChat,
-      `${label}: returning from Settings reveals the same chat surface`,
-      String(sameChat),
-    );
+    await click('[data-nav="rail-home"]');
+    await waitFor(() => cdp.evaluate("!document.querySelector('.mc-settings-tab') && !!document.querySelector('.chat-surface')"), "return to chat");
+    const returned = await chatIdentity();
+    check(returned === originalChat, `${label}: returning from Settings restores the same conversation`,
+      JSON.stringify({ expected: originalChat, returned }));
     const trace = await finishTrace();
     // MutationObserver may sample the same commit before computed layout settles.
     // Ignore only leading zero-width samples; any later width change still fails.
@@ -140,7 +132,7 @@ export async function checkSidebarSettings({ cdp, check, waitFor, artifactDir })
       JSON.stringify({ animations: trace.animations, widths: trace.frames.map(frame => Math.round(frame.width)) }),
     );
   };
-  const toggle = '[data-nav="toggle-sidebar"]';
+  const toggle = '.sidebar [data-nav="toggle-sidebar"]';
 
   try {
     await cdp.evaluate("window.dispatchEvent(new Event('focus'))");
@@ -151,17 +143,17 @@ export async function checkSidebarSettings({ cdp, check, waitFor, artifactDir })
         if (platform === original.platform) await capture(`home-${theme}`);
         await click('[data-nav="settings"]');
         await waitFor(() => cdp.evaluate("!!document.querySelector('.settings-nav')"), "settings rail mounts");
-        const settings = await material('.settings-nav');
+        const settings = await material('.sidebar');
         check(
           ["color", "image", "size", "repeat", "width", "height", "top"].every(key => home[key] === settings[key]) &&
-            settings.animation === "none" && settings.shellAnimation === "none" && settings.opacity === "1",
+            settings.animation === "none" && settings.opacity === "1",
           `${platform}/${theme}: home and settings share one stationary sidebar material`,
           JSON.stringify({ home, settings }),
         );
         check(
-          settings.content === home.content && settings.titlebar === home.content &&
+          settings.content === home.content && settings.titlebar === settings.color &&
             (platform !== "darwin" || settings.ancestors.every(color => color === "rgba(0, 0, 0, 0)")),
-          `${platform}/${theme}: sidebar ancestry reveals material while content and titlebar stay opaque`,
+          `${platform}/${theme}: titlebar shares the sidebar material and content keeps its surface`,
           JSON.stringify(settings),
         );
         if (platform === original.platform) {
@@ -185,7 +177,7 @@ export async function checkSidebarSettings({ cdp, check, waitFor, artifactDir })
         const home = await material('.sidebar');
         await click('[data-nav="settings"]');
         await waitFor(() => cdp.evaluate("!!document.querySelector('.settings-nav')"), "custom-theme settings mounts");
-        const settings = await material('.settings-nav');
+        const settings = await material('.sidebar');
         const effective = await cdp.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--ds-bg-sidebar').trim()");
         check(
           home.color === settings.color && home.image === settings.image &&

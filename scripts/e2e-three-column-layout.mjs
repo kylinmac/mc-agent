@@ -1352,94 +1352,35 @@ async function main() {
 
     await rig(`window.__PI_DESKTOP__.collapseWorkPanel()`);
     const originalTheme = await cdp.evaluate(`document.documentElement.dataset.theme`);
-    const routeActionSelector = ".main-titlebar .title-nav-btn";
-    const readChromeAction = (selector) => cdp.evaluate(`(() => {
-      const control = document.querySelector(${JSON.stringify(selector)});
-      if (!control) throw new Error("Chrome action missing");
-      const box = control.getBoundingClientRect();
-      const style = getComputedStyle(control);
-      return {
-        width: box.width, height: box.height,
-        x: box.left + box.width / 2, y: box.top + box.height / 2,
-        background: style.backgroundColor, color: style.color,
-        radius: style.borderRadius, border: style.borderWidth,
-        display: style.display, align: style.alignItems, justify: style.justifyContent,
-        flex: style.flex, cursor: style.cursor,
-        hovered: control.matches(":hover"),
-      };
-    })()`);
-    const movePointer = async (x, y) => {
-      await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
-      await delay(220);
-    };
+    // Plugins and scheduled tasks now project their own navigation into the pinned sidebar.
     for (const route of ["plugins", "scheduled"]) {
-      if ((await measure()).sidebarKind !== "sidebar") await clickSidebarToggle();
+      if ((await measure()).sidebarKind === "sidebar") await clickSidebarToggle();
       await rig(`window.__PI_DESKTOP__.setPage(${JSON.stringify(route)})`);
       await waitFor(
-        () => cdp.evaluate(`!!document.querySelector(".route-page .page-frame") && !!document.querySelector(".main-titlebar")`),
-        `${route} route mounted`,
-      );
-      await clickSidebarToggle();
-      await waitFor(
-        () => cdp.evaluate(`!document.querySelector(".sidebar") && document.querySelectorAll(${JSON.stringify(routeActionSelector)}).length === 3`),
-        `${route} collapsed-sidebar actions`,
-      );
-      check(
-        await cdp.evaluate(`!document.querySelector(".window-chrome-row")`),
-        `${route} exercises the ordinary titlebar, not preview chrome`,
+        () => cdp.evaluate(`!!document.querySelector(".route-page .page-frame") && !!document.querySelector(".sidebar:not(.is-exiting)")`),
+        `${route} opens its sidebar navigation`,
       );
       for (const theme of ["light", "dark"]) {
-        await cdp.evaluate(`window.__PI_DESKTOP__.setThemeAttr(${JSON.stringify(theme)})`);
-        await movePointer(500, 300);
-        const reference = await readChromeAction(".app-work-panel-toggle");
-        await movePointer(reference.x, reference.y);
-        const referenceHover = await readChromeAction(".app-work-panel-toggle");
-        check(
-          reference.background === "rgba(0, 0, 0, 0)" &&
-            referenceHover.hovered && referenceHover.background !== reference.background,
-          `${route}/${theme} shared chrome reference has transparent rest and hover wash`,
-          JSON.stringify({ reference, referenceHover }),
-        );
-        for (const action of ["toggle-sidebar", "new-task"]) {
-          const selector = `${routeActionSelector}[data-nav="${action}"]`;
-          await movePointer(500, 300);
-          const rest = await readChromeAction(selector);
-          check(
-            Math.abs(rest.width - 28) < 0.1 && Math.abs(rest.height - 28) < 0.1 &&
-              ["background", "color", "radius", "border", "display", "align", "justify", "flex", "cursor"].every(
-                (property) => rest[property] === reference[property],
-              ),
-            `${route}/${theme} ${action} shares the rendered 28px chrome target and rest style`,
-            JSON.stringify(rest),
-          );
-          await movePointer(rest.x, rest.y);
-          const hover = await readChromeAction(selector);
-          check(
-            hover.hovered && hover.background === referenceHover.background &&
-              hover.color === referenceHover.color &&
-              hover.width === rest.width && hover.height === rest.height,
-            `${route}/${theme} ${action} shares the hover wash without changing geometry (CDP)`,
-            JSON.stringify(hover),
-          );
-        }
+        await rig(`window.__PI_DESKTOP__.setThemeAttr(${JSON.stringify(theme)})`);
+        const chrome = await cdp.evaluate(`(() => {
+          const home = document.querySelector('.sidebar [data-nav="rail-home"]');
+          const box = home?.getBoundingClientRect();
+          return {
+            homeLabel: home?.getAttribute("aria-label"),
+            homeVisible: box?.width > 0 && box?.height > 0,
+            toggle: !!document.querySelector('.sidebar [data-nav="toggle-sidebar"]'),
+            previewChrome: !!document.querySelector(".window-chrome-row"),
+          };
+        })()`);
+        check(chrome.homeVisible && !!chrome.homeLabel && !chrome.toggle && !chrome.previewChrome,
+          `${route} pins navigation and keeps an accessible home action (${theme})`, JSON.stringify(chrome));
       }
-      await cdp.evaluate(`document.querySelector('${routeActionSelector}[data-nav="toggle-sidebar"]').click()`);
+      await cdp.evaluate(`document.querySelector('.sidebar [data-nav="rail-home"]').click()`);
       await waitFor(
-        () => cdp.evaluate(`!!document.querySelector(".sidebar:not(.is-exiting)") && !document.querySelector(${JSON.stringify(routeActionSelector)})`),
-        `${route} sidebar reopens through its titlebar action`,
+        () => cdp.evaluate(`!!document.querySelector(".conversation-topbar") && !document.querySelector(".route-page")`),
+        `${route} home action returns to chat`,
       );
-      check(true, `${route} titlebar sidebar action reopens navigation (DOM)`);
-      await clickSidebarToggle();
-      await waitFor(
-        () => cdp.evaluate(`!document.querySelector(".sidebar") && !!document.querySelector('${routeActionSelector}[data-nav="new-task"]')`),
-        `${route} new-task action after recollapse`,
-      );
-      await cdp.evaluate(`document.querySelector('${routeActionSelector}[data-nav="new-task"]').click()`);
-      await waitFor(
-        () => cdp.evaluate(`!!document.querySelector(".conversation-topbar") && !!document.querySelector(".composer-input:not(:disabled)") && !document.querySelector(".route-page")`),
-        `${route} new task returns to an editable chat composer`,
-      );
-      check(true, `${route} titlebar new-task action returns to chat (DOM)`);
+      check(true, `${route} returns to the conversation through the visible home action`);
     }
     await cdp.evaluate(`document.documentElement.dataset.theme = ${JSON.stringify(originalTheme)}`);
 

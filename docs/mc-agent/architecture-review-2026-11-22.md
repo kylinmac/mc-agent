@@ -50,7 +50,7 @@
 |---|---|---|
 | 输入提示词、选择模型、调用插件草稿动作 | `features/chat/Composer.tsx` 组合输入控件，插件宿主持有动作分发。插件工具条控件空间不足时换行 | `test:e2e:composer-model-selection`、`test:e2e:plugin-ui-slots` |
 | 查看项目与会话、调宽侧栏、打开菜单、重排项目 | `components/sidebar/` 分别持有项目与会话排序、菜单定位和焦点、拖放与键盘重排、宽度与指针捕获。Sidebar 组合这些交互 | `sidebar-project-reorder`、`sidebar-resize` 与 `test:e2e:sidebar-menu` |
-| 读写、恢复、分叉会话与切换消息版本 | `sessions.rs` 作为 Rust 门面。消息编解码、显示、索引、查询、追加、修订、分叉、恢复与回合分别有实现模块。原单测按领域迁入 `sessions/tests/` | `cargo test -p host-core --locked` |
+| 读写、恢复、分叉会话与切换消息版本 | `sessions.rs` 作为 Rust 门面。消息编解码、显示、索引、查询、追加、修订、分叉、恢复与回合分别有实现模块。原有 97 个会话测试保留，用例按领域迁入 `sessions/tests/` | `cargo test -p host-core --locked` |
 | 恢复模型上下文、启动子代理、获取下一条提示建议 | `transcript-replay.ts` 重建历史，`builtin-tool-schemas.ts` 声明内置工具。`delegation-registry.ts` 管委派生命周期，`next-prompt-suggestion.ts` 管建议请求的合并、取消与缓存。主循环仍持有当前模型和压缩时机 | agent-runtime 离线运行时及恢复测试 |
 | 受理重复请求、向插件子进程发起调用、读写文件 | AgentHost 通过 `turn-idempotency.ts` 核对重复输入。Electron 的 `plugin-process-calls.ts` 管子进程请求、超时与取消，`plugin-file-access.ts` 校验范围和同意状态，`plugin-file-api.ts` 实现文件操作 | agent-host、插件文件范围和卸载测试，插件插槽端到端测试 |
 

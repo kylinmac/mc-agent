@@ -134,7 +134,8 @@ export async function checkSidebarRowStates({ cdp, check, waitFor, seed }) {
       background: style.backgroundColor, color: style.color,
       radius: style.borderRadius, transition: style.transition,
       duration: parseFloat(style.transitionDuration),
-      outline: style.outlineStyle, outlineWidth: parseFloat(style.outlineWidth),
+      outline: style.outlineStyle,
+      focusImage: style.backgroundImage,
       focusVisible: element.matches(':focus-visible'), hovered: element.matches(':hover'),
       selected: element.classList.contains('active'),
       current: element.getAttribute('data-current-workspace'),
@@ -324,9 +325,9 @@ export async function checkSidebarRowStates({ cdp, check, waitFor, seed }) {
       await pressTab(true);
       const focusedTitle = await paint(title(seed.paths.alpha));
       check(
-        focusedTitle.focusVisible && focusedTitle.outline !== "none" && focusedTitle.outlineWidth > 0 &&
+        focusedTitle.focusVisible && focusedTitle.focusImage.includes("linear-gradient") &&
           focusedTitle.background === transparent && (await paint(header(seed.paths.alpha))).background === transparent,
-        `${theme} keyboard focus has an outline without a second selection surface`,
+        `${theme} keyboard focus has a visible tint without selecting the project row`,
         JSON.stringify(focusedTitle),
       );
       await click(title(seed.paths.alpha));
@@ -358,20 +359,15 @@ export async function checkSidebarRowStates({ cdp, check, waitFor, seed }) {
       await click('[data-nav="settings"]');
       await waitFor(() => cdp.evaluate("!!document.querySelector('.settings-shell')"), "settings opens");
       await move(600, 120);
-      const hiddenChatState = await cdp.evaluate(`(() => {
-        const chatShell = document.querySelector('.app-chat-shell');
-        const sidebar = chatShell?.querySelector('.sidebar');
-        return {
-          hiddenAndInert: chatShell?.hidden === true && chatShell.inert === true,
-          sidebarRetained: sidebar?.isConnected === true,
-        };
-      })()`);
-      check(
-        hiddenChatState.hiddenAndInert && hiddenChatState.sidebarRetained,
-        `${theme} settings hides the mounted chat and sidebar`,
-        JSON.stringify({ hiddenChatState, selectedIds: await selectedIds() }),
-      );
-      await click('[data-nav="back-to-app"]');
+      const settingsState = await cdp.evaluate(`({
+        active: !!document.querySelector('.mc-settings-tab .settings-content'),
+        sidebarNav: !!document.querySelector('.sidebar .settings-nav'),
+        visibleChatRows: [...document.querySelectorAll('.sidebar [data-sidebar-session-row]')]
+          .filter((row) => row.getClientRects().length).length,
+      })`);
+      check(settingsState.active && settingsState.sidebarNav && settingsState.visibleChatRows === 0,
+        `${theme} settings replaces the conversation list in the pinned sidebar`, JSON.stringify(settingsState));
+      await click('[data-nav="rail-home"]');
       await waitFor(() => cdp.evaluate("!!document.querySelector('.sidebar')"), "sidebar returns from settings");
       await move(600, 120);
       check(
