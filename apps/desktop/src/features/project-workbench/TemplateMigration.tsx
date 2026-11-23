@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { ProjectTemplateStatus, ResourceTemplateSummary } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
-import { Button } from "../../components/ui";
+import { Select, Button } from "../../components/ui";
 import { migrationPrompt } from "./migration-prompt";
 
 /* R5: discuss in Plan mode, then reuse plan approval and Agent execution. */
@@ -125,7 +125,8 @@ export function TemplateMigration({
   return (
     <div className="mc-workbench-row mc-workbench-migration">
       <span className="mc-workbench-label">{t("mcProject.migrationTitle")}</span>
-      <select
+      <Select
+        appearance="embedded"
         className="mc-workbench-select"
         aria-label={t("mcProject.migrationTemplate")}
         value={template}
@@ -137,8 +138,9 @@ export function TemplateMigration({
             {candidate.name}
           </option>
         ))}
-      </select>
-      <select
+      </Select>
+      <Select
+        appearance="embedded"
         className="mc-workbench-select"
         aria-label={t("mcProject.migrationModel")}
         value={modelKey}
@@ -149,7 +151,7 @@ export function TemplateMigration({
             {model.label}
           </option>
         ))}
-      </select>
+      </Select>
       <Button size="sm" variant="ghost" disabled={!modelKey || busy} onClick={() => void start()}>
         {t("mcProject.migrationStart")}
       </Button>

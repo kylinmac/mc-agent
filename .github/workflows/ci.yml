@@ -52,6 +52,8 @@ jobs:
         run: pnpm --filter @pi-desktop/desktop typecheck
 
       - name: Lint
+        env:
+          UI_STYLE_BASE: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD^' }}
         run: pnpm lint
 
       - name: Check process boundaries and architecture budgets

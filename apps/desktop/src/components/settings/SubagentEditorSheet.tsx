@@ -20,7 +20,7 @@ import {
   type UserSubagentRecord,
 } from "@pi-desktop/shared";
 import { useAppStore } from "../../stores/app-store";
-import { Button, Field, HelpIcon, Input, SettingsToggle, Textarea, TooltipButton, cx, portalOverlay } from "../ui";
+import { Button, Checkbox, Field, HelpIcon, Input, SettingsToggle, Textarea, TooltipButton, cx, portalOverlay } from "../ui";
 import { IconChevronRight, IconFolderOpen, IconX } from "../icons";
 import {
   groupSubagentModelChoices,
@@ -726,8 +726,7 @@ export function SubagentEditorSheet({
               <label
                 className={cx("ext-tool-opt", draft.inheritTools && "is-on")}
               >
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={draft.inheritTools}
                   onChange={(event) => set("inheritTools", event.target.checked)}
                 />
@@ -742,8 +741,7 @@ export function SubagentEditorSheet({
                     isSubagentMutatingTool(tool) && "is-mutating",
                   )}
                 >
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={draft.tools.includes(tool)}
                     onChange={(event) => toggleTool(tool, event.target.checked)}
                   />

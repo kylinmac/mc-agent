@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ResourceItem, ResourceListing, ResourceStatus } from "@pi-desktop/shared";
-import { Button } from "../../components/ui";
+import { Select, Button } from "../../components/ui";
 import { groupByCategory } from "./resource-view";
 
 const STATUS_KEYS: Record<ResourceStatus, string> = {
@@ -118,7 +118,8 @@ export function ResourceCatalog({
         <label className="mc-workbench-label" htmlFor="mc-resource-category">
           {t("mcProject.categoryLabel")}
         </label>
-        <select
+        <Select
+          appearance="embedded"
           id="mc-resource-category"
           className="mc-workbench-select"
           value={category}
@@ -130,7 +131,7 @@ export function ResourceCatalog({
               {name}
             </option>
           ))}
-        </select>
+        </Select>
         <Button size="sm" variant="ghost" onClick={() => onRegisterFile(category)}>
           {t("mcProject.registerFile")}
         </Button>

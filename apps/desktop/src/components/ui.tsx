@@ -633,8 +633,10 @@ export function Textarea({ className, spellCheck = false, autoCorrect = "off", a
   );
 }
 
-export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className={cx("field-select", className)} {...props} />;
+export function Select({
+  className, appearance = "field", ...props
+}: SelectHTMLAttributes<HTMLSelectElement> & { appearance?: "field" | "embedded" }) {
+  return <select className={cx(appearance === "field" && "field-select", className)} {...props} />;
 }
 
 export function Field({
@@ -784,19 +786,24 @@ export function Checkbox({
   indeterminate = false,
   ...props
 }: Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "ref"> & {
-  label: ReactNode;
+  /** Omit when the surrounding row provides the label or the input has an accessible name. */
+  label?: ReactNode;
   indeterminate?: boolean;
 }) {
+  const input = (
+    <input
+      type="checkbox"
+      ref={(node) => {
+        if (node) node.indeterminate = indeterminate;
+      }}
+      className={label === undefined ? className : "ds-checkbox"}
+      {...props}
+    />
+  );
+  if (label === undefined) return input;
   return (
     <label className={cx("ui-checkbox", className)}>
-      <input
-        type="checkbox"
-        ref={(node) => {
-          if (node) node.indeterminate = indeterminate;
-        }}
-        className="ds-checkbox"
-        {...props}
-      />
+      {input}
       <span>{label}</span>
     </label>
   );

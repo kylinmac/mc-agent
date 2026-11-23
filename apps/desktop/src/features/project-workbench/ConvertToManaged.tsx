@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ResourceTemplateSummary } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
-import { Button } from "../../components/ui";
+import { Select, Button } from "../../components/ui";
 
 /*
   A simple project (no resource folder) can become a managed one on request
@@ -54,7 +54,8 @@ export function ConvertToManaged({
   return (
     <>
       <span className="mc-workbench-tag">{t("mcProject.kindSimple")}</span>
-      <select
+      <Select
+        appearance="embedded"
         className="mc-workbench-select"
         aria-label={t("mcProject.templateLabel")}
         value={template}
@@ -69,7 +70,7 @@ export function ConvertToManaged({
             {candidate.name}
           </option>
         ))}
-      </select>
+      </Select>
       <Button size="sm" variant="ghost" disabled={busy} onClick={() => void convert()}>
         {busy ? t("mcProject.resourcesPreparing") : t("mcProject.convertToManaged")}
       </Button>

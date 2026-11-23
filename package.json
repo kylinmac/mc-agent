@@ -125,6 +125,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.13",
-    "@pi-desktop/plugin-devkit": "workspace:*"
+    "@pi-desktop/plugin-devkit": "workspace:*",
+    "postcss": "8.5.26",
+    "typescript": "5.9.3"
   }
 }

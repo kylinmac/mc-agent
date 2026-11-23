@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { CanvasElement, CanvasKind, CanvasThread } from "@pi-desktop/shared";
-import { Button } from "../../components/ui";
+import { Select, Button } from "../../components/ui";
 import { IconBrowser, IconDownload, IconPencil, IconPlus, IconTrash } from "../../components/icons";
 import { api } from "../../lib/api";
 import { isRemoteSession } from "../../lib/remote-session-safety";
@@ -318,7 +318,8 @@ export function CanvasTab({ canvasId }: { canvasId?: string }) {
           }}
         />
       ) : canvases.length ? (
-        <select
+        <Select
+          appearance="embedded"
           className="mc-canvas-tab-select"
           aria-label={t("mcProject.canvasSection")}
           value={shown?.id ?? ""}
@@ -329,7 +330,7 @@ export function CanvasTab({ canvasId }: { canvasId?: string }) {
               {`${candidate.kind === "whiteboard" ? "✏️" : "🖥"} ${candidate.title}`}
             </option>
           ))}
-        </select>
+        </Select>
       ) : (
         <span className="mc-canvas-muted">{t("mcProject.canvasSection")}</span>
       )}

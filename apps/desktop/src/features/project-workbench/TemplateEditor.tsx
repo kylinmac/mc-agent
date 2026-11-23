@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { ResourceTemplateSummary } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
-import { Button } from "../../components/ui";
+import { Select, Button } from "../../components/ui";
 import { IconClose, IconFolder, IconPlus } from "../../components/icons";
 import {
   addFolder,
@@ -118,7 +118,8 @@ export function TemplateManager({ onError }: { onError: (message: string) => voi
                 if (event.key === "Escape") setCreating(false);
               }}
             />
-            <select
+            <Select
+              appearance="embedded"
               className="mc-workbench-select"
               aria-label={t("mcProject.templateCopyFrom")}
               value={copyFrom}
@@ -130,7 +131,7 @@ export function TemplateManager({ onError }: { onError: (message: string) => voi
                   {t("mcProject.templateCopyFromName", { name: template.name })}
                 </option>
               ))}
-            </select>
+            </Select>
             <Button size="sm" disabled={busy || !newName.trim()} onClick={create}>
               {t("mcProject.templateCreate")}
             </Button>

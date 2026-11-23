@@ -1,10 +1,45 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { findLiteralSurfaceColors } from "../../../scripts/style-surface-tokens.mjs";
-import { designTokens, styleTokenIssues } from "../../../scripts/check-style-tokens.mjs";
+import { changedStyleLines, designTokens, styleTokenIssues } from "../../../scripts/check-style-tokens.mjs";
+
+test("spacing comparison includes branch commits, staged, unstaged and new CSS", (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), "mc-style-diff-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const git = (...args) => execFileSync("git", args, { cwd, stdio: "ignore" });
+  const commit = () => git("-c", "user.name=Test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false", "commit", "-qm", "fixture");
+  const dir = "apps/desktop/src/styles";
+  const file = dir + "/test space.css";
+  const write = (name, css) => writeFileSync(join(cwd, name), css);
+  git("init", "-q", "-b", "main");
+  mkdirSync(join(cwd, dir), { recursive: true });
+  write(file, ".old { gap: 8px }\n");
+  git("add", "--", file);
+  commit();
+  git("switch", "-qc", "branch");
+  write(file, ".old { gap: 8px }\n.committed { gap: 4px }\n");
+  git("add", "--", file);
+  commit();
+  const staged = dir + "/added.css", untracked = dir + "/new.css";
+  write(staged, ".staged { margin: 8px }\n");
+  git("add", "--", staged);
+  write(file, ".old { gap: 8px }\n.committed { gap: 4px }\n.pending { padding: 2px }\n");
+  write(untracked, ".new { margin: 8px }\n");
+  const component = "apps/desktop/src/Example.tsx";
+  write(component, "const view = <div style={{ gap: 8 }} />;\n");
+  const changed = changedStyleLines(cwd, "main");
+  assert.equal(changed(file, 1), false);
+  for (const [path, line] of [[file, 2], [file, 3], [staged, 1], [untracked, 1], [component, 1]]) {
+    assert.equal(changed(path, line), true, path + ":" + line);
+  }
+});
 
 test("renderer styles resolve design tokens in all themes and compact rules use the type scale", () => {
-  const tokens = designTokens(':root, :root[data-theme="dark"] { --ds-ink: black; }\n:root[data-theme="light"] { --ds-typo: red; }');
+  const tokens = designTokens(':root, :root[data-theme="dark"] { --ds-ink: black; }\n:root[data-theme="light"] { --ds-typo: red; }\n@theme { --text-base: 14px; }');
   const css = [
     "/* color: var(--ds-example); */",
     "@font-face { font-weight: 100 900; }",
@@ -16,6 +51,32 @@ test("renderer styles resolve design tokens in all themes and compact rules use 
   assert(issues.some(({ message }) => message.includes("--ds-typo")));
   assert.deepEqual(styleTokenIssues('const ink = "var(--ds-ink)";', ".ts", tokens), []);
   assert.equal(styleTokenIssues('<span className="text-[11px]" style={{ color: "var(--ds-missing)" }} />', ".tsx", tokens).length, 2);
+});
+
+test("shared scale names, literal fallbacks, and fixed spacing are checked in declarations", () => {
+  const names = designTokens(`
+    :root { --ds-space-8: 8px; } @theme { --text-base: 14px; --radius-xs: 2px; }
+    @media print { :root { --ds-print-only: red; } }
+  `);
+  const css = [
+    ".a { font-size: var(--text-bsae); border-radius: var(--radius-typo); }",
+    ".b { font-size: var(--text-base, 14px); gap: 8px; padding-inline: 0 8px; margin-block-start: 8px; }",
+    ".c { width: 8px; left: 8px; margin: auto; padding: calc(8px + 1vw); gap: var(--ds-space-8); }",
+    ".d { color: var(--ds-print-only); border-radius: var(--radius-xs, var(--radius-xs)); }",
+    ".e { content: 'font-size: 14px;'; }",
+  ].join("\n");
+  assert.deepEqual(styleTokenIssues(css, ".css", names).map(({ line }) => line).sort(),
+    [1, 1, 2, 2, 2, 2, 4]);
+  assert.equal(styleTokenIssues(".a { font-size: var(--text-deleted); }", ".css", new Set()).length, 1);
+  const tsx = [
+    '// Example: var(--ds-deleted) and text-[11px]',
+    'const url = "https://example.test"; // var(--text-obsolete)',
+    'const item = <div style={{ color: "var(--ds-missing)" }} />;',
+    'const radius = `var(--radius-typo)`;',
+    'const form = <div style={{ gap: 8, fontSize: "var(--text-base, 14px)", width: 8 }} />;',
+    'const chart = <div style={{ marginLeft: depth * 8 }} />;',
+  ].join("\n");
+  assert.deepEqual(styleTokenIssues(tsx, ".tsx", names).map(({ line }) => line), [3, 4, 5, 5]);
 });
 
 test("surface guard catches literal fills on base, theme, and focus rules", () => {

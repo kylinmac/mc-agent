@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProjectTask, ResourceItem, ResourceListing, WorkspaceNote } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
-import { Button, Input } from "../../components/ui";
+import { Select, Button, Input } from "../../components/ui";
 import { IconFolder, IconPlus } from "../../components/icons";
 import { shortenPath, type ProjectIndexItem } from "../../lib/project-archive";
 import { chooseStartFolder, rememberedStartFolder, rememberStartFolder } from "../../lib/projects/start-folder";
@@ -323,7 +323,8 @@ export function ProjectWorkbench({
         <label className="mc-workbench-label" htmlFor={`mc-start-${project.groupId}`}>
           {t("mcProject.startFolderLabel")}
         </label>
-        <select
+        <Select
+          appearance="embedded"
           id={`mc-start-${project.groupId}`}
           className="mc-workbench-select"
           value={startFolder}
@@ -334,7 +335,7 @@ export function ProjectWorkbench({
               {option.label}
             </option>
           ))}
-        </select>
+        </Select>
         <Button size="sm" variant="ghost" onClick={start}>
           <IconPlus size={13} />
           {t("mcProject.newSessionIn")}
